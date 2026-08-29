@@ -4,12 +4,11 @@ import {
   appendSlide,
   createElement,
   createScene,
-  findScene,
   removeSlide,
-  saveScene,
   setDisplayCount,
   touchScene
 } from './model.js';
+import { createSceneRemote, getScene, updateSceneRemote } from './store.js';
 import {
   buildCatalogTableRows,
   catalogTableColumns,
@@ -25,7 +24,12 @@ const state = {
   catalogStatus: 'idle',
   catalogError: '',
   autosaveTimer: null,
-  clockTimer: null
+  clockTimer: null,
+  dirtyVersion: 0,
+  savedVersion: 0,
+  saving: null,
+  saveQueued: false,
+  saveConflict: false
 };
 
 const TYPE_LABELS = Object.freeze({
@@ -57,7 +61,7 @@ function showMessage(message, error = false) {
   target.textContent = message;
   target.classList.remove('is-hidden');
   target.classList.toggle('is-error', error);
-  window.setTimeout(() => target.classList.add('is-hidden'), 1800);
+  window.setTimeout(() => target.classList.add('is-hidden'), error ? 4500 : 1800);
 }
 
 function setSaveState(text) {
@@ -65,18 +69,66 @@ function setSaveState(text) {
   if (target) target.textContent = text;
 }
 
-function persistScene({ notify = false } = {}) {
-  if (!state.scene) return;
+async function persistScene({ notify = false } = {}) {
+  if (!state.scene || state.saveConflict) return false;
+  window.clearTimeout(state.autosaveTimer);
+  state.autosaveTimer = null;
   state.scene.name = document.querySelector('#scene-name')?.value.trim() || state.scene.name || 'Новая сцена';
-  state.scene = saveScene(state.scene);
-  setSaveState('Сохранено');
-  if (notify) showMessage('Шаблон сохранён.');
+
+  if (state.saving) {
+    state.saveQueued = true;
+    return state.saving;
+  }
+  if (state.dirtyVersion <= state.savedVersion) {
+    setSaveState('Сохранено');
+    if (notify) showMessage('Шаблон сохранён.');
+    return true;
+  }
+
+  const savingVersion = state.dirtyVersion;
+  const payload = structuredClone(state.scene);
+  setSaveState('Сохранение…');
+  const operation = updateSceneRemote(payload);
+  state.saving = operation;
+
+  try {
+    const saved = await operation;
+    if (state.dirtyVersion === savingVersion) {
+      state.scene = saved;
+    } else {
+      state.scene.server_revision = saved.server_revision;
+      state.scene.created_at = saved.created_at;
+      state.scene.updated_at = saved.updated_at;
+    }
+    state.savedVersion = Math.max(state.savedVersion, savingVersion);
+    setSaveState(state.dirtyVersion > state.savedVersion ? 'Изменено' : 'Сохранено');
+    if (notify && state.dirtyVersion <= state.savedVersion) showMessage('Шаблон сохранён.');
+    return true;
+  } catch (error) {
+    if (error?.status === 409) {
+      state.saveConflict = true;
+      setSaveState('Конфликт изменений');
+      showMessage('Сцена была изменена в другой вкладке или другим пользователем. Обновите страницу, чтобы не потерять чужие изменения.', true);
+    } else {
+      setSaveState('Не сохранено');
+      showMessage(error?.message || 'Не удалось сохранить сцену.', true);
+    }
+    return false;
+  } finally {
+    state.saving = null;
+    if (!state.saveConflict && (state.saveQueued || state.dirtyVersion > state.savedVersion)) {
+      state.saveQueued = false;
+      queueMicrotask(() => void persistScene());
+    }
+  }
 }
 
 function scheduleAutosave() {
+  if (state.saveConflict) return;
+  state.dirtyVersion += 1;
   setSaveState('Изменено');
   window.clearTimeout(state.autosaveTimer);
-  state.autosaveTimer = window.setTimeout(() => persistScene(), 650);
+  state.autosaveTimer = window.setTimeout(() => void persistScene(), 650);
 }
 
 async function loadCatalogProducts({ force = false } = {}) {
@@ -514,7 +566,7 @@ function bindGlobalControls() {
     renderElements();
     renderInspector();
   });
-  document.querySelector('#scene-save').addEventListener('click', () => persistScene({ notify: true }));
+  document.querySelector('#scene-save').addEventListener('click', () => void persistScene({ notify: true }));
   document.querySelector('#scene-name').addEventListener('input', (event) => {
     state.scene.name = event.target.value;
     touchScene(state.scene);
@@ -548,9 +600,10 @@ function bindGlobalControls() {
     if (document.activeElement?.matches('input,select,textarea')) return;
     document.querySelector('#element-delete').click();
   });
-  window.addEventListener('beforeunload', () => {
-    window.clearTimeout(state.autosaveTimer);
-    persistScene();
+  window.addEventListener('beforeunload', (event) => {
+    if (state.dirtyVersion <= state.savedVersion && !state.saving) return;
+    event.preventDefault();
+    event.returnValue = '';
   });
 }
 
@@ -570,10 +623,19 @@ function syncClockTimer() {
   }, Math.max(1000, delay));
 }
 
-export function initialiseSceneEditor() {
+export async function initialiseSceneEditor() {
   const sceneId = new URLSearchParams(window.location.search).get('id');
-  state.scene = sceneId ? findScene(sceneId) : null;
-  if (!state.scene) state.scene = saveScene(createScene());
+  try {
+    state.scene = sceneId ? await getScene(sceneId) : await createSceneRemote(createScene());
+    if (!sceneId) window.history.replaceState(null, '', `/scene-editor?id=${encodeURIComponent(state.scene.id)}`);
+  } catch (error) {
+    setSaveState('Ошибка загрузки');
+    showMessage(error?.message || 'Не удалось открыть сцену.', true);
+    return;
+  }
+  state.dirtyVersion = 0;
+  state.savedVersion = 0;
+  state.saveConflict = false;
   bindInspector();
   bindGlobalControls();
   setSaveState('Сохранено');
