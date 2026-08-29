@@ -16,6 +16,32 @@ function screenIds(rows) {
   return [...new Set((rows || []).map((row) => Number(row.screen_id)).filter(Number.isSafeInteger))];
 }
 
+function trackedProductImportStore(store, updatedIds) {
+  return {
+    transaction(run) {
+      return store.transaction((tx) => run(new Proxy(tx, {
+        get(target, property, receiver) {
+          const value = Reflect.get(target, property, receiver);
+          if (property === 'updateProduct') {
+            return async (id, product) => {
+              const updated = await value.call(target, id, product);
+              if (updated) updatedIds.add(Number(id));
+              return updated;
+            };
+          }
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+      })));
+    }
+  };
+}
+
+async function notifyProductImportScreens(store, realtime, updatedIds) {
+  if (!realtime || updatedIds.size === 0) return;
+  const affected = await store.screensUsingCatalogIds('product', [...updatedIds]);
+  realtime.notifyScreens(screenIds(affected));
+}
+
 export function createCatalogRouter({ store, realtime }) {
   const router = express.Router();
 
@@ -31,16 +57,18 @@ export function createCatalogRouter({ store, realtime }) {
     response.json(await previewProductsImport(store, request.body));
   });
   router.post('/products/import', async (request, response) => {
+    const updatedIds = new Set();
+    const trackedStore = trackedProductImportStore(store, updatedIds);
     const result = Array.isArray(request.body?.rows)
-      ? await applyProductsImport(store, request.body.rows)
-      : await importProductsCsv(store, request.body?.csv);
+      ? await applyProductsImport(trackedStore, request.body.rows)
+      : await importProductsCsv(trackedStore, request.body?.csv);
     await activity(store, request, {
       action: 'catalog.products.imported',
       entity_type: 'catalog_product',
       entity_id: null,
       message: `Импортирована продукция: создано ${result.created}, обновлено ${result.updated}.`
     });
-    if (result.updated > 0) realtime?.notifyScreens((await store.listScreens()).map((screen) => screen.id));
+    await notifyProductImportScreens(store, realtime, updatedIds);
     response.json(result);
   });
   router.post('/products', async (request, response) => {
