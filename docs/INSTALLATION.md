@@ -1,62 +1,101 @@
-# Установка и эксплуатация MIRA-TV 1.0.0
+# Установка MIRA-TV
 
-## Требования
+Эта инструкция описывает установку MIRA-TV 1.0.0 на сервер с Ubuntu.
 
-- Ubuntu
-- root/sudo
-- публичный DNS A/AAAA для домена MIRA-TV
-- свободные TCP-порты 80 и 443
-- доступ к GitHub и Docker registry
+## Что понадобится
 
-Установщик сам устанавливает Docker Engine и Docker Compose plugin, если они отсутствуют.
+Перед началом подготовьте:
+
+- VPS или отдельный сервер с Ubuntu;
+- доменное имя, которое будет использоваться для MIRA-TV;
+- DNS-запись домена, направленную на IP-адрес сервера;
+- открытые TCP-порты `80` и `443`;
+- доступ к серверу с правами `root` или через `sudo`;
+- доступ сервера к GitHub и Docker Registry.
+
+Дополнительный порт для передачи файлов на телевизоры не нужен.
 
 ## Быстрая установка
+
+Скачайте установщик и запустите его:
 
 ```bash
 curl -fsSLo /tmp/mira-tv.sh https://raw.githubusercontent.com/ghost-raider-afk/MIRA-TV/main/mira-tv.sh
 sudo bash /tmp/mira-tv.sh install
 ```
 
-Установщик запросит:
+Во время установки потребуется указать:
 
-1. HTTPS-домен MIRA-TV без `https://`.
-2. Email для Let's Encrypt.
-3. Логин администратора.
+1. доменное имя без `https://`;
+2. email для получения HTTPS-сертификата;
+3. имя администратора.
 
-Пароль администратора, пароль PostgreSQL и session secret генерируются автоматически. Итоговый пароль администратора показывается один раз после успешного запуска.
+Пароль администратора, пароль базы данных и служебный секрет создаются автоматически.
 
-## Структура установки
+После успешной установки пароль администратора показывается один раз. Сохраните его в надёжном месте.
 
-- рабочий каталог: `/opt/MIRA-TV`
-- launcher: `/usr/local/bin/mira-tv`
-- Compose project: `mira-tv`
-- app container: `mira-tv`
-- PostgreSQL container: `mira-tv-db`
-- reverse proxy: `mira-tv-proxy`
-- init container: `mira-tv-site-assets-init`
-- database volume: `mira-tv-db-data`
-- site assets volume: `mira-tv-site-assets`
-- TLS volume: `mira-tv-letsencrypt`
-- internal network: `mira-tv-internal`
-- proxy network: `mira-tv-proxy`
+## Что создаётся на сервере
 
-Все сервисы входят в **один `compose.yaml`**. Отдельных Docker Compose проектов, отдельных proxy-каталогов и вручную создаваемых сетей нет.
+Основной каталог приложения:
 
-## Обычное управление Docker Compose
+```text
+/opt/MIRA-TV
+```
 
-Все команды выполняются из `/opt/MIRA-TV`:
+Файл настроек:
+
+```text
+/opt/MIRA-TV/.env
+```
+
+Команда управления установщиком:
+
+```text
+/usr/local/bin/mira-tv
+```
+
+Все серверные компоненты запускаются одним Docker Compose проектом с именем `mira-tv`.
+
+## Проверка после установки
+
+Перейдите в каталог приложения:
 
 ```bash
 cd /opt/MIRA-TV
 ```
 
-Запуск/приведение runtime к описанному состоянию:
+Проверьте состояние контейнеров:
 
 ```bash
+sudo docker compose ps
+```
+
+Проверьте логи приложения:
+
+```bash
+sudo docker compose logs -f --tail=200
+```
+
+Также откройте в браузере адрес:
+
+```text
+https://ваш-домен
+```
+
+Если страница открывается по HTTPS и контейнеры находятся в рабочем состоянии, базовая установка завершена.
+
+## Управление через Docker Compose
+
+MIRA-TV не требует специальных команд для обычной работы с Docker.
+
+Запуск:
+
+```bash
+cd /opt/MIRA-TV
 sudo docker compose up -d
 ```
 
-Проверка состояния:
+Просмотр состояния:
 
 ```bash
 sudo docker compose ps
@@ -65,7 +104,7 @@ sudo docker compose ps
 Логи:
 
 ```bash
-sudo docker compose logs -f --tail=200
+sudo docker compose logs -f
 ```
 
 Перезапуск:
@@ -74,86 +113,133 @@ sudo docker compose logs -f --tail=200
 sudo docker compose restart
 ```
 
-Остановка без удаления контейнеров:
+Остановка контейнеров без удаления:
 
 ```bash
 sudo docker compose stop
 ```
 
-Запуск остановленных контейнеров:
+Повторный запуск:
 
 ```bash
 sudo docker compose start
 ```
 
-Остановка и удаление контейнеров/сетей Compose-проекта с сохранением данных:
+Остановка и удаление контейнеров с сохранением данных:
 
 ```bash
 sudo docker compose down
 ```
 
-Пересборка приложения после изменения исходного кода/Dockerfile:
+Пересборка после изменения исходного кода:
 
 ```bash
 sudo docker compose up -d --build --wait
 ```
 
-Проверка итоговой Compose-конфигурации до запуска:
+Проверка файла `compose.yaml`:
 
 ```bash
 sudo docker compose config --quiet
 ```
 
-**Volumes с данными не удаляются обычным `down`.** Полное удаление данных выполняется только явно:
+## Важно о данных
+
+Команда:
+
+```bash
+sudo docker compose down
+```
+
+не удаляет базу данных и загруженные файлы.
+
+Команда:
 
 ```bash
 sudo docker compose down -v
 ```
 
+удаляет Docker volumes вместе с данными. Используйте её только если действительно хотите полностью удалить данные MIRA-TV.
+
 ## Команды установщика
 
-После установки доступен launcher `mira-tv`:
+После установки можно использовать команду `mira-tv`.
+
+Проверить состояние:
+
+```bash
+sudo mira-tv status
+```
+
+Проверить наличие обновления:
+
+```bash
+sudo mira-tv check-update
+```
+
+Обновить приложение:
 
 ```bash
 sudo mira-tv update
-sudo mira-tv status
-sudo mira-tv restart
-sudo mira-tv logs
-sudo mira-tv check-update
-sudo mira-tv remove
-sudo mira-tv purge
 ```
 
-Без аргументов открывается интерактивное меню:
+Перезапустить:
+
+```bash
+sudo mira-tv restart
+```
+
+Посмотреть логи:
+
+```bash
+sudo mira-tv logs
+```
+
+Открыть интерактивное меню:
 
 ```bash
 sudo mira-tv
 ```
 
-`remove` удаляет приложение, но сохраняет именованные volumes. `purge` удаляет приложение вместе с volumes.
-
 ## Обновление
+
+Для обычного обновления используйте:
 
 ```bash
 sudo mira-tv update
 ```
 
-Обновление переключает репозиторий на последний стабильный GitHub Release, сохраняет существующий `.env`, добавляет отсутствующие новые параметры из `.env.example`, проверяет Compose-конфигурацию и выполняет:
+Установщик сохраняет существующий файл `.env`, добавляет недостающие параметры из новой версии шаблона настроек, проверяет Docker Compose и запускает обновлённые контейнеры.
+
+Перед обновлением полезно проверить текущее состояние:
 
 ```bash
-docker compose up -d --build --wait
+cd /opt/MIRA-TV
+sudo docker compose ps
 ```
 
-## Конфигурация
+## Удаление
 
-Единственный runtime-файл конфигурации:
+Удалить приложение, сохранив Docker volumes с данными:
 
-```text
-/opt/MIRA-TV/.env
+```bash
+sudo mira-tv remove
 ```
 
-`.env` является источником runtime-лимитов и секретов. Не дублировать значения лимитов в Compose или коде без необходимости.
+Полностью удалить приложение вместе с данными:
 
-## Сетевой транспорт ТВ
+```bash
+sudo mira-tv purge
+```
 
-Отдельного файлового транспорта нет. TV Player работает через HTTPS/WebSocket, локальный Cache Storage и IndexedDB. Сервер не публикует JPEG-файлы в отдельные каталоги и не требует отдельного файлового сервиса.
+Полное удаление требует отдельного подтверждения.
+
+## Настройка после установки
+
+Основные параметры находятся в `.env`.
+
+Подробное описание: [CONFIGURATION.md](CONFIGURATION.md).
+
+## Следующий шаг
+
+После установки перейдите к руководству [USAGE.md](USAGE.md), чтобы создать первую торговую точку, экран и подключить телевизор.
