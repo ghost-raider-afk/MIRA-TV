@@ -81,25 +81,39 @@ function byteSize(value) {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
-async function trimLogs(db, limits, totals) {
-  if (totals.entries <= limits.maxEntries && totals.bytes <= limits.maxBytes) return totals;
-  const tx = db.transaction([LOG_STORE, STATE_STORE], 'readwrite');
-  const logs = tx.objectStore(LOG_STORE);
+function overLimit(totals, limits) {
+  return totals.entries > limits.maxEntries || totals.bytes > limits.maxBytes;
+}
+
+async function trimLogLevel(logs, level, totals, limits) {
+  if (!overLimit(totals, limits)) return;
   const cursorRequest = logs.openCursor();
   await new Promise((resolve, reject) => {
     cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Log trim cursor failed.'));
     cursorRequest.onsuccess = () => {
       const cursor = cursorRequest.result;
-      if (!cursor || (totals.entries <= limits.maxEntries && totals.bytes <= limits.maxBytes)) {
+      if (!cursor || !overLimit(totals, limits)) {
         resolve();
         return;
       }
-      totals.entries = Math.max(0, totals.entries - 1);
-      totals.bytes = Math.max(0, totals.bytes - Number(cursor.value?.size || 0));
-      cursor.delete();
+      if (String(cursor.value?.level || 'info') === level) {
+        totals.entries = Math.max(0, totals.entries - 1);
+        totals.bytes = Math.max(0, totals.bytes - Number(cursor.value?.size || 0));
+        cursor.delete();
+      }
       cursor.continue();
     };
   });
+}
+
+async function trimLogs(db, limits, totals) {
+  if (!overLimit(totals, limits)) return totals;
+  const tx = db.transaction([LOG_STORE, STATE_STORE], 'readwrite');
+  const logs = tx.objectStore(LOG_STORE);
+  for (const level of ['info', 'warn', 'error']) {
+    await trimLogLevel(logs, level, totals, limits);
+    if (!overLimit(totals, limits)) break;
+  }
   tx.objectStore(STATE_STORE).put({ key: LOG_TOTALS_KEY, value: totals });
   await transactionDone(tx);
   return totals;
