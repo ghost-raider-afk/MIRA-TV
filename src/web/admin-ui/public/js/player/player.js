@@ -11,6 +11,7 @@ import { renderEnvironmentLayer } from '../motion/environment.js';
 import { ScenePlaylistRuntime } from '../motion/scene-playlist-runtime.js';
 import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js';
 import { GpuSceneRuntime } from './gpu-scene-runtime.js';
+import { PublishedSceneRuntime } from './published-scene-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
 import { createPlayerStateSync } from './player-state-sync.js';
 
@@ -26,7 +27,11 @@ const ALL_PLAYER_COMPONENTS = Object.freeze([
   'entity',
   'brand',
   'announcement',
+  'scene',
   'runtime'
+]);
+const LEGACY_RENDER_COMPONENTS = Object.freeze([
+  'screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement'
 ]);
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
@@ -43,6 +48,7 @@ const sceneLayers = new PlayerSceneLayerComposer(playerStage);
 const flatMenuRenderer = new FlatMenuRenderer();
 const gpuSceneRuntime = new GpuSceneRuntime(playerStage, { composer: sceneLayers });
 const scenePlaylistRuntime = new ScenePlaylistRuntime();
+const publishedSceneRuntime = new PublishedSceneRuntime(sceneLayers.ensure('scene', { ariaLabel: 'Опубликованная сцена' }));
 
 let pollTimer = null;
 let expiryTimer = null;
@@ -60,6 +66,7 @@ function dispatchPlayerActivity(active) {
   const value = active === true;
   if (playerStage instanceof HTMLElement) playerStage.dataset.playerActive = value ? 'true' : 'false';
   playerStage?.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: value } }));
+  publishedSceneRuntime.setActive(value);
 }
 
 function syncPlayerPageVisibility() {
@@ -192,6 +199,7 @@ function showActivationScreen() {
   scenePlaylistRuntime.destroy();
   gpuSceneRuntime.destroy();
   flatMenuRenderer.destroy();
+  publishedSceneRuntime.destroyScene();
   setHidden(player, true);
   dispatchPlayerActivity(false);
   setHidden(activationView, false);
@@ -388,6 +396,17 @@ function sameOriginAsset(value) {
   }
 }
 
+function clearLegacyLayers(layers) {
+  for (const layer of layers) {
+    layer.replaceChildren();
+    layer.classList.add('is-hidden');
+  }
+}
+
+function showLegacyLayers(layers) {
+  for (const layer of layers) layer.classList.remove('is-hidden');
+}
+
 async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS) {
   const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
   const {
@@ -397,8 +416,28 @@ async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS
     content: contentLayer,
     entity: entityLayer,
     brand: brandLayer,
-    announcement: announcementLayer
+    announcement: announcementLayer,
+    scene: publishedSceneLayer
   } = sceneLayers.ensureCore();
+  const legacyLayers = [environmentLayer, menuLayer, fxLayer, contentLayer, entityLayer, brandLayer, announcementLayer];
+  const publishedActive = Boolean(context.scene?.graph);
+  const publishedWasActive = publishedSceneRuntime.enabled;
+
+  if (publishedActive) {
+    scenePlaylistRuntime.destroy();
+    gpuSceneRuntime.destroy();
+    flatMenuRenderer.destroy();
+    clearLegacyLayers(legacyLayers);
+    publishedSceneLayer.classList.remove('is-hidden');
+    if (dirty.has('scene') || dirty.has('screen') || !publishedWasActive) publishedSceneRuntime.render(context.scene);
+    return;
+  }
+
+  publishedSceneRuntime.destroyScene();
+  showLegacyLayers(legacyLayers);
+  if (publishedWasActive) {
+    for (const name of LEGACY_RENDER_COMPONENTS) dirty.add(name);
+  }
 
   const menuDirty = dirty.has('menu') || dirty.has('screen');
   const gpuDirty = menuDirty || dirty.has('animation');
