@@ -28,10 +28,12 @@ test('MIRA-TV owns the repository, runtime and installer namespace', async () =>
   assert.match(compose, /container_name: mira-tv-proxy\b/);
 });
 
-test('new MIRA-TV documentation and vector brand assets exist', async () => {
+test('MIRA-TV public documentation and vector brand assets exist', async () => {
   for (const path of [
-    'docs/ARCHITECTURE.md', 'docs/INSTALLATION.md', 'docs/TV-PLAYER-OFFLINE-FIRST.md',
-    'docs/RESOURCE-BUDGET.md', 'docs/REALTIME-SYNC.md', 'docs/BRANDING.md',
+    'README.md', 'CONTRIBUTING.md', 'docs/README.md',
+    'docs/ARCHITECTURE.md', 'docs/INSTALLATION.md', 'docs/CONFIGURATION.md',
+    'docs/USAGE.md', 'docs/PLAYER.md', 'docs/ANIMATION.md', 'docs/PERFORMANCE.md',
+    'docs/TROUBLESHOOTING.md', 'docs/DEPLOYMENT-CHECKLIST.md', 'docs/BRANDING.md', 'docs/ROADMAP.md',
     'src/web/admin-ui/public/brand/mira-tv-mark.svg',
     'src/web/admin-ui/public/brand/mira-tv-logo.svg',
     'src/web/admin-ui/public/brand/mira-tv-splash.svg'
