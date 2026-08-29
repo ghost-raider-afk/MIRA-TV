@@ -50,7 +50,7 @@ export class PublishedSceneRuntime {
     const graph = validGraph(this.component);
     if (!graph) return;
     const slide = graph.slides[this.slideIndex] || graph.slides[0];
-    applySceneStage(this.layer, graph, slide);
+    applySceneStage(this.layer, graph, slide, { constrainAspect: false });
     renderSceneLayer(this.layer, {
       scene: graph,
       slide,
