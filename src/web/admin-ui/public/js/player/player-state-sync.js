@@ -10,15 +10,8 @@ import {
 } from './player-store.js';
 
 const ALL_COMPONENTS = Object.freeze([
-  'screen',
-  'menu',
-  'animation',
-  'environment',
-  'scene_playlist',
-  'entity',
-  'brand',
-  'announcement',
-  'runtime'
+  'screen', 'menu', 'animation', 'environment', 'scene_playlist',
+  'entity', 'brand', 'announcement', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
@@ -55,18 +48,55 @@ function mergeDelta(context, changed, metadata) {
       next.draft = value?.draft || { rows: [], settings: {}, revision: 0 };
       next.products = value?.products || [];
       next.packaging = value?.packaging || [];
-      continue;
-    }
-    if (name === 'runtime') {
+    } else if (name === 'runtime') {
       Object.assign(next, value || {});
-      continue;
+    } else {
+      next[name] = value;
     }
-    next[name] = value;
   }
   next.schema_version = metadata.schema_version;
   next.revision = metadata.revision;
   next.hashes = metadata.hashes;
   return next;
+}
+
+function localAsset(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text, location.origin);
+    if (url.origin !== location.origin || !url.pathname.startsWith('/site-assets/')) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function activeAssetManifest(context) {
+  const assets = [
+    context?.draft?.settings?.background_image_url,
+    context?.entity?.asset_url,
+    context?.entity?.poster_url
+  ].map(localAsset).filter(Boolean);
+  return [...new Set(assets)];
+}
+
+async function prepareCriticalAssets(context, changedNames) {
+  const dirty = new Set(changedNames || []);
+  if (!dirty.has('menu') && !dirty.has('screen')) return;
+  const background = localAsset(context?.draft?.settings?.background_image_url);
+  if (!background) return;
+  const response = await fetch(background, { cache: 'force-cache', credentials: 'same-origin' });
+  if (!response.ok) throw new Error(`Critical Player background unavailable: HTTP ${response.status}`);
+}
+
+function publishActiveAssets(context) {
+  if (!('serviceWorker' in navigator)) return;
+  const message = { type: 'mira:player-active-assets', assets: activeAssetManifest(context) };
+  void navigator.serviceWorker.ready.then((registration) => {
+    const target = navigator.serviceWorker.controller || registration.active;
+    target?.postMessage(message);
+  }).catch(() => undefined);
 }
 
 function publicLogRecord(record) {
@@ -123,7 +153,7 @@ export function createPlayerStateSync({
 
   function log(type, data = {}, level = 'info') {
     sequence += 1;
-    const event = {
+    void appendPlayerLog({
       boot_id: currentBootId,
       seq: sequence,
       level,
@@ -131,8 +161,7 @@ export function createPlayerStateSync({
       revision: active?.revision || '',
       device_timestamp: new Date().toISOString(),
       data
-    };
-    void appendPlayerLog(event, {
+    }, {
       maxEntries: runtime.logMaxEntries,
       maxBytes: runtime.logMaxBytes
     }).catch(() => undefined);
@@ -207,8 +236,10 @@ export function createPlayerStateSync({
   }
 
   async function applyCandidate(context, metadata, changedNames, source) {
+    await prepareCriticalAssets(context, changedNames);
     await prepareAssets?.(context, changedNames);
     await applyContext(context, changedNames, { source });
+
     active = {
       schema_version: metadata.schema_version,
       revision: metadata.revision,
@@ -216,12 +247,15 @@ export function createPlayerStateSync({
       context
     };
     updateRuntime(context);
+
     try {
       await persistLastKnownGood();
+      publishActiveAssets(context);
       onLastKnownGood?.(context);
     } catch (error) {
       console.warn('MIRA-TV could not persist Last Known Good state', error);
     }
+
     log('state.applied', { source, changed: changedNames.slice(0, 12) });
     void warmAssets?.(context, changedNames);
   }
@@ -347,6 +381,7 @@ export function createPlayerStateSync({
       active = record;
       updateRuntime(record.context);
       await applyContext(record.context, [...ALL_COMPONENTS], { source: 'last-known-good' });
+      publishActiveAssets(record.context);
       onLastKnownGood?.(record.context);
       log('state.restored', { saved: true });
       onConnectivity?.('offline');
