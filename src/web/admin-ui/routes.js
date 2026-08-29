@@ -1,5 +1,7 @@
 export const AUTHENTICATED_PAGES = Object.freeze([
   Object.freeze({ path: '/', file: 'index.html' }),
+  Object.freeze({ path: '/scenes', file: 'scenes.html' }),
+  Object.freeze({ path: '/scene-editor', file: 'scene-editor.html' }),
   Object.freeze({ path: '/locations', file: 'locations.html' }),
   Object.freeze({ path: '/screens', file: 'screens.html' }),
   Object.freeze({ path: '/catalog', file: 'catalog.html' }),
@@ -13,6 +15,8 @@ export const AUTHENTICATED_PAGES = Object.freeze([
 
 export const LEGACY_PAGE_REDIRECTS = Object.freeze(new Map([
   ['/index.html', '/'],
+  ['/scenes.html', '/scenes'],
+  ['/scene-editor.html', '/scene-editor'],
   ['/locations.html', '/locations'],
   ['/screens.html', '/screens'],
   ['/catalog.html', '/catalog'],

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="scenes">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content scenes-page">
+          <div class="page-heading compact-heading">
+            <div>
+              <p class="eyebrow">КОНСТРУКТОР</p>
+              <h1>Сцены</h1>
+            </div>
+            <div class="compact-heading-actions">
+              <span>Создавайте сцены и шаблоны отдельно от конкретных торговых точек и телевизоров.</span>
+              <button class="button button-primary" id="create-scene" type="button">+ Создать сцену</button>
+            </div>
+          </div>
+          <p class="form-message is-hidden" id="scenes-message" role="status"></p>
+          <section class="scene-library" id="scene-library" aria-live="polite"></section>
+          <div class="scene-empty is-hidden" id="scene-empty">
+            <strong>Сцен пока нет</strong>
+            <span>Создайте первую сцену, настройте слайды и сохраните её как шаблон.</span>
+            <button class="button button-primary" id="create-first-scene" type="button">Создать первую сцену</button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

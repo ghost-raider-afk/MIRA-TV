@@ -2,6 +2,8 @@ import { pageName } from './config.js';
 
 export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Обзор', prefetch: false }),
+  Object.freeze({ path: '/scenes', page: 'scenes', section: 'scenes', title: 'Сцены', prefetch: true }),
+  Object.freeze({ path: '/scene-editor', page: 'scene-editor', section: 'scenes', title: 'Конструктор сцены', prefetch: true }),
   Object.freeze({ path: '/locations', page: 'locations', section: 'monitors', title: 'Торговые точки', prefetch: true }),
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
@@ -37,6 +39,7 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([['Обзор', '/']]),
+  scenes: Object.freeze([['Сцены', '/scenes']]),
   monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   playlist: Object.freeze([['Плейлист', '/playlist']]),
@@ -44,6 +47,7 @@ const CONTEXT_LINKS = Object.freeze({
 });
 
 export const PRIMARY_ROUTES = Object.freeze([
+  Object.freeze({ key: 'scenes', label: 'Сцены', href: '/scenes', icon: 'motion' }),
   Object.freeze({ key: 'monitors', label: 'Мониторы', href: '/screens', icon: 'monitor' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
   Object.freeze({ key: 'playlist', label: 'Плейлист', href: '/playlist', icon: 'motion' }),
@@ -64,6 +68,7 @@ export function routeIsActive(href, currentPage = pageName()) {
   if (href === '/') return currentPage === 'overview';
   const target = new URL(href, window.location.origin);
   if (currentPage === 'screen-editor' && canonicalRoutePath(target.pathname) === '/screens') return true;
+  if (currentPage === 'scene-editor' && canonicalRoutePath(target.pathname) === '/scenes') return true;
   if (canonicalRoutePath(window.location.pathname) !== canonicalRoutePath(target.pathname)) return false;
   if (!target.hash) return true;
   return window.location.hash === target.hash;

@@ -21,6 +21,14 @@ async function initialisePage(name) {
       const { initialiseDashboard } = await import('./pages/dashboard.js');
       return initialiseDashboard();
     }
+    case 'scenes': {
+      const { initialiseScenes } = await import('./pages/scenes.js');
+      return initialiseScenes();
+    }
+    case 'scene-editor': {
+      const { initialiseSceneEditor } = await import('./scenes/editor.js');
+      return initialiseSceneEditor();
+    }
     case 'settings': {
       const { initialiseSettings } = await import('./pages/settings.js');
       return initialiseSettings();
