@@ -26,15 +26,19 @@ test('TV Entity runtime is event-driven and pauses hidden motion plus video', as
   assert.match(source, /visibilitychange/);
   assert.match(source, /runtime\.pause\(\)/);
   assert.match(source, /media\.pause\(\)/);
-  assert.match(source, /stage\.dataset\.playerActive/);
-  assert.match(source, /stage\.dataset\.playerPageVisible/);
+  assert.doesNotMatch(source, /dataset\.playerActive|dataset\.playerPageVisible/, 'Entity owner must not own global Player visibility state');
 });
 
-test('TV GPU and CSS animations suspend whenever their pixels are not visible', async () => {
-  const [gpu, css] = await Promise.all([
+test('Player owner publishes visibility while GPU and CSS animations suspend invisible pixels', async () => {
+  const [player, gpu, css] = await Promise.all([
+    read('js/player/player.js'),
     read('js/player/gpu-scene-runtime.js'),
     read('css/motion-overlays.css')
   ]);
+  assert.match(player, /playerStage\.dataset\.playerActive/);
+  assert.match(player, /playerStage\.dataset\.playerPageVisible/);
+  assert.match(player, /dispatchPlayerActivity\(false\)/);
+  assert.match(player, /dispatchPlayerActivity\(true\)/);
   assert.doesNotMatch(gpu, /requestAnimationFrame/);
   assert.match(gpu, /mira:player-active/);
   assert.match(gpu, /mira:scene-playlist-mode/);
