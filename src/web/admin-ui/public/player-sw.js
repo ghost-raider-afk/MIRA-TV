@@ -123,7 +123,7 @@ async function cachedShell(request, fallbackPath = null) {
     if (response.ok) await cache.put(request, response.clone());
     return response;
   } catch {
-    return cached || Response.error();
+    return Response.error();
   }
 }
 
@@ -131,36 +131,52 @@ async function cachedAsset(request) {
   const cache = await caches.open(DATA_CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok && response.status === 200) await cache.put(request, response.clone());
-  return response;
+  try {
+    const response = await networkWithTimeout(request, 8000);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch {
+    return Response.error();
+  }
 }
 
 async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
-  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials, mode: request.mode });
+  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
   const cached = await cache.match(fullRequest);
-  if (cached) return cached;
+  if (cached) {
+    // HTTP Range is optional. Returning the cached full 200 response lets the native
+    // media stack consume the stream without copying the whole video into JS memory.
+    return cached;
+  }
   if (!request.headers.has('range')) return cachedAsset(request);
-  return fetch(request);
+  try {
+    // Keep uncached Range traffic native and never store partial 206 responses as full assets.
+    return await networkWithTimeout(request, 8000);
+  } catch {
+    return Response.error();
+  }
 }
 
 self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  if (request.method !== 'GET') return;
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
 
-  if (request.mode === 'navigate' && url.pathname === '/player') {
-    event.respondWith(cachedShell(request, '/player.html'));
+  if (event.request.mode === 'navigate' && url.pathname === '/player.html') {
+    event.respondWith(Response.redirect(new URL('/player', self.location.origin).href, 308));
+    return;
+  }
+  if (event.request.mode === 'navigate' && url.pathname === '/player') {
+    event.respondWith(cachedShell(event.request, '/player.html'));
     return;
   }
   if (SHELL_ASSETS.includes(url.pathname)) {
-    event.respondWith(cachedShell(request));
+    event.respondWith(cachedShell(event.request));
     return;
   }
-  if (url.pathname.startsWith('/site-assets/')) {
-    if (/\.(mp4|webm)$/i.test(url.pathname)) event.respondWith(videoRequest(request));
-    else event.respondWith(cachedAsset(request));
+  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
+    event.respondWith(videoRequest(event.request));
+    return;
   }
+  if (url.pathname.startsWith('/site-assets/')) event.respondWith(cachedAsset(event.request));
 });
