@@ -12,6 +12,7 @@ import { hashPassword } from './services/password-service.js';
 import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
+import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
 import { createSessionRouter } from './api/session/routes.js';
@@ -70,9 +71,22 @@ async function cleanupEvents(store, config) {
   }
 }
 
+async function cleanupPlayerLogs(store, config) {
+  if (typeof store?.prunePlayerLogs !== 'function') return 0;
+  try {
+    const removed = await store.prunePlayerLogs(config.eventJournalRetentionDays);
+    if (removed) logger.info('Expired TV player logs removed', { removed });
+    return removed;
+  } catch (error) {
+    logger.warn('Expired TV player logs could not be removed', { error });
+    return 0;
+  }
+}
+
 async function recoverRuntimeState(store, config) {
   await cleanupDeviceActivations(store, config);
   await cleanupEvents(store, config);
+  await cleanupPlayerLogs(store, config);
 }
 
 function configureSecurity(app, config) {
@@ -193,6 +207,7 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   await initialiseStore(store, config);
   await recoverRuntimeState(store, config);
 
+  const realtime = createPlayerRealtime({ store });
   const app = express();
   configureSecurity(app, config);
   mountPublicRoutes(app, { store, config });
@@ -200,12 +215,12 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
 
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession } = createSessionMiddleware(resolveSession);
-  const dependencies = { store, config };
+  const dependencies = { store, config, realtime };
   mountProtectedApi(app, dependencies, requireApiSession);
   mountFrontend(app, requirePageSession);
   app.use(errorHandler);
 
-  return { app, store, config };
+  return { app, store, config, realtime };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -217,10 +232,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       port: service.config.port
     });
   });
+  service.realtime.attach(server);
   const maintenanceTimer = setInterval(
     () => {
       void cleanupDeviceActivations(service.store, service.config);
       void cleanupEvents(service.store, service.config);
+      void cleanupPlayerLogs(service.store, service.config);
     },
     service.config.deviceActivationCleanupMinutes * 60 * 1000
   );
@@ -228,6 +245,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.once(signal, () => {
       clearInterval(maintenanceTimer);
+      service.realtime.close();
       logger.info('MIRA-TV server stopping', { signal });
       server.close(() => void service.store.close());
     });
