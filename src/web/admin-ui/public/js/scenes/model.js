@@ -1,6 +1,5 @@
 import { normaliseTableConfig } from './catalog-table.js';
 
-const STORAGE_KEY = 'mira-tv.prototype.scenes.v1';
 const DEFAULT_DISPLAY_WIDTH = 1920;
 const DEFAULT_DISPLAY_HEIGHT = 1080;
 const MIN_DISPLAYS = 1;
@@ -183,64 +182,4 @@ export function normaliseScene(source) {
   }
   if (!scene.slides.some((slide) => slide.id === scene.active_slide_id)) scene.active_slide_id = scene.slides[0].id;
   return scene;
-}
-
-function resolveStorage(storage) {
-  if (storage) return storage;
-  if (typeof window === 'undefined') return null;
-  return window.localStorage;
-}
-
-export function loadScenes(storage) {
-  const target = resolveStorage(storage);
-  if (!target) return [];
-  try {
-    const parsed = JSON.parse(target.getItem(STORAGE_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.map(normaliseScene) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveScenes(scenes, storage) {
-  const target = resolveStorage(storage);
-  if (!target) return;
-  target.setItem(STORAGE_KEY, JSON.stringify(scenes));
-}
-
-export function saveScene(scene, storage) {
-  const scenes = loadScenes(storage);
-  const normalised = normaliseScene(scene);
-  touchScene(normalised);
-  const index = scenes.findIndex((item) => item.id === normalised.id);
-  if (index >= 0) scenes[index] = normalised;
-  else scenes.unshift(normalised);
-  saveScenes(scenes, storage);
-  return normalised;
-}
-
-export function deleteScene(sceneId, storage) {
-  const scenes = loadScenes(storage).filter((scene) => scene.id !== sceneId);
-  saveScenes(scenes, storage);
-}
-
-export function findScene(sceneId, storage) {
-  return loadScenes(storage).find((scene) => scene.id === sceneId) || null;
-}
-
-export function duplicateScene(sceneId, storage) {
-  const source = findScene(sceneId, storage);
-  if (!source) return null;
-  const copy = deepClone(source);
-  copy.id = id('scene');
-  copy.name = `${source.name} — копия`;
-  copy.slides = copy.slides.map((slide) => ({
-    ...slide,
-    id: id('slide'),
-    elements: slide.elements.map((element) => ({ ...element, id: id('element') }))
-  }));
-  copy.active_slide_id = copy.slides[0].id;
-  copy.created_at = new Date().toISOString();
-  copy.updated_at = copy.created_at;
-  return saveScene(copy, storage);
 }
