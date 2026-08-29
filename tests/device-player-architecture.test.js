@@ -67,6 +67,9 @@ test('real TV player owns all scene layers and uses one offline-first state owne
 
   assert.doesNotMatch(worker, /PLAYER_CONTEXT|\/api\/device\/player-context/);
   assert.match(worker, /const cached = await cache\.match\(request\);\s*if \(cached\) return cached;/);
+  assert.match(worker, /async function ensureActiveAssets/);
+  assert.match(worker, /async function syncActiveAssets/);
+  assert.match(worker, /if \(!complete\) return/);
 
   assert.match(playerHtml, /\/css\/brand-motion-v2\.css/);
   assert.match(playerHtml, /\/css\/scene-playlist\.css/);
@@ -75,6 +78,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(player, /restoreLastKnownGood\(\)/);
   assert.match(player, /syncNow\('boot'\)/);
   assert.doesNotMatch(player, /PLAYER_CONTEXT_STORAGE_KEY|playerContextEtag|refreshTimer|playerRefreshMs|fetchPlayerContext/);
+  assert.doesNotMatch(player, /warmPlayerAssetCache/);
   assert.match(store, /const DB_NAME = 'mira-tv-player'/);
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
   assert.match(store, /export async function saveLastKnownGood/);
@@ -85,6 +89,8 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(sync, /appendPlayerLog/);
   assert.match(sync, /pendingPlayerLogs/);
   assert.match(sync, /acknowledgePlayerLogs/);
+  assert.match(sync, /activeAssetManifest/);
+  assert.match(sync, /mira:player-active-assets/);
   assert.match(realtimeClient, /new WebSocket\(`/);
   assert.match(realtimeClient, /BACKOFF_MS/);
 
@@ -96,7 +102,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(player, /scenePlaylistRuntime\.render\(context\.scene_playlist/);
   assert.match(player, /playerMenuRenderMode\(context\)/);
   assert.match(player, /profile:\s*context\.animation\?\.profile/);
-  assert.match(player, /sameOriginAsset\(context\?\.entity\?\.asset_url\)/);
+  assert.doesNotMatch(player, /context\?\.entity\?\.asset_url/);
   assert.doesNotMatch(player, /LiveMenuMotion|WasmMotionDriver|MutationObserver/);
   assert.match(gpuRuntime, /effect\.animate\(/);
   assert.match(gpuRuntime, /mira:scene-playlist-mode/);
@@ -148,12 +154,18 @@ test('scene entity normalization accepts an absent entity from player context', 
 });
 
 test('offline player caches Video Entity once without copying cached Range requests through JavaScript', async () => {
-  const [worker, player] = await Promise.all([
+  const [worker, sync] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
-    read('src/web/admin-ui/public/js/player/player.js')
+    read('src/web/admin-ui/public/js/player/player-state-sync.js')
   ]);
-  assert.match(player, /warmPlayerAssetCache/);
-  assert.match(player, /cache: 'force-cache'/);
+  assert.match(sync, /activeAssetManifest/);
+  assert.match(sync, /context\?\.entity\?\.asset_url/);
+  assert.match(sync, /mira:player-active-assets/);
+  assert.match(worker, /async function ensureActiveAssets/);
+  assert.match(worker, /for \(const href of active\)/);
+  assert.match(worker, /fetch\(request, \{ cache: 'force-cache' \}\)/);
+  assert.match(worker, /async function syncActiveAssets/);
+  assert.match(worker, /if \(!complete\) return/);
   assert.match(worker, /async function cachedAsset/);
   assert.match(worker, /async function videoRequest/);
   assert.match(worker, /const fullRequest = new Request\(request\.url/);
