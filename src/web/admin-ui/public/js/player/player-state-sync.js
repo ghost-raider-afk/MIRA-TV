@@ -11,13 +11,14 @@ import {
 
 const ALL_COMPONENTS = Object.freeze([
   'screen', 'menu', 'animation', 'environment', 'scene_playlist',
-  'entity', 'brand', 'announcement', 'runtime'
+  'entity', 'brand', 'announcement', 'scene', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
 const DEFAULT_LOG_MAX_ENTRIES = 5000;
 const DEFAULT_LOG_MAX_BYTES = 10 * 1024 * 1024;
 const MAX_LOG_BATCHES_PER_FLUSH = 4;
+const LOG_RETRY_MS = 5_000;
 
 function bootId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -180,10 +181,10 @@ export function createPlayerStateSync({
   }
 
   function scheduleFallbackPoll() {
-    if (!started || websocketConnected || fallbackTimer) return;
+    if (!started || websocketConnected || fallbackTimer || !navigator.onLine) return;
     fallbackTimer = setTimeout(async () => {
       fallbackTimer = null;
-      if (!started || websocketConnected) return;
+      if (!started || websocketConnected || !navigator.onLine) return;
       await syncNow('fallback').catch(() => undefined);
       scheduleFallbackPoll();
     }, runtime.fallbackPollMs);
@@ -222,7 +223,9 @@ export function createPlayerStateSync({
         await acknowledgePlayerLogs(batchBootId, body.accepted_through);
       }
       scheduleLogFlush(2000);
-    })().catch(() => undefined).finally(() => {
+    })().catch(() => {
+      if (started && navigator.onLine && logFlushNeeded) scheduleLogFlush(LOG_RETRY_MS);
+    }).finally(() => {
       logFlushPromise = null;
     });
     return logFlushPromise;
@@ -355,6 +358,27 @@ export function createPlayerStateSync({
     return syncPromise;
   }
 
+  async function handleNetworkOnline() {
+    if (!started) return;
+    log('network.online');
+    clearFallbackTimer();
+    scheduleFallbackPoll();
+    const result = await syncNow('network-online');
+    log('network.reconciled', {
+      ok: result?.ok === true,
+      changed: result?.changed === true,
+      has_context: result?.hasContext === true
+    }, result?.ok === true ? 'info' : 'warn');
+    scheduleLogFlush(0);
+  }
+
+  function handleNetworkOffline() {
+    if (!started) return;
+    clearFallbackTimer();
+    log('network.offline', {}, 'warn');
+    onConnectivity?.('offline');
+  }
+
   const realtime = createPlayerRealtimeClient({
     onChanged(message) {
       if (message?.revision && message.revision === active?.revision) return;
@@ -400,6 +424,8 @@ export function createPlayerStateSync({
   function start() {
     if (started) return;
     started = true;
+    window.addEventListener('online', handleNetworkOnline);
+    window.addEventListener('offline', handleNetworkOffline);
     realtime.start();
     scheduleFallbackPoll();
     scheduleLogFlush(250);
@@ -409,6 +435,8 @@ export function createPlayerStateSync({
     if (!started && !fallbackTimer && !logFlushTimer) return;
     started = false;
     websocketConnected = false;
+    window.removeEventListener('online', handleNetworkOnline);
+    window.removeEventListener('offline', handleNetworkOffline);
     clearFallbackTimer();
     clearLogFlushTimer();
     realtime.stop();
