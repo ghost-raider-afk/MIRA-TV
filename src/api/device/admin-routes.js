@@ -18,7 +18,7 @@ function activationSummary(record) {
   };
 }
 
-export function createDeviceAdminRouter({ store }) {
+export function createDeviceAdminRouter({ store, realtime }) {
   const router = express.Router();
 
   router.post('/resolve', async (request, response) => {
@@ -103,6 +103,7 @@ export function createDeviceAdminRouter({ store }) {
     if (!screen) throw notFound();
     const revoked = await store.revokeDeviceByScreen(screenId);
     if (revoked) {
+      realtime?.disconnectScreen(screenId);
       await activity(store, request, {
         action: 'device.revoked',
         entity_type: 'screen',
