@@ -120,7 +120,7 @@ test('Entity Editor renders image or video on a layer independent from menu and 
   assert.doesNotMatch(animationContract, /profile:\s*\{[^}]*entity/s);
 });
 
-test('TV player receives, renders and caches Video Entity with offline Range support', async () => {
+test('TV player receives, renders and caches Video Entity without JavaScript byte-range copies', async () => {
   const [routes, playerContextService, player, playerCss, serviceWorker] = await Promise.all([
     read('api/device/public-routes.js'), read('services/player-context-service.js'), read('web/admin-ui/public/js/player/player.js'),
     read('web/admin-ui/public/css/player.css'), read('web/admin-ui/public/player-sw.js')
@@ -132,7 +132,8 @@ test('TV player receives, renders and caches Video Entity with offline Range sup
   assert.match(player, /context\?\.entity\?\.asset_url/);
   assert.match(playerCss, /\.tv-player-entity-layer/);
   assert.match(serviceWorker, /\/js\/motion\/entity-editor\.js/);
-  assert.match(serviceWorker, /cachedVideoRange/);
-  assert.match(serviceWorker, /status:\s*206/);
-  assert.match(serviceWorker, /Content-Range/);
+  assert.match(serviceWorker, /async function videoRequest/);
+  assert.match(serviceWorker, /const cached = await cache\.match\(fullRequest\);[\s\S]*?return cached;/);
+  assert.match(serviceWorker, /request\.headers\.has\('range'\)/);
+  assert.doesNotMatch(serviceWorker, /cachedVideoRange|arrayBuffer\s*\(|Content-Range|status:\s*206/);
 });
