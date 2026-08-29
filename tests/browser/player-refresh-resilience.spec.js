@@ -227,3 +227,44 @@ test('menu-only delta does not recreate an unchanged Entity media node', async (
   await expect.poll(() => deltaRequests, { timeout: 4000 }).toBeGreaterThanOrEqual(2);
   await expect(page.locator('[data-motion-entity-layer] .animation-scene-entity-media[data-identity-probe="same-entity"]')).toHaveCount(1);
 });
+
+test('failed critical background never replaces the previous Last Known Good state', async ({ page }) => {
+  const previous = playerContext({ revision: 'revision-lkg', hashSuffix: 'lkg' });
+  previous.draft.settings.background_color = '#123456';
+  const candidate = playerContext({ revision: 'revision-candidate', hashSuffix: 'candidate' });
+  candidate.draft = {
+    rows: [],
+    revision: 2,
+    settings: {
+      background_color: '#dc2626',
+      background_image_url: '/site-assets/backgrounds/critical-missing.png'
+    }
+  };
+
+  await seedLastKnownGood(page, previous);
+  await installFailingWebSocket(page);
+  await mockAuthorizedSession(page);
+  let deltaRequests = 0;
+  await page.route('**/site-assets/backgrounds/critical-missing.png', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+  await page.route('**/api/device/player-delta', (route) => {
+    deltaRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ full_snapshot_required: true, context: candidate })
+    });
+  });
+
+  await page.goto('/player');
+  await expect(page.locator('[data-flat-menu-canvas]')).toHaveCount(1);
+  await expect.poll(() => deltaRequests).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('[data-player-stage]')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
+
+  const lkg = await page.evaluate(async () => {
+    const store = await import('/js/player/player-store.js');
+    return store.loadLastKnownGood();
+  });
+  expect(lkg?.revision).toBe('revision-lkg');
+  expect(lkg?.context?.draft?.settings?.background_color).toBe('#123456');
+  expect(lkg?.context?.draft?.settings?.background_image_url || '').toBe('');
+});
