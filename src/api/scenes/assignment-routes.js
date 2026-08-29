@@ -1,7 +1,7 @@
 import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { sceneRevisionIdParam } from '../../contracts/scene-publishing.js';
-import { activity, notFound } from '../helpers.js';
+import { activity, conflict, notFound } from '../helpers.js';
 
 export function createSceneAssignmentsRouter({ store, realtime }) {
   const router = express.Router();
@@ -25,6 +25,9 @@ export function createSceneAssignmentsRouter({ store, realtime }) {
     ]);
     if (!screen) throw notFound('Монитор не найден.');
     if (!revision) throw notFound('Опубликованная сцена не найдена.');
+    if (Number(revision.scene?.display_count) !== 1) {
+      throw conflict('Панорамную сцену нельзя назначить одному монитору. Для 2–6 TV будет использоваться Display Group.');
+    }
 
     const assignment = await store.assignScreenSceneRevision(
       screenId,
