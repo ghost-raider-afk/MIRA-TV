@@ -82,7 +82,9 @@ function publicLogRecord(record) {
 
 export function createPlayerStateSync({
   applyContext,
+  prepareAssets,
   warmAssets,
+  onLastKnownGood,
   onUnauthorized,
   onConnectivity
 } = {}) {
@@ -205,6 +207,7 @@ export function createPlayerStateSync({
   }
 
   async function applyCandidate(context, metadata, changedNames, source) {
+    await prepareAssets?.(context, changedNames);
     await applyContext(context, changedNames, { source });
     active = {
       schema_version: metadata.schema_version,
@@ -215,6 +218,7 @@ export function createPlayerStateSync({
     updateRuntime(context);
     try {
       await persistLastKnownGood();
+      onLastKnownGood?.(context);
     } catch (error) {
       console.warn('MIRA-TV could not persist Last Known Good state', error);
     }
@@ -343,6 +347,7 @@ export function createPlayerStateSync({
       active = record;
       updateRuntime(record.context);
       await applyContext(record.context, [...ALL_COMPONENTS], { source: 'last-known-good' });
+      onLastKnownGood?.(record.context);
       log('state.restored', { saved: true });
       onConnectivity?.('offline');
       return true;
