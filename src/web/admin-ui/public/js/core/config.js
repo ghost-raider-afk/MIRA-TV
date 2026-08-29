@@ -16,6 +16,7 @@ export const API = Object.freeze({
   locations: '/api/locations',
   screens: '/api/screens',
   scenes: '/api/scenes',
+  sceneAssignments: '/api/screen-scene-assignments',
   deviceResolve: '/api/device-admin/resolve',
   deviceAuthorize: '/api/device-admin/authorize',
   deviceBindings: '/api/device-admin/bindings',
