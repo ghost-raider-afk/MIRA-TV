@@ -73,26 +73,31 @@ jobs:
           old_tv_under = 'tv' + '_me' + 'nu'
           old_menu_space = 'me' + 'nu' + ' tv'
           old_tv_space = 'tv' + ' me' + 'nu'
+          old_menu_compact = 'me' + 'nu' + 'tv'
+          old_tv_compact = 'tv' + 'me' + 'nu'
           old_russian_brand = 'тв' + ' меню'
           removed_transfer = 'sf' + 'tp'
-          old_app_version = '1.' + '7.0'
-          old_installer_version = '1.' + '3.3'
-          old_product_version = '1.0.0' + '.1'
-          old_package_version = '1.0.0' + '-1'
 
-          forbidden = {
+          identity_forbidden = {
               old_menu_dash,
               old_tv_dash,
               old_menu_under,
               old_tv_under,
               old_menu_space,
               old_tv_space,
+              old_menu_compact,
+              old_tv_compact,
               old_russian_brand,
               removed_transfer,
-              old_app_version,
-              old_installer_version,
-              old_product_version,
-              old_package_version,
+          }
+
+          # These are obsolete MIRA-TV project versions, but the same numeric strings
+          # may legitimately occur in immutable third-party dependency metadata.
+          project_version_forbidden = {
+              '1.' + '7.0',
+              '1.' + '3.3',
+              '1.0.0' + '.1',
+              '1.0.0' + '-1',
           }
 
           failures = []
@@ -100,7 +105,7 @@ jobs:
               if any(part in excluded_dirs for part in path.parts):
                   continue
               relative = path.as_posix().lower()
-              if any(token in relative for token in forbidden):
+              if any(token in relative for token in identity_forbidden):
                   failures.append(f'path: {path.as_posix()}')
               if not path.is_file():
                   continue
@@ -108,9 +113,13 @@ jobs:
                   text = path.read_text(encoding='utf-8').lower()
               except (UnicodeDecodeError, OSError):
                   continue
-              for token in forbidden:
+              for token in identity_forbidden:
                   if token in text:
                       failures.append(f'content: {path.as_posix()} -> {token}')
+              if path.name != 'package-lock.json':
+                  for token in project_version_forbidden:
+                      if token in text:
+                          failures.append(f'project version: {path.as_posix()} -> {token}')
 
           if failures:
               raise SystemExit('Forbidden legacy identifiers found:\n' + '\n'.join(sorted(set(failures))))
