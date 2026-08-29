@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - refactor/v1.0.0-offline-first-rebrand
   pull_request:
 
 permissions:
@@ -37,16 +36,18 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import json
+          import re
           from pathlib import Path
 
-          expected = '1.0.0'
           package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          expected = package['version']
+          assert re.fullmatch(r'\d+\.\d+\.\d+', expected), expected
+
           lock = json.loads(Path('package-lock.json').read_text(encoding='utf-8'))
           env = Path('.env.example').read_text(encoding='utf-8')
           installer = Path('mira-tv.sh').read_text(encoding='utf-8')
 
           assert package['name'] == 'mira-tv'
-          assert package['version'] == expected
           assert package['miraVersion'] == expected
           assert lock['name'] == 'mira-tv'
           assert lock['version'] == expected
@@ -185,7 +186,7 @@ jobs:
           --health-retries 10
     env:
       APP_NAME: MIRA-TV
-      MIRA_TV_VERSION: '1.0.0'
+      MIRA_TV_VERSION: '1.0.1'
       NODE_ENV: test
       HOST: 127.0.0.1
       PORT: '8080'
