@@ -28,15 +28,19 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          excluded = {'.git', 'node_modules'}
+          excluded_dirs = {'.git', 'node_modules'}
+          excluded_files = {Path('.github/workflows/bootstrap-import.yml')}
+          old_product_version = '1.0.0' + '.1'
+          old_package_version = '1.0.0' + '-1'
+
           for path in Path('.').rglob('*'):
-              if not path.is_file() or any(part in excluded for part in path.parts):
+              if not path.is_file() or path in excluded_files or any(part in excluded_dirs for part in path.parts):
                   continue
               try:
                   data = path.read_text(encoding='utf-8')
               except (UnicodeDecodeError, OSError):
                   continue
-              updated = data.replace('1.0.0.1', '1.0.0').replace('1.0.0-1', '1.0.0')
+              updated = data.replace(old_product_version, '1.0.0').replace(old_package_version, '1.0.0')
               if updated != data:
                   path.write_text(updated, encoding='utf-8')
           PY
