@@ -17,6 +17,7 @@ function renderLocations() {
   if (!list || !empty) return;
   refreshList(list, empty, state.locations.map((location) => recordRow(
     location.name,
+    location.address || 'Адрес не указан',
     [makeButton('Изменить', '', () => editLocation(location)), makeButton('Удалить', 'danger', () => void deleteLocation(location))]
   )));
 }
