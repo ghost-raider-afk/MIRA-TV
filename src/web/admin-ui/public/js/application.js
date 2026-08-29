@@ -26,8 +26,12 @@ async function initialisePage(name) {
       return initialiseScenes();
     }
     case 'scene-editor': {
-      const { initialiseSceneEditor } = await import('./scenes/editor.js');
-      return initialiseSceneEditor();
+      const [{ initialiseSceneEditor }, { initialiseScenePublishControl }] = await Promise.all([
+        import('./scenes/editor.js'),
+        import('./scenes/publish-control.js')
+      ]);
+      await initialiseSceneEditor();
+      return initialiseScenePublishControl();
     }
     case 'settings': {
       const { initialiseSettings } = await import('./pages/settings.js');
