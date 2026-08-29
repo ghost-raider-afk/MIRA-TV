@@ -11,7 +11,7 @@ LAUNCHER_PATH="/usr/local/bin/mira-tv"
 
 log() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+die() { printf 'ОШИБКА: %s\n' "$*" >&2; exit 1; }
 
 require_root() {
   [[ ${EUID:-$(id -u)} -eq 0 ]] || die 'Запустите установщик через sudo.'
@@ -34,10 +34,10 @@ install_docker() {
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     return
   fi
-  log 'Установка Docker Engine и Docker Compose plugin'
+  log 'Установка Docker Engine и Docker Compose'
   curl -fsSL https://get.docker.com | sh
   systemctl enable --now docker
-  docker compose version >/dev/null 2>&1 || die 'Docker Compose plugin не установлен.'
+  docker compose version >/dev/null 2>&1 || die 'Docker Compose не установлен.'
 }
 
 random_hex() {
@@ -61,7 +61,7 @@ validate_domain() {
 }
 
 validate_email() {
-  [[ "$1" == *@*.* ]] || die 'Укажите корректный email для сертификата TLS.'
+  [[ "$1" == *@*.* ]] || die 'Укажите корректный email для HTTPS-сертификата.'
 }
 
 write_env() {
@@ -111,12 +111,12 @@ install_app() {
   require_ubuntu
   install_prerequisites
   install_docker
-  [[ ! -e "$INSTALL_DIR" ]] || die "${INSTALL_DIR} уже существует. Используйте update."
+  [[ ! -e "$INSTALL_DIR" ]] || die "${INSTALL_DIR} уже существует. Используйте команду update."
 
   local domain email admin admin_password tag
-  read -r -p 'HTTPS-домен MIRA-TV: ' domain
+  read -r -p 'Домен MIRA-TV для HTTPS: ' domain
   validate_domain "$domain"
-  read -r -p 'Email для TLS-сертификата: ' email
+  read -r -p 'Email для HTTPS-сертификата: ' email
   validate_email "$email"
   read -r -p 'Логин администратора: ' admin
   [[ "$admin" =~ ^[A-Za-z][A-Za-z0-9_.-]{2,63}$ ]] || die 'Логин: 3–64 латинских букв, цифр, точка, дефис или подчёркивание.'
@@ -185,7 +185,7 @@ remove_app() {
   compose down --remove-orphans
   rm -rf "$INSTALL_DIR"
   rm -f "$LAUNCHER_PATH"
-  info 'Приложение удалено. Именованные volumes с данными сохранены.'
+  info 'Приложение удалено. Данные Docker сохранены.'
 }
 
 purge_app() {
@@ -194,11 +194,11 @@ purge_app() {
   compose down -v --remove-orphans
   rm -rf "$INSTALL_DIR"
   rm -f "$LAUNCHER_PATH"
-  info 'MIRA-TV и его volumes удалены.'
+  info 'MIRA-TV и все его данные Docker удалены.'
 }
 
 show_menu() {
-  printf '\nMIRA-TV installer %s\n' "$SCRIPT_VERSION"
+  printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
   printf '1) Установить\n2) Обновить\n3) Статус\n4) Перезапустить\n5) Логи\n6) Проверить обновление\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
   case "$choice" in
