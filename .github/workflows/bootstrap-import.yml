@@ -32,6 +32,7 @@ jobs:
           python3 scripts/refactor-fixes4.py
           python3 scripts/refactor-fixes5.py
           python3 scripts/refactor-fixes6.py
+          python3 scripts/refactor-fixes7.py
 
       - name: Rebuild lockfile and install dependencies
         run: |
@@ -44,11 +45,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Brand and removed-subsystem audit
+      - name: Exact legacy-name and removed-subsystem audit
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -RInE 'menu-tv|menu_tv|Menu TV|TV Menu|SFTPGo|sftpgo|SFTP_|TV2:' . \
+          if grep -RInE \
             --exclude-dir=.git \
             --exclude-dir=node_modules \
             --exclude='scripts/refactor-v1.0.0.1.py' \
@@ -57,19 +58,30 @@ jobs:
             --exclude='scripts/refactor-fixes3.py' \
             --exclude='scripts/refactor-fixes4.py' \
             --exclude='scripts/refactor-fixes5.py' \
-            --exclude='scripts/refactor-fixes6.py'
+            --exclude='scripts/refactor-fixes6.py' \
+            --exclude='scripts/refactor-fixes7.py' \
+            'menu-tv|menu_tv|Menu TV|TV Menu|SFTPGo|sftpgo|SFTP_|TV2:|ТВ МЕНЮ' .; then
+            echo 'Legacy product identifier remains in product tree.' >&2
+            exit 1
+          fi
           test -f mira-tv.sh
           test ! -e menu-tv-2.sh
           test ! -e src/api/sftp
           test ! -e src/sftp
           test ! -e src/services/publish-service.js
 
-      - name: Commit refactored baseline
+      - name: Remove one-shot refactor tooling
+        shell: bash
+        run: rm -f scripts/refactor-v1.0.0.1.py scripts/refactor-fixes.py scripts/refactor-fixes2.py scripts/refactor-fixes3.py scripts/refactor-fixes4.py scripts/refactor-fixes5.py scripts/refactor-fixes6.py scripts/refactor-fixes7.py
+
+      - name: Commit refactored baseline without workflow files
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Establish MIRA-TV 1.0.0.1 clean baseline' || exit 0
+          git add -A -- . ':(exclude).github/workflows/**'
+          git status --short
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Establish MIRA-TV 1.0.0.1 clean baseline'
           git push origin HEAD:refactor/v1.0.0.1-offline-first-rebrand
