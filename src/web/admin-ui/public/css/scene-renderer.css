@@ -1,0 +1,51 @@
+.scene-render-element {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.06;
+  transform-origin: center;
+}
+
+.scene-render-element.has-shadow { box-shadow: 0 16px 38px rgba(0,0,0,.4); }
+.scene-render-element.has-glow { filter: drop-shadow(0 0 18px color-mix(in srgb,var(--ui-accent,#f4c915) 72%,transparent)); }
+
+.scene-element-table {
+  display: grid;
+  align-content: start;
+  justify-content: stretch;
+  padding: 18px;
+  text-align: left;
+}
+.scene-table-title { display: block; margin-bottom: 14px; }
+.scene-table-state { display: grid; place-items: center; min-height: 120px; color: currentColor; opacity: .68; font-size: .55em; text-align: center; }
+.scene-table-state-error { color: #ff8580; opacity: 1; }
+.scene-catalog-table { display: grid; min-height: 0; overflow: hidden; border-top: 1px solid color-mix(in srgb,currentColor 22%,transparent); }
+.scene-catalog-row { display: grid; grid-template-columns: var(--scene-table-columns); align-items: center; gap: .5em; min-width: 0; padding: .3em .12em; border-bottom: 1px solid color-mix(in srgb,currentColor 12%,transparent); font-size: .52em; line-height: 1.12; }
+.scene-catalog-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-catalog-head { padding-top: .4em; padding-bottom: .4em; color: currentColor; opacity: .68; font-size: .38em; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.scene-catalog-price { color: var(--ui-accent,#f4c915); font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+
+.scene-element-clock,
+.scene-element-weather { display: grid; align-content: center; gap: 3px; }
+.scene-element-clock small,
+.scene-element-weather small { font-size: .32em; opacity: .72; }
+.scene-weather-icon { position: absolute; left: 10%; font-size: .8em; }
+.scene-weather-temp { font-weight: 800; }
+.scene-media-symbol { margin-right: .2em; font-size: .82em; opacity: .72; }
+.scene-element-video,
+.scene-element-image,
+.scene-element-logo { gap: 8px; border: 1px solid rgba(255,255,255,.16); }
+
+.scene-render-element[data-loop="pulse"] { animation: scene-render-pulse 2.4s ease-in-out infinite; }
+.scene-render-element[data-loop="float"] { animation: scene-render-float 3.2s ease-in-out infinite; }
+
+@keyframes scene-render-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+@keyframes scene-render-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-render-element[data-loop] { animation: none !important; }
+}
