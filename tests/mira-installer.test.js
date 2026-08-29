@@ -43,3 +43,27 @@ test('installer follows three-part MIRA-TV stable release tags', async () => {
   assert.match(source, /v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
   assert.doesNotMatch(source, /v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
 });
+
+test('installer update is one guarded flow with temporary backup and automatic rollback', async () => {
+  const source = await readFile('mira-tv.sh', 'utf8');
+
+  assert.match(source, /2\) Проверить обновление/);
+  assert.doesNotMatch(source, /6\) Проверить обновление/);
+  assert.match(source, /У вас установлена последняя версия MIRA-TV/);
+  assert.match(source, /Обновить\? \[y\/N\]/);
+
+  assert.match(source, /^TEMP_BACKUP_DIR=""$/m);
+  assert.match(source, /source\.tar\.gz/);
+  assert.match(source, /git-revision/);
+  assert.match(source, /database\.dump/);
+  assert.match(source, /pg_dump/);
+  assert.match(source, /pg_restore/);
+  assert.match(source, /restore_temporary_backup/);
+  assert.match(source, /recover_failed_update/);
+  assert.match(source, /предыдущая версия, настройки и база данных автоматически восстановлены/);
+
+  assert.match(source, /reset-admin-password\.js/);
+  assert.match(source, /Удалить приложение\?'; then/);
+  assert.match(source, /Удалить приложение и ВСЕ данные\?'; then/);
+  assert.match(source, /\[YES\/NO\]/);
+});
