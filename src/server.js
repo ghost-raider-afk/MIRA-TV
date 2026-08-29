@@ -106,7 +106,7 @@ function configureSecurity(app, config) {
   app.use(express.json({ limit: config.jsonBodyMaxBytes }));
 }
 
-function mountPublicRoutes(app, { store, config }) {
+function mountPublicRoutes(app, { store, config, realtime }) {
   let readiness = { checkedAt: 0, ok: false };
   app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'mira-tv' }));
   app.get('/readyz', async (_request, response) => {
@@ -134,7 +134,7 @@ function mountPublicRoutes(app, { store, config }) {
       signin_logo_size: site.signin_logo_size
     });
   });
-  app.use('/api/device', createDevicePublicRouter({ store, config }));
+  app.use('/api/device', createDevicePublicRouter({ store, config, realtime }));
 }
 
 function mountProtectedApi(app, dependencies, requireApiSession) {
@@ -210,7 +210,7 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   const realtime = createPlayerRealtime({ store });
   const app = express();
   configureSecurity(app, config);
-  mountPublicRoutes(app, { store, config });
+  mountPublicRoutes(app, { store, config, realtime });
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
 
   const resolveSession = createSessionResolver(store, config);
