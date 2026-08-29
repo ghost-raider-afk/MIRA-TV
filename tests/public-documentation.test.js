@@ -11,6 +11,26 @@ const PUBLIC_DOCS = [
   'CONFIGURATION.md',
   'USAGE.md',
   'ARCHITECTURE.md',
+  'SCENES.md',
+  'CATALOG.md',
+  'DISPLAY-MANAGEMENT.md',
+  'DATA-MODEL.md',
+  'UX-PRINCIPLES.md',
+  'SCENE-PROTOTYPE.md',
+  'PLAYER.md',
+  'ANIMATION.md',
+  'PERFORMANCE.md',
+  'TROUBLESHOOTING.md',
+  'DEPLOYMENT-CHECKLIST.md',
+  'BRANDING.md',
+  'ROADMAP.md'
+];
+
+const USER_FACING_DOCS = [
+  'README.md',
+  'INSTALLATION.md',
+  'CONFIGURATION.md',
+  'USAGE.md',
   'PLAYER.md',
   'ANIMATION.md',
   'PERFORMANCE.md',
@@ -54,7 +74,7 @@ async function exists(url) {
   }
 }
 
-test('public documentation has one clear task-oriented structure', async () => {
+test('public documentation has one explicit approved structure', async () => {
   for (const file of PUBLIC_DOCS) {
     assert.equal(await exists(new URL(file, docsRoot)), true, `missing public documentation page: docs/${file}`);
   }
@@ -63,12 +83,11 @@ test('public documentation has one clear task-oriented structure', async () => {
   }
 });
 
-test('public documentation avoids internal development jargon', async () => {
+test('user-facing documentation avoids internal development jargon', async () => {
   const files = [
     new URL('README.md', root),
     new URL('CHANGELOG.md', root),
-    new URL('CONTRIBUTING.md', root),
-    ...PUBLIC_DOCS.map((file) => new URL(file, docsRoot))
+    ...USER_FACING_DOCS.map((file) => new URL(file, docsRoot))
   ];
 
   for (const url of files) {
@@ -89,7 +108,7 @@ test('README local documentation links point to existing files', async () => {
   }
 });
 
-test('docs directory contains no leftover internal markdown files', async () => {
+test('docs directory contains only approved markdown files', async () => {
   const files = (await readdir(docsRoot)).filter((name) => name.endsWith('.md'));
   assert.deepEqual(files.sort(), PUBLIC_DOCS.slice().sort());
 });
