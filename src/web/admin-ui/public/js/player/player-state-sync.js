@@ -129,6 +129,7 @@ export function createPlayerStateSync({
   let logFlushPromise = null;
   let logFlushTimer = null;
   let logFlushNeeded = true;
+  let logWritePromise = Promise.resolve();
   let sequence = 0;
   let websocketConnected = false;
   const currentBootId = bootId();
@@ -156,7 +157,7 @@ export function createPlayerStateSync({
   function log(type, data = {}, level = 'info') {
     sequence += 1;
     logFlushNeeded = true;
-    void appendPlayerLog({
+    const record = {
       boot_id: currentBootId,
       seq: sequence,
       level,
@@ -164,10 +165,14 @@ export function createPlayerStateSync({
       revision: active?.revision || '',
       device_timestamp: new Date().toISOString(),
       data
-    }, {
-      maxEntries: runtime.logMaxEntries,
-      maxBytes: runtime.logMaxBytes
-    }).catch(() => undefined);
+    };
+    logWritePromise = logWritePromise
+      .then(() => appendPlayerLog(record, {
+        maxEntries: runtime.logMaxEntries,
+        maxBytes: runtime.logMaxBytes
+      }))
+      .catch(() => undefined);
+    return logWritePromise;
   }
 
   function clearFallbackTimer() {
@@ -202,6 +207,7 @@ export function createPlayerStateSync({
   async function flushLogs() {
     if (logFlushPromise || !navigator.onLine || !logFlushNeeded) return logFlushPromise;
     logFlushPromise = (async () => {
+      await logWritePromise;
       for (let index = 0; index < MAX_LOG_BATCHES_PER_FLUSH; index += 1) {
         const pending = await pendingPlayerLogs(runtime.logBatchSize);
         if (!pending.length) {
@@ -360,11 +366,11 @@ export function createPlayerStateSync({
 
   async function handleNetworkOnline() {
     if (!started) return;
-    log('network.online');
+    await log('network.online');
     clearFallbackTimer();
     scheduleFallbackPoll();
     const result = await syncNow('network-online');
-    log('network.reconciled', {
+    await log('network.reconciled', {
       ok: result?.ok === true,
       changed: result?.changed === true,
       has_context: result?.hasContext === true
