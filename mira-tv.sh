@@ -30,7 +30,23 @@ confirm_action() {
 }
 
 require_root() {
-  [[ ${EUID:-$(id -u)} -eq 0 ]] || die 'Запустите установщик через sudo.'
+  local action="${1:-menu}" source tmp status
+  [[ ${EUID:-$(id -u)} -eq 0 ]] && return 0
+  command -v sudo >/dev/null 2>&1 || die 'Для этой операции нужны права root. Установите sudo или войдите как root.'
+
+  source="${BASH_SOURCE[0]}"
+  [[ -r "$source" ]] || die 'Не удалось прочитать текущий установщик для запуска через sudo.'
+  tmp="$(mktemp -t 'mira-tv.bootstrap.XXXXXX.sh')"
+  cat -- "$source" > "$tmp"
+  chmod 700 "$tmp"
+
+  if sudo bash "$tmp" "$action"; then
+    status=0
+  else
+    status=$?
+  fi
+  rm -f -- "$tmp"
+  exit "$status"
 }
 
 require_ubuntu() {
@@ -195,11 +211,11 @@ recover_failed_update() {
 }
 
 install_app() {
-  require_root
+  require_root install
   require_ubuntu
   install_prerequisites
   install_docker
-  [[ ! -e "$INSTALL_DIR" ]] || die "${INSTALL_DIR} уже существует. Используйте команду update."
+  [[ ! -e "$INSTALL_DIR" ]] || die "${INSTALL_DIR} уже существует. Используйте пункт проверки обновления."
 
   local domain email admin admin_password tag
   read -r -p 'Домен MIRA-TV для HTTPS: ' domain
@@ -221,11 +237,11 @@ install_app() {
 
   printf '\nMIRA-TV установлен.\nURL: https://%s\nАдминистратор: %s\nПароль: %s\n\n' "$domain" "$admin" "$admin_password"
   info "Рабочий каталог: ${INSTALL_DIR}"
-  info "Управление: cd ${INSTALL_DIR} && docker compose <команда>"
+  info "Открыть меню: mira-tv"
 }
 
 update_app() {
-  require_root
+  require_root update
   [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
 
   local installed tag version answer
@@ -272,20 +288,22 @@ update_app() {
 }
 
 status_app() {
+  require_root status
   compose ps
 }
 
 restart_app() {
-  require_root
+  require_root restart
   compose restart
 }
 
 logs_app() {
+  require_root logs
   compose logs -f --tail=200
 }
 
 reset_admin_password() {
-  require_root
+  require_root reset-admin-password
   [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
 
   local username
@@ -299,7 +317,7 @@ reset_admin_password() {
 }
 
 remove_app() {
-  require_root
+  require_root remove
   [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
   printf '\nБудет удалено приложение MIRA-TV и его рабочий каталог.\nДанные Docker будут сохранены.\n'
   if ! confirm_action 'Удалить приложение?'; then
@@ -313,7 +331,7 @@ remove_app() {
 }
 
 purge_app() {
-  require_root
+  require_root purge
   [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
   printf '\nВНИМАНИЕ: будут безвозвратно удалены приложение MIRA-TV, база данных, загруженные файлы и HTTPS-сертификаты.\n'
   if ! confirm_action 'Удалить приложение и ВСЕ данные?'; then
