@@ -127,6 +127,7 @@ export function createPlayerStateSync({
   let syncQueued = false;
   let logFlushPromise = null;
   let logFlushTimer = null;
+  let logFlushNeeded = true;
   let sequence = 0;
   let websocketConnected = false;
   const currentBootId = bootId();
@@ -153,6 +154,7 @@ export function createPlayerStateSync({
 
   function log(type, data = {}, level = 'info') {
     sequence += 1;
+    logFlushNeeded = true;
     void appendPlayerLog({
       boot_id: currentBootId,
       seq: sequence,
@@ -189,7 +191,7 @@ export function createPlayerStateSync({
 
   function scheduleLogFlush(delay = 1500) {
     clearLogFlushTimer();
-    if (!started || !navigator.onLine) return;
+    if (!started || !navigator.onLine || !logFlushNeeded) return;
     logFlushTimer = setTimeout(() => {
       logFlushTimer = null;
       void flushLogs();
@@ -197,11 +199,14 @@ export function createPlayerStateSync({
   }
 
   async function flushLogs() {
-    if (logFlushPromise || !navigator.onLine) return logFlushPromise;
+    if (logFlushPromise || !navigator.onLine || !logFlushNeeded) return logFlushPromise;
     logFlushPromise = (async () => {
       for (let index = 0; index < MAX_LOG_BATCHES_PER_FLUSH; index += 1) {
         const pending = await pendingPlayerLogs(runtime.logBatchSize);
-        if (!pending.length) return;
+        if (!pending.length) {
+          logFlushNeeded = false;
+          return;
+        }
         const batchBootId = pending[0].boot_id;
         const batch = pending.filter((record) => record.boot_id === batchBootId);
         const response = await fetch('/api/device/player-logs', {
