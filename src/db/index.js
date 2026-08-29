@@ -16,6 +16,7 @@ import { migrateScreenAnimationSettings } from './migrations/screen-animation-se
 import { migrateEnvironmentLayer } from './migrations/environment-layer.js';
 import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
+import { migratePrototypeScenes } from './migrations/prototype-scenes.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -28,6 +29,7 @@ import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
+import { createScenesRepository } from './scenes.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -46,7 +48,8 @@ const MIGRATIONS = Object.freeze([
   { name: '014-screen-animation-settings', run: migrateScreenAnimationSettings },
   { name: '015-environment-layer', run: migrateEnvironmentLayer },
   { name: '016-scene-playlist', run: migrateScenePlaylist },
-  { name: '017-player-telemetry', run: migratePlayerTelemetry }
+  { name: '017-player-telemetry', run: migratePlayerTelemetry },
+  { name: '018-prototype-scenes', run: migratePrototypeScenes }
 ]);
 
 function createRepositories(queryable) {
@@ -62,7 +65,8 @@ function createRepositories(queryable) {
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
-    createPlayerTelemetryRepository(queryable)
+    createPlayerTelemetryRepository(queryable),
+    createScenesRepository(queryable)
   );
 }
 
