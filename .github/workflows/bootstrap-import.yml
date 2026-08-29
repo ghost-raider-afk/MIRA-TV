@@ -34,6 +34,7 @@ jobs:
           python3 scripts/refactor-fixes6.py
           python3 scripts/refactor-fixes7.py
           python3 scripts/refactor-fixes8.py
+          python3 scripts/refactor-fixes9.py
 
       - name: Rebuild lockfile and install dependencies
         run: |
@@ -48,7 +49,7 @@ jobs:
 
       - name: Remove one-shot refactor tooling
         shell: bash
-        run: rm -f scripts/refactor-v1.0.0.1.py scripts/refactor-fixes.py scripts/refactor-fixes2.py scripts/refactor-fixes3.py scripts/refactor-fixes4.py scripts/refactor-fixes5.py scripts/refactor-fixes6.py scripts/refactor-fixes7.py scripts/refactor-fixes8.py
+        run: rm -f scripts/refactor-v1.0.0.1.py scripts/refactor-fixes.py scripts/refactor-fixes2.py scripts/refactor-fixes3.py scripts/refactor-fixes4.py scripts/refactor-fixes5.py scripts/refactor-fixes6.py scripts/refactor-fixes7.py scripts/refactor-fixes8.py scripts/refactor-fixes9.py
 
       - name: Exact final-tree audit
         shell: bash
@@ -64,6 +65,7 @@ jobs:
           test ! -e src/api/sftp
           test ! -e src/sftp
           test ! -e src/services/publish-service.js
+          test ! -e src/web/admin-ui/public/js/editor/final-image.js
 
       - name: Commit refactored baseline without workflow files
         shell: bash
