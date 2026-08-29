@@ -1,4 +1,5 @@
-import { createScene, deleteScene, duplicateScene, loadScenes, saveScene } from '../scenes/model.js';
+import { createScene } from '../scenes/model.js';
+import { createSceneRemote, deleteSceneRemote, duplicateSceneRemote, listScenes } from '../scenes/store.js';
 
 function formatUpdated(value) {
   const date = new Date(value);
@@ -10,10 +11,29 @@ function openScene(sceneId) {
   window.location.href = `/scene-editor?id=${encodeURIComponent(sceneId)}`;
 }
 
+function showMessage(message, error = false) {
+  const target = document.querySelector('#scenes-message');
+  if (!target) return;
+  target.textContent = message;
+  target.classList.remove('is-hidden');
+  target.classList.toggle('is-error', error);
+}
+
+function clearMessage() {
+  document.querySelector('#scenes-message')?.classList.add('is-hidden');
+}
+
 function makeMeta(text) {
   const node = document.createElement('span');
   node.textContent = text;
   return node;
+}
+
+function setPending(button, pending, label) {
+  if (!(button instanceof HTMLButtonElement)) return;
+  if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent;
+  button.disabled = pending;
+  button.textContent = pending ? label : button.dataset.idleLabel;
 }
 
 function renderSceneCard(scene) {
@@ -32,15 +52,15 @@ function renderSceneCard(scene) {
   const name = document.createElement('strong');
   name.textContent = scene.name;
   const resolution = document.createElement('small');
-  const width = scene.canvas_width || scene.display_count * 1920;
-  resolution.textContent = `${width} × ${scene.canvas_height}`;
+  resolution.textContent = `${scene.canvas_width || scene.display_count * 1920} × ${scene.canvas_height || 1080}`;
   preview.append(previewGrid, name, resolution);
 
   const body = document.createElement('div');
   body.className = 'scene-card-body';
   const meta = document.createElement('div');
+  const slideCount = Number(scene.slide_count) || 0;
   meta.append(
-    makeMeta(`${scene.slides.length} ${scene.slides.length === 1 ? 'слайд' : 'слайда'}`),
+    makeMeta(`${slideCount} ${slideCount === 1 ? 'слайд' : 'слайда'}`),
     makeMeta(`${scene.display_count} TV`),
     makeMeta(`Изменено ${formatUpdated(scene.updated_at)}`)
   );
@@ -60,34 +80,62 @@ function renderSceneCard(scene) {
   card.append(preview, body);
 
   preview.addEventListener('click', () => openScene(scene.id));
-  duplicate.addEventListener('click', () => {
-    const copy = duplicateScene(scene.id);
-    if (copy) openScene(copy.id);
+  duplicate.addEventListener('click', async () => {
+    clearMessage();
+    setPending(duplicate, true, 'Копируем…');
+    try {
+      const copy = await duplicateSceneRemote(scene.id);
+      openScene(copy.id);
+    } catch (error) {
+      setPending(duplicate, false, 'Копируем…');
+      showMessage(error?.message || 'Не удалось скопировать сцену.', true);
+    }
   });
-  remove.addEventListener('click', () => {
+  remove.addEventListener('click', async () => {
     if (!window.confirm(`Удалить сцену «${scene.name}»?`)) return;
-    deleteScene(scene.id);
-    renderLibrary();
+    clearMessage();
+    setPending(remove, true, 'Удаляем…');
+    try {
+      await deleteSceneRemote(scene.id);
+      await renderLibrary();
+    } catch (error) {
+      setPending(remove, false, 'Удаляем…');
+      showMessage(error?.message || 'Не удалось удалить сцену.', true);
+    }
   });
   return card;
 }
 
-function renderLibrary() {
+async function renderLibrary() {
   const target = document.querySelector('#scene-library');
   const empty = document.querySelector('#scene-empty');
-  const scenes = loadScenes();
-  target.replaceChildren(...scenes.map(renderSceneCard));
-  target.classList.toggle('is-hidden', scenes.length === 0);
-  empty.classList.toggle('is-hidden', scenes.length > 0);
+  try {
+    const scenes = await listScenes();
+    target.replaceChildren(...scenes.map(renderSceneCard));
+    target.classList.toggle('is-hidden', scenes.length === 0);
+    empty.classList.toggle('is-hidden', scenes.length > 0);
+  } catch (error) {
+    target.replaceChildren();
+    target.classList.add('is-hidden');
+    empty.classList.add('is-hidden');
+    showMessage(error?.message || 'Не удалось загрузить сцены.', true);
+  }
 }
 
-function createNewScene() {
-  const scene = saveScene(createScene());
-  openScene(scene.id);
+async function createNewScene(button) {
+  clearMessage();
+  setPending(button, true, 'Создаём…');
+  try {
+    const scene = await createSceneRemote(createScene());
+    openScene(scene.id);
+  } catch (error) {
+    setPending(button, false, 'Создаём…');
+    showMessage(error?.message || 'Не удалось создать сцену.', true);
+  }
 }
 
 export function initialiseScenes() {
-  document.querySelector('#create-scene')?.addEventListener('click', createNewScene);
-  document.querySelector('#create-first-scene')?.addEventListener('click', createNewScene);
-  renderLibrary();
+  document.querySelector('#create-scene')?.addEventListener('click', (event) => void createNewScene(event.currentTarget));
+  document.querySelector('#create-first-scene')?.addEventListener('click', (event) => void createNewScene(event.currentTarget));
+  void renderLibrary();
 }
