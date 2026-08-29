@@ -49,6 +49,33 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+function activeAssetSet(values) {
+  const assets = new Set();
+  for (const value of values || []) {
+    try {
+      const url = new URL(String(value || ''), self.location.origin);
+      if (url.origin === self.location.origin && url.pathname.startsWith('/site-assets/')) assets.add(url.href);
+    } catch {}
+  }
+  return assets;
+}
+
+async function pruneInactiveAssets(values) {
+  const active = activeAssetSet(values);
+  const cache = await caches.open(DATA_CACHE);
+  const requests = await cache.keys();
+  await Promise.all(requests.map((request) => {
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith('/site-assets/') || active.has(url.href)) return false;
+    return cache.delete(request);
+  }));
+}
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
+  event.waitUntil(pruneInactiveAssets(event.data.assets));
+});
+
 async function networkWithTimeout(request, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
