@@ -32,19 +32,22 @@ test('network restoration immediately reconciles state and flushes queued Player
   assert.match(sync, /window\.addEventListener\('online', handleNetworkOnline\)/);
   assert.match(sync, /window\.addEventListener\('offline', handleNetworkOffline\)/);
   assert.match(sync, /async function handleNetworkOnline\(\)/);
-  assert.match(sync, /log\('network\.online'\)/);
+  assert.match(sync, /await log\('network\.online'\)/);
   assert.match(sync, /syncNow\('network-online'\)/);
-  assert.match(sync, /log\('network\.reconciled'/);
+  assert.match(sync, /await log\('network\.reconciled'/);
   assert.match(sync, /scheduleLogFlush\(0\)/);
   assert.match(sync, /function handleNetworkOffline\(\)/);
   assert.match(sync, /log\('network\.offline', \{\}, 'warn'\)/);
   assert.match(sync, /clearFallbackTimer\(\)/);
 });
 
-test('failed log upload remains queued and is retried after connectivity is available', async () => {
+test('log writes are serialized before upload and failed upload is retried', async () => {
   const sync = await read('src/web/admin-ui/public/js/player/player-state-sync.js');
 
   assert.match(sync, /const LOG_RETRY_MS = 5_000/);
+  assert.match(sync, /let logWritePromise = Promise\.resolve\(\)/);
+  assert.match(sync, /logWritePromise = logWritePromise\s*\.then\(\(\) => appendPlayerLog/);
+  assert.match(sync, /await logWritePromise;\s*for \(let index = 0;/);
   assert.match(sync, /pendingPlayerLogs\(runtime\.logBatchSize\)/);
   assert.match(sync, /fetch\('\/api\/device\/player-logs'/);
   assert.match(sync, /acknowledgePlayerLogs\(batchBootId, body\.accepted_through\)/);
