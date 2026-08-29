@@ -29,7 +29,7 @@ function draftRevisionHeader(request) {
   return positiveId(request.get('x-draft-revision'), 'x-draft-revision');
 }
 
-export function createScreensRouter({ store, config }) {
+export function createScreensRouter({ store, config, realtime }) {
   const router = express.Router();
 
   router.get('/screens', async (_request, response) => response.json(await store.listScreens()));
@@ -73,6 +73,7 @@ export function createScreensRouter({ store, config }) {
       return { screen: await tx.getScreen(id), draft: saved };
     });
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
+    realtime?.notifyScreen(id);
     response.json(result);
   });
 
@@ -97,6 +98,7 @@ export function createScreensRouter({ store, config }) {
       });
       if (previousUrl && previousUrl !== asset.publicUrl) await deleteScreenBackground(previousUrl, { store, config });
       await activity(store, request, { action: 'screen.background.updated', entity_type: 'screen', entity_id: id, message: `Обновлён фон монитора «${result.screen.name}».` });
+      realtime?.notifyScreen(id);
       response.json(result);
     } catch (error) {
       await deleteScreenBackground(asset.publicUrl, { store, config, force: true });
@@ -121,6 +123,7 @@ export function createScreensRouter({ store, config }) {
     });
     if (previousUrl) await deleteScreenBackground(previousUrl, { store, config });
     await activity(store, request, { action: 'screen.background.removed', entity_type: 'screen', entity_id: id, message: `Удалён фон монитора «${result.screen.name}».` });
+    realtime?.notifyScreen(id);
     response.json(result);
   });
 
@@ -146,6 +149,7 @@ export function createScreensRouter({ store, config }) {
     const draft = await store.getScreenDraft(id);
     if (draft?.settings?.background_image_url) await deleteScreenBackground(draft.settings.background_image_url, { store, config });
     if (!await store.deleteScreen(id)) throw notFound();
+    realtime?.disconnectScreen(id);
     await activity(store, request, { action: 'screen.deleted', entity_type: 'screen', entity_id: id, message: `Удалён монитор «${current.name}».` });
     response.status(204).end();
   });
