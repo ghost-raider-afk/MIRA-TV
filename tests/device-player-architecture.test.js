@@ -147,7 +147,7 @@ test('scene entity normalization accepts an absent entity from player context', 
   assert.ok(source.includes("value = value && typeof value === 'object' ? value : {};"));
 });
 
-test('offline player caches Video Entity once and serves byte ranges from cache', async () => {
+test('offline player caches Video Entity once without copying cached Range requests through JavaScript', async () => {
   const [worker, player] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
     read('src/web/admin-ui/public/js/player/player.js')
@@ -155,12 +155,11 @@ test('offline player caches Video Entity once and serves byte ranges from cache'
   assert.match(player, /warmPlayerAssetCache/);
   assert.match(player, /cache: 'force-cache'/);
   assert.match(worker, /async function cachedAsset/);
-  assert.match(worker, /if \(cached\) return cached/);
-  assert.match(worker, /cachedVideoRange/);
-  assert.match(worker, /Accept-Ranges/);
-  assert.match(worker, /Content-Range/);
-  assert.match(worker, /Partial Content/);
-  assert.match(worker, /status:\s*206/);
+  assert.match(worker, /async function videoRequest/);
+  assert.match(worker, /const fullRequest = new Request\(request\.url/);
+  assert.match(worker, /const cached = await cache\.match\(fullRequest\);[\s\S]*?return cached;/);
+  assert.match(worker, /if \(!request\.headers\.has\('range'\)\) return cachedAsset\(request\)/);
+  assert.doesNotMatch(worker, /cachedVideoRange|arrayBuffer\s*\(|Content-Range|Partial Content/);
   assert.match(worker, /mp4\|webm/);
 });
 
