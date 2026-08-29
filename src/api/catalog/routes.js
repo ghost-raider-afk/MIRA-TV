@@ -12,7 +12,11 @@ async function catalogWrite(operation, entity, name) {
   }
 }
 
-export function createCatalogRouter({ store }) {
+function screenIds(rows) {
+  return [...new Set((rows || []).map((row) => Number(row.screen_id)).filter(Number.isSafeInteger))];
+}
+
+export function createCatalogRouter({ store, realtime }) {
   const router = express.Router();
 
   router.get('/products', async (_request, response) => response.json(await store.listProducts()));
@@ -36,6 +40,7 @@ export function createCatalogRouter({ store }) {
       entity_id: null,
       message: `Импортирована продукция: создано ${result.created}, обновлено ${result.updated}.`
     });
+    if (result.updated > 0) realtime?.notifyScreens((await store.listScreens()).map((screen) => screen.id));
     response.json(result);
   });
   router.post('/products', async (request, response) => {
@@ -45,14 +50,13 @@ export function createCatalogRouter({ store }) {
     response.status(201).json(product);
   });
   router.put('/products/:id', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
     const input = productInput(request.body);
-    const product = await catalogWrite(
-      () => store.updateProduct(positiveId(request.params.id, 'id'), input),
-      'Продукция',
-      input.name
-    );
+    const product = await catalogWrite(() => store.updateProduct(id, input), 'Продукция', input.name);
     if (!product) throw notFound();
+    const affected = await store.screensUsingCatalog('product', id);
     await activity(store, request, { action: 'catalog.product.updated', entity_type: 'catalog_product', entity_id: product.id, message: `Обновлена продукция «${product.name}».` });
+    realtime?.notifyScreens(screenIds(affected));
     response.json(product);
   });
   router.delete('/products/:id', async (request, response) => {
@@ -74,14 +78,13 @@ export function createCatalogRouter({ store }) {
     response.status(201).json(packaging);
   });
   router.put('/packaging/:id', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
     const input = packagingInput(request.body);
-    const packaging = await catalogWrite(
-      () => store.updatePackaging(positiveId(request.params.id, 'id'), input),
-      'Тара',
-      input.name
-    );
+    const packaging = await catalogWrite(() => store.updatePackaging(id, input), 'Тара', input.name);
     if (!packaging) throw notFound();
+    const affected = await store.screensUsingCatalog('packaging', id);
     await activity(store, request, { action: 'catalog.packaging.updated', entity_type: 'catalog_packaging', entity_id: packaging.id, message: `Обновлена тара «${packaging.name}».` });
+    realtime?.notifyScreens(screenIds(affected));
     response.json(packaging);
   });
   router.delete('/packaging/:id', async (request, response) => {
