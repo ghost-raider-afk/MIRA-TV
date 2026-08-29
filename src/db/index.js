@@ -18,6 +18,7 @@ import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { migratePrototypeScenes } from './migrations/prototype-scenes.js';
 import { migrateScenePublishing } from './migrations/scene-publishing.js';
+import { migrateMediaAssets } from './migrations/media-assets.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -31,6 +32,7 @@ import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
 import { createScenesRepository } from './scenes.js';
+import { createMediaAssetsRepository } from './media-assets.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -51,7 +53,8 @@ const MIGRATIONS = Object.freeze([
   { name: '016-scene-playlist', run: migrateScenePlaylist },
   { name: '017-player-telemetry', run: migratePlayerTelemetry },
   { name: '018-prototype-scenes', run: migratePrototypeScenes },
-  { name: '019-scene-publishing', run: migrateScenePublishing }
+  { name: '019-scene-publishing', run: migrateScenePublishing },
+  { name: '020-media-assets', run: migrateMediaAssets }
 ]);
 
 function createRepositories(queryable) {
@@ -68,7 +71,8 @@ function createRepositories(queryable) {
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
     createPlayerTelemetryRepository(queryable),
-    createScenesRepository(queryable)
+    createScenesRepository(queryable),
+    createMediaAssetsRepository(queryable)
   );
 }
 

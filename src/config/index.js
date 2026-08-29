@@ -50,6 +50,11 @@ export function loadConfig(env = process.env) {
     siteFaviconMaxBytes: integer('SITE_FAVICON_MAX_BYTES', env.SITE_FAVICON_MAX_BYTES, { minimum: 1024, maximum: 5242880 }),
     screenBackgroundMaxBytes: integer('SCREEN_BACKGROUND_MAX_BYTES', env.SCREEN_BACKGROUND_MAX_BYTES, { minimum: 1024, maximum: 52428800 }),
     entityAssetMaxBytes: integer('ENTITY_ASSET_MAX_BYTES', env.ENTITY_ASSET_MAX_BYTES, { minimum: 1048576, maximum: 1073741824 }),
+    mediaImageMaxBytes: integer('MEDIA_IMAGE_MAX_BYTES', env.MEDIA_IMAGE_MAX_BYTES, { minimum: 1048576, maximum: 104857600 }),
+    mediaVideoMaxBytes: integer('MEDIA_VIDEO_MAX_BYTES', env.MEDIA_VIDEO_MAX_BYTES, { minimum: 1048576, maximum: 1073741824 }),
+    mediaMaxWidth: integer('MEDIA_MAX_WIDTH', env.MEDIA_MAX_WIDTH, { minimum: 320, maximum: 16384 }),
+    mediaMaxHeight: integer('MEDIA_MAX_HEIGHT', env.MEDIA_MAX_HEIGHT, { minimum: 240, maximum: 8192 }),
+    mediaMaxPixels: integer('MEDIA_MAX_PIXELS', env.MEDIA_MAX_PIXELS, { minimum: 262144, maximum: 134217728 }),
     healthReadinessCacheMs: integer('HEALTH_READINESS_CACHE_MS', env.HEALTH_READINESS_CACHE_MS, { minimum: 0, maximum: 60000 }),
     db: Object.freeze({
       host: required('POSTGRES_HOST', env.POSTGRES_HOST),
