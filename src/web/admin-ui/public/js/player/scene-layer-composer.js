@@ -5,7 +5,8 @@ const LAYERS = Object.freeze([
   Object.freeze({ id: 'content', className: 'tv-player-content-layer', attribute: 'data-player-content-layer' }),
   Object.freeze({ id: 'entity', className: 'tv-player-entity-layer', attribute: 'data-motion-entity-layer' }),
   Object.freeze({ id: 'brand', className: 'tv-player-brand-layer', attribute: 'data-brand-layer' }),
-  Object.freeze({ id: 'announcement', className: 'tv-player-announcement-layer', attribute: 'data-announcement-layer' })
+  Object.freeze({ id: 'announcement', className: 'tv-player-announcement-layer', attribute: 'data-announcement-layer' }),
+  Object.freeze({ id: 'scene', className: 'tv-player-published-scene-layer', attribute: 'data-published-scene-layer' })
 ]);
 
 const LAYER_BY_ID = new Map(LAYERS.map((layer, index) => [layer.id, Object.freeze({ ...layer, index })]));
@@ -83,7 +84,8 @@ export class PlayerSceneLayerComposer {
       content: this.ensure('content', { ariaHidden: true }),
       entity: this.ensure('entity', { ariaHidden: true }),
       brand: this.ensure('brand', { ariaLabel: 'Название бренда' }),
-      announcement: this.ensure('announcement', { ariaLabel: 'Объявление' })
+      announcement: this.ensure('announcement', { ariaLabel: 'Объявление' }),
+      scene: this.ensure('scene', { ariaLabel: 'Опубликованная сцена' })
     });
   }
 }
