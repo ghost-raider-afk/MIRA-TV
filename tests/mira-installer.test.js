@@ -81,6 +81,11 @@ test('installer update is one guarded flow with temporary backup and automatic r
   assert.match(source, /recover_failed_update/);
   assert.match(source, /предыдущая версия, настройки и база данных автоматически восстановлены/);
 
+  const backupFunction = source.match(/create_temporary_backup\(\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+  assert.match(backupFunction, /installer_source="\$\{INSTALL_DIR\}\/mira-tv\.sh"/);
+  assert.match(backupFunction, /installer_source="\$LAUNCHER_PATH"/);
+  assert.doesNotMatch(backupFunction, /BASH_SOURCE/);
+
   assert.match(source, /reset-admin-password\.js/);
   assert.match(source, /Удалить приложение\?'; then/);
   assert.match(source, /Удалить приложение и ВСЕ данные\?'; then/);
