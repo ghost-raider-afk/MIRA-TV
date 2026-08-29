@@ -1,0 +1,33 @@
+name: lock-sync
+
+on:
+  push:
+    branches: [refactor/v1.0.0-offline-first-rebrand]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Synchronize package lock
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit package lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'Synchronize package lock for WebSocket runtime'
+          git push origin HEAD:refactor/v1.0.0-offline-first-rebrand
