@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const exists = async (path) => access(path).then(() => true, () => false);
+const regexEscape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test('MIRA-TV owns the repository, runtime and installer namespace', async () => {
   const [pkg, env, compose, installer] = await Promise.all([
@@ -12,14 +13,17 @@ test('MIRA-TV owns the repository, runtime and installer namespace', async () =>
     readFile('mira-tv.sh', 'utf8')
   ]);
   const meta = JSON.parse(pkg);
+  const version = meta.version;
+  const escapedVersion = regexEscape(version);
+
   assert.equal(meta.name, 'mira-tv');
-  assert.equal(meta.version, '1.0.0');
-  assert.equal(meta.miraVersion, '1.0.0');
-  assert.match(env, /^MIRA_TV_VERSION=1\.0\.0$/m);
+  assert.match(version, /^\d+\.\d+\.\d+$/);
+  assert.equal(meta.miraVersion, version);
+  assert.match(env, new RegExp(`^MIRA_TV_VERSION=${escapedVersion}$`, 'm'));
   assert.match(env, /^MIRA_TV_DOMAIN=$/m);
   assert.match(env, /^MIRA_TV_ACME_EMAIL=$/m);
   assert.match(installer, /^PROGRAM_NAME="MIRA-TV"$/m);
-  assert.match(installer, /^SCRIPT_VERSION="1\.0\.0"$/m);
+  assert.match(installer, new RegExp(`^SCRIPT_VERSION="${escapedVersion}"$`, 'm'));
   assert.match(installer, /^INSTALL_DIR="\/opt\/MIRA-TV"$/m);
   assert.match(installer, /ghost-raider-afk\/MIRA-TV/);
   assert.match(compose, /^name: mira-tv$/m);

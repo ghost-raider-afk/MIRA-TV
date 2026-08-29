@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 PROGRAM_NAME="MIRA-TV"
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.1"
 INSTALL_DIR="/opt/MIRA-TV"
 REPO_URL="https://github.com/ghost-raider-afk/MIRA-TV.git"
 GITHUB_REPO="ghost-raider-afk/MIRA-TV"
@@ -71,7 +71,7 @@ write_env() {
 
   cp "${INSTALL_DIR}/.env.example" "${INSTALL_DIR}/.env"
   sed -i \
-    -e 's|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=1.0.0|' \
+    -e 's|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=1.0.1|' \
     -e "s|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=${domain}|" \
     -e "s|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=${email}|" \
     -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${db_password}|" \
