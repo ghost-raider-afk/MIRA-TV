@@ -19,6 +19,12 @@ function pageVisible() {
   return document.visibilityState !== 'hidden';
 }
 
+function publishStageState() {
+  if (!(stage instanceof HTMLElement)) return;
+  stage.dataset.playerActive = playerActive ? 'true' : 'false';
+  stage.dataset.playerPageVisible = pageVisible() ? 'true' : 'false';
+}
+
 function motionShouldPlay() {
   return playerActive && !fullscreenSuppressed && pageVisible() && !reducedMotion();
 }
@@ -28,6 +34,7 @@ function mediaShouldPlay() {
 }
 
 function syncPlayback() {
+  publishStageState();
   if (runtime) {
     if (motionShouldPlay()) runtime.play();
     else runtime.pause();
@@ -59,6 +66,7 @@ function bindEntityRuntime() {
 
   if (!(nextTarget instanceof Element)) {
     destroyRuntime();
+    publishStageState();
     return;
   }
 
@@ -113,6 +121,7 @@ if (stage instanceof Element) {
   stage.addEventListener('mira:scene-playlist-mode', onPlaylistMode);
   stage.addEventListener('mira:player-active', onPlayerActivity);
   document.addEventListener('visibilitychange', onVisibilityChange);
+  publishStageState();
   bindEntityRuntime();
 }
 
