@@ -1,3 +1,12 @@
+.tv-player-published-scene-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  overflow: hidden;
+  container-type: inline-size;
+  pointer-events: none;
+}
+
 .scene-render-element {
   position: absolute;
   display: flex;
