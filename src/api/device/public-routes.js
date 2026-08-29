@@ -235,7 +235,7 @@ export function createDevicePublicRouter({ store, config }) {
       entity: animationSettings?.entity || null,
       brand: animationSettings?.brand || null,
       announcement: animationSettings?.announcement || null,
-      refresh_interval_ms: config.playerRefreshSeconds * 1000
+      fallback_poll_interval_ms: config.playerFallbackPollSeconds * 1000
     };
     const etag = contextEtag(context);
     response.setHeader('Cache-Control', 'private, no-cache');

@@ -9,27 +9,16 @@ export function createLocationsRepository(pool) {
   }
 
   async function getLocation(id) {
-    const { rows } = await pool.query(
-      `SELECT l.*, d.name AS sftp_directory_name
-       FROM locations l LEFT JOIN sftp_directories d ON d.id = l.sftp_directory_id
-       WHERE l.id = $1`,
-      [id]
-    );
+    const { rows } = await pool.query('SELECT * FROM locations WHERE id = $1', [id]);
     return withScreenCount(rows[0]);
   }
 
   return Object.freeze({
     async listLocations() {
-      const { rows } = await pool.query(
-        `SELECT l.*, d.name AS sftp_directory_name
-         FROM locations l LEFT JOIN sftp_directories d ON d.id = l.sftp_directory_id
-         ORDER BY l.name`
-      );
+      const { rows } = await pool.query('SELECT * FROM locations ORDER BY name');
       return Promise.all(rows.map(withScreenCount));
     },
-
     getLocation,
-
     async createLocation({ name, address = '', active = true }) {
       const now = isoNow();
       const { rows } = await pool.query(
@@ -38,7 +27,6 @@ export function createLocationsRepository(pool) {
       );
       return getLocation(rows[0].id);
     },
-
     async updateLocation(id, { name, address = '', active = true }) {
       const { rowCount } = await pool.query(
         'UPDATE locations SET name = $1, address = $2, active = $3, updated_at = $4 WHERE id = $5',
@@ -46,7 +34,6 @@ export function createLocationsRepository(pool) {
       );
       return rowCount ? getLocation(id) : null;
     },
-
     async deleteLocation(id) {
       const { rowCount } = await pool.query('DELETE FROM locations WHERE id = $1', [id]);
       return rowCount > 0;

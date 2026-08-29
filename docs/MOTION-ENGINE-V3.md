@@ -2,7 +2,7 @@
 
 ## Назначение
 
-Motion Engine v3 — внутренний runtime-контур анимации TV Menu 2. Он отделяет структуру сцены, поведение и сценарий движения от конкретного renderer/API. Формат сохранённых пользовательских animation settings пока остаётся `motion_version: 2`; это отдельная persistence boundary.
+Motion Engine v3 — внутренний runtime-контур анимации MIRA-TV 2. Он отделяет структуру сцены, поведение и сценарий движения от конкретного renderer/API. Формат сохранённых пользовательских animation settings пока остаётся `motion_version: 2`; это отдельная persistence boundary.
 
 ## Целевой TV runtime после v1.8.2
 

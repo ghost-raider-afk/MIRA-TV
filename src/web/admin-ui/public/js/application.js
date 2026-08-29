@@ -25,10 +25,6 @@ async function initialisePage(name) {
       const { initialiseSettings } = await import('./pages/settings.js');
       return initialiseSettings();
     }
-    case 'sftp-settings': {
-      const { initialiseSftpSettings } = await import('./pages/sftp-settings.js');
-      return initialiseSftpSettings();
-    }
     case 'playlist':
     case 'animation': {
       const { initialisePlaylistStudio } = await import('./pages/playlist.js');
@@ -74,7 +70,6 @@ async function initialiseApplication() {
     initialiseSignIn();
     return;
   }
-
   installFrontendDiagnostics();
   try {
     await loadAuthenticatedContext();

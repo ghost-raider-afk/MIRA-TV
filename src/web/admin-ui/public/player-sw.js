@@ -38,7 +38,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keep = new Set([SHELL_CACHE, DATA_CACHE]);
     const names = await caches.keys();
-    await Promise.all(names.filter((name) => (name.startsWith('tv-menu-player-') || name.startsWith('mira-tv-player-')) && !keep.has(name)).map((name) => caches.delete(name)));
+    await Promise.all(names.filter((name) => (name.startsWith('mira-tv-player-') || name.startsWith('mira-tv-player-')) && !keep.has(name)).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -72,7 +72,7 @@ async function playerContext(request) {
     const cached = await cache.match(PLAYER_CONTEXT);
     if (!cached) return Response.error();
     const headers = new Headers(cached.headers);
-    headers.set('x-tv-menu-offline', '1');
+    headers.set('x-mira-tv-offline', '1');
     return new Response(await cached.clone().arrayBuffer(), { status: cached.status, statusText: cached.statusText, headers });
   }
 }

@@ -17,7 +17,6 @@ function categoryFromAction(action) {
   const source = String(action || '').toLowerCase();
   if (source.startsWith('auth.')) return 'auth';
   if (source.startsWith('catalog.')) return 'catalog';
-  if (source.startsWith('sftp.')) return 'sftp';
   if (source.startsWith('screen.') || source.startsWith('location.')) return 'monitors';
   if (source.startsWith('device.')) return 'tv';
   if (source.startsWith('settings.') || source.startsWith('profile.')) return 'settings';

@@ -6,7 +6,7 @@ import { formatDate } from '../core/presentation.js';
 
 const SEVERITY_LABELS = Object.freeze({ success: 'Успешно', warning: 'Предупреждение', error: 'Ошибка', info: 'Информация' });
 const CATEGORY_LABELS = Object.freeze({
-  interface: 'Интерфейс', catalog: 'Каталог', monitors: 'Мониторы', tv: 'ТВ', sftp: 'SFTP', auth: 'Авторизация', settings: 'Настройки', system: 'Система'
+  interface: 'Интерфейс', catalog: 'Каталог', monitors: 'Мониторы', tv: 'ТВ', auth: 'Авторизация', settings: 'Настройки', system: 'Система'
 });
 let journal = { items: [], stats: {}, retention_days: 0, max_entries: 0 };
 let filterTimer = null;
@@ -117,7 +117,7 @@ async function clearJournal() {
       category: 'system',
       persist: false
     });
-    window.dispatchEvent(new CustomEvent('menu-tv:event-recorded'));
+    window.dispatchEvent(new CustomEvent('mira-tv:event-recorded'));
     await loadJournal();
   } catch (error) {
     setMessage('event-message', error.message);

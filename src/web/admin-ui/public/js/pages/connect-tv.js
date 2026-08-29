@@ -179,7 +179,7 @@ async function nativeDetector() {
     return async () => {
       if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth || !video.videoHeight) return '';
       const codes = await detector.detect(video);
-      return codes.find((entry) => String(entry.rawValue || '').startsWith('TV2:'))?.rawValue || '';
+      return codes.find((entry) => String(entry.rawValue || '').startsWith('MIRA:'))?.rawValue || '';
     };
   } catch { return null; }
 }
@@ -200,7 +200,7 @@ function jsQrDetector() {
     const image = context.getImageData(0, 0, canvasWidth, canvasHeight);
     const result = window.jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' });
     const value = String(result?.data || '');
-    return value.startsWith('TV2:') ? value : '';
+    return value.startsWith('MIRA:') ? value : '';
   };
 }
 

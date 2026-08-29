@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import { parseCookies } from './session-service.js';
 
-export const DEVICE_SESSION_COOKIE = 'menu_tv_device_session';
-export const DEVICE_SCAN_PREFIX = 'TV2:';
+export const DEVICE_SESSION_COOKIE = 'mira_tv_device_session';
+export const DEVICE_SCAN_PREFIX = 'MIRA:';
 
 export function tokenHash(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');

@@ -13,10 +13,10 @@ import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js'
 import { GpuSceneRuntime } from './gpu-scene-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
 
-const ACTIVATION_STORAGE_KEY = 'tv-menu.device-activation.v2';
-const LEGACY_ACTIVATION_STORAGE_KEY = 'tv-menu.device-activation';
-const DEVICE_KEY_STORAGE_KEY = 'tv-menu.device-key.v1';
-const PLAYER_CONTEXT_STORAGE_KEY = 'tv-menu.player-context.v1';
+const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
+const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
+const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
+const PLAYER_CONTEXT_STORAGE_KEY = 'mira-tv.player-context.v1';
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
 const pairing = document.querySelector('[data-activation-pairing]');
@@ -445,7 +445,7 @@ function renderPlayerContext(context) {
     autoplay: true
   });
   entityLayer.setAttribute('aria-hidden', 'true');
-  playerRefreshMs = Math.max(2000, Number(context.refresh_interval_ms) || 5000);
+  playerRefreshMs = Math.max(2000, Number(context.fallback_poll_interval_ms) || 5000);
 }
 
 function showConnectionMessage(message) {
@@ -493,7 +493,7 @@ async function fetchPlayerContext(timeoutMs = 5000) {
     playerContextEtag = response.headers.get('etag') || '';
     savePlayerContext(context);
     void warmPlayerAssetCache(context);
-    return { context, offline: response.headers.get('x-tv-menu-offline') === '1' };
+    return { context, offline: response.headers.get('x-mira-tv-offline') === '1' };
   } finally {
     clearTimeout(timer);
   }

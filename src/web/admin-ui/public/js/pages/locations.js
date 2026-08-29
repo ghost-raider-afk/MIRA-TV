@@ -17,7 +17,6 @@ function renderLocations() {
   if (!list || !empty) return;
   refreshList(list, empty, state.locations.map((location) => recordRow(
     location.name,
-    `${location.address || 'Адрес не указан'} · мониторов: ${location.screen_count} · ${location.sftp_directory_name ? `SFTP: ${location.sftp_directory_name} (${location.sftp_username})` : 'SFTP не настроен'}`,
     [makeButton('Изменить', '', () => editLocation(location)), makeButton('Удалить', 'danger', () => void deleteLocation(location))]
   )));
 }

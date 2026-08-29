@@ -49,7 +49,7 @@ export function createSettingsRepository(pool) {
     async setInitialSiteName(name) {
       await pool.query(
         `UPDATE site_settings SET application_name = $1, updated_at = $2
-         WHERE id = 1 AND (application_name = '' OR application_name IN ('ТВ МЕНЮ', 'ТВ МЕНЮ 2'))`,
+         WHERE id = 1 AND (application_name = '' OR application_name IN ('MIRA-TV', 'MIRA-TV 2'))`,
         [name, isoNow()]
       );
     },

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MenuTvStore } from '../src/db/index.js';
+import { MiraTvStore } from '../src/db/index.js';
 
 function transactionHarness() {
   const queries = [];
@@ -23,7 +23,7 @@ function transactionHarness() {
 
 test('transaction commits work performed through repositories bound to one acquired client', async () => {
   const harness = transactionHarness();
-  const store = new MenuTvStore({}, { pool: harness.pool });
+  const store = new MiraTvStore({}, { pool: harness.pool });
   const result = await store.transaction(async (tx) => {
     assert.equal(await tx.lockScreen(7), true);
     return 'done';
@@ -37,7 +37,7 @@ test('transaction commits work performed through repositories bound to one acqui
 
 test('transaction always rolls back and releases the same client after a later failure', async () => {
   const harness = transactionHarness();
-  const store = new MenuTvStore({}, { pool: harness.pool });
+  const store = new MiraTvStore({}, { pool: harness.pool });
   await assert.rejects(
     store.transaction(async (tx) => {
       assert.equal(await tx.lockScreen(11), true);

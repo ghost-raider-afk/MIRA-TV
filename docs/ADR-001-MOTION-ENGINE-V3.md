@@ -6,7 +6,7 @@
 
 ## Decision
 
-TV Menu 2 uses a renderer-agnostic scene architecture for animation:
+MIRA-TV 2 uses a renderer-agnostic scene architecture for animation:
 
 ```text
 Renderer → Adapter → Scene Graph → independent SceneProgram compilers

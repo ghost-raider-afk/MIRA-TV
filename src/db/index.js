@@ -25,7 +25,6 @@ import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
-import { createSftpRepository } from './sftp.js';
 import { createDevicesRepository } from './devices.js';
 
 const MIGRATIONS = Object.freeze([
@@ -59,12 +58,11 @@ function createRepositories(queryable) {
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
-    createSftpRepository(queryable, { getLocation: locations.getLocation }),
     createDevicesRepository(queryable)
   );
 }
 
-export class MenuTvStore {
+export class MiraTvStore {
   constructor(dbConfig, { seedDemoData: enableDemoSeed = false, pool = null } = {}) {
     this.pool = pool ?? createDatabasePool(dbConfig);
     this.seedDemoData = enableDemoSeed;

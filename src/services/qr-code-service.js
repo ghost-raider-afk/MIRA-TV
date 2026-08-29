@@ -160,7 +160,7 @@ function qrMatrix(text) {
 }
 
 export function activationQrPayload(scanToken) {
-  return `TV2:${scanToken}`;
+  return `MIRA:${scanToken}`;
 }
 
 export function createActivationQrSvg(scanToken) {

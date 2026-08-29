@@ -30,16 +30,16 @@ test('QR contains only short-lived scan claim and never contains polling secret'
   const credentials = createActivationCredentials();
   const payload = activationQrPayload(credentials.scanToken);
   const svg = createActivationQrSvg(credentials.scanToken);
-  assert.equal(payload, `TV2:${credentials.scanToken}`);
+  assert.equal(payload, `MIRA:${credentials.scanToken}`);
   assert.match(svg, /^<svg/);
   assert.match(svg, /aria-label="QR-код подключения телевизора"/);
   assert.equal(svg.includes(credentials.pollSecret), false);
   assert.equal(svg.includes(credentials.reserveCode), false);
 });
 
-test('admin scanner accepts only canonical TV2 QR payload and six digit fallback code', () => {
+test('admin scanner accepts only canonical MIRA QR payload and six digit fallback code', () => {
   const credentials = createActivationCredentials();
-  assert.equal(parseScanPayload(`TV2:${credentials.scanToken}`), credentials.scanToken);
+  assert.equal(parseScanPayload(`MIRA:${credentials.scanToken}`), credentials.scanToken);
   assert.equal(parseScanPayload(`https://example.test/?token=${credentials.scanToken}`), null);
   assert.equal(parseReserveCode('123 456'), '123456');
   assert.equal(parseReserveCode('12345'), null);
@@ -58,7 +58,7 @@ test('device session token is deterministic for activation recovery but opaque t
 
 test('device cookie is HttpOnly, strict and secure independently from admin session', () => {
   const cookie = deviceSessionCookie('dvs_test', config);
-  assert.match(cookie, /^menu_tv_device_session=/);
+  assert.match(cookie, /^mira_tv_device_session=/);
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /SameSite=Strict/);
   assert.match(cookie, /Secure/);

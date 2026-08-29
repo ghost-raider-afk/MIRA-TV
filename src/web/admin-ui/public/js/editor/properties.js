@@ -72,8 +72,6 @@ export function writeScreenProperties(screen) {
   element('editor-resolution').value = screen.resolution || '';
   element('editor-status').value = screen.status === 'published' ? 'ready' : screen.status;
   element('editor-active').checked = screen.active !== false;
-  const path = element('editor-sftp-path');
-  if (path) path.textContent = screen.sftp_path || 'SFTP не настроен';
   const identity = element('editor-toolbar-title');
   if (identity) identity.textContent = `${screen.location_name || 'Точка'} · ${screen.name || 'Монитор'}`;
 }
@@ -88,13 +86,6 @@ export function readScreenProperties(screen) {
   };
 }
 
-export function syncDeliveryControls(screen, editorState) {
-  const dirty = editorState?.dirty === true;
-  const publish = element('editor-publish');
-  if (publish instanceof HTMLButtonElement) {
-    publish.disabled = dirty || !screen?.prepared_asset_key || !screen?.sftp_directory_name;
-  }
-}
 
 export function bindSettingsProperties(editorState, onChange) {
   const apply = () => {

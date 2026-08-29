@@ -10,7 +10,7 @@ async function playerSource() {
 
 test('pending TV activation survives reloads and migrates the old session-only record', async () => {
   const source = await playerSource();
-  assert.match(source, /const ACTIVATION_STORAGE_KEY = 'tv-menu\.device-activation\.v2'/);
+  assert.match(source, /const ACTIVATION_STORAGE_KEY = 'mira-tv\.device-activation\.v2'/);
   assert.match(source, /localStorage\.getItem\(ACTIVATION_STORAGE_KEY\)/);
   assert.match(source, /localStorage\.setItem\(ACTIVATION_STORAGE_KEY/);
   assert.match(source, /LEGACY_ACTIVATION_STORAGE_KEY/);

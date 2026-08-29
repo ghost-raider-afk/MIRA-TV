@@ -14,7 +14,7 @@ test('pending TV pairing survives repeated player reloads without creating new a
   await expect(page.locator('[data-activation-pairing]')).toBeVisible();
   await expect(page.locator('[data-activation-status]')).toContainText('Ожидание авторизации');
 
-  const first = await page.evaluate(() => JSON.parse(localStorage.getItem('tv-menu.device-activation.v2') || 'null'));
+  const first = await page.evaluate(() => JSON.parse(localStorage.getItem('mira-tv.device-activation.v2') || 'null'));
   expect(first?.activation_id).toBeTruthy();
   expect(first?.poll_secret).toBeTruthy();
   expect(activationPosts).toBe(1);
@@ -23,7 +23,7 @@ test('pending TV pairing survives repeated player reloads without creating new a
     await page.reload();
     await expect(page.locator('[data-activation-pairing]')).toBeVisible();
     await expect(page.locator('[data-activation-status]')).toContainText('Ожидание авторизации');
-    const current = await page.evaluate(() => JSON.parse(localStorage.getItem('tv-menu.device-activation.v2') || 'null'));
+    const current = await page.evaluate(() => JSON.parse(localStorage.getItem('mira-tv.device-activation.v2') || 'null'));
     expect(current?.activation_id).toBe(first.activation_id);
     expect(current?.poll_secret).toBe(first.poll_secret);
   }
@@ -38,7 +38,7 @@ test('pending approval is probed before pairing UI can flash during player boots
   let playerContextRequests = 0;
   try {
     await page.addInitScript(({ activationId }) => {
-      localStorage.setItem('tv-menu.device-activation.v2', JSON.stringify({
+      localStorage.setItem('mira-tv.device-activation.v2', JSON.stringify({
         activation_id: activationId,
         poll_secret: 'x'.repeat(40),
         expires_at: new Date(Date.now() + 120000).toISOString(),
@@ -82,7 +82,7 @@ test('pending approval is probed before pairing UI can flash during player boots
     await expect(page.locator('[data-activation-view]')).toBeHidden();
     await expect.poll(() => playerContextRequests, { timeout: 3000 }).toBe(1);
     await expect(page.locator('[data-activation-view]')).toBeHidden();
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('tv-menu.device-activation.v2'))).toBeNull();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('mira-tv.device-activation.v2'))).toBeNull();
   } finally {
     await context.close();
   }
@@ -93,7 +93,7 @@ test('temporary session server errors keep cached Player visible instead of reve
   const page = await context.newPage();
   try {
     await page.addInitScript(() => {
-      localStorage.setItem('tv-menu.player-context.v1', JSON.stringify({
+      localStorage.setItem('mira-tv.player-context.v1', JSON.stringify({
         saved_at: new Date().toISOString(),
         context: {
           screen: { id: 1, name: 'ТВ 1', resolution: '1920x1080', location_id: 1, location_name: 'Точка 1', location_number: 1 },

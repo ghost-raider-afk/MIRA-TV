@@ -119,7 +119,7 @@ export function applyTheme(theme) {
   document.documentElement.dataset.theme = actual;
   document.documentElement.dataset.themePreference = requested;
   if (state.site?.accent_color) applyAccentColor(state.site.accent_color);
-  try { window.localStorage.setItem('menu-tv-theme', requested); } catch { /* Storage can be unavailable. */ }
+  try { window.localStorage.setItem('mira-tv-theme', requested); } catch { /* Storage can be unavailable. */ }
   const toggle = element('theme-toggle');
   if (toggle) {
     setIcon(toggle, actual === 'dark' ? 'sun' : 'moon');

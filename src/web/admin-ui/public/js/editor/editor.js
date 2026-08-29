@@ -8,10 +8,9 @@ import { updateSettings } from './commands.js';
 import { createEditorHistory } from './history.js';
 import { normaliseEditorSettings } from './settings.js';
 import { appendRow, renderRows } from './rows.js';
-import { bindScreenProperties, bindSettingsProperties, readEditorSettings, readScreenProperties, syncDeliveryControls, writeEditorSettings, writeScreenProperties } from './properties.js';
+import { bindScreenProperties, bindSettingsProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
 import { renderPreview } from './preview.js';
 import { serializeDraft } from './serializer.js';
-import { renderFinalJpeg } from './final-image.js';
 
 const EDITOR_LOADING_CONTROLS = Object.freeze([
   'editor-name', 'editor-resolution', 'editor-status', 'editor-active',
@@ -20,7 +19,7 @@ const EDITOR_LOADING_CONTROLS = Object.freeze([
   'editor-table-x', 'editor-table-y', 'editor-table-width', 'editor-table-height',
   'editor-background-file', 'editor-background-upload', 'editor-background-remove',
   'editor-add-section', 'editor-add-item', 'editor-add-packaging',
-  'editor-publish', 'editor-save'
+  'editor-save'
 ]);
 
 function editorScreenId() {
@@ -62,7 +61,6 @@ function setEditorLoading(form, loading) {
 function populateEditor(screen, editorState) {
   writeScreenProperties(screen);
   writeEditorSettings(editorState.settings);
-  syncDeliveryControls(screen, editorState);
 }
 
 function setDirtyState(editorState) {
@@ -209,26 +207,11 @@ export function initialiseScreenEditor() {
       screen = saved.screen;
       markEditorSaved(editorState);
       history.clear();
-
-      let jpegPrepared = false;
-      let jpegError = null;
-      try {
-        const jpeg = await renderFinalJpeg(editorState, { screen, products, packaging });
-        screen = await api.put(`${API.screens}/${screenId}/source`, jpeg, { headers: { 'Content-Type': 'image/jpeg' } });
-        if (!isMounted()) return;
-        editorState.screen = structuredClone(screen);
-        jpegPrepared = true;
-      } catch (error) {
-        jpegError = error;
-      }
-
-      if (!isMounted()) return;
       populateEditor(screen, editorState);
       refreshRows();
       refreshEditorView();
       await loadNotifications();
-      if (jpegPrepared) setEditorMessage('Сохранено. JPEG собран и готов к публикации.', 'success');
-      else setEditorMessage(`Меню сохранено, но JPEG не собран: ${jpegError?.message || 'неизвестная ошибка'}.`, 'error');
+      setEditorMessage('Состояние сохранено и доступно TV Player.', 'success');
     } catch (error) {
       if (isMounted()) setEditorMessage(error.message);
     } finally {
@@ -290,25 +273,6 @@ export function initialiseScreenEditor() {
       setEditorMessage('Фон удалён.', 'success');
     } catch (error) {
       if (isMounted()) setEditorMessage(error.message);
-    }
-  });
-
-  element('editor-publish')?.addEventListener('click', async () => {
-    if (editorState.dirty) return setEditorMessage('Сначала сохраните изменения.');
-    const button = element('editor-publish');
-    setPending(button, true, 'Публикуем…');
-    try {
-      screen = await api.post(`${API.screens}/${screenId}/publish`);
-      if (!isMounted()) return;
-      editorState.screen = structuredClone(screen);
-      populateEditor(screen, editorState);
-      refreshEditorView();
-      setEditorMessage('JPEG опубликован в SFTP-папке торговой точки.', 'success');
-      await loadNotifications();
-    } catch (error) {
-      if (isMounted()) setEditorMessage(error.message);
-    } finally {
-      if (isMounted()) setPending(button, false, 'Публикуем…');
     }
   });
 

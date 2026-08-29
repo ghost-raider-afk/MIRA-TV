@@ -15,15 +15,13 @@
           <form id="screen-editor-form" class="editor-workspace" aria-busy="true">
             <section class="editor-commandbar" aria-label="Редактор монитора">
               <div class="editor-commandbar-identity">
-                <a class="editor-back" href="/screens.html" aria-label="К мониторам">←</a>
+                <a class="editor-back" href="/screens" aria-label="К мониторам">←</a>
                 <div class="editor-commandbar-identity-copy">
                   <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка монитора…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
-                  <span class="editor-toolbar-path" id="editor-sftp-path">SFTP не настроен</span>
                 </div>
               </div>
-              <div class="editor-primary-actions" aria-label="Сохранение и публикация">
+              <div class="editor-primary-actions" aria-label="Сохранение">
                 <button class="button button-primary editor-save" id="editor-save" type="submit" disabled>Сохранить</button>
-                <button class="button button-primary editor-publish" id="editor-publish" type="button" disabled>Опубликовать</button>
               </div>
             </section>
             <p class="form-message is-hidden editor-message" id="screen-editor-message" role="status" aria-live="polite"></p>
@@ -41,7 +39,7 @@
                       <label class="field"><span>Разрешение</span><input id="editor-resolution" maxlength="32" required disabled /></label>
                       <label class="field"><span>Статус</span><select id="editor-status" disabled><option value="draft">Черновик</option><option value="ready">Готово</option></select></label>
                     </div>
-                    <label class="toggle-row compact-toggle"><span><strong>Активен</strong><small>Доступен для публикации</small></span><input id="editor-active" type="checkbox" checked disabled /><i aria-hidden="true"></i></label>
+                    <label class="toggle-row compact-toggle"><span><strong>Активен</strong><small>Доступен TV Player</small></span><input id="editor-active" type="checkbox" checked disabled /><i aria-hidden="true"></i></label>
                   </div>
                 </details>
 
@@ -85,7 +83,7 @@
                   </div>
                   <div class="editor-menu-rows" id="editor-menu-rows"></div><p class="empty-state" id="editor-menu-empty">В меню ещё нет строк.</p>
                 </section>
-                <section class="settings-card editor-preview-card" aria-labelledby="editor-preview-title"><div class="editor-preview-head"><strong id="editor-preview-title">Предпросмотр</strong><span>Один renderer для preview и JPEG</span></div><div class="editor-menu-preview" id="editor-menu-preview"></div><p class="editor-layout-warning is-hidden" id="editor-layout-warning" role="status" aria-live="polite"></p></section>
+                <section class="settings-card editor-preview-card" aria-labelledby="editor-preview-title"><div class="editor-preview-head"><strong id="editor-preview-title">Предпросмотр</strong><span>Канонический renderer TV Player</span></div><div class="editor-menu-preview" id="editor-menu-preview"></div><p class="editor-layout-warning is-hidden" id="editor-layout-warning" role="status" aria-live="polite"></p></section>
               </div>
             </div>
           </form>

@@ -102,7 +102,7 @@ test('canonical table keeps prices separate and builds second line only from cat
   assert.match(svg, /class="price"[^>]*text-anchor="end"/);
 });
 
-test('default board geometry is TV Menu 1 and can be moved per monitor', () => {
+test('default board geometry is MIRA-TV 1 and can be moved per monitor', () => {
   assert.equal(MENU_REFERENCE.width, 1920);
   assert.equal(MENU_REFERENCE.tableX, 56);
   assert.equal(MENU_REFERENCE.tableWidth, 1374);

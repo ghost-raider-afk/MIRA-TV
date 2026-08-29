@@ -1,7 +1,7 @@
 services:
   docker-socket-proxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
-    container_name: menu-tv-2-docker-socket-proxy
+    container_name: mira-tv-docker-socket-proxy
     restart: unless-stopped
     environment:
       CONTAINERS: "1"
@@ -27,7 +27,7 @@ services:
 
   traefik:
     image: traefik:v3.6@sha256:31267173a15b4944e797a76ffd9c419707c8d8b32fe5b610f80cd0cfa05f372d
-    container_name: menu-tv-2-proxy
+    container_name: mira-tv-proxy
     restart: unless-stopped
     depends_on:
       - docker-socket-proxy
@@ -56,7 +56,7 @@ services:
 
 networks:
   proxy:
-    name: menu-tv-2-proxy
+    name: mira-tv-proxy
   docker-api:
-    name: menu-tv-2-docker-api
+    name: mira-tv-docker-api
     internal: true

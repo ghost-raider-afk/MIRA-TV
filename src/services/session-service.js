@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const SESSION_COOKIE = 'menu_tv_2_session';
+export const SESSION_COOKIE = 'mira_tv_session';
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
 
 function constantTimeEqual(left, right) {
@@ -46,7 +46,7 @@ export function sessionCookie(token, config, maxAge = config.sessionTtlHours * 3
 
 export function themeCookie(theme, config, maxAge = config.sessionTtlHours * 3600) {
   const value = VALID_THEMES.has(theme) ? theme : 'system';
-  return `menu_tv_theme=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Strict${config.secureCookies ? '; Secure' : ''}`;
+  return `mira_tv_theme=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Strict${config.secureCookies ? '; Secure' : ''}`;
 }
 
 export function createSessionResolver(store, config) {

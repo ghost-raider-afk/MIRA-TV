@@ -4,7 +4,7 @@ import { createContextPanel, refreshContextActive, refreshContextPanel } from '.
 import { createHeader, initialiseHeader, refreshHeaderRoute } from './header.js';
 import { createNotificationsLayer } from './notifications.js';
 
-const CONTEXT_COLLAPSED_KEY = 'tv-menu.context-collapsed';
+const CONTEXT_COLLAPSED_KEY = 'mira-tv.context-collapsed';
 const CONTEXT_MOBILE_BREAKPOINT = 1180;
 const PHONE_BREAKPOINT = 960;
 

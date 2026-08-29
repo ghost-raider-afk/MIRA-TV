@@ -64,7 +64,6 @@ export function createLocationsRouter({ store, config }) {
   router.delete('/:id', async (request, response) => {
     const location = await store.getLocation(positiveId(request.params.id, 'id'));
     if (!location) throw notFound();
-    if (location.sftp_directory_id) throw conflict('Сначала явно отключите SFTP-доступ точки. Каталог и файлы останутся без изменений.');
     if (!await store.deleteLocation(location.id)) throw notFound();
     await activity(store, request, { action: 'location.deleted', entity_type: 'location', entity_id: location.id, message: `Удалена торговая точка «${location.name}».` });
     response.status(204).end();

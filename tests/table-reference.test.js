@@ -19,7 +19,7 @@ function referenceRows() {
   ];
 }
 
-test('default monitor coordinates match the full TV Menu 1 1920x1080 file', () => {
+test('default monitor coordinates match the full MIRA-TV 1 1920x1080 file', () => {
   assert.deepEqual(MENU_REFERENCE, {
     width: 1920, height: 1080, tableX: 56, tableRight: 1430, tableWidth: 1374, tableTop: 15, tableBottom: 940, tableHeight: 925,
     rowHeight: 53.5, sectionInset: 4, separatorInset: 9, secondaryPriceX: 1405, priceColumnGap: 147,
@@ -27,7 +27,7 @@ test('default monitor coordinates match the full TV Menu 1 1920x1080 file', () =
   });
 });
 
-test('TV Menu 1 reference density fits by scaling one shared row geometry', () => {
+test('MIRA-TV 1 reference density fits by scaling one shared row geometry', () => {
   const state = { rows: referenceRows(), settings: { background_color: '#101828', accent_color: '#F6C90E', text_color: '#F8FAFC', font_scale_percent: 100, font_family: 'arial-narrow' } };
   const model = buildRenderModel(state, { width: 1920, height: 1080 });
   const lines = buildDisplayLines(model, { products });
