@@ -8,10 +8,20 @@ REPO_URL="https://github.com/ghost-raider-afk/MIRA-TV.git"
 GITHUB_REPO="ghost-raider-afk/MIRA-TV"
 GITHUB_API_URL="https://api.github.com/repos/${GITHUB_REPO}"
 LAUNCHER_PATH="/usr/local/bin/mira-tv"
+TEMP_BACKUP_DIR=""
+KEEP_TEMP_BACKUP=false
 
 log() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
+warn() { printf 'ПРЕДУПРЕЖДЕНИЕ: %s\n' "$*" >&2; }
 die() { printf 'ОШИБКА: %s\n' "$*" >&2; exit 1; }
+
+cleanup_temporary_backup() {
+  if [[ -n "$TEMP_BACKUP_DIR" && -d "$TEMP_BACKUP_DIR" && "$KEEP_TEMP_BACKUP" != true ]]; then
+    rm -rf -- "$TEMP_BACKUP_DIR"
+  fi
+}
+trap cleanup_temporary_backup EXIT
 
 confirm_action() {
   local prompt="$1" answer
@@ -59,6 +69,24 @@ generated_admin_password() {
 latest_tag() {
   curl -fsSL -H 'Accept: application/vnd.github+json' "${GITHUB_API_URL}/releases/latest" \
     | sed -nE 's/.*"tag_name"[[:space:]]*:[[:space:]]*"(v[0-9]+\.[0-9]+\.[0-9]+)".*/\1/p'
+}
+
+installed_version() {
+  local version=''
+  if [[ -f "${INSTALL_DIR}/.env" ]]; then
+    version="$(sed -nE 's/^MIRA_TV_VERSION=(.+)$/\1/p' "${INSTALL_DIR}/.env" | head -n 1)"
+  fi
+  if [[ -z "$version" && -f "${INSTALL_DIR}/package.json" ]]; then
+    version="$(sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "${INSTALL_DIR}/package.json" | head -n 1)"
+  fi
+  [[ -n "$version" ]] || return 1
+  printf '%s\n' "$version"
+}
+
+version_is_newer() {
+  local current="$1" candidate="$2"
+  [[ "$current" != "$candidate" ]] || return 1
+  [[ "$(printf '%s\n%s\n' "$current" "$candidate" | sort -V | tail -n 1)" == "$candidate" ]]
 }
 
 validate_domain() {
@@ -112,6 +140,59 @@ start_stack() {
   compose up -d --build --wait
 }
 
+create_temporary_backup() {
+  local installer_source
+  [[ -d "${INSTALL_DIR}/.git" ]] || die 'Каталог установки не является Git-репозиторием.'
+  [[ -f "${INSTALL_DIR}/.env" ]] || die 'Не найден /opt/MIRA-TV/.env.'
+  installer_source="$(readlink -f -- "${BASH_SOURCE[0]}")"
+  [[ -f "$installer_source" ]] || die 'Не удалось сохранить текущий установщик перед обновлением.'
+
+  TEMP_BACKUP_DIR="$(mktemp -d -t 'mira-tv.update.XXXXXX')"
+  chmod 700 "$TEMP_BACKUP_DIR"
+  tar --exclude='./.git' --exclude='./.env' --exclude='./node_modules' -C "$INSTALL_DIR" -czf "$TEMP_BACKUP_DIR/source.tar.gz" .
+  cp "$INSTALL_DIR/.env" "$TEMP_BACKUP_DIR/.env"
+  cp "$installer_source" "$TEMP_BACKUP_DIR/installer.sh"
+  chmod 600 "$TEMP_BACKUP_DIR/.env"
+  chmod 700 "$TEMP_BACKUP_DIR/installer.sh"
+  git -C "$INSTALL_DIR" rev-parse HEAD > "$TEMP_BACKUP_DIR/git-revision"
+
+  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$TEMP_BACKUP_DIR/database.dump"
+  [[ -s "$TEMP_BACKUP_DIR/database.dump" ]] || die 'Резервная копия PostgreSQL пуста; обновление остановлено.'
+  info 'Временная резервная копия создана.'
+}
+
+restore_database_exact() {
+  local dump_file="$1"
+  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" dropdb --if-exists --force -U "$POSTGRES_USER" "$POSTGRES_DB" && PGPASSWORD="$POSTGRES_PASSWORD" createdb -U "$POSTGRES_USER" -O "$POSTGRES_USER" "$POSTGRES_DB"'
+  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < "$dump_file"
+}
+
+restore_temporary_backup() {
+  [[ -n "$TEMP_BACKUP_DIR" ]] || return 1
+  [[ -f "$TEMP_BACKUP_DIR/source.tar.gz" && -f "$TEMP_BACKUP_DIR/.env" && -f "$TEMP_BACKUP_DIR/git-revision" && -s "$TEMP_BACKUP_DIR/database.dump" ]] || return 1
+
+  warn 'Обновление не прошло проверку. Выполняется автоматическое восстановление.'
+  compose down --remove-orphans || true
+  find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env' -exec rm -rf -- {} +
+  tar -C "$INSTALL_DIR" -xzf "$TEMP_BACKUP_DIR/source.tar.gz"
+  cp "$TEMP_BACKUP_DIR/.env" "$INSTALL_DIR/.env"
+  chmod 600 "$INSTALL_DIR/.env"
+  git -C "$INSTALL_DIR" reset --hard "$(<"$TEMP_BACKUP_DIR/git-revision")"
+  install -m 0755 "$TEMP_BACKUP_DIR/installer.sh" "$LAUNCHER_PATH"
+
+  compose up -d --wait db
+  restore_database_exact "$TEMP_BACKUP_DIR/database.dump"
+  compose up -d --build --wait
+}
+
+recover_failed_update() {
+  if restore_temporary_backup; then
+    die 'Обновление отменено: предыдущая версия, настройки и база данных автоматически восстановлены.'
+  fi
+  KEEP_TEMP_BACKUP=true
+  die "Автоматическое восстановление не завершилось. Временная копия сохранена: ${TEMP_BACKUP_DIR:-не создана}"
+}
+
 install_app() {
   require_root
   require_ubuntu
@@ -146,21 +227,47 @@ update_app() {
   require_root
   [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
 
-  local tag version
+  local installed tag version answer
+  installed="$(installed_version)" || die 'Не удалось определить установленную версию MIRA-TV.'
   tag="$(latest_tag)"
   [[ -n "$tag" ]] || die 'Стабильный релиз MIRA-TV не найден.'
   version="${tag#v}"
 
-  log "Обновление MIRA-TV до ${version}"
+  printf 'Установлена: %s\nПоследний релиз: %s\n' "$installed" "$version"
+
+  if [[ "$installed" == "$version" ]]; then
+    info "У вас установлена последняя версия MIRA-TV (${installed})."
+    return 0
+  fi
+  if ! version_is_newer "$installed" "$version"; then
+    info "Установленная версия ${installed} новее стабильной версии ${version}."
+    return 0
+  fi
+
+  read -r -p "Доступно обновление до ${version}. Обновить? [y/N]: " answer
+  if [[ "${answer,,}" != y ]]; then
+    info 'Обновление отменено.'
+    return 0
+  fi
+
+  log "Обновление MIRA-TV ${installed} -> ${version}"
   cd "$INSTALL_DIR"
-  git fetch --tags --force origin
-  git checkout -f "$tag"
-  merge_env_defaults
-  sed -i "s|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=${version}|" .env
-  chmod 600 .env
-  docker compose config --quiet
-  docker compose up -d --build --wait
-  install -m 0755 mira-tv.sh "$LAUNCHER_PATH"
+  git fetch --tags --force origin || die 'Не удалось получить теги GitHub.'
+  git rev-parse "${tag}^{commit}" >/dev/null 2>&1 || die "Не найден релизный тег ${tag}."
+
+  create_temporary_backup
+
+  git checkout -f "$tag" || recover_failed_update
+  merge_env_defaults || recover_failed_update
+  sed -i "s|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=${version}|" .env || recover_failed_update
+  chmod 600 .env || recover_failed_update
+  docker compose config --quiet || recover_failed_update
+  docker compose up -d --build --wait || recover_failed_update
+  install -m 0755 mira-tv.sh "$LAUNCHER_PATH" || recover_failed_update
+
+  rm -rf -- "$TEMP_BACKUP_DIR"
+  TEMP_BACKUP_DIR=""
+  info "MIRA-TV обновлён до версии ${version}."
 }
 
 status_app() {
@@ -174,15 +281,6 @@ restart_app() {
 
 logs_app() {
   compose logs -f --tail=200
-}
-
-check_update() {
-  local installed='не установлена' latest
-  if [[ -f "${INSTALL_DIR}/.env" ]]; then
-    installed="$(sed -nE 's/^MIRA_TV_VERSION=(.+)$/\1/p' "${INSTALL_DIR}/.env" | head -n 1)"
-  fi
-  latest="$(latest_tag)"
-  printf 'Установлена: %s\nПоследний релиз: %s\n' "$installed" "${latest:-не найден}"
 }
 
 reset_admin_password() {
@@ -229,7 +327,7 @@ purge_app() {
 
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Обновить\n3) Статус\n4) Перезапустить\n5) Логи\n6) Проверить обновление\n7) Сбросить пароль администратора\n8) Удалить приложение\n9) Удалить приложение и данные\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
   case "$choice" in
     1) install_app ;;
@@ -237,10 +335,9 @@ show_menu() {
     3) status_app ;;
     4) restart_app ;;
     5) logs_app ;;
-    6) check_update ;;
-    7) reset_admin_password ;;
-    8) remove_app ;;
-    9) purge_app ;;
+    6) reset_admin_password ;;
+    7) remove_app ;;
+    8) purge_app ;;
     0) exit 0 ;;
     *) die 'Неизвестный пункт меню.' ;;
   esac
@@ -252,10 +349,9 @@ case "${1:-menu}" in
   status) status_app ;;
   restart) restart_app ;;
   logs) logs_app ;;
-  check-update) check_update ;;
   reset-admin-password) reset_admin_password ;;
   remove) remove_app ;;
   purge) purge_app ;;
   menu) show_menu ;;
-  *) die 'Команды: install | update | status | restart | logs | check-update | reset-admin-password | remove | purge | menu' ;;
+  *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
 esac
