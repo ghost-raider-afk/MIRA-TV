@@ -6,6 +6,8 @@ export const state = {
   locations: [],
   screens: [],
   deviceBindings: [],
+  sceneRevisions: [],
+  sceneAssignments: [],
   products: [],
   packaging: [],
   editingLocationId: null,
