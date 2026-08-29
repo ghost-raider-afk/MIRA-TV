@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 PROGRAM_NAME="MIRA-TV"
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="1.0.3"
 INSTALL_DIR="/opt/MIRA-TV"
 REPO_URL="https://github.com/ghost-raider-afk/MIRA-TV.git"
 GITHUB_REPO="ghost-raider-afk/MIRA-TV"
@@ -121,7 +121,7 @@ write_env() {
 
   cp "${INSTALL_DIR}/.env.example" "${INSTALL_DIR}/.env"
   sed -i \
-    -e 's|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=1.0.2|' \
+    -e 's|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=1.0.3|' \
     -e "s|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=${domain}|" \
     -e "s|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=${email}|" \
     -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${db_password}|" \
@@ -160,8 +160,14 @@ create_temporary_backup() {
   local installer_source
   [[ -d "${INSTALL_DIR}/.git" ]] || die 'Каталог установки не является Git-репозиторием.'
   [[ -f "${INSTALL_DIR}/.env" ]] || die 'Не найден /opt/MIRA-TV/.env.'
-  installer_source="$(readlink -f -- "${BASH_SOURCE[0]}")"
-  [[ -f "$installer_source" ]] || die 'Не удалось сохранить текущий установщик перед обновлением.'
+
+  if [[ -f "${INSTALL_DIR}/mira-tv.sh" ]]; then
+    installer_source="${INSTALL_DIR}/mira-tv.sh"
+  elif [[ -f "$LAUNCHER_PATH" ]]; then
+    installer_source="$LAUNCHER_PATH"
+  else
+    die 'Не найден установленный скрипт MIRA-TV для резервной копии.'
+  fi
 
   TEMP_BACKUP_DIR="$(mktemp -d -t 'mira-tv.update.XXXXXX')"
   chmod 700 "$TEMP_BACKUP_DIR"
