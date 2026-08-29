@@ -138,7 +138,6 @@ export function initialiseScreenEditor() {
     setLayoutWarning(preview, activeScreen);
     setFontScaleState(preview);
     setDirtyState(editorState);
-    syncDeliveryControls(screen || activeScreen, editorState);
     return preview;
   };
 
