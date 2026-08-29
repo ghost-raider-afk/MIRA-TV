@@ -137,8 +137,8 @@ export function createSceneElementNode(element, scene, context = {}) {
   return node;
 }
 
-export function applySceneStage(stage, scene, slide) {
-  stage.style.aspectRatio = `${scene.canvas_width} / ${scene.canvas_height}`;
+export function applySceneStage(stage, scene, slide, { constrainAspect = true } = {}) {
+  stage.style.aspectRatio = constrainAspect ? `${scene.canvas_width} / ${scene.canvas_height}` : '';
   stage.style.background = slide?.background?.color || '#10141c';
 }
 
