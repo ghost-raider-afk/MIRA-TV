@@ -5,28 +5,33 @@ import test from 'node:test';
 const exists = async (path) => access(path).then(() => true, () => false);
 
 test('MIRA-TV owns the repository, runtime and installer namespace', async () => {
-  const [pkg, env, compose, installer, server] = await Promise.all([
-    readFile('package.json', 'utf8'), readFile('.env.example', 'utf8'), readFile('compose.yaml', 'utf8'),
-    readFile('mira-tv.sh', 'utf8'), readFile('src/server.js', 'utf8')
+  const [pkg, env, compose, installer] = await Promise.all([
+    readFile('package.json', 'utf8'),
+    readFile('.env.example', 'utf8'),
+    readFile('compose.yaml', 'utf8'),
+    readFile('mira-tv.sh', 'utf8')
   ]);
   const meta = JSON.parse(pkg);
   assert.equal(meta.name, 'mira-tv');
-  assert.equal(meta.version, '1.0.0-1');
-  assert.equal(meta.miraVersion, '1.0.0.1');
-  assert.match(env, /^MIRA_TV_VERSION=1\.0\.0\.1$/m);
+  assert.equal(meta.version, '1.0.0');
+  assert.equal(meta.miraVersion, '1.0.0');
+  assert.match(env, /^MIRA_TV_VERSION=1\.0\.0$/m);
   assert.match(env, /^MIRA_TV_DOMAIN=$/m);
-  assert.match(installer, /^SCRIPT_VERSION="1\.0\.0\.1"$/m);
+  assert.match(env, /^MIRA_TV_ACME_EMAIL=$/m);
+  assert.match(installer, /^PROGRAM_NAME="MIRA-TV"$/m);
+  assert.match(installer, /^SCRIPT_VERSION="1\.0\.0"$/m);
   assert.match(installer, /^INSTALL_DIR="\/opt\/MIRA-TV"$/m);
   assert.match(installer, /ghost-raider-afk\/MIRA-TV/);
+  assert.match(compose, /^name: mira-tv$/m);
   assert.match(compose, /container_name: mira-tv\b/);
   assert.match(compose, /container_name: mira-tv-db\b/);
+  assert.match(compose, /container_name: mira-tv-proxy\b/);
 });
-
 
 test('new MIRA-TV documentation and vector brand assets exist', async () => {
   for (const path of [
-    'docs/ARCHITECTURE.md','docs/INSTALLATION.md','docs/TV-PLAYER-OFFLINE-FIRST.md',
-    'docs/RESOURCE-BUDGET.md','docs/REALTIME-SYNC.md','docs/BRANDING.md',
+    'docs/ARCHITECTURE.md', 'docs/INSTALLATION.md', 'docs/TV-PLAYER-OFFLINE-FIRST.md',
+    'docs/RESOURCE-BUDGET.md', 'docs/REALTIME-SYNC.md', 'docs/BRANDING.md',
     'src/web/admin-ui/public/brand/mira-tv-mark.svg',
     'src/web/admin-ui/public/brand/mira-tv-logo.svg',
     'src/web/admin-ui/public/brand/mira-tv-splash.svg'
