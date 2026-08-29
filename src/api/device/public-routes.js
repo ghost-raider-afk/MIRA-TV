@@ -13,7 +13,7 @@ import {
 } from '../../services/device-session-service.js';
 import { buildPlayerState, deltaPlayerContext, fullPlayerContext } from '../../services/player-context-service.js';
 
-const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'runtime']);
+const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'scene', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
 
 function activationId(value) {
