@@ -15,6 +15,7 @@ import { migrateAnimationOverlays } from './migrations/animation-overlays.js';
 import { migrateScreenAnimationSettings } from './migrations/screen-animation-settings.js';
 import { migrateEnvironmentLayer } from './migrations/environment-layer.js';
 import { migrateScenePlaylist } from './migrations/scene-playlist.js';
+import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -26,6 +27,7 @@ import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
+import { createPlayerTelemetryRepository } from './player-telemetry.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -43,7 +45,8 @@ const MIGRATIONS = Object.freeze([
   { name: '013-animation-overlays', run: migrateAnimationOverlays },
   { name: '014-screen-animation-settings', run: migrateScreenAnimationSettings },
   { name: '015-environment-layer', run: migrateEnvironmentLayer },
-  { name: '016-scene-playlist', run: migrateScenePlaylist }
+  { name: '016-scene-playlist', run: migrateScenePlaylist },
+  { name: '017-player-telemetry', run: migratePlayerTelemetry }
 ]);
 
 function createRepositories(queryable) {
@@ -58,7 +61,8 @@ function createRepositories(queryable) {
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
-    createDevicesRepository(queryable)
+    createDevicesRepository(queryable),
+    createPlayerTelemetryRepository(queryable)
   );
 }
 
