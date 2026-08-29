@@ -42,3 +42,23 @@ test('normaliseScene limits prototype to supported horizontal display range', ()
   assert.equal(scene.display_count, 6);
   assert.equal(scene.canvas_width, 11520);
 });
+
+test('new table element carries catalog data binding and volume configuration', () => {
+  const scene = createScene();
+  const table = createElement('table', scene, scene.slides[0]);
+  assert.equal(table.data_binding.source, 'catalog_products');
+  assert.deepEqual(table.table.volumes_l, [0.5, 1, 1.5]);
+  assert.equal(table.table.active_only, true);
+});
+
+test('old table elements are hydrated by scene normalisation', () => {
+  const scene = createScene();
+  scene.slides[0].elements.push({
+    id: 'legacy-table', type: 'table', x: 0, y: 0, width: 500, height: 500,
+    z_index: 1, opacity: 1, content: 'Меню', style: {}, effects: {}, animation: {}
+  });
+  const normalised = normaliseScene(scene);
+  const table = normalised.slides[0].elements[0];
+  assert.equal(table.data_binding.source, 'catalog_products');
+  assert.deepEqual(table.table.volumes_l, [0.5, 1, 1.5]);
+});

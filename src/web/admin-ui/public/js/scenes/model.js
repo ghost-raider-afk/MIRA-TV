@@ -1,3 +1,5 @@
+import { normaliseTableConfig } from './catalog-table.js';
+
 const STORAGE_KEY = 'mira-tv.prototype.scenes.v1';
 const DEFAULT_DISPLAY_WIDTH = 1920;
 const DEFAULT_DISPLAY_HEIGHT = 1080;
@@ -53,7 +55,14 @@ export function createScene({ name = 'Новая сцена', displayCount = 1 }
 
 const ELEMENT_DEFAULTS = Object.freeze({
   text: { width: 760, height: 140, content: 'Новый текст', style: { color: '#ffffff', font_size: 72, background: 'transparent', radius: 0 } },
-  table: { width: 980, height: 620, content: 'Таблица каталога', style: { color: '#ffffff', font_size: 42, background: 'rgba(0,0,0,.28)', radius: 24 } },
+  table: {
+    width: 1120,
+    height: 700,
+    content: 'Меню',
+    style: { color: '#ffffff', font_size: 42, background: 'rgba(0,0,0,.28)', radius: 24 },
+    data_binding: { source: 'catalog_products' },
+    table: normaliseTableConfig()
+  },
   image: { width: 560, height: 360, content: 'Изображение', style: { color: '#ffffff', font_size: 40, background: 'rgba(255,255,255,.08)', radius: 24 } },
   logo: { width: 520, height: 220, content: 'Логотип', style: { color: '#ffffff', font_size: 54, background: 'rgba(255,255,255,.08)', radius: 24 } },
   video: { width: 720, height: 405, content: 'Видео', style: { color: '#ffffff', font_size: 42, background: '#05070a', radius: 20 } },
@@ -90,7 +99,9 @@ export function createElement(type, scene, slide) {
       loop: 'none',
       exit: 'none',
       duration_ms: 600
-    }
+    },
+    ...(defaults.data_binding ? { data_binding: deepClone(defaults.data_binding) } : {}),
+    ...(defaults.table ? { table: deepClone(defaults.table) } : {})
   };
 }
 
@@ -144,6 +155,18 @@ export function touchScene(scene) {
   scene.updated_at = new Date().toISOString();
 }
 
+function normaliseElement(element) {
+  const result = element && typeof element === 'object' ? element : {};
+  result.effects = { shadow: false, glow: false, blur: 0, ...(result.effects || {}) };
+  result.animation = { entrance: 'none', loop: 'none', exit: 'none', duration_ms: 600, ...(result.animation || {}) };
+  result.style = { color: '#ffffff', font_size: 40, background: 'transparent', radius: 0, ...(result.style || {}) };
+  if (result.type === 'table') {
+    result.data_binding = { source: 'catalog_products', ...(result.data_binding || {}) };
+    result.table = normaliseTableConfig(result.table || {});
+  }
+  return result;
+}
+
 export function normaliseScene(source) {
   const scene = deepClone(source);
   scene.schema_version = 1;
@@ -153,6 +176,11 @@ export function normaliseScene(source) {
   scene.canvas_width = scene.display_count * scene.display_width;
   scene.canvas_height = scene.display_height;
   if (!Array.isArray(scene.slides) || scene.slides.length === 0) scene.slides = [createSlide(1)];
+  for (const slide of scene.slides) {
+    if (!slide.background) slide.background = { type: 'color', color: '#10141c', asset_url: '' };
+    if (!Array.isArray(slide.elements)) slide.elements = [];
+    slide.elements = slide.elements.map(normaliseElement);
+  }
   if (!scene.slides.some((slide) => slide.id === scene.active_slide_id)) scene.active_slide_id = scene.slides[0].id;
   return scene;
 }

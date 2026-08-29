@@ -1,3 +1,5 @@
+import { API } from '../core/config.js';
+import { api } from '../core/api.js';
 import {
   appendSlide,
   createElement,
@@ -8,11 +10,22 @@ import {
   setDisplayCount,
   touchScene
 } from './model.js';
+import {
+  buildCatalogTableRows,
+  catalogTableColumns,
+  normaliseTableConfig,
+  parseTargetVolumes
+} from './catalog-table.js';
 
 const state = {
   scene: null,
   selectedElementId: null,
-  preview: false
+  preview: false,
+  catalogProducts: [],
+  catalogStatus: 'idle',
+  catalogError: '',
+  autosaveTimer: null,
+  clockTimer: null
 };
 
 const TYPE_LABELS = Object.freeze({
@@ -38,18 +51,51 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, Number(value) || min));
 }
 
-function showMessage(message) {
+function showMessage(message, error = false) {
   const target = document.querySelector('#scene-editor-message');
+  if (!target) return;
   target.textContent = message;
-  target.classList.remove('is-hidden', 'is-error');
-  window.setTimeout(() => target.classList.add('is-hidden'), 1600);
+  target.classList.remove('is-hidden');
+  target.classList.toggle('is-error', error);
+  window.setTimeout(() => target.classList.add('is-hidden'), 1800);
 }
 
-function saveCurrentScene() {
-  state.scene.name = document.querySelector('#scene-name').value.trim() || 'Новая сцена';
+function setSaveState(text) {
+  const target = document.querySelector('#scene-save-state');
+  if (target) target.textContent = text;
+}
+
+function persistScene({ notify = false } = {}) {
+  if (!state.scene) return;
+  state.scene.name = document.querySelector('#scene-name')?.value.trim() || state.scene.name || 'Новая сцена';
   state.scene = saveScene(state.scene);
-  render();
-  showMessage('Сцена сохранена как шаблон.');
+  setSaveState('Сохранено');
+  if (notify) showMessage('Шаблон сохранён.');
+}
+
+function scheduleAutosave() {
+  setSaveState('Изменено');
+  window.clearTimeout(state.autosaveTimer);
+  state.autosaveTimer = window.setTimeout(() => persistScene(), 650);
+}
+
+async function loadCatalogProducts({ force = false } = {}) {
+  if (!force && (state.catalogStatus === 'loading' || state.catalogStatus === 'ready')) return;
+  state.catalogStatus = 'loading';
+  state.catalogError = '';
+  renderElements();
+  renderInspector();
+  try {
+    const products = await api.get(API.products);
+    state.catalogProducts = Array.isArray(products) ? products : [];
+    state.catalogStatus = 'ready';
+  } catch (error) {
+    state.catalogProducts = [];
+    state.catalogStatus = 'error';
+    state.catalogError = error?.message || 'Не удалось загрузить каталог';
+  }
+  renderElements();
+  renderInspector();
 }
 
 function renderGuides() {
@@ -75,6 +121,46 @@ function appendTextElement(parent, tagName, text, className = '') {
   return node;
 }
 
+function gridTemplate(columns) {
+  return columns.map((column) => `minmax(0, ${column.weight || 1}fr)`).join(' ');
+}
+
+function renderCatalogTable(node, element) {
+  appendTextElement(node, 'strong', element.content || 'Меню', 'scene-table-title');
+  if (state.catalogStatus === 'loading' || state.catalogStatus === 'idle') {
+    appendTextElement(node, 'div', 'Загрузка каталога…', 'scene-table-state');
+    return;
+  }
+  if (state.catalogStatus === 'error') {
+    appendTextElement(node, 'div', 'Каталог временно недоступен', 'scene-table-state scene-table-state-error');
+    return;
+  }
+  const config = normaliseTableConfig(element.table || {});
+  const columns = catalogTableColumns(config);
+  const rows = buildCatalogTableRows(state.catalogProducts, config);
+  if (!rows.length) {
+    appendTextElement(node, 'div', 'В каталоге нет подходящих активных позиций', 'scene-table-state');
+    return;
+  }
+  const table = document.createElement('div');
+  table.className = 'scene-catalog-table';
+  table.style.setProperty('--scene-table-columns', gridTemplate(columns));
+  const header = document.createElement('div');
+  header.className = 'scene-catalog-row scene-catalog-head';
+  for (const column of columns) appendTextElement(header, 'span', column.label);
+  table.append(header);
+  for (const row of rows) {
+    const rowNode = document.createElement('div');
+    rowNode.className = 'scene-catalog-row';
+    for (const column of columns) {
+      const cell = appendTextElement(rowNode, 'span', row.values[column.key] || '—');
+      if (column.kind === 'price') cell.className = 'scene-catalog-price';
+    }
+    table.append(rowNode);
+  }
+  node.append(table);
+}
+
 function renderElementContent(node, element) {
   if (element.type === 'clock') {
     appendTextElement(node, 'span', new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(new Date()), 'scene-clock-value');
@@ -91,14 +177,7 @@ function renderElementContent(node, element) {
     return;
   }
   if (element.type === 'table') {
-    appendTextElement(node, 'strong', element.content || 'Таблица каталога');
-    const demo = document.createElement('div');
-    demo.className = 'scene-table-demo';
-    [['Позиция меню', '450 ₽'], ['Позиция меню', '520 ₽'], ['Позиция меню', '390 ₽']].forEach(([title, price]) => {
-      appendTextElement(demo, 'span', title);
-      appendTextElement(demo, 'b', price);
-    });
-    node.append(demo);
+    renderCatalogTable(node, element);
     return;
   }
   if (element.type === 'video') {
@@ -166,6 +245,7 @@ function installDrag(node, element) {
       node.removeEventListener('pointermove', move);
       node.removeEventListener('pointerup', stop);
       node.removeEventListener('pointercancel', stop);
+      scheduleAutosave();
     };
     node.addEventListener('pointermove', move);
     node.addEventListener('pointerup', stop);
@@ -195,6 +275,7 @@ function installDrag(node, element) {
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', stop);
       handle.removeEventListener('pointercancel', stop);
+      scheduleAutosave();
     };
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', stop);
@@ -228,6 +309,7 @@ function renderElements() {
     installDrag(node, element);
     layer.append(node);
   }
+  syncClockTimer();
 }
 
 function renderSlides() {
@@ -257,6 +339,7 @@ function renderSlides() {
       event.stopPropagation();
       if (removeSlide(state.scene, slide.id)) {
         state.selectedElementId = null;
+        scheduleAutosave();
         render();
       }
     });
@@ -277,14 +360,37 @@ function renderInspectorGeometry() {
   document.querySelector('#element-height').value = Math.round(element.height);
 }
 
+function renderTableInspector(element) {
+  const section = document.querySelector('#table-settings');
+  const isTable = element?.type === 'table';
+  section.classList.toggle('is-hidden', !isTable);
+  if (!isTable) return;
+  element.table = normaliseTableConfig(element.table || {});
+  document.querySelector('#table-active-only').checked = element.table.active_only;
+  document.querySelector('#table-row-limit').value = element.table.row_limit;
+  document.querySelector('#table-volumes').value = element.table.volumes_l.map((value) => String(value).replace('.', ',')).join('; ');
+  document.querySelector('#table-show-producer').checked = element.table.show_producer;
+  document.querySelector('#table-show-strength').checked = element.table.show_strength;
+  document.querySelector('#table-show-color').checked = element.table.show_color;
+  document.querySelector('#table-show-filtration').checked = element.table.show_filtration;
+  const status = document.querySelector('#table-catalog-status');
+  if (state.catalogStatus === 'loading' || state.catalogStatus === 'idle') status.textContent = 'Каталог загружается…';
+  else if (state.catalogStatus === 'error') status.textContent = state.catalogError || 'Каталог недоступен';
+  else status.textContent = `Каталог подключён · ${state.catalogProducts.length} позиций`;
+}
+
 function renderInspector() {
   const element = selectedElement();
   document.querySelector('#inspector-empty').classList.toggle('is-hidden', Boolean(element));
   document.querySelector('#inspector-fields').classList.toggle('is-hidden', !element);
   document.querySelector('#inspector-title').textContent = element ? TYPE_LABELS[element.type] : 'Слайд';
-  if (!element) return;
+  if (!element) {
+    renderTableInspector(null);
+    return;
+  }
   renderInspectorGeometry();
   document.querySelector('#element-content').value = element.content || '';
+  document.querySelector('#element-content-label').textContent = element.type === 'table' ? 'Заголовок' : 'Содержимое';
   document.querySelector('#element-color').value = element.style.color || '#ffffff';
   document.querySelector('#element-background').value = element.style.background || 'transparent';
   document.querySelector('#element-font-size').value = element.style.font_size || 40;
@@ -295,6 +401,7 @@ function renderInspector() {
   document.querySelector('#element-entrance').value = element.animation.entrance || 'none';
   document.querySelector('#element-loop').value = element.animation.loop || 'none';
   document.querySelector('#element-exit').value = element.animation.exit || 'none';
+  renderTableInspector(element);
 }
 
 function render() {
@@ -319,7 +426,9 @@ function addElement(type) {
   slide.elements.push(element);
   state.selectedElementId = element.id;
   touchScene(state.scene);
+  scheduleAutosave();
   render();
+  if (type === 'table') void loadCatalogProducts();
 }
 
 function updateSelected(mutator) {
@@ -331,8 +440,32 @@ function updateSelected(mutator) {
   element.width = clamp(element.width, 40, state.scene.canvas_width - element.x);
   element.height = clamp(element.height, 40, state.scene.canvas_height - element.y);
   touchScene(state.scene);
+  scheduleAutosave();
   renderElements();
   renderInspector();
+}
+
+function bindTableInspector() {
+  document.querySelector('#table-active-only').addEventListener('change', (event) => updateSelected((element) => {
+    if (element.type === 'table') element.table.active_only = event.target.checked;
+  }));
+  document.querySelector('#table-row-limit').addEventListener('input', (event) => updateSelected((element) => {
+    if (element.type === 'table') element.table.row_limit = Math.min(50, Math.max(1, Number(event.target.value) || 1));
+  }));
+  document.querySelector('#table-volumes').addEventListener('change', (event) => updateSelected((element) => {
+    if (element.type === 'table') element.table.volumes_l = parseTargetVolumes(event.target.value);
+  }));
+  [
+    ['#table-show-producer', 'show_producer'],
+    ['#table-show-strength', 'show_strength'],
+    ['#table-show-color', 'show_color'],
+    ['#table-show-filtration', 'show_filtration']
+  ].forEach(([selector, key]) => {
+    document.querySelector(selector).addEventListener('change', (event) => updateSelected((element) => {
+      if (element.type === 'table') element.table[key] = event.target.checked;
+    }));
+  });
+  document.querySelector('#table-refresh-catalog').addEventListener('click', () => void loadCatalogProducts({ force: true }));
 }
 
 function bindInspector() {
@@ -358,6 +491,7 @@ function bindInspector() {
     slide.elements.splice(index, 1);
     state.selectedElementId = null;
     touchScene(state.scene);
+    scheduleAutosave();
     render();
   });
   document.querySelector('#element-forward').addEventListener('click', () => updateSelected((element) => {
@@ -367,6 +501,7 @@ function bindInspector() {
   document.querySelector('#element-backward').addEventListener('click', () => updateSelected((element) => {
     element.z_index = Math.max(0, element.z_index - 1);
   }));
+  bindTableInspector();
 }
 
 function bindGlobalControls() {
@@ -379,23 +514,28 @@ function bindGlobalControls() {
     renderElements();
     renderInspector();
   });
-  document.querySelector('#scene-save').addEventListener('click', saveCurrentScene);
+  document.querySelector('#scene-save').addEventListener('click', () => persistScene({ notify: true }));
   document.querySelector('#scene-name').addEventListener('input', (event) => {
     state.scene.name = event.target.value;
     touchScene(state.scene);
+    scheduleAutosave();
   });
   document.querySelector('#scene-display-count').addEventListener('change', (event) => {
     setDisplayCount(state.scene, Number(event.target.value));
+    scheduleAutosave();
     render();
   });
   document.querySelector('#slide-background-color').addEventListener('input', (event) => {
     currentSlide().background.color = event.target.value;
     touchScene(state.scene);
-    render();
+    scheduleAutosave();
+    const stage = document.querySelector('#scene-stage');
+    stage.style.background = event.target.value;
   });
   document.querySelector('#add-slide').addEventListener('click', () => {
     appendSlide(state.scene);
     state.selectedElementId = null;
+    scheduleAutosave();
     render();
   });
   document.querySelector('#scene-preview-toggle').addEventListener('click', (event) => {
@@ -408,6 +548,26 @@ function bindGlobalControls() {
     if (document.activeElement?.matches('input,select,textarea')) return;
     document.querySelector('#element-delete').click();
   });
+  window.addEventListener('beforeunload', () => {
+    window.clearTimeout(state.autosaveTimer);
+    persistScene();
+  });
+}
+
+function syncClockTimer() {
+  const hasClock = currentSlide().elements.some((element) => element.type === 'clock');
+  if (!hasClock) {
+    window.clearTimeout(state.clockTimer);
+    state.clockTimer = null;
+    return;
+  }
+  if (state.clockTimer) return;
+  const now = new Date();
+  const delay = (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 20;
+  state.clockTimer = window.setTimeout(() => {
+    state.clockTimer = null;
+    if (currentSlide().elements.some((element) => element.type === 'clock')) renderElements();
+  }, Math.max(1000, delay));
 }
 
 export function initialiseSceneEditor() {
@@ -416,8 +576,9 @@ export function initialiseSceneEditor() {
   if (!state.scene) state.scene = saveScene(createScene());
   bindInspector();
   bindGlobalControls();
+  setSaveState('Сохранено');
   render();
-  window.setInterval(() => {
-    if (currentSlide().elements.some((element) => element.type === 'clock')) renderElements();
-  }, 30000);
+  if (state.scene.slides.some((slide) => slide.elements.some((element) => element.type === 'table'))) {
+    void loadCatalogProducts();
+  }
 }
