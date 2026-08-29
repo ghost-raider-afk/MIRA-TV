@@ -106,12 +106,17 @@ export function createPlayerStateSync({
   };
 
   function updateRuntime(context) {
+    const previousFallbackPollMs = runtime.fallbackPollMs;
     runtime = {
       fallbackPollMs: positiveInteger(context?.fallback_poll_interval_ms, DEFAULT_FALLBACK_POLL_MS),
       logBatchSize: positiveInteger(context?.log_batch_size, DEFAULT_LOG_BATCH_SIZE),
       logMaxEntries: positiveInteger(context?.log_local_max_entries, DEFAULT_LOG_MAX_ENTRIES),
       logMaxBytes: positiveInteger(context?.log_local_max_bytes, DEFAULT_LOG_MAX_BYTES)
     };
+    if (started && !websocketConnected && previousFallbackPollMs !== runtime.fallbackPollMs) {
+      clearFallbackTimer();
+      scheduleFallbackPoll();
+    }
   }
 
   function log(type, data = {}, level = 'info') {
@@ -142,8 +147,7 @@ export function createPlayerStateSync({
   }
 
   function scheduleFallbackPoll() {
-    clearFallbackTimer();
-    if (!started || websocketConnected) return;
+    if (!started || websocketConnected || fallbackTimer) return;
     fallbackTimer = setTimeout(async () => {
       fallbackTimer = null;
       if (!started || websocketConnected) return;
