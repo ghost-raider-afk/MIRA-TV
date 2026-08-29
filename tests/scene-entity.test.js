@@ -121,12 +121,13 @@ test('Entity Editor renders image or video on a layer independent from menu and 
 });
 
 test('TV player receives, renders and caches Video Entity with offline Range support', async () => {
-  const [routes, player, playerCss, serviceWorker] = await Promise.all([
-    read('api/device/public-routes.js'), read('web/admin-ui/public/js/player/player.js'),
+  const [routes, playerContextService, player, playerCss, serviceWorker] = await Promise.all([
+    read('api/device/public-routes.js'), read('services/player-context-service.js'), read('web/admin-ui/public/js/player/player.js'),
     read('web/admin-ui/public/css/player.css'), read('web/admin-ui/public/player-sw.js')
   ]);
-  assert.match(routes, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
-  assert.match(routes, /entity:\s*animationSettings\?\.entity/);
+  assert.match(routes, /buildPlayerState\(store, session, config\)/);
+  assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
+  assert.match(playerContextService, /entity:\s*animationSettings\?\.entity/);
   assert.match(player, /renderSceneEntity\(playerStage, context\.entity, \{ editable: false \}\)/);
   assert.match(player, /context\?\.entity\?\.asset_url/);
   assert.match(playerCss, /\.tv-player-entity-layer/);
