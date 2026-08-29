@@ -140,7 +140,7 @@ async function playerStateOrUnauthorized(store, config, request, response) {
   return { session, state };
 }
 
-export function createDevicePublicRouter({ store, config }) {
+export function createDevicePublicRouter({ store, config, realtime }) {
   const router = express.Router();
   const activationLimiter = createIpRateLimiter({
     maxAttempts: config.deviceActivationMaxAttempts,
@@ -184,7 +184,7 @@ export function createDevicePublicRouter({ store, config }) {
       if (activation.status === 'consumed') {
         const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
         if (!session) return { status: 'expired' };
-        return { status: 'authorized', rawToken, session };
+        return { status: 'authorized', rawToken, session, bindingChanged: false };
       }
 
       if (activation.status !== 'approved' || !activation.approved_screen_id) return { status: 'expired' };
@@ -206,13 +206,24 @@ export function createDevicePublicRouter({ store, config }) {
       if (!consumed) throw new Error('Не удалось завершить авторизацию телевизора.');
       const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
       if (!session) throw new Error('Созданная Device Session недоступна.');
-      return { status: 'authorized', rawToken, session };
+      return {
+        status: 'authorized',
+        rawToken,
+        session,
+        bindingChanged: true,
+        deviceId: device.id,
+        screenId: screen.id
+      };
     });
 
     if (result.status === 'missing') return response.status(404).json({ error: 'Активация не найдена.' });
     if (result.status === 'expired') return response.status(410).json({ status: 'expired' });
     if (result.status === 'pending') return response.json({ status: 'pending', expires_at: result.expiresAt });
 
+    if (result.bindingChanged) {
+      realtime?.disconnectDevice(result.deviceId);
+      realtime?.disconnectScreen(result.screenId);
+    }
     response.setHeader('Set-Cookie', deviceSessionCookie(result.rawToken, config));
     return response.json({ status: 'authorized', screen: publicScreen(result.session) });
   });
