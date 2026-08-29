@@ -12,11 +12,22 @@ import { ScenePlaylistRuntime } from '../motion/scene-playlist-runtime.js';
 import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js';
 import { GpuSceneRuntime } from './gpu-scene-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
+import { createPlayerStateSync } from './player-state-sync.js';
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_CONTEXT_STORAGE_KEY = 'mira-tv.player-context.v1';
+const ALL_PLAYER_COMPONENTS = Object.freeze([
+  'screen',
+  'menu',
+  'animation',
+  'environment',
+  'scene_playlist',
+  'entity',
+  'brand',
+  'announcement',
+  'runtime'
+]);
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
 const pairing = document.querySelector('[data-activation-pairing]');
@@ -36,12 +47,10 @@ const scenePlaylistRuntime = new ScenePlaylistRuntime();
 let pollTimer = null;
 let expiryTimer = null;
 let rotationRetryTimer = null;
-let refreshTimer = null;
 let wakeLock = null;
-let playerRefreshMs = 5000;
-let playerContextEtag = '';
 let activationRequestInFlight = false;
 let bootstrapRetryTimer = null;
+let playerStateSync = null;
 
 function setHidden(element, hidden) {
   element?.classList.toggle('is-hidden', hidden);
@@ -99,25 +108,6 @@ function rememberDeviceKey(key) {
   const value = String(key || '').trim();
   if (!/^[a-zA-Z0-9_-]{16,128}$/.test(value)) return;
   try { localStorage.setItem(DEVICE_KEY_STORAGE_KEY, value); } catch {}
-}
-
-function cachedPlayerContext() {
-  try {
-    const record = JSON.parse(localStorage.getItem(PLAYER_CONTEXT_STORAGE_KEY) || 'null');
-    return record?.context ? record : null;
-  } catch {
-    return null;
-  }
-}
-
-function savePlayerContext(context) {
-  try {
-    localStorage.setItem(PLAYER_CONTEXT_STORAGE_KEY, JSON.stringify({ saved_at: new Date().toISOString(), context }));
-  } catch {}
-}
-
-function clearPlayerContext() {
-  try { localStorage.removeItem(PLAYER_CONTEXT_STORAGE_KEY); } catch {}
 }
 
 function formatReserveCode(value) {
@@ -186,8 +176,7 @@ async function enterImmersiveMode() {
 }
 
 function showActivationScreen() {
-  if (refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = null;
+  playerStateSync?.stop();
   scenePlaylistRuntime.destroy();
   gpuSceneRuntime.destroy();
   flatMenuRenderer.destroy();
@@ -385,23 +374,27 @@ function sameOriginAsset(value) {
   }
 }
 
-async function warmPlayerAssetCache(context) {
-  const assets = [
-    sameOriginAsset(context?.draft?.settings?.background_image_url),
-    sameOriginAsset(context?.entity?.asset_url)
-  ].filter(Boolean);
-  await Promise.all(assets.map((asset) => fetch(asset, { cache: 'reload' }).catch(() => undefined)));
+async function warmPlayerAssetCache(context, changedNames = ALL_PLAYER_COMPONENTS) {
+  const dirty = new Set(changedNames);
+  const assets = [];
+  if (dirty.has('menu') || dirty.has('screen')) {
+    const background = sameOriginAsset(context?.draft?.settings?.background_image_url);
+    if (background) assets.push(background);
+  }
+  if (dirty.has('entity')) {
+    const entity = sameOriginAsset(context?.entity?.asset_url);
+    if (entity) assets.push(entity);
+  }
+  await Promise.all(
+    [...new Set(assets)].map((asset) => fetch(asset, {
+      cache: 'force-cache',
+      credentials: 'same-origin'
+    }).catch(() => undefined))
+  );
 }
 
-function renderPlayerContext(context) {
-  const viewport = resolutionOf(context.screen);
-  const model = buildRenderModel(context.draft, viewport);
-  const lines = buildDisplayLines(model, {
-    products: context.products || [],
-    packaging: context.packaging || [],
-    fallbackTitle: context.screen?.name || 'Меню'
-  });
-  const layout = buildRenderLayout(model, lines);
+async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS) {
+  const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
   const {
     environment: environmentLayer,
     menu: menuLayer,
@@ -411,41 +404,76 @@ function renderPlayerContext(context) {
     brand: brandLayer,
     announcement: announcementLayer
   } = sceneLayers.ensureCore();
-  const menuSvg = buildTableSvg(model, lines, layout);
-  const renderMode = playerMenuRenderMode(context);
-  menuLayer.dataset.renderMode = renderMode;
 
-  void flatMenuRenderer.render(menuLayer, menuSvg, viewport).catch((error) => {
-    console.error('Flat MIRA-TV render failed; using static DOM fallback', error);
-    if (menuLayer.dataset.renderMode !== renderMode) return;
-    flatMenuRenderer.destroy();
-    menuLayer.innerHTML = menuSvg;
-    menuLayer.dataset.renderMode = 'dom-fallback';
-    gpuSceneRuntime.destroy();
-  });
+  const menuDirty = dirty.has('menu') || dirty.has('screen');
+  const gpuDirty = menuDirty || dirty.has('animation');
+  const playlistDirty = dirty.has('scene_playlist') || dirty.has('entity') || dirty.has('screen');
+  let viewport = null;
+  let model = null;
+  let renderMode = null;
 
-  playerStage.style.backgroundColor = model.settings.background_color || '#101828';
-  const background = sameOriginAsset(model.settings.background_image_url);
-  playerStage.style.backgroundImage = background ? `url(${JSON.stringify(background)})` : 'none';
-  renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
-  renderSceneEntity(playerStage, context.entity, { editable: false });
-  renderBrandTitleLayer(brandLayer, context.brand);
-  renderAnnouncementLayer(announcementLayer, context.announcement);
-  gpuSceneRuntime.render({
-    enabled: renderMode === 'flat-gpu',
-    profile: context.animation?.profile,
-    viewport,
-    settings: model.settings
-  });
-  scenePlaylistRuntime.render(context.scene_playlist, {
-    menuLayer,
-    contentLayer,
-    fxLayer,
-    entity: context.entity,
-    autoplay: true
-  });
+  if (menuDirty || gpuDirty) {
+    viewport = resolutionOf(context.screen);
+    model = buildRenderModel(context.draft, viewport);
+    renderMode = playerMenuRenderMode(context);
+  }
+
+  if (menuDirty) {
+    const lines = buildDisplayLines(model, {
+      products: context.products || [],
+      packaging: context.packaging || [],
+      fallbackTitle: context.screen?.name || 'Меню'
+    });
+    const layout = buildRenderLayout(model, lines);
+    const menuSvg = buildTableSvg(model, lines, layout);
+    menuLayer.dataset.renderMode = renderMode;
+    try {
+      await flatMenuRenderer.render(menuLayer, menuSvg, viewport);
+    } catch (error) {
+      console.error('Flat MIRA-TV render failed; using static DOM fallback', error);
+      flatMenuRenderer.destroy();
+      menuLayer.innerHTML = menuSvg;
+      menuLayer.dataset.renderMode = 'dom-fallback';
+      gpuSceneRuntime.destroy();
+    }
+
+    playerStage.style.backgroundColor = model.settings.background_color || '#101828';
+    const background = sameOriginAsset(model.settings.background_image_url);
+    playerStage.style.backgroundImage = background ? `url(${JSON.stringify(background)})` : 'none';
+  } else if (dirty.has('animation')) {
+    menuLayer.dataset.renderMode = renderMode;
+  }
+
+  if (dirty.has('environment')) {
+    renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
+  }
+  if (dirty.has('entity')) {
+    renderSceneEntity(playerStage, context.entity, { editable: false });
+  }
+  if (dirty.has('brand')) {
+    renderBrandTitleLayer(brandLayer, context.brand);
+  }
+  if (dirty.has('announcement')) {
+    renderAnnouncementLayer(announcementLayer, context.announcement);
+  }
+  if (gpuDirty) {
+    gpuSceneRuntime.render({
+      enabled: renderMode === 'flat-gpu',
+      profile: context.animation?.profile,
+      viewport,
+      settings: model.settings
+    });
+  }
+  if (playlistDirty) {
+    scenePlaylistRuntime.render(context.scene_playlist, {
+      menuLayer,
+      contentLayer,
+      fxLayer,
+      entity: context.entity,
+      autoplay: true
+    });
+  }
   entityLayer.setAttribute('aria-hidden', 'true');
-  playerRefreshMs = Math.max(2000, Number(context.fallback_poll_interval_ms) || 5000);
 }
 
 function showConnectionMessage(message) {
@@ -458,9 +486,33 @@ function showConnectionMessage(message) {
   setHidden(playerMessage, false);
 }
 
-function schedulePlayerRefresh() {
-  if (refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(() => void refreshPlayer(), playerRefreshMs);
+async function applySyncedContext(context, changedNames, { source } = {}) {
+  clearPairingTimers();
+  await renderPlayerContext(context, changedNames);
+  setHidden(activationView, true);
+  setHidden(player, false);
+  if (source === 'last-known-good') {
+    showConnectionMessage('ТВ запущен по последнему рабочему состоянию. Проверяем связь с сервером…');
+  }
+  await requestWakeLock();
+}
+
+function playerConnectivityChanged(state) {
+  if (state === 'online') {
+    showConnectionMessage('');
+    return;
+  }
+  if (!playerStateSync?.hasContext) return;
+  if (state === 'offline') {
+    showConnectionMessage('Нет связи с сервером. ТВ продолжает работать по последнему рабочему состоянию.');
+  } else if (state === 'degraded') {
+    showConnectionMessage('Связь с сервером нестабильна. Текущий экран продолжает работать локально.');
+  }
+}
+
+function playerUnauthorized() {
+  clearActivation();
+  showPairingIntro();
 }
 
 async function fetchDeviceSession(timeoutMs = 3500) {
@@ -476,86 +528,20 @@ async function fetchDeviceSession(timeoutMs = 3500) {
   }
 }
 
-async function fetchPlayerContext(timeoutMs = 5000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const headers = playerContextEtag ? { 'if-none-match': playerContextEtag } : {};
-    const response = await fetch('/api/device/player-context', { cache: 'no-store', signal: controller.signal, headers });
-    if (response.status === 304) return { unchanged: true };
-    if (response.status === 401 || response.status === 403) {
-      playerContextEtag = '';
-      clearPlayerContext();
-      return { unauthorized: true };
-    }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const context = await response.json();
-    playerContextEtag = response.headers.get('etag') || '';
-    savePlayerContext(context);
-    void warmPlayerAssetCache(context);
-    return { context, offline: response.headers.get('x-mira-tv-offline') === '1' };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function showCachedPlayer(record, message = 'Нет связи с сервером. ТВ работает по последней сохранённой версии меню.') {
-  if (!record?.context) return false;
-  clearPairingTimers();
-  renderPlayerContext(record.context);
-  setHidden(activationView, true);
-  setHidden(player, false);
-  showConnectionMessage(message);
-  void requestWakeLock();
-  schedulePlayerRefresh();
-  return true;
-}
-
-async function refreshPlayer() {
-  try {
-    const result = await fetchPlayerContext();
-    if (result.unauthorized) {
-      clearActivation();
-      showPairingIntro();
-      return;
-    }
-    if (result.unchanged) {
-      showConnectionMessage('');
-      schedulePlayerRefresh();
-      return;
-    }
-    renderPlayerContext(result.context);
-    showConnectionMessage(result.offline ? 'Нет связи с сервером. ТВ работает по последней сохранённой версии меню.' : '');
-  } catch (error) {
-    console.error('TV player refresh failed', error);
-    if (!showCachedPlayer(cachedPlayerContext())) showConnectionMessage('Связь с сервером временно потеряна.');
-    return;
-  }
-  schedulePlayerRefresh();
-}
-
 async function loadPlayer({ fallbackToActivation = true } = {}) {
   clearPairingTimers();
-  try {
-    const result = await fetchPlayerContext();
-    if (result.unauthorized) {
-      if (fallbackToActivation) showPairingIntro();
-      return false;
-    }
-    renderPlayerContext(result.context);
-    setHidden(activationView, true);
-    setHidden(player, false);
-    showConnectionMessage(result.offline ? 'Нет связи с сервером. ТВ работает по последней сохранённой версии меню.' : '');
-    await requestWakeLock();
-    schedulePlayerRefresh();
-    return true;
-  } catch (error) {
-    console.error('TV player could not start online', error);
-    const cached = cachedPlayerContext();
-    if (showCachedPlayer(cached)) return true;
+  const result = await playerStateSync.syncNow('boot');
+  if (result.unauthorized) {
     if (fallbackToActivation) showPairingIntro();
     return false;
   }
+  if (result.hasContext || playerStateSync.hasContext) {
+    playerStateSync.start();
+    await requestWakeLock();
+    return true;
+  }
+  if (fallbackToActivation) showPairingIntro();
+  return false;
 }
 
 async function registerOfflinePlayer() {
@@ -590,10 +576,14 @@ async function bootstrapPlayer() {
       scheduleBootstrapRetry();
       return;
     }
-    clearPlayerContext();
+
+    await playerStateSync.reset();
   } catch (error) {
     console.warn('TV session bootstrap failed', error);
-    if (showCachedPlayer(cachedPlayerContext())) return;
+    if (playerStateSync.hasContext) {
+      playerStateSync.start();
+      return;
+    }
     const pending = activationFromStorage();
     if (pending) {
       rememberDeviceKey(pending.device_key);
@@ -617,11 +607,22 @@ async function bootstrapPlayer() {
 }
 
 async function initialisePlayer() {
+  playerStateSync = createPlayerStateSync({
+    applyContext: applySyncedContext,
+    warmAssets: warmPlayerAssetCache,
+    onUnauthorized: playerUnauthorized,
+    onConnectivity: playerConnectivityChanged
+  });
+
   showActivationButton.addEventListener('click', () => void createActivation());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void requestWakeLock();
   });
+  void navigator.storage?.persist?.().catch(() => undefined);
   void registerOfflinePlayer();
+
+  const restored = await playerStateSync.restoreLastKnownGood();
+  playerStateSync.note('player.boot', { restored });
   await bootstrapPlayer();
 }
 
