@@ -82,7 +82,7 @@ test('saved application name immediately controls browser tab title on every rou
   await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   const original = await page.evaluate(async () => (await fetch('/api/settings/site', { credentials: 'same-origin' })).json());
-  const nextName = `TV MENU TITLE ${Date.now()}`;
+  const nextName = `MIRA-TV TITLE ${Date.now()}`;
 
   try {
     await page.locator('#site-app-name').fill(nextName);

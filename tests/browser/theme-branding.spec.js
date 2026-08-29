@@ -27,7 +27,7 @@ test('site name updates the persistent application shell immediately after save'
   const input = page.locator('#site-app-name');
   await expect(input).not.toHaveValue('');
   const original = await input.inputValue();
-  const changed = `TV MENU TEST ${Date.now()}`;
+  const changed = `MIRA-TV TEST ${Date.now()}`;
 
   await input.fill(changed);
   await page.locator('#site-settings-submit').click();
