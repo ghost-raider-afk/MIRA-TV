@@ -112,42 +112,18 @@ async function cachedAsset(request) {
   }
 }
 
-function rangeBounds(header, size) {
-  const match = String(header || '').match(/^bytes=(\d*)-(\d*)$/i);
-  if (!match) return null;
-  let start = match[1] === '' ? null : Number(match[1]);
-  let end = match[2] === '' ? null : Number(match[2]);
-  if (start === null) {
-    const suffix = Math.min(size, Math.max(0, end || 0));
-    start = size - suffix;
-    end = size - 1;
-  } else {
-    end = end === null ? size - 1 : Math.min(end, size - 1);
-  }
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= size) return null;
-  return { start, end };
-}
-
-async function cachedVideoRange(request) {
+async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
   const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
   const cached = await cache.match(fullRequest);
-  if (!cached || cached.status !== 200) return null;
-  const body = await cached.clone().arrayBuffer();
-  const bounds = rangeBounds(request.headers.get('range'), body.byteLength);
-  if (!bounds) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${body.byteLength}` } });
-  const headers = new Headers(cached.headers);
-  headers.set('Accept-Ranges', 'bytes');
-  headers.set('Content-Range', `bytes ${bounds.start}-${bounds.end}/${body.byteLength}`);
-  headers.set('Content-Length', String(bounds.end - bounds.start + 1));
-  return new Response(body.slice(bounds.start, bounds.end + 1), { status: 206, statusText: 'Partial Content', headers });
-}
-
-async function videoRequest(request) {
+  if (cached) {
+    // HTTP Range is optional. Returning the cached full 200 response lets the native
+    // media stack consume the stream without copying the whole video into JS memory.
+    return cached;
+  }
   if (!request.headers.has('range')) return cachedAsset(request);
-  const cachedRange = await cachedVideoRange(request);
-  if (cachedRange) return cachedRange;
   try {
+    // Keep uncached Range traffic native and never store partial 206 responses as full assets.
     return await networkWithTimeout(request, 8000);
   } catch {
     return Response.error();
