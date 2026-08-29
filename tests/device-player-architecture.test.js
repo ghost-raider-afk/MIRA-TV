@@ -22,13 +22,14 @@ test('player is public while TV connection page remains admin protected', async 
 });
 
 test('real TV player owns all scene layers from one player context and keeps required assets offline', async () => {
-  const [worker, player, playerHtml, gpuRuntime, layerComposer, publicRoutes, playerCss, playlistCss] = await Promise.all([
+  const [worker, player, playerHtml, gpuRuntime, layerComposer, publicRoutes, playerContextService, playerCss, playlistCss] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
     read('src/web/admin-ui/public/js/player/player.js'),
     read('src/web/admin-ui/public/player.html'),
     read('src/web/admin-ui/public/js/player/gpu-scene-runtime.js'),
     read('src/web/admin-ui/public/js/player/scene-layer-composer.js'),
     read('src/api/device/public-routes.js'),
+    read('src/services/player-context-service.js'),
     read('src/web/admin-ui/public/css/player.css'),
     read('src/web/admin-ui/public/css/scene-playlist.css')
   ]);
@@ -70,13 +71,15 @@ test('real TV player owns all scene layers from one player context and keeps req
   for (const layer of ['environment','menu','fx','content','entity','brand','announcement']) {
     assert.match(layerComposer, new RegExp(`'${layer}'`));
   }
-  assert.match(publicRoutes, /animation:\s*\{/);
-  assert.match(publicRoutes, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
-  assert.match(publicRoutes, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
-  assert.doesNotMatch(publicRoutes, /store\.getAnimationSettings\(\)/);
-  assert.match(publicRoutes, /enabled: animationSettings\?\.enabled === true/);
-  assert.match(publicRoutes, /environment: animationSettings\?\.environment \|\| null/);
-  assert.doesNotMatch(publicRoutes, /aquarium: animationSettings/);
+  assert.match(publicRoutes, /buildPlayerState\(store, session, config\)/);
+  assert.doesNotMatch(publicRoutes, /store\.getScreenAnimationSettings\(/);
+  assert.match(playerContextService, /animation:\s*\{\s*enabled:/);
+  assert.match(playerContextService, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
+  assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
+  assert.doesNotMatch(playerContextService, /store\.getAnimationSettings\(\)/);
+  assert.match(playerContextService, /enabled:\s*animationSettings\?\.enabled === true/);
+  assert.match(playerContextService, /environment:\s*animationSettings\?\.environment \|\| null/);
+  assert.doesNotMatch(playerContextService, /aquarium: animationSettings/);
   assert.match(playerCss, /\.tv-player-environment-layer/);
   assert.match(playerCss, /\.tv-player-announcement-layer/);
   assert.match(playerCss, /\.tv-player-gpu-effect/);
