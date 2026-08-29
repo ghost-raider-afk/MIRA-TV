@@ -55,7 +55,7 @@ button { font: inherit; }
 
 .tv-player { position: fixed; inset: 0; background: #101828; }
 .tv-player-stage { position: absolute; inset: 0; overflow: hidden; background-position: center; background-repeat: no-repeat; background-size: cover; isolation: isolate; container-type: inline-size; }
-.tv-player-environment-layer,.tv-player-menu-layer,.tv-player-fx-layer,.tv-player-content-layer,.tv-player-entity-layer,.tv-player-brand-layer,.tv-player-announcement-layer { position: absolute; inset: 0; }
+.tv-player-environment-layer,.tv-player-menu-layer,.tv-player-fx-layer,.tv-player-content-layer,.tv-player-entity-layer,.tv-player-brand-layer,.tv-player-announcement-layer,.tv-player-published-scene-layer { position: absolute; inset: 0; }
 .tv-player-environment-layer { z-index: 0; overflow: hidden; pointer-events: none; container-type: inline-size; }
 .tv-player-menu-layer { z-index: 1; overflow: hidden; }
 .tv-player-menu-layer > svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: hidden; }
@@ -75,6 +75,7 @@ button { font: inherit; }
 .tv-player-entity-layer .animation-scene-entity video { display: block; width: 100%; height: auto; pointer-events: none; user-select: none; }
 .tv-player-brand-layer { z-index: 5; overflow: hidden; pointer-events: none; container-type: inline-size; }
 .tv-player-announcement-layer { z-index: 6; overflow: hidden; pointer-events: none; container-type: inline-size; }
+.tv-player-published-scene-layer { z-index: 7; overflow: hidden; pointer-events: none; contain: layout paint style; }
 .tv-player-announcement-layer.is-top { display: flex; align-items: flex-start; }
 .tv-player-announcement-layer.is-bottom { display: flex; align-items: flex-end; }
 .scene-announcement { width: 100%; overflow: hidden; padding: .55cqw 0; background: var(--announcement-background); color: var(--announcement-text-color); font-family: var(--announcement-font-family); font-size: var(--announcement-font-size); font-weight: 800; line-height: 1.15; white-space: nowrap; }
