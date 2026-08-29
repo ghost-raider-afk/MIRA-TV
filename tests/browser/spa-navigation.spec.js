@@ -48,6 +48,7 @@ test('main menu and context submenu navigate inside one persistent document', as
   await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
+  await page.locator('.ui-context').dispatchEvent('pointerleave');
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
