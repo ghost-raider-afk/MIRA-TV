@@ -12,8 +12,8 @@ async function login(page) {
 
 test('main menu and context submenu navigate inside one persistent document', async ({ page }) => {
   await login(page);
-  await page.evaluate(() => { window.__tvMenuSpaSentinel = `sentinel-${Math.random()}`; });
-  const sentinel = await page.evaluate(() => window.__tvMenuSpaSentinel);
+  await page.evaluate(() => { window.__miraTvSpaSentinel = `sentinel-${Math.random()}`; });
+  const sentinel = await page.evaluate(() => window.__miraTvSpaSentinel);
   const documentRequests = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'document') documentRequests.push(request.url());
@@ -22,17 +22,17 @@ test('main menu and context submenu navigate inside one persistent document', as
   await page.locator('.ui-rail-button[aria-label="Мониторы"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await expect(page.locator('[data-screen-hierarchy]')).toBeVisible();
-  expect(await page.evaluate(() => window.__tvMenuSpaSentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.getByRole('link', { name: /Торговые точки/ }).click();
   await expect(page).toHaveURL(/\/locations$/);
   await expect(page.locator('#location-form')).toBeVisible();
-  expect(await page.evaluate(() => window.__tvMenuSpaSentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.locator('#product-form')).toBeVisible();
-  expect(await page.evaluate(() => window.__tvMenuSpaSentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
   await expect(page.locator('.ui-context-body .app-route-link')).toHaveCount(1);
   await expect(page.locator('.ui-context-body .app-route-link')).toHaveText(/Продукция/);
   await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
@@ -40,16 +40,16 @@ test('main menu and context submenu navigate inside one persistent document', as
   await page.locator('.ui-context-body .app-route-link', { hasText: 'Продукция' }).click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
-  expect(await page.evaluate(() => window.__tvMenuSpaSentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.locator('#site-settings-form')).toBeVisible();
   await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
-  expect(await page.evaluate(() => window.__tvMenuSpaSentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
-  expect(await page.evaluate(() => window.__tvMenuSpaSentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   expect(documentRequests).toEqual([]);
 });
@@ -114,8 +114,8 @@ test('saved application name immediately controls browser tab title on every rou
 
 test('browser back and forward keep the same application document', async ({ page }) => {
   await login(page);
-  await page.evaluate(() => { window.__tvMenuSpaHistorySentinel = `history-${Math.random()}`; });
-  const sentinel = await page.evaluate(() => window.__tvMenuSpaHistorySentinel);
+  await page.evaluate(() => { window.__miraTvSpaHistorySentinel = `history-${Math.random()}`; });
+  const sentinel = await page.evaluate(() => window.__miraTvSpaHistorySentinel);
 
   await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
@@ -125,10 +125,10 @@ test('browser back and forward keep the same application document', async ({ pag
   await page.goBack();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.locator('#product-form')).toBeVisible();
-  expect(await page.evaluate(() => window.__tvMenuSpaHistorySentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaHistorySentinel)).toBe(sentinel);
 
   await page.goForward();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.locator('#site-settings-form')).toBeVisible();
-  expect(await page.evaluate(() => window.__tvMenuSpaHistorySentinel)).toBe(sentinel);
+  expect(await page.evaluate(() => window.__miraTvSpaHistorySentinel)).toBe(sentinel);
 });
