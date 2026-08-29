@@ -166,7 +166,7 @@ test('TV Player updates Brand and environment from WebSocket invalidation withou
     await expect(brand).toHaveAttribute('aria-label', 'ПЕРВЫЙ\nБРЕНД');
     expect(await brand.evaluate((node) => node.style.getPropertyValue('--brand-line-spacing'))).toBe('-0.625cqw');
     await expect(menu).toHaveCount(1);
-    const menuNode = await menu.evaluate((node) => node);
+    await menu.evaluate((node) => { node.dataset.identityProbe = 'stable-menu'; });
 
     await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
     await page.evaluate(() => {
@@ -178,7 +178,7 @@ test('TV Player updates Brand and environment from WebSocket invalidation withou
     await expect(environment.locator('.aquarium-fish')).toHaveCount(4);
     await expect(brand).toHaveAttribute('aria-label', 'НОВЫЙ\nБРЕНД');
     expect(await brand.evaluate((node) => node.style.getPropertyValue('--brand-line-spacing'))).toBe('-1.25cqw');
-    expect(await menu.evaluate((node, previous) => node === previous, menuNode)).toBe(true);
+    await expect(page.locator('[data-player-menu-layer] canvas[data-identity-probe="stable-menu"]')).toHaveCount(1);
   } finally {
     await context.close();
   }
