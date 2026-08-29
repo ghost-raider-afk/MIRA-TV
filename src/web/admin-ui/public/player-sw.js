@@ -60,9 +60,33 @@ function activeAssetSet(values) {
   return assets;
 }
 
-async function pruneInactiveAssets(values) {
+async function ensureActiveAssets(values) {
   const active = activeAssetSet(values);
   const cache = await caches.open(DATA_CACHE);
+  let complete = true;
+
+  // Keep this deliberately sequential. A TV must not download a large Entity video
+  // and other media in parallel just to warm its offline cache.
+  for (const href of active) {
+    const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
+    if (await cache.match(request)) continue;
+    try {
+      const response = await fetch(request, { cache: 'force-cache' });
+      if (response.status !== 200) {
+        complete = false;
+        continue;
+      }
+      await cache.put(request, response.clone());
+    } catch {
+      complete = false;
+    }
+  }
+  return { active, complete, cache };
+}
+
+async function syncActiveAssets(values) {
+  const { active, complete, cache } = await ensureActiveAssets(values);
+  if (!complete) return;
   const requests = await cache.keys();
   await Promise.all(requests.map((request) => {
     const url = new URL(request.url);
@@ -73,7 +97,7 @@ async function pruneInactiveAssets(values) {
 
 self.addEventListener('message', (event) => {
   if (event.data?.type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
-  event.waitUntil(pruneInactiveAssets(event.data.assets));
+  event.waitUntil(syncActiveAssets(event.data.assets));
 });
 
 async function networkWithTimeout(request, timeoutMs = 5000) {
