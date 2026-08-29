@@ -18,6 +18,14 @@ function catalogIds(draft) {
   return { productIds: [...productIds], packagingIds: [...packagingIds] };
 }
 
+function sceneUsesCatalog(scene) {
+  return Array.isArray(scene?.slides) && scene.slides.some((slide) =>
+    Array.isArray(slide?.elements) && slide.elements.some((element) =>
+      element?.type === 'table' && element?.data_binding?.source === 'catalog_products'
+    )
+  );
+}
+
 function screenComponent(screen) {
   return {
     id: screen.id,
@@ -39,11 +47,29 @@ function runtimeComponent(config) {
   };
 }
 
+async function publishedSceneComponent(store, screenId) {
+  const assignment = await store.getScreenSceneAssignment(screenId);
+  if (!assignment) return null;
+  const revision = await store.getSceneRevision(assignment.scene_revision_id);
+  if (!revision) return null;
+  const catalogProducts = sceneUsesCatalog(revision.scene) ? await store.listProducts() : [];
+  return {
+    revision_id: revision.id,
+    scene_id: revision.scene_id,
+    scene_name: revision.scene_name,
+    revision_number: revision.revision_number,
+    published_at: revision.published_at,
+    graph: revision.scene,
+    catalog_products: catalogProducts
+  };
+}
+
 export async function buildPlayerState(store, session, config) {
-  const [screen, draft, animationSettings] = await Promise.all([
+  const [screen, draft, animationSettings, publishedScene] = await Promise.all([
     store.getScreen(session.screen_id),
     store.getScreenDraft(session.screen_id),
-    store.getScreenAnimationSettings(session.screen_id)
+    store.getScreenAnimationSettings(session.screen_id),
+    publishedSceneComponent(store, session.screen_id)
   ]);
   if (!screen || screen.active === false) return null;
 
@@ -62,6 +88,7 @@ export async function buildPlayerState(store, session, config) {
     entity: animationSettings?.entity || null,
     brand: animationSettings?.brand || null,
     announcement: animationSettings?.announcement || null,
+    scene: publishedScene,
     runtime: runtimeComponent(config)
   };
 
@@ -86,6 +113,7 @@ export function fullPlayerContext(state) {
     entity: components.entity,
     brand: components.brand,
     announcement: components.announcement,
+    scene: components.scene,
     ...components.runtime
   };
 }
