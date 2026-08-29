@@ -137,7 +137,9 @@ TV не должны синхронизироваться друг с друго
 
 База и Asset Storage рассматриваются как единое persistent state для backup, restore, update и удаления.
 
-Текущий `localStorage` в `prototype` — только временный способ репетировать UX.
+В `prototype` Draft Scene уже хранится в PostgreSQL как валидированный JSONB-документ. Отдельный `server_revision` используется только для optimistic concurrency и защищает от тихого перезаписывания более свежего Draft.
+
+Целевая публикационная модель дополнит Draft неизменяемыми Scene Revision для безопасного назначения на TV и rollback. Счётчик `server_revision` и Published Scene Revision — разные понятия.
 
 ## Обновления Player
 
