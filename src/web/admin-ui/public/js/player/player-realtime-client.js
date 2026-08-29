@@ -29,7 +29,13 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
   function connect() {
     if (stopped || socket || !navigator.onLine) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const next = new WebSocket(`${protocol}//${location.host}/ws/device`);
+    let next;
+    try {
+      next = new WebSocket(`${protocol}//${location.host}/ws/device`);
+    } catch {
+      scheduleReconnect();
+      return;
+    }
     socket = next;
 
     next.addEventListener('open', () => {
@@ -54,19 +60,34 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     });
   }
 
+  function handleOnline() {
+    connect();
+  }
+
+  function handleOffline() {
+    clearRetry();
+    const current = socket;
+    socket = null;
+    if (current) {
+      try { current.close(1001, 'network offline'); } catch {}
+    } else {
+      onDisconnected?.();
+    }
+  }
+
   function start() {
     if (!stopped) return;
     stopped = false;
-    window.addEventListener('online', connect);
-    window.addEventListener('offline', onDisconnected);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     connect();
   }
 
   function stop() {
     stopped = true;
     clearRetry();
-    window.removeEventListener('online', connect);
-    window.removeEventListener('offline', onDisconnected);
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
     const current = socket;
     socket = null;
     if (current) {
