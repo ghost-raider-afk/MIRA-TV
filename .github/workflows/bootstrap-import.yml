@@ -1,0 +1,46 @@
+name: bootstrap-import
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/bootstrap-import.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout verified MIRA-TV source snapshot
+        uses: actions/checkout@v4
+        with:
+          repository: ghost-raider-afk/menu-tv-2
+          ref: e3417114b8606479d0a368eb4677fb34a614828a
+          path: upstream
+          fetch-depth: 1
+
+      - name: Import source tree exactly
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude 'upstream/' \
+            upstream/ ./
+          rm -rf upstream
+
+      - name: Commit imported v1.9.1 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Import MIRA-TV v1.9.1 baseline from menu-tv-2' || exit 0
+          git push origin HEAD:main
