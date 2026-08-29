@@ -3,7 +3,7 @@ import { createLoginLimiter } from '../../middleware/login-limiter.js';
 import { hashPassword, verifyPassword } from '../../services/password-service.js';
 import { issueSession, parseCookies, SESSION_COOKIE, sessionCookie, themeCookie, verifySession } from '../../services/session-service.js';
 
-const DUMMY_LOGIN_PASSWORD = 'MenuTv2!TimingDummy#2026';
+const DUMMY_LOGIN_PASSWORD = 'MiraTv2!TimingDummy#2026';
 
 export function createAuthRouter({ store, config }) {
   const router = express.Router();
