@@ -1,6 +1,12 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import {
+  applySceneElementGeometry,
+  applySceneStage,
+  renderSceneLayer,
+  SCENE_ELEMENT_LABELS
+} from '../scene-runtime/renderer.js';
+import {
   appendSlide,
   createElement,
   createScene,
@@ -9,12 +15,7 @@ import {
   touchScene
 } from './model.js';
 import { createSceneRemote, getScene, updateSceneRemote } from './store.js';
-import {
-  buildCatalogTableRows,
-  catalogTableColumns,
-  normaliseTableConfig,
-  parseTargetVolumes
-} from './catalog-table.js';
+import { normaliseTableConfig, parseTargetVolumes } from './catalog-table.js';
 
 const state = {
   scene: null,
@@ -31,17 +32,6 @@ const state = {
   saveQueued: false,
   saveConflict: false
 };
-
-const TYPE_LABELS = Object.freeze({
-  text: 'Текст',
-  table: 'Таблица',
-  image: 'Изображение',
-  logo: 'Логотип',
-  video: 'Видео',
-  weather: 'Погода',
-  clock: 'Часы',
-  shape: 'Фигура'
-});
 
 function currentSlide() {
   return state.scene.slides.find((slide) => slide.id === state.scene.active_slide_id) || state.scene.slides[0];
@@ -173,104 +163,9 @@ function appendTextElement(parent, tagName, text, className = '') {
   return node;
 }
 
-function gridTemplate(columns) {
-  return columns.map((column) => `minmax(0, ${column.weight || 1}fr)`).join(' ');
-}
-
-function renderCatalogTable(node, element) {
-  appendTextElement(node, 'strong', element.content || 'Меню', 'scene-table-title');
-  if (state.catalogStatus === 'loading' || state.catalogStatus === 'idle') {
-    appendTextElement(node, 'div', 'Загрузка каталога…', 'scene-table-state');
-    return;
-  }
-  if (state.catalogStatus === 'error') {
-    appendTextElement(node, 'div', 'Каталог временно недоступен', 'scene-table-state scene-table-state-error');
-    return;
-  }
-  const config = normaliseTableConfig(element.table || {});
-  const columns = catalogTableColumns(config);
-  const rows = buildCatalogTableRows(state.catalogProducts, config);
-  if (!rows.length) {
-    appendTextElement(node, 'div', 'В каталоге нет подходящих активных позиций', 'scene-table-state');
-    return;
-  }
-  const table = document.createElement('div');
-  table.className = 'scene-catalog-table';
-  table.style.setProperty('--scene-table-columns', gridTemplate(columns));
-  const header = document.createElement('div');
-  header.className = 'scene-catalog-row scene-catalog-head';
-  for (const column of columns) appendTextElement(header, 'span', column.label);
-  table.append(header);
-  for (const row of rows) {
-    const rowNode = document.createElement('div');
-    rowNode.className = 'scene-catalog-row';
-    for (const column of columns) {
-      const cell = appendTextElement(rowNode, 'span', row.values[column.key] || '—');
-      if (column.kind === 'price') cell.className = 'scene-catalog-price';
-    }
-    table.append(rowNode);
-  }
-  node.append(table);
-}
-
-function renderElementContent(node, element) {
-  if (element.type === 'clock') {
-    appendTextElement(node, 'span', new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(new Date()), 'scene-clock-value');
-    const date = element.variant === 'minimal'
-      ? ''
-      : new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-    appendTextElement(node, 'small', date);
-    return;
-  }
-  if (element.type === 'weather') {
-    appendTextElement(node, 'span', '☀', 'scene-weather-icon');
-    appendTextElement(node, 'span', '+18°', 'scene-weather-temp');
-    appendTextElement(node, 'small', element.variant === 'forecast' ? 'Сегодня · +18° · завтра +16°' : 'Ясно');
-    return;
-  }
-  if (element.type === 'table') {
-    renderCatalogTable(node, element);
-    return;
-  }
-  if (element.type === 'video') {
-    appendTextElement(node, 'span', '▶', 'scene-media-symbol');
-    appendTextElement(node, 'strong', element.content || 'Видео');
-    return;
-  }
-  if (element.type === 'image' || element.type === 'logo') {
-    appendTextElement(node, 'span', '▧', 'scene-media-symbol');
-    appendTextElement(node, 'strong', element.content || TYPE_LABELS[element.type]);
-    return;
-  }
-  if (element.type === 'shape') {
-    node.textContent = '';
-    return;
-  }
-  node.textContent = element.content || TYPE_LABELS[element.type];
-}
-
-function applyElementStyle(node, element) {
-  const scene = state.scene;
-  const stageWidth = document.querySelector('#scene-stage').clientWidth || scene.canvas_width;
-  node.style.left = `${(element.x / scene.canvas_width) * 100}%`;
-  node.style.top = `${(element.y / scene.canvas_height) * 100}%`;
-  node.style.width = `${(element.width / scene.canvas_width) * 100}%`;
-  node.style.height = `${(element.height / scene.canvas_height) * 100}%`;
-  node.style.zIndex = String(element.z_index);
-  node.style.opacity = String(element.opacity);
-  node.style.color = element.style.color;
-  node.style.background = element.style.background;
-  node.style.borderRadius = `${element.style.radius || 0}px`;
-  node.style.fontSize = `${Math.max(12, element.style.font_size * (stageWidth / scene.canvas_width))}px`;
-  node.classList.toggle('has-shadow', element.effects.shadow);
-  node.classList.toggle('has-glow', element.effects.glow);
-  node.dataset.entrance = element.animation.entrance;
-  node.dataset.loop = element.animation.loop;
-}
-
 function markSelected(node, element) {
   state.selectedElementId = element.id;
-  document.querySelectorAll('.scene-element.is-selected').forEach((item) => item.classList.remove('is-selected'));
+  document.querySelectorAll('.scene-render-element.is-selected').forEach((item) => item.classList.remove('is-selected'));
   node.classList.add('is-selected');
   renderInspector();
 }
@@ -290,7 +185,7 @@ function installDrag(node, element) {
       element.x = clamp(start.elementX + dx, 0, state.scene.canvas_width - element.width);
       element.y = clamp(start.elementY + dy, 0, state.scene.canvas_height - element.height);
       touchScene(state.scene);
-      applyElementStyle(node, element);
+      applySceneElementGeometry(node, element, state.scene, rect.width);
       renderInspectorGeometry();
     };
     const stop = () => {
@@ -320,7 +215,7 @@ function installDrag(node, element) {
       element.width = clamp(start.width + dx, 40, state.scene.canvas_width - element.x);
       element.height = clamp(start.height + dy, 40, state.scene.canvas_height - element.y);
       touchScene(state.scene);
-      applyElementStyle(node, element);
+      applySceneElementGeometry(node, element, state.scene, rect.width);
       renderInspectorGeometry();
     };
     const stop = () => {
@@ -335,32 +230,37 @@ function installDrag(node, element) {
   });
 }
 
+function decorateEditorElement(node, element) {
+  node.classList.toggle('is-selected', !state.preview && element.id === state.selectedElementId);
+  if (!state.preview) {
+    const handle = document.createElement('span');
+    handle.className = 'scene-resize-handle';
+    handle.setAttribute('aria-hidden', 'true');
+    node.append(handle);
+  }
+  node.addEventListener('click', (event) => {
+    if (state.preview) return;
+    event.stopPropagation();
+    state.selectedElementId = element.id;
+    renderElements();
+    renderInspector();
+  });
+  installDrag(node, element);
+}
+
 function renderElements() {
   const layer = document.querySelector('#scene-elements-layer');
-  layer.replaceChildren();
-  for (const element of [...currentSlide().elements].sort((a, b) => a.z_index - b.z_index)) {
-    const node = document.createElement('div');
-    node.className = `scene-element scene-element-${element.type}`;
-    node.dataset.elementId = element.id;
-    node.classList.toggle('is-selected', !state.preview && element.id === state.selectedElementId);
-    renderElementContent(node, element);
-    if (!state.preview) {
-      const handle = document.createElement('span');
-      handle.className = 'scene-resize-handle';
-      handle.setAttribute('aria-hidden', 'true');
-      node.append(handle);
-    }
-    applyElementStyle(node, element);
-    node.addEventListener('click', (event) => {
-      if (state.preview) return;
-      event.stopPropagation();
-      state.selectedElementId = element.id;
-      renderElements();
-      renderInspector();
-    });
-    installDrag(node, element);
-    layer.append(node);
-  }
+  renderSceneLayer(layer, {
+    scene: state.scene,
+    slide: currentSlide(),
+    context: {
+      catalogProducts: state.catalogProducts,
+      catalogStatus: state.catalogStatus,
+      catalogError: state.catalogError,
+      now: new Date()
+    },
+    decorate: decorateEditorElement
+  });
   syncClockTimer();
 }
 
@@ -435,7 +335,7 @@ function renderInspector() {
   const element = selectedElement();
   document.querySelector('#inspector-empty').classList.toggle('is-hidden', Boolean(element));
   document.querySelector('#inspector-fields').classList.toggle('is-hidden', !element);
-  document.querySelector('#inspector-title').textContent = element ? TYPE_LABELS[element.type] : 'Слайд';
+  document.querySelector('#inspector-title').textContent = element ? SCENE_ELEMENT_LABELS[element.type] : 'Слайд';
   if (!element) {
     renderTableInspector(null);
     return;
@@ -463,9 +363,7 @@ function render() {
   document.querySelector('#scene-display-count').value = String(scene.display_count);
   document.querySelector('#scene-resolution-label').textContent = `${scene.canvas_width} × ${scene.canvas_height}`;
   document.querySelector('#slide-background-color').value = currentSlide().background.color || '#10141c';
-  const stage = document.querySelector('#scene-stage');
-  stage.style.aspectRatio = `${scene.canvas_width} / ${scene.canvas_height}`;
-  stage.style.background = currentSlide().background.color;
+  applySceneStage(document.querySelector('#scene-stage'), scene, currentSlide());
   renderGuides();
   renderElements();
   renderSlides();
@@ -581,8 +479,7 @@ function bindGlobalControls() {
     currentSlide().background.color = event.target.value;
     touchScene(state.scene);
     scheduleAutosave();
-    const stage = document.querySelector('#scene-stage');
-    stage.style.background = event.target.value;
+    applySceneStage(document.querySelector('#scene-stage'), state.scene, currentSlide());
   });
   document.querySelector('#add-slide').addEventListener('click', () => {
     appendSlide(state.scene);
