@@ -43,3 +43,46 @@ test('installer follows three-part MIRA-TV stable release tags', async () => {
   assert.match(source, /v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
   assert.doesNotMatch(source, /v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
 });
+
+test('installer opens the menu by default and can elevate a process-substitution bootstrap safely', async () => {
+  const [source, readme, installation] = await Promise.all([
+    readFile('mira-tv.sh', 'utf8'),
+    readFile('README.md', 'utf8'),
+    readFile('docs/INSTALLATION.md', 'utf8')
+  ]);
+
+  assert.match(source, /case "\$\{1:-menu\}" in/);
+  assert.match(source, /menu\) show_menu/);
+  assert.match(source, /require_root install/);
+  assert.match(source, /mktemp -t 'mira-tv\.bootstrap\.XXXXXX\.sh'/);
+  assert.match(source, /sudo bash "\$tmp" "\$action"/);
+  assert.match(source, /5\) Логи/);
+
+  const bootstrap = 'bash <(curl -Ls https://raw.githubusercontent.com/ghost-raider-afk/MIRA-TV/main/mira-tv.sh)';
+  assert.ok(readme.includes(bootstrap));
+  assert.ok(installation.includes(bootstrap));
+});
+
+test('installer update is one guarded flow with temporary backup and automatic rollback', async () => {
+  const source = await readFile('mira-tv.sh', 'utf8');
+
+  assert.match(source, /2\) Проверить обновление/);
+  assert.doesNotMatch(source, /6\) Проверить обновление/);
+  assert.match(source, /У вас установлена последняя версия MIRA-TV/);
+  assert.match(source, /Обновить\? \[y\/N\]/);
+
+  assert.match(source, /^TEMP_BACKUP_DIR=""$/m);
+  assert.match(source, /source\.tar\.gz/);
+  assert.match(source, /git-revision/);
+  assert.match(source, /database\.dump/);
+  assert.match(source, /pg_dump/);
+  assert.match(source, /pg_restore/);
+  assert.match(source, /restore_temporary_backup/);
+  assert.match(source, /recover_failed_update/);
+  assert.match(source, /предыдущая версия, настройки и база данных автоматически восстановлены/);
+
+  assert.match(source, /reset-admin-password\.js/);
+  assert.match(source, /Удалить приложение\?'; then/);
+  assert.match(source, /Удалить приложение и ВСЕ данные\?'; then/);
+  assert.match(source, /\[YES\/NO\]/);
+});
