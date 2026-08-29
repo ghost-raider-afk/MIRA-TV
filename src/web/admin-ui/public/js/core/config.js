@@ -15,6 +15,7 @@ export const API = Object.freeze({
   frontendErrors: '/api/diagnostics/frontend-errors',
   locations: '/api/locations',
   screens: '/api/screens',
+  scenes: '/api/scenes',
   deviceResolve: '/api/device-admin/resolve',
   deviceAuthorize: '/api/device-admin/authorize',
   deviceBindings: '/api/device-admin/bindings',
