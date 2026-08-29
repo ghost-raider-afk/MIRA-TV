@@ -38,6 +38,8 @@ Player работает локально в браузере телевизор�
 
 Видео декодируется штатным browser/hardware decoder. Player не выполняет программное покадровое декодирование через Canvas и не копирует целый cached video в JavaScript память ради Range-запросов.
 
+`player.js` является владельцем глобального lifecycle Player: active/inactive и page visible/hidden. Отдельные runtimes не должны самостоятельно определять или дублировать глобальное состояние видимости.
+
 ## Player state и delta
 
 Authoritative state разделён на независимые компоненты:
@@ -66,6 +68,18 @@ TV отправляет свои известные hashes в `/api/device/playe
 
 Unchanged delta не заменяет готовый Canvas. Menu-only delta не пересоздаёт неизменённый Entity media node.
 
+Entity runtime событийный: он не наблюдает весь DOM через `MutationObserver` и не использует `requestAnimationFrame` для поиска изменений. Новый Entity binding запускается только после явного события владельца Entity layer.
+
+## Visibility lifecycle
+
+Работа, пиксели которой не видны, должна быть остановлена:
+
+- при скрытии самого Player базовый Entity video ставится на pause;
+- Entity WAAPI ставится на pause при inactive Player, hidden page и fullscreen Playlist;
+- GPU menu effects ставятся на pause при inactive Player, hidden page и fullscreen Playlist;
+- CSS-анимации базовых Environment/Brand/Announcement слоёв получают `animation-play-state: paused` при inactive/hidden состоянии;
+- fullscreen временная сцена не останавливается этим правилом, потому что именно она в этот момент видима.
+
 ## Offline-first запуск
 
 1. Player загружает локальный shell.
@@ -78,7 +92,9 @@ Unchanged delta не заменяет готовый Canvas. Menu-only delta н�
 8. Подготавливает критические изменившиеся assets.
 9. Применяет только dirty layers.
 10. Только после успешного render сохраняет candidate как новый Last Known Good.
-11. После фиксации LKG публикует Service Worker manifest активных assets и разрешает cache GC.
+11. После фиксации LKG передаёт Service Worker manifest всех активных assets.
+12. Service Worker последовательно гарантирует наличие активных assets в Cache Storage.
+13. Только после успешного ensure Service Worker удаляет больше не используемые cached assets.
 
 Если critical asset не готов, предыдущий LKG остаётся и в IndexedDB, и на экране.
 
@@ -90,9 +106,15 @@ WebSocket используется как дешёвый канал invalidation
 
 Server heartbeat — native WebSocket ping раз в 60 секунд без application JSON и без записи PostgreSQL.
 
+Пустой локальный журнал не должен повторно сканироваться при каждом unchanged fallback. После успешного опустошения очередь помечается чистой в памяти и IndexedDB не открывается снова до появления нового события.
+
 ## Media cache
 
 Фоны и Entity assets имеют уникальные immutable URL при каждой загрузке. Cache-first поэтому безопасен: новый asset не делит URL со старым содержимым.
+
+Service Worker — единственный владелец прогрева LKG media-cache. Page runtime не дублирует скачивание Entity/background после фиксации состояния.
+
+Активные assets обеспечиваются последовательно, а не параллельным скачиванием нескольких тяжёлых файлов. Если ensure хотя бы одного активного asset завершается ошибкой, старый cache не очищается.
 
 Полный cached MP4/WebM возвращается браузеру как исходный streaming `200 Response`. Service Worker не создаёт `ArrayBuffer` всего ролика и не режет byte ranges в JavaScript. Uncached Range запрос обслуживается сервером нативно, а частичный `206` не маскируется под полный cached asset.
 
