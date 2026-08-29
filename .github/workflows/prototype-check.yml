@@ -31,4 +31,4 @@ jobs:
           bash -n mira-tv.sh
 
       - name: Compose syntax
-        run: docker compose config --quiet
+        run: docker compose --env-file .env.example config --quiet
