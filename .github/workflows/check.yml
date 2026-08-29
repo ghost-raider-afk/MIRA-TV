@@ -1,0 +1,144 @@
+name: check
+
+on:
+  push:
+    branches:
+      - main
+      - refactor/v1.0.0-offline-first-rebrand
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  node-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax and unit tests
+        run: |
+          npm run build
+          npm test
+          bash -n mira-tv.sh
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected = '1.0.0'
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          lock = json.loads(Path('package-lock.json').read_text(encoding='utf-8'))
+          env = Path('.env.example').read_text(encoding='utf-8')
+          installer = Path('mira-tv.sh').read_text(encoding='utf-8')
+
+          assert package['name'] == 'mira-tv'
+          assert package['version'] == expected
+          assert package['miraVersion'] == expected
+          assert lock['name'] == 'mira-tv'
+          assert lock['version'] == expected
+          assert lock['packages']['']['name'] == 'mira-tv'
+          assert lock['packages']['']['version'] == expected
+          assert f'MIRA_TV_VERSION={expected}' in env.splitlines()
+          assert f'SCRIPT_VERSION="{expected}"' in installer.splitlines()
+          PY
+
+      - name: Audit product names and removed subsystems
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+          excluded_dirs = {'.git', 'node_modules', 'playwright-report', 'test-results'}
+          old_dash = 'me' + 'nu' + '-tv'
+          old_under = 'me' + 'nu' + '_tv'
+          removed_transfer = 'sf' + 'tp'
+          old_product_version = '1.0.0' + '.1'
+          old_package_version = '1.0.0' + '-1'
+          forbidden = {
+              old_dash,
+              old_under,
+              'me' + 'nu' + ' tv',
+              'tv' + ' me' + 'nu',
+              removed_transfer,
+              old_product_version,
+              old_package_version,
+          }
+
+          failures = []
+          for path in root.rglob('*'):
+              if any(part in excluded_dirs for part in path.parts):
+                  continue
+              relative = path.as_posix().lower()
+              if any(token in relative for token in forbidden):
+                  failures.append(f'path: {path.as_posix()}')
+              if not path.is_file():
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8').lower()
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for token in forbidden:
+                  if token in text:
+                      failures.append(f'content: {path.as_posix()} -> {token}')
+
+          if failures:
+              raise SystemExit('Forbidden legacy identifiers found:\n' + '\n'.join(sorted(set(failures))))
+          PY
+
+      - name: Verify lockfile is reproducible
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp package-lock.json /tmp/mira-tv-package-lock.json
+          npm install --package-lock-only --ignore-scripts
+          cmp -s package-lock.json /tmp/mira-tv-package-lock.json
+
+  compose-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate installer syntax
+        run: bash -n mira-tv.sh
+
+      - name: Validate Docker Compose model
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          sed -i \
+            -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
+            -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
+            .env
+          docker compose config --quiet
+          test "$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" = 'mira-tv'
+          rm -f .env
+
+      - name: Build application image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          sed -i \
+            -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
+            -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
+            .env
+          docker compose build app
+          rm -f .env
