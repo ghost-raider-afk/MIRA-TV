@@ -7,6 +7,10 @@ function newSceneId() {
   return `scene-${randomUUID()}`;
 }
 
+function newSceneRevisionId() {
+  return `scene-revision-${randomUUID()}`;
+}
+
 function cloneScenePayload(source) {
   const scene = structuredClone(source);
   delete scene.id;
@@ -21,6 +25,7 @@ export function createScenesRouter({ store }) {
   const router = express.Router();
 
   router.get('/', async (_request, response) => response.json(await store.listScenes()));
+  router.get('/published/revisions', async (_request, response) => response.json(await store.listSceneRevisions()));
 
   router.get('/:id', async (request, response) => {
     const scene = await store.getScene(sceneIdParam(request.params.id));
@@ -66,6 +71,33 @@ export function createScenesRouter({ store }) {
     response.status(201).json(created);
   });
 
+  router.post('/:id/publish', async (request, response) => {
+    const id = sceneIdParam(request.params.id);
+    const published = await store.transaction(async (tx) => {
+      const draft = await tx.lockScene(id);
+      if (!draft) throw notFound('Сцена не найдена.');
+      const snapshot = scenePayloadInput(draft);
+      const revisionNumber = await tx.nextSceneRevisionNumber(id);
+      return tx.createSceneRevision({
+        id: newSceneRevisionId(),
+        sceneId: id,
+        revisionNumber,
+        scene: snapshot,
+        actor: request.session.sub,
+        now: new Date().toISOString()
+      });
+    });
+    if (!published) throw conflict('Не удалось опубликовать сцену.');
+    await activity(store, request, {
+      action: 'scene.published',
+      entity_type: 'scene',
+      entity_id: id,
+      message: `Опубликована сцена «${published.scene_name}», ревизия ${published.revision_number}.`,
+      metadata: { scene_revision_id: published.id, revision_number: published.revision_number }
+    });
+    response.status(201).json(published);
+  });
+
   router.put('/:id', async (request, response) => {
     const id = sceneIdParam(request.params.id);
     const expectedRevision = sceneRevision(request.body?.server_revision);
@@ -80,7 +112,13 @@ export function createScenesRouter({ store }) {
 
   router.delete('/:id', async (request, response) => {
     const id = sceneIdParam(request.params.id);
-    const removed = await store.deleteSceneRecord(id);
+    let removed;
+    try {
+      removed = await store.deleteSceneRecord(id);
+    } catch (error) {
+      if (error?.code === '23503') throw conflict('Сцена используется на одном или нескольких мониторах. Сначала снимите назначение.');
+      throw error;
+    }
     if (!removed) throw notFound('Сцена не найдена.');
     await activity(store, request, {
       action: 'scene.deleted',
