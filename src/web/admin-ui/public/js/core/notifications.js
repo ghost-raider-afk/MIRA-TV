@@ -6,7 +6,7 @@ import { formatDate } from './presentation.js';
 
 const PHONE_BREAKPOINT = 960;
 const SEVERITY_LABELS = Object.freeze({ success: 'Успешно', warning: 'Предупреждение', error: 'Ошибка', info: 'Информация' });
-const CATEGORY_LABELS = Object.freeze({ interface: 'Интерфейс', catalog: 'Каталог', monitors: 'Мониторы', tv: 'ТВ', sftp: 'SFTP', auth: 'Авторизация', settings: 'Настройки', system: 'Система' });
+const CATEGORY_LABELS = Object.freeze({ interface: 'Интерфейс', catalog: 'Каталог', monitors: 'Мониторы', tv: 'ТВ', auth: 'Авторизация', settings: 'Настройки', system: 'Система' });
 
 function eventRow(event) {
   const row = document.createElement('article');
@@ -94,7 +94,7 @@ export function initialiseNotifications() {
   const refreshFromEvent = () => {
     if (state.user?.notifications_enabled !== false) void loadNotifications().catch(() => undefined);
   };
-  window.addEventListener('menu-tv:event-recorded', refreshFromEvent);
+  window.addEventListener('mira-tv:event-recorded', refreshFromEvent);
 
   const close = (restoreFocus = false) => setPanelOpen(button, layer, panel, false, { restoreFocus });
   const open = () => {

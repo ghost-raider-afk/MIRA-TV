@@ -1,8 +1,8 @@
 {
-  "name": "menu-tv-2",
-  "version": "1.9.1",
+  "name": "mira-tv",
+  "version": "1.0.0",
   "private": true,
-  "description": "MIRA-TV administration and TV player application",
+  "description": "Web application for managing digital menus and displaying them on TVs",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
@@ -19,10 +19,12 @@
     "helmet": "^8.1.0",
     "jsqr": "1.4.0",
     "pg": "^8.13.1",
-    "sharp": "0.35.3"
+    "sharp": "0.35.3",
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
     "pg-mem": "^3.0.5"
-  }
+  },
+  "miraVersion": "1.0.0"
 }

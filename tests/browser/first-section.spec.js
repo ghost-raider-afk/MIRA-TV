@@ -93,7 +93,7 @@ test('first section is a real editable row and never inherits the monitor name',
   await expect(preview.locator('.price-label')).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.locator('#screen-editor-message')).toContainText('Сохранено');
+  await expect(page.locator('#screen-editor-message')).toContainText(/сохранено/i);
 
   const persisted = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
   expect(persisted.draft.rows[0]).toMatchObject({ kind: 'section', name: 'ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ', enabled: true });

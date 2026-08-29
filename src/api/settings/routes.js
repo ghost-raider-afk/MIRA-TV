@@ -15,7 +15,7 @@ async function animationInputPreservingPlaylist(store, body) {
   return animationSettingsInput({ ...body, scene_playlist: current?.scene_playlist });
 }
 
-export function createSettingsRouter({ store, config }) {
+export function createSettingsRouter({ store, config, realtime }) {
   const router = express.Router();
   router.get('/user', async (request, response) => response.json(await store.getUserPreferences(request.session.sub)));
   router.put('/user', async (request, response) => {
@@ -56,6 +56,7 @@ export function createSettingsRouter({ store, config }) {
       action: 'settings.animation.applied', entity_type: 'screen_animation_settings', entity_id: result.applied_screen_ids.join(','),
       message: `Плейлист применён к мониторам: ${result.applied_screen_ids.join(', ')}.`
     });
+    realtime?.notifyScreens(result.applied_screen_ids);
     response.json(result);
   });
   router.put('/animation/entity-asset', async (request, response) => {

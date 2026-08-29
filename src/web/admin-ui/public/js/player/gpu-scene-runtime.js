@@ -114,15 +114,35 @@ export class GpuSceneRuntime {
     this.composer = composer || new PlayerSceneLayerComposer(stage);
     this.animations = [];
     this.signature = '';
-    this.fullscreenSuppressed = false;
+    this.fullscreenSuppressed = stage.dataset.scenePlaylistFullscreen === 'true';
+    const playerHost = stage.closest('[data-tv-player]');
+    this.playerActive = playerHost instanceof HTMLElement && !playerHost.classList.contains('is-hidden');
     this.handlePlaylistMode = (event) => {
       this.fullscreenSuppressed = event.detail?.fullscreen === true;
-      for (const animation of this.animations) {
-        if (this.fullscreenSuppressed) animation.pause();
-        else animation.play();
-      }
+      this.syncPlayback();
     };
+    this.handlePlayerActivity = (event) => {
+      this.playerActive = event.detail?.active === true;
+      this.syncPlayback();
+    };
+    this.handleVisibilityChange = () => this.syncPlayback();
     this.stage.addEventListener('mira:scene-playlist-mode', this.handlePlaylistMode);
+    this.stage.addEventListener('mira:player-active', this.handlePlayerActivity);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  shouldPlay() {
+    return this.playerActive
+      && !this.fullscreenSuppressed
+      && document.visibilityState !== 'hidden';
+  }
+
+  syncPlayback() {
+    const play = this.shouldPlay();
+    for (const animation of this.animations) {
+      if (play) animation.play();
+      else animation.pause();
+    }
   }
 
   stopAnimations() {
@@ -176,8 +196,8 @@ export class GpuSceneRuntime {
       easing: plan.kind === 'pulse' ? 'ease-in-out' : 'linear',
       iterations: Infinity
     });
-    if (this.fullscreenSuppressed) animation.pause();
     this.animations.push(animation);
+    this.syncPlayback();
     return true;
   }
 }

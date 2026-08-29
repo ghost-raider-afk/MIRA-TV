@@ -15,7 +15,7 @@ export function protectStateChangingRequest(request, response, next) {
 
   const origin = request.get('origin');
   if (origin && origin !== expectedOrigin(request)) {
-    return response.status(403).json({ error: 'Источник запроса не совпадает с адресом ТВ МЕНЮ.' });
+    return response.status(403).json({ error: 'Источник запроса не совпадает с адресом MIRA-TV.' });
   }
   return next();
 }

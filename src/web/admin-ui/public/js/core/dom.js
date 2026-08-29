@@ -7,7 +7,6 @@ export function element(id) {
 function messageCategory(id) {
   const source = String(id || '');
   if (/product|packaging|catalog/i.test(source)) return 'catalog';
-  if (/sftp/i.test(source)) return 'sftp';
   if (/screen|editor|monitor/i.test(source)) return 'monitors';
   if (/device|connect-tv/i.test(source)) return 'tv';
   if (/site|settings|profile|password/i.test(source)) return 'settings';

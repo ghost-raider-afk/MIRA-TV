@@ -1,10 +1,10 @@
 import { loadConfig } from '../config/index.js';
-import { MenuTvStore } from '../db/index.js';
+import { MiraTvStore } from '../db/index.js';
 import { resetAdministratorPassword } from '../services/admin-recovery-service.js';
 
 async function main() {
   const config = loadConfig();
-  const store = new MenuTvStore(config.db);
+  const store = new MiraTvStore(config.db);
   try {
     await store.init();
     const result = await resetAdministratorPassword({

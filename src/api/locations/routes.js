@@ -3,7 +3,11 @@ import { locationInput, positiveId } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
-export function createLocationsRouter({ store, config }) {
+function screenIds(rows) {
+  return [...new Set((rows || []).map((row) => Number(row.id ?? row.screen_id)).filter(Number.isSafeInteger))];
+}
+
+export function createLocationsRouter({ store, config, realtime }) {
   const router = express.Router();
   router.get('/', async (_request, response) => response.json(await store.listLocations()));
   router.post('/', async (request, response) => {
@@ -58,14 +62,17 @@ export function createLocationsRouter({ store, config }) {
   router.put('/:id', async (request, response) => {
     const record = await store.updateLocation(positiveId(request.params.id, 'id'), locationInput(request.body));
     if (!record) throw notFound();
+    const affectedScreenIds = screenIds(await store.listScreensByLocation(record.id));
     await activity(store, request, { action: 'location.updated', entity_type: 'location', entity_id: record.id, message: `Обновлена торговая точка «${record.name}».` });
+    realtime?.notifyScreens(affectedScreenIds);
     response.json(record);
   });
   router.delete('/:id', async (request, response) => {
     const location = await store.getLocation(positiveId(request.params.id, 'id'));
     if (!location) throw notFound();
-    if (location.sftp_directory_id) throw conflict('Сначала явно отключите SFTP-доступ точки. Каталог и файлы останутся без изменений.');
+    const affectedScreenIds = screenIds(await store.listScreensByLocation(location.id));
     if (!await store.deleteLocation(location.id)) throw notFound();
+    affectedScreenIds.forEach((screenId) => realtime?.disconnectScreen(screenId));
     await activity(store, request, { action: 'location.deleted', entity_type: 'location', entity_id: location.id, message: `Удалена торговая точка «${location.name}».` });
     response.status(204).end();
   });

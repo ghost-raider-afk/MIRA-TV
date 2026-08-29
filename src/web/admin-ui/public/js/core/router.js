@@ -109,7 +109,7 @@ export function createAppRouter({ mountPage, syncShell }) {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-cache',
-      headers: { 'X-TV-Menu-View': '1' }
+      headers: { 'X-MIRA-TV-View': '1' }
     });
 
     if (response.redirected && new URL(response.url).pathname === '/signin') {
@@ -146,7 +146,7 @@ export function createAppRouter({ mountPage, syncShell }) {
   async function commit(target, view, { replace = false, fromHistory = false } = {}) {
     if (!view) return false;
     if (!await canLeaveCurrentPage()) {
-      if (fromHistory) window.history.pushState({ tvMenu: true }, '', activeIdentity);
+      if (fromHistory) window.history.pushState({ miraTv: true }, '', activeIdentity);
       return false;
     }
 
@@ -154,8 +154,8 @@ export function createAppRouter({ mountPage, syncShell }) {
 
     if (!fromHistory) {
       const href = routeIdentity(target);
-      if (replace) window.history.replaceState({ tvMenu: true }, '', href);
-      else window.history.pushState({ tvMenu: true }, '', href);
+      if (replace) window.history.replaceState({ miraTv: true }, '', href);
+      else window.history.pushState({ miraTv: true }, '', href);
     }
 
     document.body.dataset.page = view.declaredPage || view.page;
@@ -234,7 +234,7 @@ export function createAppRouter({ mountPage, syncShell }) {
       activeRouter = router;
       const initialUrl = canonicalUrl(window.location.href);
       const initialPage = routePageForPath(initialUrl.pathname, document.body.dataset.page || '');
-      window.history.replaceState({ tvMenu: true }, '', routeIdentity(initialUrl));
+      window.history.replaceState({ miraTv: true }, '', routeIdentity(initialUrl));
       await mountCurrentPage(initialPage);
       document.body.dataset.page = initialPage;
       if (typeof syncShell === 'function') syncShell();

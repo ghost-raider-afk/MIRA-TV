@@ -132,21 +132,7 @@ export async function menuDraftInput(body, store, maxBytes) {
   return { rows, settings };
 }
 
-export function sftpDirectoryInput(body) {
-  const name = requireText(body.name, 'name', { max: 64 });
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(name) || name === '.' || name === '..') {
-    throw new ValidationError('Имя SFTP-каталога: латинские буквы, цифры, точка, дефис или подчёркивание');
-  }
-  return { name };
-}
 
-export function sftpBindingInput(body) {
-  const username = requireText(body.username, 'username', { max: 32 });
-  if (!/^[a-zA-Z][a-zA-Z0-9_-]{2,31}$/.test(username)) {
-    throw new ValidationError('Логин SFTP: 3–32 латинских символа, цифры, дефис или подчёркивание');
-  }
-  return { directoryId: positiveId(body.directory_id, 'directory_id'), username };
-}
 
 export function userPreferencesInput(body) {
   if (typeof body.notifications_enabled !== 'boolean') throw new ValidationError('Поле «notifications_enabled» должно быть логическим значением.');

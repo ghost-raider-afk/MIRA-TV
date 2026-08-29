@@ -22,7 +22,7 @@ async function pngFor(width, height) {
 }
 
 test('failed database update removes only the new site asset and keeps the previous file', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'menu-tv-site-assets-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mira-tv-site-assets-'));
   const oldFile = path.join(root, 'site-logo.png');
   await writeFile(oldFile, await pngFor(100, 50));
   const store = {
@@ -42,7 +42,7 @@ test('failed database update removes only the new site asset and keeps the previ
 });
 
 test('successful site asset update switches to a unique file then removes the previous asset', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'menu-tv-site-assets-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mira-tv-site-assets-'));
   const oldFile = path.join(root, 'site-logo.png');
   await writeFile(oldFile, await pngFor(100, 50));
   let savedFilename = '';

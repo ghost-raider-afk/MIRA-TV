@@ -44,26 +44,21 @@ test('preview aspect ratio is driven by monitor resolution and table has one can
   assert.doesNotMatch(settings, /Math\.min\(1080/);
 });
 
-test('preview and final image share the exact modular canonical SVG and fit logic', async () => {
-  const [facade, model, svg, preview, finalImage, editor] = await Promise.all([
+test('preview and TV rendering share one canonical SVG model without a delivery-image renderer', async () => {
+  const [facade, model, svg, preview, player] = await Promise.all([
     source('src/web/admin-ui/public/js/editor/renderer.js'),
     source('src/web/admin-ui/public/js/editor/renderer-model.js'),
     source('src/web/admin-ui/public/js/editor/renderer-svg.js'),
     source('src/web/admin-ui/public/js/editor/preview.js'),
-    source('src/web/admin-ui/public/js/editor/final-image.js'),
-    source('src/web/admin-ui/public/js/editor/editor.js')
+    source('src/web/admin-ui/public/js/player/player.js')
   ]);
   assert.match(facade, /from '\.\/renderer-model\.js'/);
   assert.match(facade, /buildTableSvg.*from '\.\/renderer-svg\.js'/s);
   assert.match(model, /export function buildRenderLayout/);
-  assert.match(model, /autoReduced/);
-  assert.match(model, /table_width_px/);
   assert.match(svg, /export function buildTableSvg/);
   assert.equal((svg.match(/export function buildTableSvg/g) || []).length, 1);
   assert.match(preview, /buildTableSvg\(model, lines, layout\)/);
-  assert.match(finalImage, /buildTableSvg\(model, lines, layout\)/);
-  assert.match(finalImage, /if \(!layout\.vertical\.fits\)/);
-  assert.match(editor, /if \(!preview\?\.layout\?\.vertical\?\.fits\)/);
+  assert.match(player, /buildTableSvg/);
 });
 
 test('site accent derives contrast colors instead of reusing arbitrary accent as text', async () => {

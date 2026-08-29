@@ -45,7 +45,7 @@ function rendered(count = 4, scale = 100, fontFamily = 'arial-narrow') {
   return { model, lines, layout, svg: buildTableSvg(model, lines, layout) };
 }
 
-test('canonical coordinates are the supplied TV Menu 1 1920x1080 reference', () => {
+test('canonical coordinates are the supplied MIRA-TV 1 1920x1080 reference', () => {
   assert.deepEqual({
     width: MENU_REFERENCE.width,
     height: MENU_REFERENCE.height,
@@ -79,7 +79,7 @@ test('second line is built from catalog producer, strength, color and filtration
   assert.equal(lines[1].metadata, 'ООО «Портал», п. Солнечный · 4,6% · светлое · нефильтрованное');
 });
 
-test('canonical SVG mirrors TV Menu 1 structure without vertical price separators', () => {
+test('canonical SVG mirrors MIRA-TV 1 structure without vertical price separators', () => {
   const { svg, layout } = rendered();
   assert.match(svg, /viewBox="0 0 1920 1080"/);
   assert.equal(layout.horizontal.primaryPriceX, 1258);
@@ -99,7 +99,7 @@ test('canonical SVG mirrors TV Menu 1 structure without vertical price separator
   assert.match(svg, />268<tspan/);
 });
 
-test('canonical SVG uses TV Menu 1 typography ratios and remains CSP-safe', () => {
+test('canonical SVG uses MIRA-TV 1 typography ratios and remains CSP-safe', () => {
   const { svg } = rendered();
   assert.doesNotMatch(svg, /<style[\s>]/i);
   assert.match(svg, /class="item-name"[^>]*font-size="26\.25"[^>]*fill="#F8FAFC"/);

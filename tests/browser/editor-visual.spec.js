@@ -135,7 +135,6 @@ test('editor reflows at a 200% equivalent viewport without page-level horizontal
   expect(await settings.evaluate((node) => getComputedStyle(node).position)).toBe('static');
   const summary = page.locator('.editor-settings-section summary').first();
   expect((await summary.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-  expect(Number.parseFloat(await page.locator('#editor-sftp-path').evaluate((node) => getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
 
   await summary.focus();
   await expect(summary).toBeFocused();
@@ -151,7 +150,7 @@ test('editor reflows at a 200% equivalent viewport without page-level horizontal
   expect(tableDimensions.scroll).toBeGreaterThanOrEqual(tableDimensions.client);
 });
 
-test('reference density keeps TV Menu 1 two-line typography without overlap', async ({ page }) => {
+test('reference density keeps MIRA-TV 1 two-line typography without overlap', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await login(page);
   const { screen } = await createReferenceDensityFixture(page);
@@ -186,7 +185,7 @@ test('table settings move and resize the same canonical preview SVG', async ({ p
   const rect = page.locator('svg.menu-table-svg .table-section rect').first();
   await expect(rect).toHaveAttribute('x', '100');
   await expect(rect).toHaveAttribute('width', '1200');
-  await expect(page.locator('#editor-publish')).toBeDisabled();
+  await expect(page.locator('#editor-publish')).toHaveCount(0);
 });
 
 test('font selector changes preview through canonical renderer', async ({ page }) => {
@@ -202,7 +201,7 @@ test('font selector changes preview through canonical renderer', async ({ page }
   await expect(page.locator('svg.menu-table-svg')).toHaveAttribute('font-family', 'Tahoma, Arial, sans-serif');
 });
 
-test('screen properties update preview and keep publication locked while dirty', async ({ page }) => {
+test('screen properties update preview and keep the editor dirty until save', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await login(page);
   const { screen } = await createEditorFixture(page, { rows: 3 });
@@ -211,12 +210,12 @@ test('screen properties update preview and keep publication locked while dirty',
   const resolution = page.locator('#editor-resolution');
   await resolution.fill('1024×768');
   await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
-  await expect(page.locator('#editor-publish')).toBeDisabled();
+  await expect(page.locator('#editor-publish')).toHaveCount(0);
   const aspect = await page.locator('#editor-menu-preview').evaluate((node) => getComputedStyle(node).aspectRatio);
   expect(aspect.replace(/\s+/g, '')).toBe('1024/768');
 });
 
-test('login composition follows TV Menu 1 and size 7 is the reference logo scale without flash', async ({ page }) => {
+test('login composition follows MIRA-TV 1 and size 7 is the reference logo scale without flash', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await login(page);
   await page.goto('/settings');

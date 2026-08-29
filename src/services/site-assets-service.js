@@ -9,10 +9,8 @@ export function siteSettingsResponse(settings, config) {
   return {
     ...settings,
     app_name: settings.application_name || config.appName,
-    domain: config.sftp.publicHost,
-    session_ttl_hours: config.sessionTtlHours,
-    sftp_port: config.sftp.port,
-    screen_background_max_bytes: config.screenBackgroundMaxBytes,
+    domain: config.domain,
+    session_ttl_hours: config.sessionTtlHours,    screen_background_max_bytes: config.screenBackgroundMaxBytes,
     logo_url: settings.logo_filename ? `/site-assets/${settings.logo_filename}?v=${version}` : '',
     favicon_url: settings.favicon_filename ? `/site-assets/${settings.favicon_filename}?v=${version}` : ''
   };

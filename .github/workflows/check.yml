@@ -1,0 +1,296 @@
+name: check
+
+on:
+  push:
+    branches:
+      - main
+      - refactor/v1.0.0-offline-first-rebrand
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  node-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax and unit tests
+        run: |
+          npm run build
+          npm test
+          bash -n mira-tv.sh
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected = '1.0.0'
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          lock = json.loads(Path('package-lock.json').read_text(encoding='utf-8'))
+          env = Path('.env.example').read_text(encoding='utf-8')
+          installer = Path('mira-tv.sh').read_text(encoding='utf-8')
+
+          assert package['name'] == 'mira-tv'
+          assert package['version'] == expected
+          assert package['miraVersion'] == expected
+          assert lock['name'] == 'mira-tv'
+          assert lock['version'] == expected
+          assert lock['packages']['']['name'] == 'mira-tv'
+          assert lock['packages']['']['version'] == expected
+          assert f'MIRA_TV_VERSION={expected}' in env.splitlines()
+          assert f'SCRIPT_VERSION="{expected}"' in installer.splitlines()
+          PY
+
+      - name: Audit product names and removed subsystems
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+          excluded_dirs = {'.git', 'node_modules', 'playwright-report', 'test-results'}
+
+          # Build legacy tokens in pieces so this workflow does not match itself.
+          old_menu_dash = 'me' + 'nu' + '-tv'
+          old_tv_dash = 'tv' + '-me' + 'nu'
+          old_menu_under = 'me' + 'nu' + '_tv'
+          old_tv_under = 'tv' + '_me' + 'nu'
+          old_menu_space = 'me' + 'nu' + ' tv'
+          old_tv_space = 'tv' + ' me' + 'nu'
+          old_menu_compact = 'me' + 'nu' + 'tv'
+          old_tv_compact = 'tv' + 'me' + 'nu'
+          old_russian_brand = 'тв' + ' меню'
+          removed_transfer = 'sf' + 'tp'
+
+          identity_forbidden = {
+              old_menu_dash,
+              old_tv_dash,
+              old_menu_under,
+              old_tv_under,
+              old_menu_space,
+              old_tv_space,
+              old_menu_compact,
+              old_tv_compact,
+              old_russian_brand,
+              removed_transfer,
+          }
+
+          # Obsolete first-party versions are forbidden outside immutable dependency metadata.
+          project_version_forbidden = {
+              '1.' + '7.0',
+              '1.' + '3.3',
+              '1.0.0' + '.1',
+              '1.0.0' + '-1',
+          }
+
+          failures = []
+          for path in root.rglob('*'):
+              if any(part in excluded_dirs for part in path.parts):
+                  continue
+              relative = path.as_posix().lower()
+              if any(token in relative for token in identity_forbidden):
+                  failures.append(f'path: {path.as_posix()}')
+              if not path.is_file():
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8').lower()
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for token in identity_forbidden:
+                  if token in text:
+                      failures.append(f'content: {path.as_posix()} -> {token}')
+              if path.name != 'package-lock.json':
+                  for token in project_version_forbidden:
+                      if token in text:
+                          failures.append(f'project version: {path.as_posix()} -> {token}')
+
+          if failures:
+              raise SystemExit('Forbidden legacy identifiers found:\n' + '\n'.join(sorted(set(failures))))
+          PY
+
+      - name: Verify lockfile is reproducible
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp package-lock.json /tmp/mira-tv-package-lock.json
+          npm install --package-lock-only --ignore-scripts
+          cmp -s package-lock.json /tmp/mira-tv-package-lock.json
+
+  compose-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate installer syntax
+        run: bash -n mira-tv.sh
+
+      - name: Validate Docker Compose model
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          sed -i \
+            -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
+            -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
+            .env
+          docker compose config --quiet
+          test "$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" = 'mira-tv'
+          rm -f .env
+
+      - name: Build application image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          sed -i \
+            -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
+            -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
+            .env
+          docker compose build app
+          rm -f .env
+
+  browser-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-bookworm@sha256:84560e3b9c6874893fc4e2854f5dc3e7c1a37bc9d1dfd7a8c641310ae22ba5ad
+        env:
+          POSTGRES_DB: mira_tv_e2e
+          POSTGRES_USER: mira_tv_e2e
+          POSTGRES_PASSWORD: ci-browser-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mira_tv_e2e -d mira_tv_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_NAME: MIRA-TV
+      MIRA_TV_VERSION: '1.0.0'
+      NODE_ENV: test
+      HOST: 127.0.0.1
+      PORT: '8080'
+      MIRA_TV_DOMAIN: localhost
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: '5432'
+      POSTGRES_DB: mira_tv_e2e
+      POSTGRES_USER: mira_tv_e2e
+      POSTGRES_PASSWORD: ci-browser-postgres-password
+      POSTGRES_POOL_MAX: '5'
+      POSTGRES_CONNECTION_TIMEOUT_MS: '5000'
+      POSTGRES_IDLE_TIMEOUT_MS: '30000'
+      BOOTSTRAP_ADMIN_USERNAME: admin
+      BOOTSTRAP_ADMIN_PASSWORD: Browser-CI-Password1!
+      GENERATED_PASSWORD_LENGTH: '10'
+      PASSWORD_MIN_LENGTH: '10'
+      PASSWORD_MAX_LENGTH: '32'
+      SESSION_SECRET: ci-browser-session-secret-0123456789012345678901234567890123456789
+      SESSION_TTL_HOURS: '12'
+      SECURE_COOKIES: 'false'
+      LOGIN_MAX_ATTEMPTS: '8'
+      LOGIN_IP_MAX_ATTEMPTS: '32'
+      LOGIN_WINDOW_MINUTES: '15'
+      LOGIN_LIMITER_MAX_ENTRIES: '500'
+      DEVICE_ACTIVATION_TTL_MINUTES: '2'
+      DEVICE_ACTIVATION_POLL_SECONDS: '2'
+      DEVICE_ACTIVATION_MAX_ATTEMPTS: '20'
+      DEVICE_ACTIVATION_WINDOW_MINUTES: '10'
+      DEVICE_ACTIVATION_LIMITER_MAX_ENTRIES: '10000'
+      DEVICE_ACTIVATION_CLEANUP_MINUTES: '15'
+      DEVICE_ACTIVATION_RETENTION_HOURS: '24'
+      DEVICE_SESSION_TTL_DAYS: '365'
+      DEVICE_HEARTBEAT_WRITE_SECONDS: '60'
+      PLAYER_FALLBACK_POLL_SECONDS: '60'
+      PLAYER_LOG_BATCH_SIZE: '100'
+      PLAYER_LOG_LOCAL_MAX_ENTRIES: '5000'
+      PLAYER_LOG_LOCAL_MAX_BYTES: '10485760'
+      EVENT_JOURNAL_RETENTION_DAYS: '30'
+      EVENT_JOURNAL_MAX_ENTRIES: '5000'
+      JSON_BODY_MAX_BYTES: '65536'
+      MENU_DRAFT_MAX_BYTES: '49152'
+      SCREEN_SOURCE_MAX_BYTES: '12582912'
+      DASHBOARD_REFRESH_MIN_SECONDS: '15'
+      DASHBOARD_REFRESH_MAX_SECONDS: '300'
+      SCREEN_MAX_WIDTH: '1920'
+      SCREEN_MAX_HEIGHT: '1080'
+      IMAGE_MAX_PIXELS: '40000000'
+      SITE_ASSETS_ROOT: /tmp/mira-tv-browser-assets
+      SITE_LOGO_MAX_BYTES: '2097152'
+      SITE_FAVICON_MAX_BYTES: '524288'
+      SCREEN_BACKGROUND_MAX_BYTES: '20971520'
+      ENTITY_ASSET_MAX_BYTES: '104857600'
+      HEALTH_READINESS_CACHE_MS: '0'
+      SEED_DEMO_DATA: 'false'
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      E2E_ADMIN_PASSWORD: Browser-CI-Password1!
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start application
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$SITE_ASSETS_ROOT"
+          mkdir -p "$SITE_ASSETS_ROOT"
+          node src/server.js > /tmp/mira-tv-browser.log 2>&1 &
+          echo $! > /tmp/mira-tv-browser.pid
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8080/readyz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mira-tv-browser.log
+          exit 1
+
+      - name: Run browser and visual checks
+        run: npm run test:browser
+
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
+      - name: Show application log on failure
+        if: failure()
+        run: cat /tmp/mira-tv-browser.log || true
+
+      - name: Stop application
+        if: always()
+        run: test ! -f /tmp/mira-tv-browser.pid || kill "$(cat /tmp/mira-tv-browser.pid)" || true

@@ -47,7 +47,7 @@ export function createContextPanel() {
   const context = document.createElement('aside');
   context.className = 'ui-context';
   context.setAttribute('aria-label', 'Контекст раздела');
-  context.innerHTML = `<div class="ui-context-head"><div><span class="ui-context-kicker">TV MENU</span><h2>${contextTitle(section)}</h2></div><button class="ui-context-close" type="button" aria-label="Свернуть панель">‹</button></div><div class="ui-context-body">${contextLinksMarkup(contextLinks, currentPage)}</div><div class="ui-account-card"><span class="company-name" data-shell-company></span><div><span class="ui-account-user-row"><strong data-shell-user></strong><button type="button" data-logout>Выйти</button></span><small class="ui-account-role">Панель управления</small></div></div>`;
+  context.innerHTML = `<div class="ui-context-head"><div><span class="ui-context-kicker">MIRA-TV</span><h2>${contextTitle(section)}</h2></div><button class="ui-context-close" type="button" aria-label="Свернуть панель">‹</button></div><div class="ui-context-body">${contextLinksMarkup(contextLinks, currentPage)}</div><div class="ui-account-card"><span class="company-name" data-shell-company></span><div><span class="ui-account-user-row"><strong data-shell-user></strong><button type="button" data-logout>Выйти</button></span><small class="ui-account-role">Панель управления</small></div></div>`;
   context.querySelector('[data-shell-company]').textContent = appName();
   context.querySelector('[data-shell-user]').textContent = userName();
   return context;

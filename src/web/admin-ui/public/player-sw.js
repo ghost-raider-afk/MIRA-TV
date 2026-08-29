@@ -1,6 +1,5 @@
-const SHELL_CACHE = 'mira-tv-player-shell-v15';
-const DATA_CACHE = 'mira-tv-player-data-v15';
-const PLAYER_CONTEXT = '/api/device/player-context';
+const SHELL_CACHE = 'mira-tv-player-shell-v16';
+const DATA_CACHE = 'mira-tv-player-data-v16';
 const SHELL_ASSETS = [
   '/player.html',
   '/css/player.css',
@@ -8,6 +7,9 @@ const SHELL_ASSETS = [
   '/css/brand-motion-v2.css',
   '/css/scene-playlist.css',
   '/js/player/player.js',
+  '/js/player/player-store.js',
+  '/js/player/player-realtime-client.js',
+  '/js/player/player-state-sync.js',
   '/js/player/entity-runtime.js',
   '/js/player/flat-menu-renderer.js',
   '/js/player/scene-layer-composer.js',
@@ -38,117 +40,139 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keep = new Set([SHELL_CACHE, DATA_CACHE]);
     const names = await caches.keys();
-    await Promise.all(names.filter((name) => (name.startsWith('tv-menu-player-') || name.startsWith('mira-tv-player-')) && !keep.has(name)).map((name) => caches.delete(name)));
+    await Promise.all(
+      names
+        .filter((name) => name.startsWith('mira-tv-player-') && !keep.has(name))
+        .map((name) => caches.delete(name))
+    );
     await self.clients.claim();
   })());
 });
 
-async function networkWithTimeout(request, timeoutMs = 4000) {
+function activeAssetSet(values) {
+  const assets = new Set();
+  for (const value of values || []) {
+    try {
+      const url = new URL(String(value || ''), self.location.origin);
+      if (url.origin === self.location.origin && url.pathname.startsWith('/site-assets/')) assets.add(url.href);
+    } catch {}
+  }
+  return assets;
+}
+
+async function ensureActiveAssets(values) {
+  const active = activeAssetSet(values);
+  const cache = await caches.open(DATA_CACHE);
+  let complete = true;
+
+  // Keep this deliberately sequential. A TV must not download a large Entity video
+  // and other media in parallel just to warm its offline cache.
+  for (const href of active) {
+    const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
+    if (await cache.match(request)) continue;
+    try {
+      const response = await fetch(request, { cache: 'force-cache' });
+      if (response.status !== 200) {
+        complete = false;
+        continue;
+      }
+      await cache.put(request, response.clone());
+    } catch {
+      complete = false;
+    }
+  }
+  return { active, complete, cache };
+}
+
+async function syncActiveAssets(values) {
+  const { active, complete, cache } = await ensureActiveAssets(values);
+  if (!complete) return;
+  const requests = await cache.keys();
+  await Promise.all(requests.map((request) => {
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith('/site-assets/') || active.has(url.href)) return false;
+    return cache.delete(request);
+  }));
+}
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
+  event.waitUntil(syncActiveAssets(event.data.assets));
+});
+
+async function networkWithTimeout(request, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(request, { signal: controller.signal, cache: 'no-cache' }); }
-  finally { clearTimeout(timer); }
+  try {
+    return await fetch(request, { signal: controller.signal, cache: 'no-cache' });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-async function playerPage(request) {
+async function cachedShell(request, fallbackPath = null) {
+  const cache = await caches.open(SHELL_CACHE);
+  const cached = await cache.match(request) || (fallbackPath ? await cache.match(fallbackPath) : null);
+  if (cached) return cached;
   try {
     const response = await networkWithTimeout(request, 4000);
-    if (response.ok) await (await caches.open(SHELL_CACHE)).put('/player.html', response.clone());
+    if (response.ok) await cache.put(request, response.clone());
     return response;
   } catch {
-    return (await caches.match('/player.html')) || Response.error();
+    return Response.error();
   }
 }
 
-async function playerContext(request) {
-  const cache = await caches.open(DATA_CACHE);
-  try {
-    const response = await networkWithTimeout(request, 4000);
-    if (response.status === 401 || response.status === 403) { await cache.delete(PLAYER_CONTEXT); return response; }
-    if (response.status === 304) return (await cache.match(PLAYER_CONTEXT)) || response;
-    if (response.ok) { await cache.put(PLAYER_CONTEXT, response.clone()); return response; }
-    return (await cache.match(PLAYER_CONTEXT)) || response;
-  } catch {
-    const cached = await cache.match(PLAYER_CONTEXT);
-    if (!cached) return Response.error();
-    const headers = new Headers(cached.headers);
-    headers.set('x-tv-menu-offline', '1');
-    return new Response(await cached.clone().arrayBuffer(), { status: cached.status, statusText: cached.statusText, headers });
-  }
-}
-
-async function networkFirstShell(request) {
-  const cache = await caches.open(SHELL_CACHE);
-  try {
-    const response = await networkWithTimeout(request, 4000);
-    if (response.ok) await cache.put(request, response.clone());
-    return response.ok ? response : ((await cache.match(request)) || response);
-  } catch {
-    return (await cache.match(request)) || Response.error();
-  }
-}
-
-async function assetRequest(request) {
+async function cachedAsset(request) {
   const cache = await caches.open(DATA_CACHE);
   const cached = await cache.match(request);
+  if (cached) return cached;
   try {
-    const response = await networkWithTimeout(request, 5000);
+    const response = await networkWithTimeout(request, 8000);
     if (response.ok) await cache.put(request, response.clone());
-    return response.ok ? response : (cached || response);
+    return response;
   } catch {
-    return cached || Response.error();
+    return Response.error();
   }
-}
-
-function rangeBounds(header, size) {
-  const match = String(header || '').match(/^bytes=(\d*)-(\d*)$/i);
-  if (!match) return null;
-  let start = match[1] === '' ? null : Number(match[1]);
-  let end = match[2] === '' ? null : Number(match[2]);
-  if (start === null) {
-    const suffix = Math.min(size, Math.max(0, end || 0));
-    start = size - suffix;
-    end = size - 1;
-  } else {
-    end = end === null ? size - 1 : Math.min(end, size - 1);
-  }
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= size) return null;
-  return { start, end };
-}
-
-async function cachedVideoRange(request) {
-  const cache = await caches.open(DATA_CACHE);
-  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
-  const cached = await cache.match(fullRequest);
-  if (!cached || cached.status !== 200) return null;
-  const body = await cached.clone().arrayBuffer();
-  const bounds = rangeBounds(request.headers.get('range'), body.byteLength);
-  if (!bounds) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${body.byteLength}` } });
-  const headers = new Headers(cached.headers);
-  headers.set('Accept-Ranges', 'bytes');
-  headers.set('Content-Range', `bytes ${bounds.start}-${bounds.end}/${body.byteLength}`);
-  headers.set('Content-Length', String(bounds.end - bounds.start + 1));
-  return new Response(body.slice(bounds.start, bounds.end + 1), { status: 206, statusText: 'Partial Content', headers });
 }
 
 async function videoRequest(request) {
-  if (!request.headers.has('range')) return assetRequest(request);
-  const cachedRange = await cachedVideoRange(request);
-  if (cachedRange) return cachedRange;
-  try { return await networkWithTimeout(request, 5000); }
-  catch { return Response.error(); }
+  const cache = await caches.open(DATA_CACHE);
+  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
+  const cached = await cache.match(fullRequest);
+  if (cached) {
+    // HTTP Range is optional. Returning the cached full 200 response lets the native
+    // media stack consume the stream without copying the whole video into JS memory.
+    return cached;
+  }
+  if (!request.headers.has('range')) return cachedAsset(request);
+  try {
+    // Keep uncached Range traffic native and never store partial 206 responses as full assets.
+    return await networkWithTimeout(request, 8000);
+  } catch {
+    return Response.error();
+  }
 }
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+
   if (event.request.mode === 'navigate' && url.pathname === '/player.html') {
     event.respondWith(Response.redirect(new URL('/player', self.location.origin).href, 308));
     return;
   }
-  if (event.request.mode === 'navigate' && url.pathname === '/player') { event.respondWith(playerPage(event.request)); return; }
-  if (url.pathname === PLAYER_CONTEXT) { event.respondWith(playerContext(event.request)); return; }
-  if (SHELL_ASSETS.includes(url.pathname)) { event.respondWith(networkFirstShell(event.request)); return; }
-  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) { event.respondWith(videoRequest(event.request)); return; }
-  if (url.pathname.startsWith('/site-assets/')) event.respondWith(assetRequest(event.request));
+  if (event.request.mode === 'navigate' && url.pathname === '/player') {
+    event.respondWith(cachedShell(event.request, '/player.html'));
+    return;
+  }
+  if (SHELL_ASSETS.includes(url.pathname)) {
+    event.respondWith(cachedShell(event.request));
+    return;
+  }
+  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
+    event.respondWith(videoRequest(event.request));
+    return;
+  }
+  if (url.pathname.startsWith('/site-assets/')) event.respondWith(cachedAsset(event.request));
 });

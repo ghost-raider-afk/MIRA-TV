@@ -65,10 +65,20 @@ test('preview and TV player keep one explicit runtime owner for entity behavior 
   assert.match(liveMotion, /compilers:\s*DEFAULT_SCENE_COMPILERS/);
   assert.doesNotMatch(player, /LiveMenuMotion|WasmMotionDriver/);
   assert.match(player, /new GpuSceneRuntime\(playerStage/);
+  assert.match(player, /mira:entity-rendered/);
+  assert.match(player, /mira:player-active/);
 
   assert.match(playerHtml, /\/js\/player\/entity-runtime\.js/);
   assert.match(entityRuntime, /compileEntityBehaviorProgram/);
   assert.match(entityRuntime, /compilers:\s*\[compileEntityBehaviorProgram\]/);
+  assert.match(entityRuntime, /mira:entity-rendered/);
+  assert.match(entityRuntime, /mira:scene-playlist-mode/);
+  assert.match(entityRuntime, /mira:player-active/);
+  assert.match(entityRuntime, /visibilitychange/);
+  assert.match(entityRuntime, /runtime\.pause\(\)/);
+  assert.match(entityRuntime, /media\.pause\(\)/);
+  assert.match(entityRuntime, /\[data-motion-entity-layer\]/);
+  assert.doesNotMatch(entityRuntime, /MutationObserver|requestAnimationFrame|cancelAnimationFrame/);
 
   for (const asset of [
     '/js/player/entity-runtime.js', '/js/player/flat-menu-renderer.js',

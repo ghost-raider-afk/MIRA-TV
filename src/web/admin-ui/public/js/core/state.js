@@ -8,7 +8,6 @@ export const state = {
   deviceBindings: [],
   products: [],
   packaging: [],
-  sftpDirectories: [],
   editingLocationId: null,
   editingProductId: null,
   editingPackagingId: null

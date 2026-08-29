@@ -23,9 +23,6 @@ export const API = Object.freeze({
   productsImportPreview: '/api/catalog/products/import/preview',
   productsExport: '/api/catalog/products/export.csv',
   packaging: '/api/catalog/packaging',
-  sftpDirectories: '/api/sftp/directories',
-  sftpConnection: '/api/sftp/connection',
-  sftpOverview: '/api/sftp/overview'
 });
 
 export function pageName() {

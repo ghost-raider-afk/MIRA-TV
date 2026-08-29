@@ -36,7 +36,6 @@ const modules = [
   '../src/web/admin-ui/public/js/editor/settings.js',
   '../src/web/admin-ui/public/js/editor/serializer.js',
   '../src/web/admin-ui/public/js/editor/preview.js',
-  '../src/web/admin-ui/public/js/editor/final-image.js',
   '../src/web/admin-ui/public/js/editor/rows.js',
   '../src/web/admin-ui/public/js/editor/editor.js'
 ];

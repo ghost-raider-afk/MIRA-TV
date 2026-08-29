@@ -3,17 +3,16 @@ import helmet from 'helmet';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { loadConfig } from './config/index.js';
-import { MenuTvStore } from './db/index.js';
+import { MiraTvStore } from './db/index.js';
 import { logger } from './logger/index.js';
 import { errorHandler } from './middleware/errors.js';
 import { protectStateChangingRequest } from './middleware/request-origin.js';
 import { createSessionMiddleware } from './middleware/session.js';
 import { hashPassword } from './services/password-service.js';
-import { createPublishService } from './services/publish-service.js';
 import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
-import { SftpService } from './sftp/index.js';
+import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
 import { createSessionRouter } from './api/session/routes.js';
@@ -24,7 +23,6 @@ import { createDiagnosticsRouter } from './api/diagnostics/routes.js';
 import { createCatalogRouter } from './api/catalog/routes.js';
 import { createLocationsRouter } from './api/locations/routes.js';
 import { createScreensRouter } from './api/screens/routes.js';
-import { createSftpRouter } from './api/sftp/routes.js';
 import { createDevicePublicRouter } from './api/device/public-routes.js';
 import { createDeviceAdminRouter } from './api/device/admin-routes.js';
 
@@ -73,24 +71,22 @@ async function cleanupEvents(store, config) {
   }
 }
 
-async function recoverRuntimeState(store, sftp, config) {
+async function cleanupPlayerLogs(store, config) {
+  if (typeof store?.prunePlayerLogs !== 'function') return 0;
+  try {
+    const removed = await store.prunePlayerLogs(config.eventJournalRetentionDays);
+    if (removed) logger.info('Expired TV player logs removed', { removed });
+    return removed;
+  } catch (error) {
+    logger.warn('Expired TV player logs could not be removed', { error });
+    return 0;
+  }
+}
+
+async function recoverRuntimeState(store, config) {
   await cleanupDeviceActivations(store, config);
   await cleanupEvents(store, config);
-  const requiredMethods = ['publishedInfo', 'removeStaged', 'cleanupStaging'];
-  if (!requiredMethods.every((method) => typeof sftp?.[method] === 'function')) return;
-  const publish = createPublishService({ store, sftp, config });
-  try {
-    const recovery = await publish.reconcilePending();
-    if (recovery.recovered || recovery.unresolved) logger.info('Publication recovery completed', recovery);
-  } catch (error) {
-    logger.warn('Publication recovery could not complete', { error });
-  }
-  try {
-    const cleanup = await publish.cleanupStaging({ maxAgeMs: config.sftp.stagingMaxAgeHours * 60 * 60 * 1000 });
-    if (cleanup.removed) logger.info('Unused staging JPEG files removed', cleanup);
-  } catch (error) {
-    logger.warn('Staging cleanup could not complete', { error });
-  }
+  await cleanupPlayerLogs(store, config);
 }
 
 function configureSecurity(app, config) {
@@ -110,21 +106,21 @@ function configureSecurity(app, config) {
   app.use(express.json({ limit: config.jsonBodyMaxBytes }));
 }
 
-function mountPublicRoutes(app, { store, config }) {
+function mountPublicRoutes(app, { store, config, realtime }) {
   let readiness = { checkedAt: 0, ok: false };
-  app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'menu-tv-2.0' }));
+  app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'mira-tv' }));
   app.get('/readyz', async (_request, response) => {
     const now = Date.now();
     if (now - readiness.checkedAt <= config.healthReadinessCacheMs) {
-      return response.status(readiness.ok ? 200 : 503).json({ status: readiness.ok ? 'ready' : 'not_ready', service: 'menu-tv-2.0' });
+      return response.status(readiness.ok ? 200 : 503).json({ status: readiness.ok ? 'ready' : 'not_ready', service: 'mira-tv' });
     }
     try {
       await store.pool.query('SELECT 1');
       readiness = { checkedAt: now, ok: true };
-      return response.json({ status: 'ready', service: 'menu-tv-2.0' });
+      return response.json({ status: 'ready', service: 'mira-tv' });
     } catch {
       readiness = { checkedAt: now, ok: false };
-      return response.status(503).json({ status: 'not_ready', service: 'menu-tv-2.0' });
+      return response.status(503).json({ status: 'not_ready', service: 'mira-tv' });
     }
   });
   app.use('/site-assets', express.static(config.siteAssetsRoot, { etag: true, maxAge: '1d', immutable: true }));
@@ -138,7 +134,7 @@ function mountPublicRoutes(app, { store, config }) {
       signin_logo_size: site.signin_logo_size
     });
   });
-  app.use('/api/device', createDevicePublicRouter({ store, config }));
+  app.use('/api/device', createDevicePublicRouter({ store, config, realtime }));
 }
 
 function mountProtectedApi(app, dependencies, requireApiSession) {
@@ -153,7 +149,6 @@ function mountProtectedApi(app, dependencies, requireApiSession) {
   app.use('/api/locations', createLocationsRouter(dependencies));
   app.use('/api/device-admin', createDeviceAdminRouter(dependencies));
   app.use('/api', createScreensRouter(dependencies));
-  app.use('/api', createSftpRouter(dependencies));
 }
 
 function sendHtmlFile(response, filename) {
@@ -207,40 +202,42 @@ function mountFrontend(app, requirePageSession) {
   }));
 }
 
-export async function createApp(config = loadConfig(), { store: suppliedStore, sftp: suppliedSftp } = {}) {
-  const store = suppliedStore ?? new MenuTvStore(config.db, { seedDemoData: config.seedDemoData });
-  const sftp = suppliedSftp ?? new SftpService(config.sftp);
+export async function createApp(config = loadConfig(), { store: suppliedStore } = {}) {
+  const store = suppliedStore ?? new MiraTvStore(config.db, { seedDemoData: config.seedDemoData });
   await initialiseStore(store, config);
-  await recoverRuntimeState(store, sftp, config);
+  await recoverRuntimeState(store, config);
 
+  const realtime = createPlayerRealtime({ store });
   const app = express();
   configureSecurity(app, config);
-  mountPublicRoutes(app, { store, config });
+  mountPublicRoutes(app, { store, config, realtime });
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
 
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession } = createSessionMiddleware(resolveSession);
-  const dependencies = { store, sftp, config };
+  const dependencies = { store, config, realtime };
   mountProtectedApi(app, dependencies, requireApiSession);
   mountFrontend(app, requirePageSession);
   app.use(errorHandler);
 
-  return { app, store, config };
+  return { app, store, config, realtime };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const service = await createApp();
   const server = service.app.listen(service.config.port, service.config.host, () => {
-    logger.info('Menu TV server started', {
+    logger.info('MIRA-TV server started', {
       app: service.config.appName,
       host: service.config.host,
       port: service.config.port
     });
   });
+  service.realtime.attach(server);
   const maintenanceTimer = setInterval(
     () => {
       void cleanupDeviceActivations(service.store, service.config);
       void cleanupEvents(service.store, service.config);
+      void cleanupPlayerLogs(service.store, service.config);
     },
     service.config.deviceActivationCleanupMinutes * 60 * 1000
   );
@@ -248,7 +245,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.once(signal, () => {
       clearInterval(maintenanceTimer);
-      logger.info('Menu TV server stopping', { signal });
+      service.realtime.close();
+      logger.info('MIRA-TV server stopping', { signal });
       server.close(() => void service.store.close());
     });
   }

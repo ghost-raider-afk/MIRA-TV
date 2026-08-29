@@ -21,21 +21,40 @@ test('player is public while TV connection page remains admin protected', async 
   assert.match(connectHtml, /Сканировать QR-код/);
 });
 
-test('real TV player owns all scene layers from one player context and keeps required assets offline', async () => {
-  const [worker, player, playerHtml, gpuRuntime, layerComposer, publicRoutes, playerCss, playlistCss] = await Promise.all([
+test('real TV player owns all scene layers and uses one offline-first state owner', async () => {
+  const [
+    worker,
+    player,
+    sync,
+    store,
+    realtimeClient,
+    playerHtml,
+    gpuRuntime,
+    layerComposer,
+    publicRoutes,
+    playerContextService,
+    playerCss,
+    playlistCss
+  ] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
     read('src/web/admin-ui/public/js/player/player.js'),
+    read('src/web/admin-ui/public/js/player/player-state-sync.js'),
+    read('src/web/admin-ui/public/js/player/player-store.js'),
+    read('src/web/admin-ui/public/js/player/player-realtime-client.js'),
     read('src/web/admin-ui/public/player.html'),
     read('src/web/admin-ui/public/js/player/gpu-scene-runtime.js'),
     read('src/web/admin-ui/public/js/player/scene-layer-composer.js'),
     read('src/api/device/public-routes.js'),
+    read('src/services/player-context-service.js'),
     read('src/web/admin-ui/public/css/player.css'),
     read('src/web/admin-ui/public/css/scene-playlist.css')
   ]);
-  assert.match(worker, /mira-tv-player-shell-v15/);
+
+  assert.match(worker, /mira-tv-player-shell-v16/);
   for (const asset of [
     '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
+    '/js/player/player-store.js','/js/player/player-realtime-client.js','/js/player/player-state-sync.js',
     '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/gpu-scene-runtime.js',
     '/js/player/entity-runtime.js','/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
     '/js/motion/scene-playlist-runtime.js','/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js','/js/motion/scene-graph.js',
@@ -46,9 +65,35 @@ test('real TV player owns all scene layers from one player context and keeps req
     '/js/motion/drivers/wasm-motion-driver.js','/js/motion/wasm-motion-kernel.js','/wasm/mira-motion-kernel.wasm'
   ]) assert.ok(!worker.includes(`'${retiredAsset}'`), `TV offline shell still contains ${retiredAsset}`);
 
+  assert.doesNotMatch(worker, /PLAYER_CONTEXT|\/api\/device\/player-context/);
+  assert.match(worker, /const cached = await cache\.match\(request\);\s*if \(cached\) return cached;/);
+  assert.match(worker, /async function ensureActiveAssets/);
+  assert.match(worker, /async function syncActiveAssets/);
+  assert.match(worker, /if \(!complete\) return/);
+
   assert.match(playerHtml, /\/css\/brand-motion-v2\.css/);
   assert.match(playerHtml, /\/css\/scene-playlist\.css/);
   assert.doesNotMatch(playerHtml, /overlay-runtime\.js/);
+  assert.match(player, /createPlayerStateSync/);
+  assert.match(player, /restoreLastKnownGood\(\)/);
+  assert.match(player, /syncNow\('boot'\)/);
+  assert.doesNotMatch(player, /PLAYER_CONTEXT_STORAGE_KEY|playerContextEtag|refreshTimer|playerRefreshMs|fetchPlayerContext/);
+  assert.doesNotMatch(player, /warmPlayerAssetCache/);
+  assert.match(store, /const DB_NAME = 'mira-tv-player'/);
+  assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
+  assert.match(store, /export async function saveLastKnownGood/);
+  assert.match(sync, /fetch\('\/api\/device\/player-delta'/);
+  assert.match(sync, /createPlayerRealtimeClient/);
+  assert.match(sync, /scheduleFallbackPoll/);
+  assert.match(sync, /fallbackPollMs/);
+  assert.match(sync, /appendPlayerLog/);
+  assert.match(sync, /pendingPlayerLogs/);
+  assert.match(sync, /acknowledgePlayerLogs/);
+  assert.match(sync, /activeAssetManifest/);
+  assert.match(sync, /mira:player-active-assets/);
+  assert.match(realtimeClient, /new WebSocket\(`/);
+  assert.match(realtimeClient, /BACKOFF_MS/);
+
   assert.match(player, /new GpuSceneRuntime\(playerStage/);
   assert.match(player, /new PlayerSceneLayerComposer\(playerStage\)/);
   assert.match(player, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
@@ -57,7 +102,7 @@ test('real TV player owns all scene layers from one player context and keeps req
   assert.match(player, /scenePlaylistRuntime\.render\(context\.scene_playlist/);
   assert.match(player, /playerMenuRenderMode\(context\)/);
   assert.match(player, /profile:\s*context\.animation\?\.profile/);
-  assert.match(player, /sameOriginAsset\(context\?\.entity\?\.asset_url\)/);
+  assert.doesNotMatch(player, /context\?\.entity\?\.asset_url/);
   assert.doesNotMatch(player, /LiveMenuMotion|WasmMotionDriver|MutationObserver/);
   assert.match(gpuRuntime, /effect\.animate\(/);
   assert.match(gpuRuntime, /mira:scene-playlist-mode/);
@@ -70,22 +115,37 @@ test('real TV player owns all scene layers from one player context and keeps req
   for (const layer of ['environment','menu','fx','content','entity','brand','announcement']) {
     assert.match(layerComposer, new RegExp(`'${layer}'`));
   }
-  assert.match(publicRoutes, /animation:\s*\{/);
-  assert.match(publicRoutes, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
-  assert.match(publicRoutes, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
-  assert.doesNotMatch(publicRoutes, /store\.getAnimationSettings\(\)/);
-  assert.match(publicRoutes, /enabled: animationSettings\?\.enabled === true/);
-  assert.match(publicRoutes, /environment: animationSettings\?\.environment \|\| null/);
-  assert.doesNotMatch(publicRoutes, /aquarium: animationSettings/);
+
+  assert.match(publicRoutes, /buildPlayerState\(store, session, config\)/);
+  assert.match(publicRoutes, /router\.post\('\/player-delta'/);
+  assert.match(publicRoutes, /router\.post\('\/player-logs'/);
+  assert.doesNotMatch(publicRoutes, /store\.getScreenAnimationSettings\(/);
+  assert.match(playerContextService, /animation:\s*\{\s*enabled:/);
+  assert.match(playerContextService, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
+  assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
+  assert.doesNotMatch(playerContextService, /store\.getAnimationSettings\(\)/);
+  assert.match(playerContextService, /enabled:\s*animationSettings\?\.enabled === true/);
+  assert.match(playerContextService, /environment:\s*animationSettings\?\.environment \|\| null/);
+  assert.doesNotMatch(playerContextService, /aquarium: animationSettings/);
   assert.match(playerCss, /\.tv-player-environment-layer/);
   assert.match(playerCss, /\.tv-player-announcement-layer/);
   assert.match(playerCss, /\.tv-player-gpu-effect/);
   assert.match(playerCss, /will-change:\s*transform, opacity/);
-  assert.match(player, /showCachedPlayer/);
   assert.match(player, /serviceWorker\.register\('\/player-sw\.js'/);
   assert.match(player, /void registerOfflinePlayer\(\)/);
   assert.doesNotMatch(player, /await registerOfflinePlayer\(\)/);
   assert.match(player, /function keepNeutralBoot\(\)/);
+});
+
+test('Player rerenders only dirty scene components', async () => {
+  const player = await read('src/web/admin-ui/public/js/player/player.js');
+  assert.match(player, /async function renderPlayerContext\(context, changedNames/);
+  assert.match(player, /const menuDirty = dirty\.has\('menu'\) \|\| dirty\.has\('screen'\)/);
+  assert.match(player, /if \(menuDirty\) \{[\s\S]*?flatMenuRenderer\.render/);
+  assert.match(player, /if \(dirty\.has\('entity'\)\) \{\s*renderSceneEntity/);
+  assert.match(player, /if \(dirty\.has\('brand'\)\) \{\s*renderBrandTitleLayer/);
+  assert.match(player, /if \(dirty\.has\('announcement'\)\) \{\s*renderAnnouncementLayer/);
+  assert.doesNotMatch(player, /setInterval\([^)]*refresh|schedulePlayerRefresh|refreshPlayer\(/);
 });
 
 test('scene entity normalization accepts an absent entity from player context', async () => {
@@ -93,18 +153,25 @@ test('scene entity normalization accepts an absent entity from player context', 
   assert.ok(source.includes("value = value && typeof value === 'object' ? value : {};"));
 });
 
-test('offline player caches Video Entity fully and serves byte ranges from cache', async () => {
-  const [worker, player] = await Promise.all([
+test('offline player caches Video Entity once without copying cached Range requests through JavaScript', async () => {
+  const [worker, sync] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
-    read('src/web/admin-ui/public/js/player/player.js')
+    read('src/web/admin-ui/public/js/player/player-state-sync.js')
   ]);
-  assert.match(player, /warmPlayerAssetCache/);
-  assert.match(player, /fetch\(asset, \{ cache: 'reload' \}/);
-  assert.match(worker, /cachedVideoRange/);
-  assert.match(worker, /Accept-Ranges/);
-  assert.match(worker, /Content-Range/);
-  assert.match(worker, /Partial Content/);
-  assert.match(worker, /status:\s*206/);
+  assert.match(sync, /activeAssetManifest/);
+  assert.match(sync, /context\?\.entity\?\.asset_url/);
+  assert.match(sync, /mira:player-active-assets/);
+  assert.match(worker, /async function ensureActiveAssets/);
+  assert.match(worker, /for \(const href of active\)/);
+  assert.match(worker, /fetch\(request, \{ cache: 'force-cache' \}\)/);
+  assert.match(worker, /async function syncActiveAssets/);
+  assert.match(worker, /if \(!complete\) return/);
+  assert.match(worker, /async function cachedAsset/);
+  assert.match(worker, /async function videoRequest/);
+  assert.match(worker, /const fullRequest = new Request\(request\.url/);
+  assert.match(worker, /const cached = await cache\.match\(fullRequest\);[\s\S]*?return cached;/);
+  assert.match(worker, /if \(!request\.headers\.has\('range'\)\) return cachedAsset\(request\)/);
+  assert.doesNotMatch(worker, /cachedVideoRange|arrayBuffer\s*\(|Content-Range|Partial Content/);
   assert.match(worker, /mp4\|webm/);
 });
 
@@ -176,6 +243,7 @@ test('runtime TV device settings are declared in env example', async () => {
   for (const key of [
     'DEVICE_ACTIVATION_TTL_MINUTES','DEVICE_ACTIVATION_POLL_SECONDS','DEVICE_ACTIVATION_MAX_ATTEMPTS',
     'DEVICE_ACTIVATION_WINDOW_MINUTES','DEVICE_ACTIVATION_LIMITER_MAX_ENTRIES','DEVICE_ACTIVATION_CLEANUP_MINUTES',
-    'DEVICE_ACTIVATION_RETENTION_HOURS','DEVICE_SESSION_TTL_DAYS','DEVICE_HEARTBEAT_WRITE_SECONDS','PLAYER_REFRESH_SECONDS'
+    'DEVICE_ACTIVATION_RETENTION_HOURS','DEVICE_SESSION_TTL_DAYS','DEVICE_HEARTBEAT_WRITE_SECONDS',
+    'PLAYER_FALLBACK_POLL_SECONDS','PLAYER_LOG_BATCH_SIZE','PLAYER_LOG_LOCAL_MAX_ENTRIES','PLAYER_LOG_LOCAL_MAX_BYTES'
   ]) assert.match(env, new RegExp(`^${key}=`, 'm'), key);
 });

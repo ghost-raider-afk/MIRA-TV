@@ -10,7 +10,6 @@ export async function migrateEventJournal(pool) {
       category = CASE
         WHEN action LIKE 'auth.%' THEN 'auth'
         WHEN action LIKE 'catalog.%' THEN 'catalog'
-        WHEN action LIKE 'sftp.%' THEN 'sftp'
         WHEN action LIKE 'screen.%' OR action LIKE 'location.%' THEN 'monitors'
         WHEN action LIKE 'device.%' THEN 'tv'
         WHEN action LIKE 'settings.%' OR action LIKE 'profile.%' THEN 'settings'

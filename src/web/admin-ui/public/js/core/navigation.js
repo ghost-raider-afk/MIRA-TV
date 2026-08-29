@@ -9,7 +9,6 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
   Object.freeze({ path: '/playlist', page: 'playlist', section: 'playlist', title: 'Плейлист', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
-  Object.freeze({ path: '/sftp-settings', page: 'sftp-settings', section: 'settings', title: 'SFTP', prefetch: true }),
   Object.freeze({ path: '/events', page: 'events', section: 'settings', title: 'Журнал событий', prefetch: true }),
   Object.freeze({ path: '/profile', page: 'profile', section: 'settings', title: 'Профиль', prefetch: true })
 ]);
@@ -41,7 +40,7 @@ const CONTEXT_LINKS = Object.freeze({
   monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   playlist: Object.freeze([['Плейлист', '/playlist']]),
-  settings: Object.freeze([['Настройки сайта', '/settings'], ['SFTP', '/sftp-settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
+  settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });
 
 export const PRIMARY_ROUTES = Object.freeze([

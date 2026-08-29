@@ -17,7 +17,6 @@ export function normaliseRow(row) {
     ...numericField(row, 'template_id'),
     ...numericField(row, 'session_version'),
     ...numericField(row, 'screen_count'),
-    ...numericField(row, 'sftp_directory_id'),
     ...numericField(row, 'bound_location_id'),
     ...numericField(row, 'prepared_asset_size'),
     ...numericField(row, 'prepared_draft_revision'),
