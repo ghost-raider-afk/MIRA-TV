@@ -163,8 +163,8 @@ create_temporary_backup() {
 
 restore_database_exact() {
   local dump_file="$1"
-  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" dropdb --if-exists --force -U "$POSTGRES_USER" "$POSTGRES_DB" && PGPASSWORD="$POSTGRES_PASSWORD" createdb -U "$POSTGRES_USER" -O "$POSTGRES_USER" "$POSTGRES_DB"'
-  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < "$dump_file"
+  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" dropdb --if-exists --force -U "$POSTGRES_USER" "$POSTGRES_DB" && PGPASSWORD="$POSTGRES_PASSWORD" createdb -U "$POSTGRES_USER" -O "$POSTGRES_USER" "$POSTGRES_DB"' || return 1
+  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < "$dump_file" || return 1
 }
 
 restore_temporary_backup() {
@@ -173,16 +173,17 @@ restore_temporary_backup() {
 
   warn 'Обновление не прошло проверку. Выполняется автоматическое восстановление.'
   compose down --remove-orphans || true
-  find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env' -exec rm -rf -- {} +
-  tar -C "$INSTALL_DIR" -xzf "$TEMP_BACKUP_DIR/source.tar.gz"
-  cp "$TEMP_BACKUP_DIR/.env" "$INSTALL_DIR/.env"
-  chmod 600 "$INSTALL_DIR/.env"
-  git -C "$INSTALL_DIR" reset --hard "$(<"$TEMP_BACKUP_DIR/git-revision")"
-  install -m 0755 "$TEMP_BACKUP_DIR/installer.sh" "$LAUNCHER_PATH"
+  find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env' -exec rm -rf -- {} + || return 1
+  tar -C "$INSTALL_DIR" -xzf "$TEMP_BACKUP_DIR/source.tar.gz" || return 1
+  cp "$TEMP_BACKUP_DIR/.env" "$INSTALL_DIR/.env" || return 1
+  chmod 600 "$INSTALL_DIR/.env" || return 1
+  git -C "$INSTALL_DIR" reset --hard "$(<"$TEMP_BACKUP_DIR/git-revision")" || return 1
+  install -m 0755 "$TEMP_BACKUP_DIR/installer.sh" "$LAUNCHER_PATH" || return 1
 
-  compose up -d --wait db
-  restore_database_exact "$TEMP_BACKUP_DIR/database.dump"
-  compose up -d --build --wait
+  compose up -d --wait db || return 1
+  restore_database_exact "$TEMP_BACKUP_DIR/database.dump" || return 1
+  compose up -d --build --wait || return 1
+  return 0
 }
 
 recover_failed_update() {
