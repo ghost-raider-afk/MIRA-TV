@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-signin-presentation="pending">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="signin" class="signin-page">
+    <main class="signin-layout">
+      <section class="signin-card" aria-labelledby="signin-title">
+        <h1 id="signin-title" class="signin-visually-hidden">Вход в систему</h1>
+        <div class="signin-brand">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <strong data-app-name>MIRA-TV</strong>
+        </div>
+        <form id="signin-form" class="signin-form" novalidate>
+          <label class="signin-field">
+            <span class="signin-visually-hidden">Логин</span>
+            <input id="username" name="username" type="text" autocomplete="username" placeholder="Логин" required autofocus />
+          </label>
+          <label class="signin-field">
+            <span class="signin-visually-hidden">Пароль</span>
+            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Пароль" required />
+          </label>
+          <p class="form-message is-hidden" id="signin-message" role="alert" aria-live="polite"></p>
+          <button class="button button-primary button-wide" id="signin-submit" type="submit">Войти</button>
+        </form>
+        <p class="signin-help">Забыли логин или пароль?<br />Обратитесь к администратору.</p>
+      </section>
+    </main>
+  </body>
+</html>

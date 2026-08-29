@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="settings">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content settings-content">
+          <div class="page-heading compact-heading"><div><p class="eyebrow">УПРАВЛЕНИЕ</p><h1>Настройки</h1></div><p>Сайт, авторизация и системные параметры.</p></div>
+          <div class="settings-grid">
+            <section class="settings-card" aria-labelledby="site-title">
+              <div class="card-heading"><div><p class="eyebrow">САЙТ</p><h2 id="site-title">Основные параметры</h2></div></div>
+              <form id="site-settings-form" class="form-grid">
+                <label class="field"><span>Название приложения</span><input id="site-app-name" name="application_name" type="text" maxlength="80" required disabled /></label>
+                <label class="field"><span>Домен</span><input id="site-domain" type="text" disabled /></label>
+                <label class="field"><span>Основной цвет</span><input id="site-accent-color" name="accent_color" type="color" value="#F4C915" required disabled /></label>
+                <label class="field"><span>Размер логотипа на входе</span><select id="site-signin-logo-size" name="signin_logo_size" disabled><option value="1">1 — текущий минимум</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7 — максимум</option></select></label>
+                <label class="field"><span>Часовой пояс</span><input id="site-timezone" name="timezone" type="text" list="timezone-options" maxlength="80" required disabled /><datalist id="timezone-options"><option value="Europe/Moscow"></option><option value="Europe/Kaliningrad"></option><option value="Asia/Yekaterinburg"></option><option value="Asia/Novosibirsk"></option><option value="Asia/Vladivostok"></option></datalist></label>
+                <label class="field"><span>Формат даты</span><select id="site-date-format" name="date_format" disabled><option value="DD.MM.YYYY">ДД.ММ.ГГГГ</option><option value="YYYY-MM-DD">ГГГГ-ММ-ДД</option></select></label>
+                <label class="field"><span>Интервал обновления, сек.</span><input id="site-refresh-seconds" name="dashboard_refresh_seconds" type="number" step="1" required disabled /></label>
+                <label class="field"><span>Разрешение нового монитора</span><input id="site-default-resolution" name="default_screen_resolution" type="text" maxlength="32" required disabled /></label>
+                <p class="form-message is-hidden field-full" id="site-settings-message" role="status" aria-live="polite"></p>
+                <div class="form-actions field-full"><button class="button button-primary" id="site-settings-submit" type="submit" disabled>Сохранить</button></div>
+              </form>
+              <div class="asset-settings">
+                <div class="asset-row"><div><strong>Логотип</strong><small>PNG, JPEG или WebP. Используется в интерфейсе и на странице входа.</small></div><div class="asset-actions"><img class="asset-preview is-hidden" data-logo-preview alt="Предпросмотр логотипа" /><input id="site-logo-file" type="file" accept="image/png,image/jpeg,image/webp" /><button class="button button-secondary" id="upload-logo" type="button">Загрузить</button></div></div>
+                <div class="asset-row"><div><strong>Favicon</strong><small>PNG или ICO. Отображается на вкладке браузера.</small></div><div class="asset-actions"><img class="asset-preview is-hidden" data-favicon-preview alt="Предпросмотр favicon" /><input id="site-favicon-file" type="file" accept="image/png,image/x-icon,image/vnd.microsoft.icon" /><button class="button button-secondary" id="upload-favicon" type="button">Загрузить</button></div></div>
+              </div>
+              <div class="system-summary" aria-label="Системные параметры"><div><span>Срок сессии</span><strong id="site-session-ttl">—</strong></div></div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

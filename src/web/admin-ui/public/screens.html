@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="screens">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content">
+          <div class="page-heading compact-heading"><div><p class="eyebrow">МОНИТОРЫ</p><h1>Мониторы</h1></div><div class="compact-heading-actions"><span>Новый монитор можно создать пустым или по образцу любого существующего.</span><a class="button button-primary" href="/connect-tv.html">Подключить ТВ</a><button class="button button-secondary" id="refresh-screens" type="button">Обновить</button></div></div>
+          <p class="form-message is-hidden" id="screens-message" role="status"></p>
+          <div class="screen-hierarchy" data-screen-hierarchy></div>
+          <p class="empty-state is-hidden" data-screens-empty>Сначала создайте торговую точку.</p>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

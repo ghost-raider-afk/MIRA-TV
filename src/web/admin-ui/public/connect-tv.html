@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MIRA-TV — Подключить ТВ</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <link rel="stylesheet" href="/css/connect-tv.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="connect-tv">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content connect-tv-page">
+          <div class="page-heading compact-heading connect-tv-heading">
+            <div>
+              <p class="eyebrow">МОНИТОРЫ</p>
+              <h1>Подключить новый ТВ</h1>
+              <p class="connect-tv-heading-copy">Отсканируйте код с телевизора и выберите, что он должен показывать.</p>
+            </div>
+          </div>
+
+          <p class="form-message is-hidden" id="connect-tv-message" role="status"></p>
+
+          <section class="connect-tv-flow" aria-label="Подключение телевизора">
+            <nav class="connect-tv-progress" aria-label="Шаги подключения">
+              <span class="is-active" data-progress-step="scan"><b>1</b><em>ТВ</em></span>
+              <span data-progress-step="location"><b>2</b><em>Точка</em></span>
+              <span data-progress-step="screen"><b>3</b><em>Монитор</em></span>
+            </nav>
+
+            <article class="connect-tv-card" data-connect-step="scan">
+              <div class="connect-tv-card-head">
+                <div class="connect-tv-step">1</div>
+                <div><h2>Найдите телевизор</h2><p>Самый быстрый способ — QR-код на экране ТВ.</p></div>
+              </div>
+              <button class="button button-primary connect-tv-scan-button" type="button" data-start-scan>
+                <span aria-hidden="true">⌗</span> Сканировать QR-код
+              </button>
+              <button class="connect-tv-code-toggle" type="button" data-code-toggle>Не получается отсканировать? Ввести код</button>
+              <div class="connect-tv-code-panel is-hidden" data-code-panel>
+                <label class="field-label" for="connect-tv-code">6-значный резервный код</label>
+                <div class="connect-tv-code-row">
+                  <input class="form-input connect-tv-code" id="connect-tv-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456" />
+                  <button class="button button-secondary" type="button" data-use-code>Продолжить</button>
+                </div>
+              </div>
+              <p class="connect-tv-device is-hidden" data-device-found></p>
+            </article>
+
+            <article class="connect-tv-card is-disabled" data-connect-step="location">
+              <div class="connect-tv-card-head">
+                <div class="connect-tv-step">2</div>
+                <div><h2>Торговая точка</h2><p>Где физически установлен этот телевизор?</p></div>
+              </div>
+              <div class="connect-tv-options" data-location-options></div>
+            </article>
+
+            <article class="connect-tv-card is-disabled" data-connect-step="screen">
+              <div class="connect-tv-card-head">
+                <div class="connect-tv-step">3</div>
+                <div><h2>Монитор</h2><p>Какое меню должен показывать телевизор?</p></div>
+              </div>
+              <div class="connect-tv-options" data-screen-options></div>
+              <button class="button button-primary connect-tv-authorize" type="button" data-authorize disabled>Подключить ТВ</button>
+            </article>
+          </section>
+
+          <section class="connect-tv-success is-hidden" data-connect-success>
+            <div class="connect-tv-success-icon">✓</div>
+            <div>
+              <p class="eyebrow">ГОТОВО</p>
+              <h2>Телевизор подключён</h2>
+              <p data-connect-success-text></p>
+            </div>
+          </section>
+
+          <div class="connect-tv-scanner is-hidden" data-scanner role="dialog" aria-modal="true" aria-label="Сканирование QR-кода">
+            <div class="connect-tv-scanner-shell">
+              <header class="connect-tv-scanner-head">
+                <div><p class="eyebrow">ПОДКЛЮЧЕНИЕ ТВ</p><h2>Сканировать QR-код</h2></div>
+                <button class="connect-tv-scanner-close" type="button" data-scanner-close aria-label="Закрыть сканер">×</button>
+              </header>
+              <div class="connect-tv-camera-wrap">
+                <video class="connect-tv-camera" data-camera autoplay playsinline muted></video>
+                <canvas class="is-hidden" data-scan-canvas></canvas>
+                <div class="connect-tv-camera-frame" aria-hidden="true"><i></i></div>
+              </div>
+              <p class="connect-tv-scanner-status" data-scanner-status>Наведите камеру на QR-код телевизора</p>
+              <button class="button button-secondary connect-tv-scanner-fallback" type="button" data-scanner-code>Ввести 6-значный код</button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

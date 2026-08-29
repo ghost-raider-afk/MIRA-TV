@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="screen-editor">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content editor-content">
+          <form id="screen-editor-form" class="editor-workspace" aria-busy="true">
+            <section class="editor-commandbar" aria-label="Редактор монитора">
+              <div class="editor-commandbar-identity">
+                <a class="editor-back" href="/screens.html" aria-label="К мониторам">←</a>
+                <div class="editor-commandbar-identity-copy">
+                  <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка монитора…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
+                  <span class="editor-toolbar-path" id="editor-sftp-path">SFTP не настроен</span>
+                </div>
+              </div>
+              <div class="editor-primary-actions" aria-label="Сохранение и публикация">
+                <button class="button button-primary editor-save" id="editor-save" type="submit" disabled>Сохранить</button>
+                <button class="button button-primary editor-publish" id="editor-publish" type="button" disabled>Опубликовать</button>
+              </div>
+            </section>
+            <p class="form-message is-hidden editor-message" id="screen-editor-message" role="status" aria-live="polite"></p>
+
+            <div class="editor-workarea">
+              <aside class="settings-card editor-settings-panel" aria-label="Настройки монитора">
+                <div class="editor-settings-heading"><p class="eyebrow">НАСТРОЙКИ</p><h2>Монитор</h2><p>Параметры находятся в потоке страницы и не перекрывают содержимое редактора.</p></div>
+
+                <details class="editor-settings-section editor-tool-menu">
+                  <summary>Монитор</summary>
+                  <div class="editor-settings-body">
+                    <div class="compact-form-grid">
+                      <label class="field"><span>Торговая точка</span><input id="editor-location" disabled /></label>
+                      <label class="field"><span>Название</span><input id="editor-name" maxlength="120" required disabled /></label>
+                      <label class="field"><span>Разрешение</span><input id="editor-resolution" maxlength="32" required disabled /></label>
+                      <label class="field"><span>Статус</span><select id="editor-status" disabled><option value="draft">Черновик</option><option value="ready">Готово</option></select></label>
+                    </div>
+                    <label class="toggle-row compact-toggle"><span><strong>Активен</strong><small>Доступен для публикации</small></span><input id="editor-active" type="checkbox" checked disabled /><i aria-hidden="true"></i></label>
+                  </div>
+                </details>
+
+                <details class="editor-settings-section editor-tool-menu" open>
+                  <summary>Таблица</summary>
+                  <div class="editor-settings-body">
+                    <div class="geometry-grid">
+                      <label class="field"><span>X</span><input id="editor-table-x" type="number" min="0" step="1" disabled /></label>
+                      <label class="field"><span>Y</span><input id="editor-table-y" type="number" min="0" step="1" disabled /></label>
+                      <label class="field"><span>Ширина</span><input id="editor-table-width" type="number" min="1" step="1" disabled /></label>
+                      <label class="field"><span>Высота</span><input id="editor-table-height" type="number" min="1" step="1" disabled /></label>
+                    </div>
+                    <label class="field"><span>Шрифт таблицы</span><select id="editor-font-family" disabled><option value="arial-narrow">Arial Narrow</option><option value="tahoma-bold">Tahoma Bold</option><option value="arial">Arial</option><option value="dejavu-condensed">DejaVu Sans Condensed</option><option value="liberation-narrow">Liberation Sans Narrow</option><option value="system-sans">Системный sans-serif</option></select></label>
+                    <div class="field font-scale-field"><span>Масштаб шрифта</span><div class="font-scale-control"><input id="editor-font-scale" type="range" min="55" max="130" step="1" value="100" disabled aria-label="Масштаб шрифта таблицы" /><label class="font-scale-number"><input id="editor-font-scale-number" type="number" min="55" max="130" step="1" value="100" disabled aria-label="Масштаб шрифта таблицы в процентах" /><span>%</span></label></div><small id="editor-font-scale-effective">Фактически 100%.</small></div>
+                  </div>
+                </details>
+
+                <details class="editor-settings-section editor-tool-menu">
+                  <summary>Оформление</summary>
+                  <div class="editor-settings-body">
+                    <div class="compact-form-grid compact-colors">
+                      <label class="field"><span>Фон</span><input id="editor-background-color" type="color" disabled /></label>
+                      <label class="field"><span>Акцент</span><input id="editor-accent-color" type="color" disabled /></label>
+                      <label class="field"><span>Текст</span><input id="editor-text-color" type="color" disabled /></label>
+                    </div>
+                    <div class="background-upload-block">
+                      <div><strong>Фоновое изображение</strong><small id="editor-background-state">Без изображения</small></div>
+                      <input id="editor-background-file" type="file" accept="image/png,image/jpeg,image/webp" disabled aria-label="Фоновое изображение монитора" />
+                      <div class="inline-actions"><button class="button button-secondary" id="editor-background-upload" type="button" disabled>Загрузить</button><button class="button button-danger" id="editor-background-remove" type="button" disabled>Удалить</button></div>
+                      <small data-screen-background-limit>Лимит загрузки задаётся сервером.</small>
+                    </div>
+                  </div>
+                </details>
+              </aside>
+
+              <div class="editor-main-column">
+                <section class="settings-card editor-menu-card">
+                  <div class="editor-section-line">
+                    <div class="editor-section-copy"><p class="eyebrow">СОДЕРЖИМОЕ</p><h2>Строки меню</h2><span class="muted-copy">Цены и характеристики — из каталога</span></div>
+                    <div class="editor-add-actions" aria-label="Добавить строку"><button class="button button-secondary" id="editor-add-section" type="button" disabled>+ Раздел</button><button class="button button-secondary" id="editor-add-item" type="button" disabled>+ Продукция</button><button class="button button-secondary" id="editor-add-packaging" type="button" disabled>+ Тара</button></div>
+                  </div>
+                  <div class="editor-menu-rows" id="editor-menu-rows"></div><p class="empty-state" id="editor-menu-empty">В меню ещё нет строк.</p>
+                </section>
+                <section class="settings-card editor-preview-card" aria-labelledby="editor-preview-title"><div class="editor-preview-head"><strong id="editor-preview-title">Предпросмотр</strong><span>Один renderer для preview и JPEG</span></div><div class="editor-menu-preview" id="editor-menu-preview"></div><p class="editor-layout-warning is-hidden" id="editor-layout-warning" role="status" aria-live="polite"></p></section>
+              </div>
+            </div>
+          </form>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

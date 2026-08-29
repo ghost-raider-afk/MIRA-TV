@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#090d14" />
+    <title>MIRA-TV — Player</title>
+    <link rel="stylesheet" href="/css/player.css" />
+    <link rel="stylesheet" href="/css/motion-overlays.css" />
+    <link rel="stylesheet" href="/css/brand-motion-v2.css" />
+    <link rel="stylesheet" href="/css/scene-playlist.css" />
+    <script type="module" src="/js/player/player.js"></script>
+    <script type="module" src="/js/player/entity-runtime.js"></script>
+  </head>
+  <body>
+    <main class="player-root">
+      <section class="activation-view is-hidden" data-activation-view>
+        <div class="activation-card">
+          <p class="activation-eyebrow">MIRA-TV</p>
+          <h1>Подключение телевизора</h1>
+          <p class="activation-lead">Этот телевизор ещё не авторизован.</p>
+
+          <button class="activation-button" type="button" data-show-activation>Показать QR-код</button>
+
+          <div class="activation-pairing is-hidden" data-activation-pairing>
+            <div class="activation-qr" data-activation-qr aria-label="QR-код подключения"></div>
+            <div class="activation-code-block">
+              <span>Резервный код</span>
+              <strong data-reserve-code>—— ——</strong>
+            </div>
+            <div class="activation-expiry" data-activation-expiry aria-live="polite">QR действителен 02:00</div>
+            <p class="activation-status" data-activation-status>Ожидание авторизации…</p>
+            <p class="activation-hint">На телефоне администратора откройте «MIRA-TV → Подключить ТВ».</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="tv-player is-hidden" data-tv-player aria-label="ТВ меню">
+        <div class="tv-player-stage" data-player-stage></div>
+        <div class="player-connection-message is-hidden" data-player-message role="status"></div>
+      </section>
+    </main>
+  </body>
+</html>

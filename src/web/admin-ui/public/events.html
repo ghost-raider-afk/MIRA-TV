@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="events">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content event-journal-content">
+          <div class="page-heading compact-heading">
+            <div><p class="eyebrow">СИСТЕМА</p><h1>Журнал событий</h1></div>
+            <p>Единая история действий, предупреждений, ошибок интерфейса, API, ТВ и системных событий.</p>
+          </div>
+
+          <section class="settings-card event-journal-toolbar-card" aria-label="Фильтры журнала">
+            <div class="event-journal-toolbar">
+              <label class="field event-journal-search"><span>Поиск</span><input id="event-filter-query" type="search" placeholder="Сообщение, пользователь, действие…" autocomplete="off" /></label>
+              <label class="field"><span>Уровень</span><select id="event-filter-severity"><option value="">Все</option><option value="error">Ошибки</option><option value="warning">Предупреждения</option><option value="success">Успешные</option><option value="info">Информация</option></select></label>
+              <label class="field"><span>Категория</span><select id="event-filter-category"><option value="">Все</option><option value="interface">Интерфейс</option><option value="catalog">Каталог</option><option value="monitors">Мониторы</option><option value="tv">ТВ</option><option value="sftp">SFTP</option><option value="auth">Авторизация</option><option value="settings">Настройки</option><option value="system">Система</option></select></label>
+              <button class="button button-secondary" id="event-refresh" type="button">Обновить</button>
+              <button class="button button-secondary" id="event-clear" type="button">Очистить журнал</button>
+            </div>
+            <div class="event-journal-summary" aria-live="polite">
+              <span>Показано: <strong id="event-count">0</strong></span>
+              <span>Всего: <strong id="event-total">0</strong></span>
+              <span>Ошибки: <strong id="event-errors">0</strong></span>
+              <span>Предупреждения: <strong id="event-warnings">0</strong></span>
+              <span id="event-policy"></span>
+            </div>
+          </section>
+
+          <p class="form-message is-hidden" id="event-message" role="status" aria-live="polite"></p>
+          <section class="event-journal-list" id="event-list" aria-label="События"></section>
+          <p class="empty-state is-hidden" id="event-empty">Событий пока нет.</p>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="locations">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content workspace-content">
+          <div class="page-heading compact-heading"><div><p class="eyebrow">СТРУКТУРА</p><h1>Торговые точки</h1></div><p>Точки и копирование структуры. SFTP управляется отдельно в Настройки → SFTP.</p></div>
+          <div class="workspace-grid">
+            <section class="settings-card">
+              <div class="card-heading"><div><p class="eyebrow">ТОЧКА</p><h2 id="location-form-title">Новая точка</h2></div><button class="text-button is-hidden" id="cancel-location-edit" type="button">Отменить</button></div>
+              <form id="location-form" class="form-grid">
+                <label class="field field-full" id="location-copy-field"><span>Создать</span><select id="location-copy-source"><option value="">Пустая точка</option></select><small>При выборе образца копируются мониторы, меню и оформление. SFTP не копируется.</small></label>
+                <label class="field"><span>Название точки</span><input id="location-name" maxlength="120" required /></label>
+                <label class="field"><span>Адрес</span><input id="location-address" maxlength="300" /></label>
+                <label class="toggle-row field-full"><span><strong>Активна</strong><small>Точка доступна для работы с мониторами.</small></span><input id="location-active" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <p class="form-message is-hidden field-full" id="location-message" role="status"></p>
+                <div class="form-actions field-full"><button class="button button-primary" id="location-submit" type="submit">Создать точку</button></div>
+              </form>
+            </section>
+            <section class="settings-card">
+              <div class="card-heading"><div><p class="eyebrow">СПИСОК</p><h2>Все точки</h2></div><button class="button button-secondary" id="refresh-locations" type="button">Обновить</button></div>
+              <div class="record-list" data-locations-list></div>
+              <p class="empty-state is-hidden" data-locations-empty>Торговых точек пока нет.</p>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
