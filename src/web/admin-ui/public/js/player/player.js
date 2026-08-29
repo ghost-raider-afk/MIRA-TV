@@ -56,6 +56,10 @@ function setHidden(element, hidden) {
   element?.classList.toggle('is-hidden', hidden);
 }
 
+function dispatchPlayerActivity(active) {
+  playerStage?.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: active === true } }));
+}
+
 function usableActivation(record) {
   return Boolean(
     record
@@ -181,6 +185,7 @@ function showActivationScreen() {
   gpuSceneRuntime.destroy();
   flatMenuRenderer.destroy();
   setHidden(player, true);
+  dispatchPlayerActivity(false);
   setHidden(activationView, false);
   setHidden(playerMessage, true);
 }
@@ -201,6 +206,7 @@ function keepNeutralBoot() {
   clearBootstrapRetry();
   setHidden(activationView, true);
   setHidden(player, true);
+  dispatchPlayerActivity(false);
   setHidden(playerMessage, true);
 }
 
@@ -449,6 +455,7 @@ async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS
   }
   if (dirty.has('entity')) {
     renderSceneEntity(playerStage, context.entity, { editable: false });
+    playerStage.dispatchEvent(new CustomEvent('mira:entity-rendered'));
   }
   if (dirty.has('brand')) {
     renderBrandTitleLayer(brandLayer, context.brand);
@@ -491,6 +498,7 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
   await renderPlayerContext(context, changedNames);
   setHidden(activationView, true);
   setHidden(player, false);
+  dispatchPlayerActivity(true);
   if (source === 'last-known-good') {
     showConnectionMessage('ТВ запущен по последнему рабочему состоянию. Проверяем связь с сервером…');
   }
