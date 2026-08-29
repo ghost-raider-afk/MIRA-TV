@@ -57,7 +57,15 @@ function setHidden(element, hidden) {
 }
 
 function dispatchPlayerActivity(active) {
-  playerStage?.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: active === true } }));
+  const value = active === true;
+  if (playerStage instanceof HTMLElement) playerStage.dataset.playerActive = value ? 'true' : 'false';
+  playerStage?.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: value } }));
+}
+
+function syncPlayerPageVisibility() {
+  if (playerStage instanceof HTMLElement) {
+    playerStage.dataset.playerPageVisible = document.visibilityState === 'hidden' ? 'false' : 'true';
+  }
 }
 
 function usableActivation(record) {
@@ -623,7 +631,9 @@ async function initialisePlayer() {
   });
 
   showActivationButton.addEventListener('click', () => void createActivation());
+  syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {
+    syncPlayerPageVisibility();
     if (document.visibilityState === 'visible') void requestWakeLock();
   });
   void navigator.storage?.persist?.().catch(() => undefined);
