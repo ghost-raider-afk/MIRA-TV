@@ -17,6 +17,7 @@ import { migrateEnvironmentLayer } from './migrations/environment-layer.js';
 import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { migratePrototypeScenes } from './migrations/prototype-scenes.js';
+import { migrateScenePublishing } from './migrations/scene-publishing.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -49,7 +50,8 @@ const MIGRATIONS = Object.freeze([
   { name: '015-environment-layer', run: migrateEnvironmentLayer },
   { name: '016-scene-playlist', run: migrateScenePlaylist },
   { name: '017-player-telemetry', run: migratePlayerTelemetry },
-  { name: '018-prototype-scenes', run: migratePrototypeScenes }
+  { name: '018-prototype-scenes', run: migratePrototypeScenes },
+  { name: '019-scene-publishing', run: migrateScenePublishing }
 ]);
 
 function createRepositories(queryable) {
