@@ -4,11 +4,12 @@ import { compileEntityBehaviorProgram } from '../motion/entity-behavior.js';
 import { SceneRuntime } from '../motion/scene-runtime.js';
 
 const stage = document.querySelector('[data-player-stage]');
+const playerHost = stage?.closest?.('[data-tv-player]');
 let runtime = null;
 let target = null;
 let media = null;
-let fullscreenSuppressed = false;
-let playerActive = false;
+let fullscreenSuppressed = stage?.dataset?.scenePlaylistFullscreen === 'true';
+let playerActive = playerHost instanceof HTMLElement && !playerHost.classList.contains('is-hidden');
 
 function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
