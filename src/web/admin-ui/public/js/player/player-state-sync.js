@@ -172,18 +172,18 @@ export function createPlayerStateSync({
         const pending = await pendingPlayerLogs(runtime.logBatchSize);
         if (!pending.length) return;
         const batchBootId = pending[0].boot_id;
+        const batch = pending.filter((record) => record.boot_id === batchBootId);
         const response = await fetch('/api/device/player-logs', {
           method: 'POST',
           credentials: 'same-origin',
           cache: 'no-store',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ boot_id: batchBootId, events: pending.map(publicLogRecord) })
+          body: JSON.stringify({ boot_id: batchBootId, events: batch.map(publicLogRecord) })
         });
         if (response.status === 401 || response.status === 403) return;
         if (!response.ok) throw new Error(`Player log upload failed: HTTP ${response.status}`);
         const body = await response.json();
         await acknowledgePlayerLogs(batchBootId, body.accepted_through);
-        if (pending.length < runtime.logBatchSize) continue;
       }
       scheduleLogFlush(2000);
     })().catch(() => undefined).finally(() => {
