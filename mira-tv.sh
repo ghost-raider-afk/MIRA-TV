@@ -13,6 +13,12 @@ log() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
 die() { printf 'ОШИБКА: %s\n' "$*" >&2; exit 1; }
 
+confirm_action() {
+  local prompt="$1" answer
+  read -r -p "${prompt} [YES/NO]: " answer
+  [[ "$answer" == "YES" ]]
+}
+
 require_root() {
   [[ ${EUID:-$(id -u)} -eq 0 ]] || die 'Запустите установщик через sudo.'
 }
@@ -179,9 +185,28 @@ check_update() {
   printf 'Установлена: %s\nПоследний релиз: %s\n' "$installed" "${latest:-не найден}"
 }
 
+reset_admin_password() {
+  require_root
+  [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
+
+  local username
+  read -r -p 'Логин администратора (Enter, если администратор один): ' username
+
+  if [[ -n "$username" ]]; then
+    compose exec -T app node src/cli/reset-admin-password.js "$username"
+  else
+    compose exec -T app node src/cli/reset-admin-password.js
+  fi
+}
+
 remove_app() {
   require_root
   [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
+  printf '\nБудет удалено приложение MIRA-TV и его рабочий каталог.\nДанные Docker будут сохранены.\n'
+  if ! confirm_action 'Удалить приложение?'; then
+    info 'Удаление отменено.'
+    return 0
+  fi
   compose down --remove-orphans
   rm -rf "$INSTALL_DIR"
   rm -f "$LAUNCHER_PATH"
@@ -191,6 +216,11 @@ remove_app() {
 purge_app() {
   require_root
   [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
+  printf '\nВНИМАНИЕ: будут безвозвратно удалены приложение MIRA-TV, база данных, загруженные файлы и HTTPS-сертификаты.\n'
+  if ! confirm_action 'Удалить приложение и ВСЕ данные?'; then
+    info 'Удаление отменено.'
+    return 0
+  fi
   compose down -v --remove-orphans
   rm -rf "$INSTALL_DIR"
   rm -f "$LAUNCHER_PATH"
@@ -199,7 +229,7 @@ purge_app() {
 
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Обновить\n3) Статус\n4) Перезапустить\n5) Логи\n6) Проверить обновление\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
+  printf '1) Установить\n2) Обновить\n3) Статус\n4) Перезапустить\n5) Логи\n6) Проверить обновление\n7) Сбросить пароль администратора\n8) Удалить приложение\n9) Удалить приложение и данные\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
   case "$choice" in
     1) install_app ;;
@@ -208,8 +238,9 @@ show_menu() {
     4) restart_app ;;
     5) logs_app ;;
     6) check_update ;;
-    7) remove_app ;;
-    8) purge_app ;;
+    7) reset_admin_password ;;
+    8) remove_app ;;
+    9) purge_app ;;
     0) exit 0 ;;
     *) die 'Неизвестный пункт меню.' ;;
   esac
@@ -222,8 +253,9 @@ case "${1:-menu}" in
   restart) restart_app ;;
   logs) logs_app ;;
   check-update) check_update ;;
+  reset-admin-password) reset_admin_password ;;
   remove) remove_app ;;
   purge) purge_app ;;
   menu) show_menu ;;
-  *) die 'Команды: install | update | status | restart | logs | check-update | remove | purge | menu' ;;
+  *) die 'Команды: install | update | status | restart | logs | check-update | reset-admin-password | remove | purge | menu' ;;
 esac
