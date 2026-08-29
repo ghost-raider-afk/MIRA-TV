@@ -7,6 +7,11 @@ export async function listScenes() {
   return Array.isArray(rows) ? rows : [];
 }
 
+export async function listPublishedSceneRevisions() {
+  const rows = await api.get(`${API.scenes}/published/revisions`);
+  return Array.isArray(rows) ? rows : [];
+}
+
 export async function getScene(sceneId) {
   return normaliseScene(await api.get(`${API.scenes}/${encodeURIComponent(sceneId)}`));
 }
@@ -17,6 +22,10 @@ export async function createSceneRemote(scene) {
 
 export async function updateSceneRemote(scene) {
   return normaliseScene(await api.put(`${API.scenes}/${encodeURIComponent(scene.id)}`, scene));
+}
+
+export async function publishSceneRemote(sceneId) {
+  return api.post(`${API.scenes}/${encodeURIComponent(sceneId)}/publish`, {});
 }
 
 export async function duplicateSceneRemote(sceneId) {
