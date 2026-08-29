@@ -30,6 +30,7 @@ jobs:
           python3 scripts/refactor-fixes2.py
           python3 scripts/refactor-fixes3.py
           python3 scripts/refactor-fixes4.py
+          python3 scripts/refactor-fixes5.py
 
       - name: Rebuild lockfile and install dependencies
         run: |
@@ -46,14 +47,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -RInE 'menu-tv|menu_tv|Menu TV|TV Menu|SFTPGo|sftpgo|SFTP_' . \
+          ! grep -RInE 'menu-tv|menu_tv|Menu TV|TV Menu|SFTPGo|sftpgo|SFTP_|TV2:' . \
             --exclude-dir=.git \
             --exclude-dir=node_modules \
             --exclude='scripts/refactor-v1.0.0.1.py' \
             --exclude='scripts/refactor-fixes.py' \
             --exclude='scripts/refactor-fixes2.py' \
             --exclude='scripts/refactor-fixes3.py' \
-            --exclude='scripts/refactor-fixes4.py'
+            --exclude='scripts/refactor-fixes4.py' \
+            --exclude='scripts/refactor-fixes5.py'
           test -f mira-tv.sh
           test ! -e menu-tv-2.sh
           test ! -e src/api/sftp
