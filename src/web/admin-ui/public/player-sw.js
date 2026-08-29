@@ -1,8 +1,9 @@
-const SHELL_CACHE = 'mira-tv-player-shell-v16';
-const DATA_CACHE = 'mira-tv-player-data-v16';
+const SHELL_CACHE = 'mira-tv-player-shell-v17';
+const DATA_CACHE = 'mira-tv-player-data-v17';
 const SHELL_ASSETS = [
   '/player.html',
   '/css/player.css',
+  '/css/scene-renderer.css',
   '/css/motion-overlays.css',
   '/css/brand-motion-v2.css',
   '/css/scene-playlist.css',
@@ -10,10 +11,13 @@ const SHELL_ASSETS = [
   '/js/player/player-store.js',
   '/js/player/player-realtime-client.js',
   '/js/player/player-state-sync.js',
+  '/js/player/published-scene-runtime.js',
   '/js/player/entity-runtime.js',
   '/js/player/flat-menu-renderer.js',
   '/js/player/scene-layer-composer.js',
   '/js/player/gpu-scene-runtime.js',
+  '/js/scene-runtime/renderer.js',
+  '/js/scenes/catalog-table.js',
   '/js/editor/renderer.js',
   '/js/editor/renderer-model.js',
   '/js/editor/renderer-svg.js',
@@ -119,7 +123,7 @@ async function cachedShell(request, fallbackPath = null) {
     if (response.ok) await cache.put(request, response.clone());
     return response;
   } catch {
-    return Response.error();
+    return cached || Response.error();
   }
 }
 
@@ -127,52 +131,36 @@ async function cachedAsset(request) {
   const cache = await caches.open(DATA_CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
-  try {
-    const response = await networkWithTimeout(request, 8000);
-    if (response.ok) await cache.put(request, response.clone());
-    return response;
-  } catch {
-    return Response.error();
-  }
+  const response = await fetch(request);
+  if (response.ok && response.status === 200) await cache.put(request, response.clone());
+  return response;
 }
 
 async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
-  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
+  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials, mode: request.mode });
   const cached = await cache.match(fullRequest);
-  if (cached) {
-    // HTTP Range is optional. Returning the cached full 200 response lets the native
-    // media stack consume the stream without copying the whole video into JS memory.
-    return cached;
-  }
+  if (cached) return cached;
   if (!request.headers.has('range')) return cachedAsset(request);
-  try {
-    // Keep uncached Range traffic native and never store partial 206 responses as full assets.
-    return await networkWithTimeout(request, 8000);
-  } catch {
-    return Response.error();
-  }
+  return fetch(request);
 }
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
-  if (event.request.mode === 'navigate' && url.pathname === '/player.html') {
-    event.respondWith(Response.redirect(new URL('/player', self.location.origin).href, 308));
-    return;
-  }
-  if (event.request.mode === 'navigate' && url.pathname === '/player') {
-    event.respondWith(cachedShell(event.request, '/player.html'));
+  if (request.mode === 'navigate' && url.pathname === '/player') {
+    event.respondWith(cachedShell(request, '/player.html'));
     return;
   }
   if (SHELL_ASSETS.includes(url.pathname)) {
-    event.respondWith(cachedShell(event.request));
+    event.respondWith(cachedShell(request));
     return;
   }
-  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
-    event.respondWith(videoRequest(event.request));
-    return;
+  if (url.pathname.startsWith('/site-assets/')) {
+    if (/\.(mp4|webm)$/i.test(url.pathname)) event.respondWith(videoRequest(request));
+    else event.respondWith(cachedAsset(request));
   }
-  if (url.pathname.startsWith('/site-assets/')) event.respondWith(cachedAsset(event.request));
 });
