@@ -28,6 +28,7 @@ jobs:
           python3 scripts/refactor-v1.0.0.1.py
           python3 scripts/refactor-fixes.py
           python3 scripts/refactor-fixes2.py
+          python3 scripts/refactor-fixes3.py
 
       - name: Install dependencies
         run: npm install --package-lock-only --ignore-scripts
@@ -46,7 +47,8 @@ jobs:
             --exclude-dir=.git \
             --exclude='scripts/refactor-v1.0.0.1.py' \
             --exclude='scripts/refactor-fixes.py' \
-            --exclude='scripts/refactor-fixes2.py'
+            --exclude='scripts/refactor-fixes2.py' \
+            --exclude='scripts/refactor-fixes3.py'
           test -f mira-tv.sh
           test ! -e menu-tv-2.sh
           test ! -e src/api/sftp
