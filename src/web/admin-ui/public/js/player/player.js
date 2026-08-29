@@ -388,25 +388,6 @@ function sameOriginAsset(value) {
   }
 }
 
-async function warmPlayerAssetCache(context, changedNames = ALL_PLAYER_COMPONENTS) {
-  const dirty = new Set(changedNames);
-  const assets = [];
-  if (dirty.has('menu') || dirty.has('screen')) {
-    const background = sameOriginAsset(context?.draft?.settings?.background_image_url);
-    if (background) assets.push(background);
-  }
-  if (dirty.has('entity')) {
-    const entity = sameOriginAsset(context?.entity?.asset_url);
-    if (entity) assets.push(entity);
-  }
-  await Promise.all(
-    [...new Set(assets)].map((asset) => fetch(asset, {
-      cache: 'force-cache',
-      credentials: 'same-origin'
-    }).catch(() => undefined))
-  );
-}
-
 async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS) {
   const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
   const {
@@ -625,7 +606,6 @@ async function bootstrapPlayer() {
 async function initialisePlayer() {
   playerStateSync = createPlayerStateSync({
     applyContext: applySyncedContext,
-    warmAssets: warmPlayerAssetCache,
     onUnauthorized: playerUnauthorized,
     onConnectivity: playerConnectivityChanged
   });
