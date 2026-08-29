@@ -416,7 +416,7 @@ function renderPlayerContext(context) {
   menuLayer.dataset.renderMode = renderMode;
 
   void flatMenuRenderer.render(menuLayer, menuSvg, viewport).catch((error) => {
-    console.error('Flat TV menu render failed; using static DOM fallback', error);
+    console.error('Flat MIRA-TV render failed; using static DOM fallback', error);
     if (menuLayer.dataset.renderMode !== renderMode) return;
     flatMenuRenderer.destroy();
     menuLayer.innerHTML = menuSvg;

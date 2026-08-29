@@ -256,7 +256,7 @@ test('Player reuses ETag and keeps the same Flat Menu Surface when context is un
 });
 
 
-test('animated TV menu stays flat and uses one compositor scene effect across 304 refresh', async ({ browser }) => {
+test('animated MIRA-TV stays flat and uses one compositor scene effect across 304 refresh', async ({ browser }) => {
   const context = await browser.newContext({ baseURL, serviceWorkers: 'block' });
   const page = await context.newPage();
   let playerContextRequests = 0;
