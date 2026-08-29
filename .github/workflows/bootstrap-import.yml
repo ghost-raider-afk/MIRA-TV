@@ -31,6 +31,7 @@ jobs:
           python3 scripts/refactor-fixes3.py
           python3 scripts/refactor-fixes4.py
           python3 scripts/refactor-fixes5.py
+          python3 scripts/refactor-fixes6.py
 
       - name: Rebuild lockfile and install dependencies
         run: |
@@ -55,7 +56,8 @@ jobs:
             --exclude='scripts/refactor-fixes2.py' \
             --exclude='scripts/refactor-fixes3.py' \
             --exclude='scripts/refactor-fixes4.py' \
-            --exclude='scripts/refactor-fixes5.py'
+            --exclude='scripts/refactor-fixes5.py' \
+            --exclude='scripts/refactor-fixes6.py'
           test -f mira-tv.sh
           test ! -e menu-tv-2.sh
           test ! -e src/api/sftp
