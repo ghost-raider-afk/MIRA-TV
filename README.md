@@ -121,6 +121,7 @@ sudo docker compose up -d --build --wait
 
 ## Документация
 
+- [Обзор документации](docs/README.md)
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Настройка](docs/CONFIGURATION.md)
 - [Работа с MIRA-TV](docs/USAGE.md)
@@ -133,6 +134,7 @@ sudo docker compose up -d --build --wait
 - [Правила названия и бренда](docs/BRANDING.md)
 - [План развития](docs/ROADMAP.md)
 - [История изменений](CHANGELOG.md)
+- [Участие в разработке](CONTRIBUTING.md)
 
 ## Принцип работы на телевизоре
 
