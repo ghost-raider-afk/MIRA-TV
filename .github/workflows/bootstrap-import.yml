@@ -1,4 +1,4 @@
-name: bootstrap-import
+name: refactor-v1.0.0.1
 
 on:
   push:
@@ -9,39 +9,45 @@ permissions:
   contents: write
 
 jobs:
-  import:
+  refactor:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout destination
+      - name: Checkout MIRA-TV refactor branch
         uses: actions/checkout@v4
         with:
+          ref: refactor/v1.0.0.1-offline-first-rebrand
           fetch-depth: 0
 
-      - name: Checkout verified source snapshot
-        uses: actions/checkout@v4
-        with:
-          repository: ghost-raider-afk/menu-tv-2
-          ref: e3417114b8606479d0a368eb4677fb34a614828a
-          path: upstream
-          fetch-depth: 1
+      - name: Apply deterministic baseline refactor
+        run: python3 scripts/refactor-v1.0.0.1.py
 
-      - name: Import application tree
+      - name: Install dependencies
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Syntax check
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Brand and SFTP audit
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete \
-            --exclude '.git/' \
-            --exclude 'upstream/' \
-            --exclude '.github/workflows/' \
-            upstream/ ./
-          rm -rf upstream
+          ! grep -RInE 'menu-tv|menu_tv|Menu TV|TV Menu|SFTPGo|sftpgo|SFTP_' . \
+            --exclude-dir=.git \
+            --exclude='scripts/refactor-v1.0.0.1.py'
+          test -f mira-tv.sh
+          test ! -e menu-tv-2.sh
+          test ! -e src/api/sftp
+          test ! -e src/sftp
 
-      - name: Commit MIRA-TV baseline
+      - name: Commit refactored baseline
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'Import application baseline for MIRA-TV 1.0.0.1' || exit 0
-          git push origin HEAD:main
+          git commit -m 'Establish MIRA-TV 1.0.0.1 clean baseline' || exit 0
+          git push origin HEAD:refactor/v1.0.0.1-offline-first-rebrand
