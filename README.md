@@ -58,10 +58,15 @@ Docker устанавливается автоматически, если ег�
 
 ## Быстрая установка
 
+Вставьте одну команду:
+
 ```bash
-curl -fsSLo /tmp/mira-tv.sh https://raw.githubusercontent.com/ghost-raider-afk/MIRA-TV/main/mira-tv.sh
-sudo bash /tmp/mira-tv.sh install
+bash <(curl -Ls https://raw.githubusercontent.com/ghost-raider-afk/MIRA-TV/main/mira-tv.sh)
 ```
+
+Сразу откроется меню установщика. Выберите **`1) Установить`**.
+
+Если команда запущена не от `root`, скрипт сам запросит права через `sudo` только после выбора операции, которой они нужны.
 
 После установки рабочие файлы находятся в:
 
