@@ -17,6 +17,8 @@
 
 **Cache Storage** хранит shell Player и тяжёлые assets: CSS, JS, изображения и видео.
 
+**Service Worker** является единственным владельцем прогрева и очистки LKG media-cache.
+
 **PostgreSQL** остаётся единственным authoritative состоянием меню/сцен/привязок.
 
 ## Запуск
@@ -35,19 +37,21 @@
 Фактическая последовательность применения candidate:
 
 1. получить delta/snapshot;
-2. подготовить **критические** assets;
+2. подготовить критические assets candidate;
 3. применить только изменившиеся слои;
 4. убедиться, что render завершился успешно;
 5. сохранить candidate в IndexedDB как новый Last Known Good;
-6. передать Service Worker manifest assets активного LKG;
-7. только после этого разрешить очистку больше не используемых cached assets;
-8. необязательные media assets можно догревать после активации, не блокируя читаемое меню.
+6. передать Service Worker manifest всех assets нового LKG;
+7. Service Worker последовательно проверяет Cache Storage и догружает отсутствующие активные assets;
+8. только если ensure завершился успешно, Service Worker удаляет больше не используемые cached assets.
 
-Сейчас критическим media asset считается фон меню. Entity image/video является необязательным слоем: его временная недоступность не должна блокировать переход к рабочему меню.
+Сейчас критическим media asset candidate является фон меню. Entity image/video не блокирует читаемое меню до фиксации candidate, но после фиксации LKG Service Worker обязан обеспечить его наличие в локальном cache как часть активного manifest.
 
 Если критический asset не получен или render candidate завершается ошибкой, предыдущий Last Known Good не перезаписывается и продолжает показываться. Этот сценарий закреплён browser regression-тестом.
 
-IndexedDB и Cache Storage не имеют общей транзакции, поэтому manifest публикуется только **после** успешного сохранения LKG. Старые assets не удаляются до этого момента.
+IndexedDB и Cache Storage не имеют общей транзакции, поэтому manifest публикуется только **после** успешного сохранения LKG. При ошибке ensure активных assets cache GC не выполняется, поэтому ранее рабочие файлы остаются доступными.
+
+Page runtime не выполняет второй независимый прогрев Entity/background после фиксации LKG: владельцем этой операции остаётся только Service Worker.
 
 ## Render-on-change
 
@@ -61,6 +65,16 @@ Player получает независимые hashes компонентов. П
 - unchanged delta не трогает уже готовый Canvas;
 - пропущенное WebSocket-сообщение безопасно: REST delta сравнивает известные hashes с текущим authoritative state.
 
+## Visibility lifecycle
+
+`player.js` владеет глобальным состоянием видимости Player. Подсистемы получают явные события и не наблюдают весь DOM.
+
+- Entity binding обновляется событием `mira:entity-rendered`, без `MutationObserver` и без frame-loop;
+- inactive Player останавливает базовое Entity video и Entity WAAPI;
+- hidden browser page ставит Entity и GPU animations на pause;
+- fullscreen Playlist ставит на pause скрытые базовые Entity/GPU эффекты;
+- базовые CSS-анимации Environment/Brand/Announcement также приостанавливаются, когда их пиксели не видны.
+
 ## Локальный журнал
 
 Журнал append-only и содержит уникальный `boot_id` + монотонный `seq` внутри одного boot. Один HTTP batch всегда относится ровно к одному `boot_id`.
@@ -71,9 +85,13 @@ Player получает независимые hashes компонентов. П
 
 Не логируются кадры, animation ticks, каждый heartbeat или каждый unchanged sync.
 
+После успешного опустошения очереди Player хранит in-memory признак чистого журнала. Пока новое событие не появилось, очередной unchanged fallback не открывает IndexedDB только ради проверки пустоты.
+
 ## Cache Storage и video
 
-Все загружаемые фоны имеют immutable UUID URL, поэтому cache-first не может вернуть старое содержимое по новому состоянию.
+Все загружаемые фоны и Entity assets имеют immutable URL, поэтому cache-first не может вернуть старое содержимое по новому состоянию.
+
+Активные assets обеспечиваются Service Worker последовательно. Это исключает одновременный прогрев нескольких тяжёлых media-файлов на слабом ТВ.
 
 Для cached MP4/WebM Service Worker **не** преобразует весь ролик в `ArrayBuffer` ради каждого Range-запроса. Если полный asset уже cached, браузеру возвращается исходный streaming `200 Response`; HTTP Range допустимо игнорировать. Это оставляет чтение/декодирование штатному media stack и исключает повторные JS-копии десятков мегабайт.
 
@@ -83,4 +101,4 @@ Player получает независимые hashes компонентов. П
 
 В offline режиме запрещены агрессивные циклы reconnect. Используется exponential backoff с jitter. Редкий REST fallback работает независимо от reconnect-loop и отключается при восстановлении WebSocket.
 
-Невидимые анимации и media должны быть приостановлены, если они не участвуют в текущей сцене. Статическое меню не должно повторно рендериться без изменения входных данных.
+Статическое меню не должно повторно рендериться без изменения входных данных. Любая невидимая непрерывная работа должна быть остановлена.
