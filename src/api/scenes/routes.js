@@ -75,12 +75,6 @@ export function createScenesRouter({ store }) {
       if (!await store.getScene(id)) throw notFound('Сцена не найдена.');
       throw conflict('Сцена уже изменена в другой вкладке или другим пользователем. Обновите страницу перед продолжением.');
     }
-    await activity(store, request, {
-      action: 'scene.updated',
-      entity_type: 'scene',
-      entity_id: updated.id,
-      message: `Обновлена сцена «${updated.name}».`
-    });
     response.json(updated);
   });
 
