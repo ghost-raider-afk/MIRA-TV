@@ -6,46 +6,113 @@ import { SceneRuntime } from '../motion/scene-runtime.js';
 const stage = document.querySelector('[data-player-stage]');
 let runtime = null;
 let target = null;
-let scheduled = null;
+let media = null;
+let fullscreenSuppressed = false;
+let playerActive = false;
+
+function reducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
+function pageVisible() {
+  return document.visibilityState !== 'hidden';
+}
+
+function motionShouldPlay() {
+  return playerActive && !fullscreenSuppressed && pageVisible() && !reducedMotion();
+}
+
+function mediaShouldPlay() {
+  return playerActive && !fullscreenSuppressed && pageVisible();
+}
+
+function syncPlayback() {
+  if (runtime) {
+    if (motionShouldPlay()) runtime.play();
+    else runtime.pause();
+  }
+  if (media instanceof HTMLVideoElement) {
+    if (mediaShouldPlay()) void media.play().catch(() => undefined);
+    else media.pause();
+  }
+}
 
 function destroyRuntime() {
   runtime?.destroy();
   runtime = null;
   target = null;
+  if (media instanceof HTMLVideoElement) media.pause();
+  media = null;
+}
+
+function baseEntityLayer() {
+  if (!(stage instanceof Element)) return null;
+  const layer = stage.querySelector('[data-motion-entity-layer]');
+  return layer instanceof HTMLElement ? layer : null;
 }
 
 function bindEntityRuntime() {
-  scheduled = null;
-  if (!(stage instanceof Element)) return;
-  const nextTarget = stage.querySelector('[data-entity-motion="beer-glass"]');
+  const layer = baseEntityLayer();
+  const nextTarget = layer?.querySelector('[data-entity-motion="beer-glass"]');
+  const nextMedia = layer?.querySelector('.animation-scene-entity-media');
+
   if (!(nextTarget instanceof Element)) {
     destroyRuntime();
     return;
   }
-  if (nextTarget === target && runtime) return;
+
+  if (nextTarget === target && runtime) {
+    media = nextMedia instanceof HTMLVideoElement ? nextMedia : null;
+    syncPlayback();
+    return;
+  }
 
   destroyRuntime();
-  const scene = buildDomMotionScene(stage);
+  const scene = buildDomMotionScene(layer);
   runtime = new SceneRuntime({
-    root: stage,
+    root: layer,
     driver: new WaapiMotionDriver(),
     compilers: [compileEntityBehaviorProgram]
   });
   runtime.load({ scene, context: { entity: { visible: true, id: 'beer-glass' } } });
   target = nextTarget;
-
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) runtime.pause();
-  else runtime.play();
+  media = nextMedia instanceof HTMLVideoElement ? nextMedia : null;
+  syncPlayback();
 }
 
-function scheduleBind() {
-  if (scheduled !== null) cancelAnimationFrame(scheduled);
-  scheduled = requestAnimationFrame(bindEntityRuntime);
+function onEntityRendered() {
+  bindEntityRuntime();
+}
+
+function onPlaylistMode(event) {
+  fullscreenSuppressed = event.detail?.fullscreen === true;
+  syncPlayback();
+}
+
+function onPlayerActivity(event) {
+  playerActive = event.detail?.active === true;
+  syncPlayback();
+}
+
+function onVisibilityChange() {
+  syncPlayback();
+}
+
+function destroy() {
+  if (!(stage instanceof Element)) return destroyRuntime();
+  stage.removeEventListener('mira:entity-rendered', onEntityRendered);
+  stage.removeEventListener('mira:scene-playlist-mode', onPlaylistMode);
+  stage.removeEventListener('mira:player-active', onPlayerActivity);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  destroyRuntime();
 }
 
 if (stage instanceof Element) {
-  new MutationObserver(scheduleBind).observe(stage, { childList: true, subtree: true });
-  scheduleBind();
+  stage.addEventListener('mira:entity-rendered', onEntityRendered);
+  stage.addEventListener('mira:scene-playlist-mode', onPlaylistMode);
+  stage.addEventListener('mira:player-active', onPlayerActivity);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  bindEntityRuntime();
 }
 
-window.addEventListener('pagehide', destroyRuntime, { once: true });
+window.addEventListener('pagehide', destroy, { once: true });
