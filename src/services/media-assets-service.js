@@ -181,29 +181,15 @@ export async function createMediaAssetFromStream({ stream, contentLength, conten
   }
 }
 
-export async function deleteMediaAssetFile({ asset, config, store }) {
+export async function removeMediaAssetFile({ asset, config }) {
   if (!asset) return false;
   if (!SAFE_MEDIA_FILE.test(String(asset.filename || ''))) throw new ValidationError('Некорректное имя файла медиатеки.');
-  const directory = path.join(config.siteAssetsRoot, MEDIA_DIR);
-  const target = path.join(directory, asset.filename);
-  const tombstone = path.join(directory, `.${asset.filename}.${crypto.randomUUID()}.delete`);
-  let moved = false;
+  const target = path.join(config.siteAssetsRoot, MEDIA_DIR, asset.filename);
   try {
-    await rename(target, tombstone);
-    moved = true;
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
-  }
-  try {
-    const removed = await store.deleteMediaAssetRecord(asset.id);
-    if (!removed) {
-      if (moved) await rename(tombstone, target).catch(() => undefined);
-      return false;
-    }
-    if (moved) await unlink(tombstone).catch(() => undefined);
+    await unlink(target);
     return true;
   } catch (error) {
-    if (moved) await rename(tombstone, target).catch(() => undefined);
+    if (error?.code === 'ENOENT') return false;
     throw error;
   }
 }

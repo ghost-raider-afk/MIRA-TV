@@ -1,24 +1,13 @@
 import express from 'express';
+import { mediaAssetIdParam } from '../../contracts/media.js';
+import { createMediaAssetFromStream, removeMediaAssetFile } from '../../services/media-assets-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
-import { createMediaAssetFromStream, deleteMediaAssetFile } from '../../services/media-assets-service.js';
 
-function mediaAssetId(value) {
-  const id = String(value || '').trim();
-  if (!/^media-[0-9a-f-]{36}$/i.test(id)) throw Object.assign(new Error('Некорректный идентификатор медиафайла.'), { status: 400 });
-  return id;
-}
-
-export function createMediaAssetsRouter({ store, config }) {
+export function createMediaRouter({ store, config }) {
   const router = express.Router();
 
   router.get('/', async (_request, response) => {
     response.json(await store.listMediaAssets());
-  });
-
-  router.get('/:id', async (request, response) => {
-    const asset = await store.getMediaAsset(mediaAssetId(request.params.id));
-    if (!asset) throw notFound('Медиафайл не найден.');
-    response.json(asset);
   });
 
   router.post('/', async (request, response) => {
@@ -26,13 +15,13 @@ export function createMediaAssetsRouter({ store, config }) {
       stream: request,
       contentLength: request.get('content-length'),
       contentType: request.get('content-type'),
-      originalName: request.get('x-file-name'),
+      originalName: request.get('x-mira-file-name'),
       config,
       store,
       username: request.session.sub
     });
     await activity(store, request, {
-      action: 'media.asset.created',
+      action: 'media.created',
       entity_type: 'media_asset',
       entity_id: asset.id,
       message: `Добавлен медиафайл «${asset.original_name || asset.filename}».`,
@@ -42,15 +31,23 @@ export function createMediaAssetsRouter({ store, config }) {
   });
 
   router.delete('/:id', async (request, response) => {
-    const id = mediaAssetId(request.params.id);
+    const id = mediaAssetIdParam(request.params.id);
     const asset = await store.getMediaAsset(id);
     if (!asset) throw notFound('Медиафайл не найден.');
-    if (await store.isMediaAssetReferenced(id)) {
-      throw conflict('Медиафайл используется в Scene Draft или Published Revision. Сначала удалите его из всех сцен.');
+
+    try {
+      const removed = await store.transaction((tx) => tx.deleteMediaAssetRecord(id));
+      if (!removed) throw notFound('Медиафайл не найден.');
+    } catch (error) {
+      if (error?.code === '23503') {
+        throw conflict('Медиафайл используется в сцене или опубликованной ревизии и не может быть удалён.');
+      }
+      throw error;
     }
-    if (!await deleteMediaAssetFile({ asset, config, store })) throw notFound('Медиафайл не найден.');
+
+    await removeMediaAssetFile({ asset, config });
     await activity(store, request, {
-      action: 'media.asset.deleted',
+      action: 'media.deleted',
       entity_type: 'media_asset',
       entity_id: id,
       message: `Удалён медиафайл «${asset.original_name || asset.filename}».`

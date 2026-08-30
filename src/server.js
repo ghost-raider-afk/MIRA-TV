@@ -21,6 +21,7 @@ import { createSettingsRouter } from './api/settings/routes.js';
 import { createNotificationsRouter } from './api/notifications/routes.js';
 import { createDiagnosticsRouter } from './api/diagnostics/routes.js';
 import { createCatalogRouter } from './api/catalog/routes.js';
+import { createMediaRouter } from './api/media/routes.js';
 import { createScenesRouter } from './api/scenes/routes.js';
 import { createSceneAssignmentsRouter } from './api/scenes/assignment-routes.js';
 import { createLocationsRouter } from './api/locations/routes.js';
@@ -148,6 +149,7 @@ function mountProtectedApi(app, dependencies, requireApiSession) {
   app.use('/api/notifications', createNotificationsRouter(dependencies));
   app.use('/api/diagnostics', createDiagnosticsRouter(dependencies));
   app.use('/api/catalog', createCatalogRouter(dependencies));
+  app.use('/api/media', createMediaRouter(dependencies));
   app.use('/api/scenes', createScenesRouter(dependencies));
   app.use('/api', createSceneAssignmentsRouter(dependencies));
   app.use('/api/locations', createLocationsRouter(dependencies));

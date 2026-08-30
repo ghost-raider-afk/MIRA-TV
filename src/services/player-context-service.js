@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { sceneMediaAssetIds } from '../contracts/scene.js';
 
 export const PLAYER_STATE_SCHEMA_VERSION = 1;
 
@@ -52,7 +53,11 @@ async function publishedSceneComponent(store, screenId) {
   if (!assignment) return null;
   const revision = await store.getSceneRevision(assignment.scene_revision_id);
   if (!revision) return null;
-  const catalogProducts = sceneUsesCatalog(revision.scene) ? await store.listProducts() : [];
+  const mediaIds = sceneMediaAssetIds(revision.scene);
+  const [catalogProducts, mediaAssets] = await Promise.all([
+    sceneUsesCatalog(revision.scene) ? store.listProducts() : [],
+    mediaIds.length ? store.listMediaAssetsByIds(mediaIds) : []
+  ]);
   return {
     revision_id: revision.id,
     scene_id: revision.scene_id,
@@ -60,7 +65,8 @@ async function publishedSceneComponent(store, screenId) {
     revision_number: revision.revision_number,
     published_at: revision.published_at,
     graph: revision.scene,
-    catalog_products: catalogProducts
+    catalog_products: catalogProducts,
+    media_assets: mediaAssets
   };
 }
 

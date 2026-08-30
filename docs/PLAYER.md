@@ -55,7 +55,7 @@ Editor владеет только authoring-поведением: selection, dr
 
 Player предоставляет Renderer фиксированный fullscreen host. Authoring `aspect-ratio` не должен менять геометрию физического viewport.
 
-Если один Published Scene Graph выглядит по-разному в Preview и на TV, это архитектурный дефект.
+Если одна и та же опубликованная сцена выглядит по-разному в Preview и на TV, это архитектурный дефект.
 
 ## Legacy fallback в prototype
 
@@ -118,7 +118,7 @@ Service Worker кэширует Player shell и зависимости ново�
 
 Большие video assets прогреваются последовательно, а не параллельно. Cached video не копируется целиком в JavaScript ради обработки Range-запросов.
 
-Новая Media Library ещё не реализована, поэтому manifest реальных Scene image/logo/video assets будет расширен вместе с Asset Store.
+Новая медиатека хранит изображения и видео как независимые Asset. В Player передаются только файлы, реально используемые назначенной Published Scene; подключение их к Renderer и offline manifest выполняется в текущем prototype-срезе.
 
 ## Delta-обновления
 

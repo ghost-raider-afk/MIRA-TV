@@ -2,6 +2,7 @@ import { ValidationError } from '../shared/errors.js';
 import { requireText } from './input.js';
 
 const ELEMENT_TYPES = new Set(['text', 'table', 'image', 'logo', 'video', 'weather', 'clock', 'shape']);
+const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
 const TRANSITIONS = new Set(['none', 'fade', 'slide', 'zoom', 'wipe', 'crossfade']);
 const ENTRANCE = new Set(['none', 'fade', 'slide-up', 'scale']);
 const LOOP = new Set(['none', 'pulse', 'float']);
@@ -49,6 +50,13 @@ function enumValue(value, field, allowed, fallback) {
 function stableId(value, field) {
   const id = requireText(value, field, { max: 120 });
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(id)) throw new ValidationError(`Поле «${field}» содержит недопустимый идентификатор.`);
+  return id;
+}
+
+function optionalMediaAssetId(value, field) {
+  if (value === undefined || value === null || value === '') return '';
+  const id = stableId(value, field);
+  if (!/^media-[0-9a-f-]{36}$/i.test(id)) throw new ValidationError(`Поле «${field}» содержит некорректный идентификатор медиафайла.`);
   return id;
 }
 
@@ -110,6 +118,7 @@ function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
       duration_ms: integer(animation.duration_ms ?? 600, 'element.animation.duration_ms', 0, 60000)
     }
   };
+  if (MEDIA_ELEMENT_TYPES.has(type)) result.asset_id = optionalMediaAssetId(value.asset_id, 'element.asset_id');
   if (type === 'table') {
     const binding = value.data_binding && typeof value.data_binding === 'object' && !Array.isArray(value.data_binding) ? value.data_binding : {};
     if ((binding.source ?? 'catalog_products') !== 'catalog_products') throw new ValidationError('Текущий прототип поддерживает только источник таблицы catalog_products.');
@@ -127,15 +136,16 @@ function slideInput(source, scene, index, usedSlideIds, usedElementIds) {
   const elements = Array.isArray(value.elements) ? value.elements : [];
   if (elements.length > MAX_ELEMENTS_PER_SLIDE) throw new ValidationError(`Один слайд может содержать не более ${MAX_ELEMENTS_PER_SLIDE} элементов.`);
   const background = value.background && typeof value.background === 'object' && !Array.isArray(value.background) ? value.background : {};
+  const backgroundType = enumValue(background.type, 'slide.background.type', BACKGROUND_TYPES, 'color');
   return {
     id,
     name: requireText(value.name || `Слайд ${index + 1}`, 'slide.name', { max: 120 }),
     duration_ms: integer(value.duration_ms ?? 10000, 'slide.duration_ms', 1000, 3600000),
     transition: enumValue(value.transition, 'slide.transition', TRANSITIONS, 'fade'),
     background: {
-      type: enumValue(background.type, 'slide.background.type', BACKGROUND_TYPES, 'color'),
+      type: backgroundType,
       color: optionalString(background.color || '#10141c', 'slide.background.color', 64) || '#10141c',
-      asset_url: optionalString(background.asset_url || '', 'slide.background.asset_url', 512)
+      asset_id: backgroundType === 'color' ? '' : optionalMediaAssetId(background.asset_id, 'slide.background.asset_id')
     },
     elements: elements.map((element, elementIndex) => elementInput(element, scene, index, elementIndex, usedElementIds))
   };
@@ -164,6 +174,17 @@ export function scenePayloadInput(body) {
   scene.active_slide_id = stableId(value.active_slide_id || scene.slides[0].id, 'active_slide_id');
   if (!usedSlideIds.has(scene.active_slide_id)) throw new ValidationError('Активный слайд должен существовать внутри сцены.');
   return scene;
+}
+
+export function sceneMediaAssetIds(scene) {
+  const ids = new Set();
+  for (const slide of Array.isArray(scene?.slides) ? scene.slides : []) {
+    if (typeof slide?.background?.asset_id === 'string' && slide.background.asset_id) ids.add(slide.background.asset_id);
+    for (const element of Array.isArray(slide?.elements) ? slide.elements : []) {
+      if (typeof element?.asset_id === 'string' && element.asset_id) ids.add(element.asset_id);
+    }
+  }
+  return [...ids];
 }
 
 export function sceneRevision(value) {

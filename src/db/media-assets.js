@@ -20,21 +20,20 @@ function assetRecord(row) {
   };
 }
 
-function parseJson(value) {
-  if (value && typeof value === 'object') return value;
-  if (typeof value !== 'string') return {};
-  try { return JSON.parse(value); } catch { return {}; }
+function uniqueAssetIds(ids) {
+  return [...new Set((ids || []).map(String).filter(Boolean))];
 }
 
-function sceneReferencesAsset(value, assetId) {
-  const scene = parseJson(value);
-  for (const slide of Array.isArray(scene?.slides) ? scene.slides : []) {
-    for (const element of Array.isArray(slide?.elements) ? slide.elements : []) {
-      if (String(element?.asset_id || '') === assetId) return true;
-    }
-    if (String(slide?.background?.asset_id || '') === assetId) return true;
-  }
-  return false;
+async function replaceReferences(queryable, table, ownerColumn, ownerId, assetIds) {
+  const ids = uniqueAssetIds(assetIds);
+  await queryable.query(`DELETE FROM ${table} WHERE ${ownerColumn} = $1`, [ownerId]);
+  if (!ids.length) return 0;
+  const values = ids.map((_, index) => `($1,$${index + 2})`).join(',');
+  const result = await queryable.query(
+    `INSERT INTO ${table} (${ownerColumn}, asset_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+    [ownerId, ...ids]
+  );
+  return result.rowCount || ids.length;
 }
 
 export function createMediaAssetsRepository(queryable) {
@@ -45,9 +44,10 @@ export function createMediaAssetsRepository(queryable) {
     },
 
     async listMediaAssetsByIds(ids) {
-      const unique = [...new Set((ids || []).map(String).filter(Boolean))];
+      const unique = uniqueAssetIds(ids);
       if (!unique.length) return [];
-      const result = await queryable.query('SELECT * FROM media_assets WHERE id = ANY($1::text[]) ORDER BY created_at DESC, id ASC', [unique]);
+      const placeholders = unique.map((_, index) => `$${index + 1}`).join(',');
+      const result = await queryable.query(`SELECT * FROM media_assets WHERE id IN (${placeholders}) ORDER BY created_at DESC, id ASC`, unique);
       return result.rows.map(assetRecord);
     },
 
@@ -67,13 +67,23 @@ export function createMediaAssetsRepository(queryable) {
       return assetRecord(result.rows[0]);
     },
 
+    replaceSceneDraftMediaRefs(sceneId, assetIds) {
+      return replaceReferences(queryable, 'scene_draft_media_assets', 'scene_id', sceneId, assetIds);
+    },
+
+    replaceSceneRevisionMediaRefs(sceneRevisionId, assetIds) {
+      return replaceReferences(queryable, 'scene_revision_media_assets', 'scene_revision_id', sceneRevisionId, assetIds);
+    },
+
     async isMediaAssetReferenced(id) {
-      const [drafts, revisions] = await Promise.all([
-        queryable.query('SELECT scene_json FROM scenes'),
-        queryable.query('SELECT scene_json FROM scene_revisions')
-      ]);
-      return drafts.rows.some((row) => sceneReferencesAsset(row.scene_json, id))
-        || revisions.rows.some((row) => sceneReferencesAsset(row.scene_json, id));
+      const result = await queryable.query(
+        `SELECT (
+          EXISTS(SELECT 1 FROM scene_draft_media_assets WHERE asset_id = $1)
+          OR EXISTS(SELECT 1 FROM scene_revision_media_assets WHERE asset_id = $1)
+        ) AS referenced`,
+        [id]
+      );
+      return result.rows[0]?.referenced === true;
     },
 
     async deleteMediaAssetRecord(id) {
