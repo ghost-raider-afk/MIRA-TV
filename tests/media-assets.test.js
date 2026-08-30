@@ -68,7 +68,7 @@ test('scene contract preserves media asset ids and derives one unique dependency
   assert.deepEqual(sceneMediaAssetIds(scene).sort(), [IMAGE_ID, VIDEO_ID].sort());
   assert.throws(
     () => scenePayloadInput(graph({ imageId: '/site-assets/media/injected.png' })),
-    /идентификатор медиафайла/
+    /element\.asset_id.*идентификатор/
   );
 });
 
