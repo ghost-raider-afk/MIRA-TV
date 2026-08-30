@@ -12,6 +12,7 @@ import { hashPassword } from './services/password-service.js';
 import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
+import { createWeatherService } from './services/weather-service.js';
 import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
@@ -22,6 +23,7 @@ import { createNotificationsRouter } from './api/notifications/routes.js';
 import { createDiagnosticsRouter } from './api/diagnostics/routes.js';
 import { createCatalogRouter } from './api/catalog/routes.js';
 import { createMediaRouter } from './api/media/routes.js';
+import { createWeatherRouter } from './api/weather/routes.js';
 import { createScenesRouter } from './api/scenes/routes.js';
 import { createSceneAssignmentsRouter } from './api/scenes/assignment-routes.js';
 import { createLocationsRouter } from './api/locations/routes.js';
@@ -109,7 +111,7 @@ function configureSecurity(app, config) {
   app.use(express.json({ limit: config.jsonBodyMaxBytes }));
 }
 
-function mountPublicRoutes(app, { store, config, realtime }) {
+function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
   let readiness = { checkedAt: 0, ok: false };
   app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'mira-tv' }));
   app.get('/readyz', async (_request, response) => {
@@ -137,7 +139,7 @@ function mountPublicRoutes(app, { store, config, realtime }) {
       signin_logo_size: site.signin_logo_size
     });
   });
-  app.use('/api/device', createDevicePublicRouter({ store, config, realtime }));
+  app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService }));
 }
 
 function mountProtectedApi(app, dependencies, requireApiSession) {
@@ -150,6 +152,7 @@ function mountProtectedApi(app, dependencies, requireApiSession) {
   app.use('/api/diagnostics', createDiagnosticsRouter(dependencies));
   app.use('/api/catalog', createCatalogRouter(dependencies));
   app.use('/api/media', createMediaRouter(dependencies));
+  app.use('/api/weather', createWeatherRouter(dependencies));
   app.use('/api/scenes', createScenesRouter(dependencies));
   app.use('/api', createSceneAssignmentsRouter(dependencies));
   app.use('/api/locations', createLocationsRouter(dependencies));
@@ -214,19 +217,20 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   await recoverRuntimeState(store, config);
 
   const realtime = createPlayerRealtime({ store });
+  const weatherService = createWeatherService(config);
   const app = express();
   configureSecurity(app, config);
-  mountPublicRoutes(app, { store, config, realtime });
+  mountPublicRoutes(app, { store, config, realtime, weatherService });
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
 
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession } = createSessionMiddleware(resolveSession);
-  const dependencies = { store, config, realtime };
+  const dependencies = { store, config, realtime, weatherService };
   mountProtectedApi(app, dependencies, requireApiSession);
   mountFrontend(app, requirePageSession);
   app.use(errorHandler);
 
-  return { app, store, config, realtime };
+  return { app, store, config, realtime, weatherService };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

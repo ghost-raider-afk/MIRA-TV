@@ -17,6 +17,8 @@ function runtimeEnv(overrides = {}) {
     DEVICE_ACTIVATION_WINDOW_MINUTES: '10', DEVICE_ACTIVATION_LIMITER_MAX_ENTRIES: '10000', DEVICE_ACTIVATION_CLEANUP_MINUTES: '15', DEVICE_ACTIVATION_RETENTION_HOURS: '24',
     DEVICE_SESSION_TTL_DAYS: '365', DEVICE_HEARTBEAT_WRITE_SECONDS: '60', PLAYER_FALLBACK_POLL_SECONDS: '60',
     PLAYER_LOG_BATCH_SIZE: '100', PLAYER_LOG_LOCAL_MAX_ENTRIES: '5000', PLAYER_LOG_LOCAL_MAX_BYTES: '10485760',
+    WEATHER_GEOCODING_URL: 'https://weather.example/geocode', WEATHER_FORECAST_URL: 'https://weather.example/forecast', WEATHER_CACHE_SECONDS: '900',
+    WEATHER_REQUEST_TIMEOUT_MS: '5000', WEATHER_CACHE_MAX_ENTRIES: '256', WEATHER_PLAYER_REFRESH_SECONDS: '900',
     EVENT_JOURNAL_RETENTION_DAYS: '30', EVENT_JOURNAL_MAX_ENTRIES: '5000',
     PASSWORD_MIN_LENGTH: '10', PASSWORD_MAX_LENGTH: '32', GENERATED_PASSWORD_LENGTH: '10',
     LOGIN_MAX_ATTEMPTS: '8', LOGIN_IP_MAX_ATTEMPTS: '32', LOGIN_WINDOW_MINUTES: '15', LOGIN_LIMITER_MAX_ENTRIES: '500',
@@ -63,4 +65,13 @@ test('environment integer parser rejects partial numeric strings', () => {
   assert.throws(() => loadConfig(runtimeEnv({ SCREEN_BACKGROUND_MAX_BYTES: '20MB' })), /SCREEN_BACKGROUND_MAX_BYTES.*целым числом/);
   assert.throws(() => loadConfig(runtimeEnv({ ENTITY_ASSET_MAX_BYTES: '100MB' })), /ENTITY_ASSET_MAX_BYTES.*целым числом/);
   assert.throws(() => loadConfig(runtimeEnv({ MEDIA_VIDEO_MAX_BYTES: '250MB' })), /MEDIA_VIDEO_MAX_BYTES.*целым числом/);
+  assert.throws(() => loadConfig(runtimeEnv({ WEATHER_CACHE_SECONDS: '15minutes' })), /WEATHER_CACHE_SECONDS.*целым числом/);
+});
+
+test('weather runtime is configured only through env', () => {
+  const loaded = loadConfig(runtimeEnv());
+  assert.equal(loaded.weatherGeocodingUrl, 'https://weather.example/geocode');
+  assert.equal(loaded.weatherForecastUrl, 'https://weather.example/forecast');
+  assert.equal(loaded.weatherCacheSeconds, 900);
+  assert.equal(loaded.weatherPlayerRefreshSeconds, 900);
 });
