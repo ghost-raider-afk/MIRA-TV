@@ -23,6 +23,22 @@ function appendText(parent, tagName, text, className = '') {
   return node;
 }
 
+function rendererContext(context = {}) {
+  if (context.mediaAssetMap instanceof Map) return context;
+  const mediaAssetMap = new Map();
+  for (const asset of Array.isArray(context.mediaAssets) ? context.mediaAssets : []) {
+    if (asset?.id) mediaAssetMap.set(asset.id, asset);
+  }
+  return { ...context, mediaAssetMap };
+}
+
+function mediaAsset(context, id, kind) {
+  if (!id) return null;
+  const asset = context.mediaAssetMap?.get(id) || null;
+  if (!asset?.url || (kind && asset.kind !== kind)) return null;
+  return asset;
+}
+
 function gridTemplate(columns) {
   return columns.map((column) => `minmax(0, ${column.weight || 1}fr)`).join(' ');
 }
@@ -81,10 +97,43 @@ function renderWeather(node, element) {
   appendText(node, 'small', element.variant === 'forecast' ? 'Сегодня · +18° · завтра +16°' : 'Ясно');
 }
 
+function renderMediaPlaceholder(node, element) {
+  appendText(node, 'span', element.type === 'video' ? '▶' : '▧', 'scene-media-symbol');
+  appendText(node, 'strong', element.content || SCENE_ELEMENT_LABELS[element.type]);
+}
+
+function renderImage(node, element, context) {
+  const asset = mediaAsset(context, element.asset_id, 'image');
+  if (!asset) return renderMediaPlaceholder(node, element);
+  const image = document.createElement('img');
+  image.className = `scene-media-content scene-media-${element.type}`;
+  image.src = asset.url;
+  image.alt = element.content || asset.original_name || SCENE_ELEMENT_LABELS[element.type];
+  image.draggable = false;
+  node.append(image);
+}
+
+function renderVideo(node, element, context) {
+  const asset = mediaAsset(context, element.asset_id, 'video');
+  if (!asset) return renderMediaPlaceholder(node, element);
+  const video = document.createElement('video');
+  video.className = 'scene-media-content scene-media-video';
+  video.src = asset.url;
+  video.muted = true;
+  video.loop = true;
+  video.autoplay = context.autoplayMedia !== false;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.setAttribute('aria-label', element.content || asset.original_name || 'Видео');
+  node.append(video);
+  if (video.autoplay) void video.play().catch(() => undefined);
+}
+
 export function renderSceneElementContent(node, element, context = {}) {
+  const resolvedContext = rendererContext(context);
   node.replaceChildren();
   if (element.type === 'clock') {
-    renderClock(node, element, context.now instanceof Date ? context.now : new Date());
+    renderClock(node, element, resolvedContext.now instanceof Date ? resolvedContext.now : new Date());
     return;
   }
   if (element.type === 'weather') {
@@ -92,19 +141,11 @@ export function renderSceneElementContent(node, element, context = {}) {
     return;
   }
   if (element.type === 'table') {
-    renderCatalogTable(node, element, context);
+    renderCatalogTable(node, element, resolvedContext);
     return;
   }
-  if (element.type === 'video') {
-    appendText(node, 'span', '▶', 'scene-media-symbol');
-    appendText(node, 'strong', element.content || 'Видео');
-    return;
-  }
-  if (element.type === 'image' || element.type === 'logo') {
-    appendText(node, 'span', '▧', 'scene-media-symbol');
-    appendText(node, 'strong', element.content || SCENE_ELEMENT_LABELS[element.type]);
-    return;
-  }
+  if (element.type === 'video') return renderVideo(node, element, resolvedContext);
+  if (element.type === 'image' || element.type === 'logo') return renderImage(node, element, resolvedContext);
   if (element.type === 'shape') return;
   node.textContent = element.content || SCENE_ELEMENT_LABELS[element.type] || '';
 }
@@ -129,12 +170,44 @@ export function applySceneElementGeometry(node, element, scene, stageWidth) {
 }
 
 export function createSceneElementNode(element, scene, context = {}) {
+  const resolvedContext = rendererContext(context);
   const node = document.createElement('div');
   node.className = `scene-render-element scene-element-${element.type}`;
   node.dataset.elementId = element.id;
-  renderSceneElementContent(node, element, context);
-  applySceneElementGeometry(node, element, scene, context.stageWidth);
+  renderSceneElementContent(node, element, resolvedContext);
+  applySceneElementGeometry(node, element, scene, resolvedContext.stageWidth);
   return node;
+}
+
+export function createSceneBackgroundNode(slide, context = {}) {
+  const resolvedContext = rendererContext(context);
+  const type = slide?.background?.type || 'color';
+  if (type === 'color') return null;
+  const expectedKind = type === 'video' ? 'video' : 'image';
+  const asset = mediaAsset(resolvedContext, slide?.background?.asset_id, expectedKind);
+  if (!asset) return null;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = `scene-render-background scene-render-background-${type}`;
+  wrapper.setAttribute('aria-hidden', 'true');
+  if (type === 'image') {
+    const image = document.createElement('img');
+    image.src = asset.url;
+    image.alt = '';
+    image.draggable = false;
+    wrapper.append(image);
+  } else {
+    const video = document.createElement('video');
+    video.src = asset.url;
+    video.muted = true;
+    video.loop = true;
+    video.autoplay = resolvedContext.autoplayMedia !== false;
+    video.playsInline = true;
+    video.preload = 'auto';
+    wrapper.append(video);
+    if (video.autoplay) void video.play().catch(() => undefined);
+  }
+  return wrapper;
 }
 
 export function applySceneStage(stage, scene, slide, { constrainAspect = true } = {}) {
@@ -146,10 +219,13 @@ export function renderSceneLayer(layer, { scene, slide, context = {}, decorate =
   if (!layer || !scene || !slide) return [];
   const stage = layer.parentElement;
   const stageWidth = context.stageWidth || stage?.clientWidth || scene.canvas_width;
+  const resolvedContext = rendererContext({ ...context, stageWidth });
   const nodes = [];
   const fragment = document.createDocumentFragment();
+  const background = createSceneBackgroundNode(slide, resolvedContext);
+  if (background) fragment.append(background);
   for (const element of [...slide.elements].sort((a, b) => a.z_index - b.z_index)) {
-    const node = createSceneElementNode(element, scene, { ...context, stageWidth });
+    const node = createSceneElementNode(element, scene, resolvedContext);
     if (typeof decorate === 'function') decorate(node, element);
     fragment.append(node);
     nodes.push(node);

@@ -4,6 +4,7 @@ const DEFAULT_DISPLAY_WIDTH = 1920;
 const DEFAULT_DISPLAY_HEIGHT = 1080;
 const MIN_DISPLAYS = 1;
 const MAX_DISPLAYS = 6;
+const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
 
 function id(prefix) {
   if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -27,7 +28,7 @@ export function createSlide(index = 1) {
     background: {
       type: 'color',
       color: '#10141c',
-      asset_url: ''
+      asset_id: ''
     },
     elements: []
   };
@@ -99,6 +100,7 @@ export function createElement(type, scene, slide) {
       exit: 'none',
       duration_ms: 600
     },
+    ...(MEDIA_ELEMENT_TYPES.has(type) ? { asset_id: '' } : {}),
     ...(defaults.data_binding ? { data_binding: deepClone(defaults.data_binding) } : {}),
     ...(defaults.table ? { table: deepClone(defaults.table) } : {})
   };
@@ -159,6 +161,7 @@ function normaliseElement(element) {
   result.effects = { shadow: false, glow: false, blur: 0, ...(result.effects || {}) };
   result.animation = { entrance: 'none', loop: 'none', exit: 'none', duration_ms: 600, ...(result.animation || {}) };
   result.style = { color: '#ffffff', font_size: 40, background: 'transparent', radius: 0, ...(result.style || {}) };
+  if (MEDIA_ELEMENT_TYPES.has(result.type)) result.asset_id = typeof result.asset_id === 'string' ? result.asset_id : '';
   if (result.type === 'table') {
     result.data_binding = { source: 'catalog_products', ...(result.data_binding || {}) };
     result.table = normaliseTableConfig(result.table || {});
@@ -176,7 +179,12 @@ export function normaliseScene(source) {
   scene.canvas_height = scene.display_height;
   if (!Array.isArray(scene.slides) || scene.slides.length === 0) scene.slides = [createSlide(1)];
   for (const slide of scene.slides) {
-    if (!slide.background) slide.background = { type: 'color', color: '#10141c', asset_url: '' };
+    const background = slide.background && typeof slide.background === 'object' ? slide.background : {};
+    slide.background = {
+      type: ['color', 'image', 'video'].includes(background.type) ? background.type : 'color',
+      color: typeof background.color === 'string' ? background.color : '#10141c',
+      asset_id: typeof background.asset_id === 'string' ? background.asset_id : ''
+    };
     if (!Array.isArray(slide.elements)) slide.elements = [];
     slide.elements = slide.elements.map(normaliseElement);
   }

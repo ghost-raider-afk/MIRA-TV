@@ -16,6 +16,16 @@ import {
 } from './model.js';
 import { createSceneRemote, getScene, updateSceneRemote } from './store.js';
 import { normaliseTableConfig, parseTargetVolumes } from './catalog-table.js';
+import {
+  compatibleMediaAssets,
+  fetchMediaAssets,
+  mediaAcceptForTarget,
+  mediaAssetById,
+  mediaAssetLabel,
+  uploadMediaAsset
+} from './media-library.js';
+
+const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
 
 const state = {
   scene: null,
@@ -24,6 +34,10 @@ const state = {
   catalogProducts: [],
   catalogStatus: 'idle',
   catalogError: '',
+  mediaAssets: [],
+  mediaStatus: 'idle',
+  mediaError: '',
+  mediaUploading: false,
   autosaveTimer: null,
   clockTimer: null,
   dirtyVersion: 0,
@@ -39,6 +53,25 @@ function currentSlide() {
 
 function selectedElement() {
   return currentSlide().elements.find((element) => element.id === state.selectedElementId) || null;
+}
+
+function findElement(id) {
+  for (const slide of state.scene?.slides || []) {
+    const element = slide.elements.find((item) => item.id === id);
+    if (element) return element;
+  }
+  return null;
+}
+
+function findSlide(id) {
+  return state.scene?.slides.find((slide) => slide.id === id) || null;
+}
+
+function sceneUsesMedia(scene) {
+  return (scene?.slides || []).some((slide) =>
+    Boolean(slide?.background?.asset_id)
+    || (slide?.elements || []).some((element) => MEDIA_ELEMENT_TYPES.has(element.type) && Boolean(element.asset_id))
+  );
 }
 
 function clamp(value, min, max) {
@@ -140,6 +173,95 @@ async function loadCatalogProducts({ force = false } = {}) {
   renderInspector();
 }
 
+async function loadMediaAssets({ force = false } = {}) {
+  if (!force && (state.mediaStatus === 'loading' || state.mediaStatus === 'ready')) return;
+  state.mediaStatus = 'loading';
+  state.mediaError = '';
+  renderElements();
+  renderInspector();
+  renderBackgroundControls();
+  try {
+    state.mediaAssets = await fetchMediaAssets();
+    state.mediaStatus = 'ready';
+  } catch (error) {
+    state.mediaAssets = [];
+    state.mediaStatus = 'error';
+    state.mediaError = error?.message || 'Не удалось загрузить медиатеку';
+  }
+  renderElements();
+  renderInspector();
+  renderBackgroundControls();
+}
+
+function mediaStatusText(target, selectedId = '') {
+  if (state.mediaUploading) return 'Загрузка файла…';
+  if (state.mediaStatus === 'loading' || state.mediaStatus === 'idle') return 'Медиатека загружается…';
+  if (state.mediaStatus === 'error') return state.mediaError || 'Медиатека недоступна';
+  const selected = mediaAssetById(state.mediaAssets, selectedId);
+  if (selected) return mediaAssetLabel(selected);
+  const count = compatibleMediaAssets(state.mediaAssets, target).length;
+  return count ? `Доступно файлов: ${count}` : 'Подходящих файлов пока нет';
+}
+
+function fillMediaSelect(select, target, selectedId) {
+  if (!select) return;
+  const options = [new Option('Не выбран', '')];
+  for (const asset of compatibleMediaAssets(state.mediaAssets, target)) {
+    options.push(new Option(mediaAssetLabel(asset), asset.id));
+  }
+  select.replaceChildren(...options);
+  select.value = options.some((option) => option.value === selectedId) ? selectedId : '';
+}
+
+async function uploadForElement(file, elementId, targetType) {
+  if (!file || state.mediaUploading) return;
+  state.mediaUploading = true;
+  renderInspector();
+  try {
+    const asset = await uploadMediaAsset(file);
+    state.mediaAssets = [asset, ...state.mediaAssets.filter((item) => item.id !== asset.id)];
+    state.mediaStatus = 'ready';
+    const element = findElement(elementId);
+    if (element && element.type === targetType) {
+      element.asset_id = asset.id;
+      touchScene(state.scene);
+      scheduleAutosave();
+      showMessage(`${SCENE_ELEMENT_LABELS[targetType]} обновлён.`);
+    }
+  } catch (error) {
+    showMessage(error?.message || 'Не удалось загрузить медиафайл.', true);
+  } finally {
+    state.mediaUploading = false;
+    renderElements();
+    renderInspector();
+    renderBackgroundControls();
+  }
+}
+
+async function uploadForBackground(file, slideId, backgroundType) {
+  if (!file || state.mediaUploading) return;
+  state.mediaUploading = true;
+  renderBackgroundControls();
+  try {
+    const asset = await uploadMediaAsset(file);
+    state.mediaAssets = [asset, ...state.mediaAssets.filter((item) => item.id !== asset.id)];
+    state.mediaStatus = 'ready';
+    const slide = findSlide(slideId);
+    if (slide && slide.background.type === backgroundType) {
+      slide.background.asset_id = asset.id;
+      touchScene(state.scene);
+      scheduleAutosave();
+      showMessage('Фон слайда обновлён.');
+    }
+  } catch (error) {
+    showMessage(error?.message || 'Не удалось загрузить фон.', true);
+  } finally {
+    state.mediaUploading = false;
+    renderElements();
+    renderBackgroundControls();
+  }
+}
+
 function renderGuides() {
   const guides = document.querySelector('#scene-tv-guides');
   guides.replaceChildren();
@@ -168,6 +290,7 @@ function markSelected(node, element) {
   document.querySelectorAll('.scene-render-element.is-selected').forEach((item) => item.classList.remove('is-selected'));
   node.classList.add('is-selected');
   renderInspector();
+  if (MEDIA_ELEMENT_TYPES.has(element.type) && state.mediaStatus === 'idle') void loadMediaAssets();
 }
 
 function installDrag(node, element) {
@@ -244,8 +367,16 @@ function decorateEditorElement(node, element) {
     state.selectedElementId = element.id;
     renderElements();
     renderInspector();
+    if (MEDIA_ELEMENT_TYPES.has(element.type) && state.mediaStatus === 'idle') void loadMediaAssets();
   });
   installDrag(node, element);
+}
+
+function rendererMediaContext() {
+  return {
+    mediaAssets: state.mediaAssets,
+    autoplayMedia: state.preview
+  };
 }
 
 function renderElements() {
@@ -257,7 +388,8 @@ function renderElements() {
       catalogProducts: state.catalogProducts,
       catalogStatus: state.catalogStatus,
       catalogError: state.catalogError,
-      now: new Date()
+      now: new Date(),
+      ...rendererMediaContext()
     },
     decorate: decorateEditorElement
   });
@@ -279,6 +411,7 @@ function renderSlides() {
       state.scene.active_slide_id = slide.id;
       state.selectedElementId = null;
       render();
+      if (slide.background.type !== 'color' && state.mediaStatus === 'idle') void loadMediaAssets();
     });
     const actions = document.createElement('div');
     actions.className = 'scene-slide-actions';
@@ -331,6 +464,37 @@ function renderTableInspector(element) {
   else status.textContent = `Каталог подключён · ${state.catalogProducts.length} позиций`;
 }
 
+function renderMediaInspector(element) {
+  const section = document.querySelector('#media-settings');
+  const isMedia = MEDIA_ELEMENT_TYPES.has(element?.type);
+  section.classList.toggle('is-hidden', !isMedia);
+  if (!isMedia) return;
+  fillMediaSelect(document.querySelector('#element-media-asset'), element.type, element.asset_id || '');
+  document.querySelector('#media-library-status').textContent = mediaStatusText(element.type, element.asset_id);
+  const upload = document.querySelector('#element-media-upload');
+  upload.disabled = state.mediaUploading;
+  upload.textContent = state.mediaUploading ? 'Загрузка…' : 'Загрузить новый';
+  const input = document.querySelector('#element-media-upload-input');
+  input.accept = mediaAcceptForTarget(element.type);
+}
+
+function renderBackgroundControls() {
+  if (!state.scene) return;
+  const background = currentSlide().background;
+  document.querySelector('#slide-background-type').value = background.type;
+  document.querySelector('#slide-background-color').value = background.color || '#10141c';
+  const mediaPanel = document.querySelector('#slide-background-media');
+  const needsMedia = background.type === 'image' || background.type === 'video';
+  mediaPanel.classList.toggle('is-hidden', !needsMedia);
+  if (!needsMedia) return;
+  fillMediaSelect(document.querySelector('#slide-background-asset'), background.type, background.asset_id || '');
+  document.querySelector('#slide-background-media-status').textContent = mediaStatusText(background.type, background.asset_id);
+  const upload = document.querySelector('#slide-background-upload');
+  upload.disabled = state.mediaUploading;
+  upload.textContent = state.mediaUploading ? 'Загрузка…' : 'Загрузить фон';
+  document.querySelector('#slide-background-upload-input').accept = mediaAcceptForTarget(background.type);
+}
+
 function renderInspector() {
   const element = selectedElement();
   document.querySelector('#inspector-empty').classList.toggle('is-hidden', Boolean(element));
@@ -338,11 +502,12 @@ function renderInspector() {
   document.querySelector('#inspector-title').textContent = element ? SCENE_ELEMENT_LABELS[element.type] : 'Слайд';
   if (!element) {
     renderTableInspector(null);
+    renderMediaInspector(null);
     return;
   }
   renderInspectorGeometry();
   document.querySelector('#element-content').value = element.content || '';
-  document.querySelector('#element-content-label').textContent = element.type === 'table' ? 'Заголовок' : 'Содержимое';
+  document.querySelector('#element-content-label').textContent = element.type === 'table' ? 'Заголовок' : MEDIA_ELEMENT_TYPES.has(element.type) ? 'Подпись' : 'Содержимое';
   document.querySelector('#element-color').value = element.style.color || '#ffffff';
   document.querySelector('#element-background').value = element.style.background || 'transparent';
   document.querySelector('#element-font-size').value = element.style.font_size || 40;
@@ -354,6 +519,7 @@ function renderInspector() {
   document.querySelector('#element-loop').value = element.animation.loop || 'none';
   document.querySelector('#element-exit').value = element.animation.exit || 'none';
   renderTableInspector(element);
+  renderMediaInspector(element);
 }
 
 function render() {
@@ -362,8 +528,8 @@ function render() {
   document.querySelector('#scene-name').value = scene.name;
   document.querySelector('#scene-display-count').value = String(scene.display_count);
   document.querySelector('#scene-resolution-label').textContent = `${scene.canvas_width} × ${scene.canvas_height}`;
-  document.querySelector('#slide-background-color').value = currentSlide().background.color || '#10141c';
   applySceneStage(document.querySelector('#scene-stage'), scene, currentSlide());
+  renderBackgroundControls();
   renderGuides();
   renderElements();
   renderSlides();
@@ -379,6 +545,7 @@ function addElement(type) {
   scheduleAutosave();
   render();
   if (type === 'table') void loadCatalogProducts();
+  if (MEDIA_ELEMENT_TYPES.has(type) && state.mediaStatus === 'idle') void loadMediaAssets();
 }
 
 function updateSelected(mutator) {
@@ -418,6 +585,67 @@ function bindTableInspector() {
   document.querySelector('#table-refresh-catalog').addEventListener('click', () => void loadCatalogProducts({ force: true }));
 }
 
+function bindMediaInspector() {
+  document.querySelector('#element-media-asset').addEventListener('change', (event) => updateSelected((element) => {
+    if (MEDIA_ELEMENT_TYPES.has(element.type)) element.asset_id = event.target.value;
+  }));
+  document.querySelector('#element-media-refresh').addEventListener('click', () => void loadMediaAssets({ force: true }));
+  document.querySelector('#element-media-upload').addEventListener('click', () => {
+    const element = selectedElement();
+    if (!element || !MEDIA_ELEMENT_TYPES.has(element.type)) return;
+    const input = document.querySelector('#element-media-upload-input');
+    input.accept = mediaAcceptForTarget(element.type);
+    input.click();
+  });
+  document.querySelector('#element-media-upload-input').addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    const element = selectedElement();
+    if (!file || !element || !MEDIA_ELEMENT_TYPES.has(element.type)) return;
+    void uploadForElement(file, element.id, element.type);
+  });
+}
+
+function bindBackgroundControls() {
+  document.querySelector('#slide-background-type').addEventListener('change', (event) => {
+    const slide = currentSlide();
+    slide.background.type = event.target.value;
+    slide.background.asset_id = '';
+    touchScene(state.scene);
+    scheduleAutosave();
+    render();
+    if (slide.background.type !== 'color' && state.mediaStatus === 'idle') void loadMediaAssets();
+  });
+  document.querySelector('#slide-background-color').addEventListener('input', (event) => {
+    currentSlide().background.color = event.target.value;
+    touchScene(state.scene);
+    scheduleAutosave();
+    applySceneStage(document.querySelector('#scene-stage'), state.scene, currentSlide());
+  });
+  document.querySelector('#slide-background-asset').addEventListener('change', (event) => {
+    currentSlide().background.asset_id = event.target.value;
+    touchScene(state.scene);
+    scheduleAutosave();
+    renderElements();
+    renderBackgroundControls();
+  });
+  document.querySelector('#slide-background-refresh').addEventListener('click', () => void loadMediaAssets({ force: true }));
+  document.querySelector('#slide-background-upload').addEventListener('click', () => {
+    const background = currentSlide().background;
+    if (background.type === 'color') return;
+    const input = document.querySelector('#slide-background-upload-input');
+    input.accept = mediaAcceptForTarget(background.type);
+    input.click();
+  });
+  document.querySelector('#slide-background-upload-input').addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    const slide = currentSlide();
+    if (!file || slide.background.type === 'color') return;
+    void uploadForBackground(file, slide.id, slide.background.type);
+  });
+}
+
 function bindInspector() {
   [['#element-x', 'x'], ['#element-y', 'y'], ['#element-width', 'width'], ['#element-height', 'height']].forEach(([selector, key]) => {
     document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }));
@@ -452,6 +680,7 @@ function bindInspector() {
     element.z_index = Math.max(0, element.z_index - 1);
   }));
   bindTableInspector();
+  bindMediaInspector();
 }
 
 function bindGlobalControls() {
@@ -475,12 +704,6 @@ function bindGlobalControls() {
     scheduleAutosave();
     render();
   });
-  document.querySelector('#slide-background-color').addEventListener('input', (event) => {
-    currentSlide().background.color = event.target.value;
-    touchScene(state.scene);
-    scheduleAutosave();
-    applySceneStage(document.querySelector('#scene-stage'), state.scene, currentSlide());
-  });
   document.querySelector('#add-slide').addEventListener('click', () => {
     appendSlide(state.scene);
     state.selectedElementId = null;
@@ -502,6 +725,7 @@ function bindGlobalControls() {
     event.preventDefault();
     event.returnValue = '';
   });
+  bindBackgroundControls();
 }
 
 function syncClockTimer() {
@@ -540,4 +764,5 @@ export async function initialiseSceneEditor() {
   if (state.scene.slides.some((slide) => slide.elements.some((element) => element.type === 'table'))) {
     void loadCatalogProducts();
   }
+  if (sceneUsesMedia(state.scene)) void loadMediaAssets();
 }

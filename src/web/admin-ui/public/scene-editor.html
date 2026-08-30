@@ -55,7 +55,20 @@
                 <button type="button" data-add-element="clock"><strong>Часы</strong><span>Несколько видов</span></button>
                 <button type="button" data-add-element="shape"><strong>Фигура</strong><span>Подложка и декор</span></button>
               </div>
-              <div class="scene-background-tools"><p class="eyebrow">ФОН СЛАЙДА</p><label class="field"><span>Цвет</span><input id="slide-background-color" type="color" value="#10141c" /></label></div>
+              <div class="scene-background-tools">
+                <p class="eyebrow">ФОН СЛАЙДА</p>
+                <label class="field"><span>Тип</span><select id="slide-background-type"><option value="color">Цвет</option><option value="image">Изображение</option><option value="video">Видео</option></select></label>
+                <label class="field"><span>Базовый цвет</span><input id="slide-background-color" type="color" value="#10141c" /></label>
+                <div id="slide-background-media" class="scene-background-media is-hidden">
+                  <label class="field"><span>Файл</span><select id="slide-background-asset"><option value="">Не выбран</option></select></label>
+                  <small id="slide-background-media-status" class="scene-media-status">Медиатека загружается…</small>
+                  <div class="scene-media-actions">
+                    <button class="button button-secondary" id="slide-background-upload" type="button">Загрузить фон</button>
+                    <button class="button button-secondary" id="slide-background-refresh" type="button">Обновить</button>
+                  </div>
+                  <input id="slide-background-upload-input" type="file" hidden />
+                </div>
+              </div>
             </aside>
 
             <section class="scene-stage-column">
@@ -94,6 +107,19 @@
                       <label><span>Цвет напитка</span><input id="table-show-color" type="checkbox" /></label>
                       <label><span>Фильтрация</span><input id="table-show-filtration" type="checkbox" /></label>
                     </div>
+                  </div>
+                </details>
+
+                <details id="media-settings" class="is-hidden" open>
+                  <summary>Медиа</summary>
+                  <div class="scene-media-settings">
+                    <label class="field"><span>Файл</span><select id="element-media-asset"><option value="">Не выбран</option></select></label>
+                    <small id="media-library-status" class="scene-media-status">Медиатека загружается…</small>
+                    <div class="scene-media-actions">
+                      <button class="button button-primary" id="element-media-upload" type="button">Загрузить новый</button>
+                      <button class="button button-secondary" id="element-media-refresh" type="button">Обновить</button>
+                    </div>
+                    <input id="element-media-upload-input" type="file" hidden />
                   </div>
                 </details>
 

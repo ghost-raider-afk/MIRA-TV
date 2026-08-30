@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'mira-tv-player-shell-v16-scene1';
-const DATA_CACHE = 'mira-tv-player-data-v16-scene1';
+const SHELL_CACHE = 'mira-tv-player-shell-v16-scene2';
+const DATA_CACHE = 'mira-tv-player-data-v16-scene2';
 const SHELL_ASSETS = [
   '/player.html',
   '/css/player.css',
@@ -69,8 +69,8 @@ async function ensureActiveAssets(values) {
   const cache = await caches.open(DATA_CACHE);
   let complete = true;
 
-  // Keep this deliberately sequential. A TV must not download a large Entity video
-  // and other media in parallel just to warm its offline cache.
+  // Keep this deliberately sequential. A TV must not download large videos
+  // in parallel just to warm its offline cache.
   for (const href of active) {
     const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
     if (await cache.match(request)) continue;
@@ -174,7 +174,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(cachedShell(event.request));
     return;
   }
-  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
+  if (/^\/site-assets\/(?:entities|media)\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
     event.respondWith(videoRequest(event.request));
     return;
   }

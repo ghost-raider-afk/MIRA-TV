@@ -13,7 +13,10 @@ export class PublishedSceneRuntime {
     this.slideIndex = 0;
     this.timer = null;
     this.active = true;
-    this.visibilityHandler = () => this.syncTimer();
+    this.visibilityHandler = () => {
+      this.syncTimer();
+      this.syncMediaPlayback();
+    };
     document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
@@ -29,6 +32,7 @@ export class PublishedSceneRuntime {
   setActive(active) {
     this.active = active === true;
     this.syncTimer();
+    this.syncMediaPlayback();
   }
 
   render(component) {
@@ -50,6 +54,7 @@ export class PublishedSceneRuntime {
     const graph = validGraph(this.component);
     if (!graph) return;
     const slide = graph.slides[this.slideIndex] || graph.slides[0];
+    const autoplayMedia = this.active && document.visibilityState !== 'hidden';
     applySceneStage(this.layer, graph, slide, { constrainAspect: false });
     renderSceneLayer(this.layer, {
       scene: graph,
@@ -57,11 +62,22 @@ export class PublishedSceneRuntime {
       context: {
         catalogStatus: 'ready',
         catalogProducts: this.component?.catalog_products || [],
+        mediaAssets: this.component?.media_assets || [],
+        autoplayMedia,
         now: new Date(),
         stageWidth: this.layer.clientWidth || graph.canvas_width
       }
     });
+    this.syncMediaPlayback();
     this.syncTimer();
+  }
+
+  syncMediaPlayback() {
+    const shouldPlay = this.active && document.visibilityState !== 'hidden' && this.enabled;
+    for (const video of this.layer.querySelectorAll('video')) {
+      if (shouldPlay) void video.play().catch(() => undefined);
+      else video.pause();
+    }
   }
 
   syncTimer() {
@@ -80,6 +96,7 @@ export class PublishedSceneRuntime {
 
   destroyScene() {
     this.clearTimer();
+    for (const video of this.layer.querySelectorAll('video')) video.pause();
     this.component = null;
     this.slideIndex = 0;
     this.layer.replaceChildren();

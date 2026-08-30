@@ -73,22 +73,38 @@ function localAsset(value) {
   }
 }
 
+function sceneAssetManifest(context) {
+  return (Array.isArray(context?.scene?.media_assets) ? context.scene.media_assets : [])
+    .map((asset) => localAsset(asset?.url))
+    .filter(Boolean);
+}
+
 function activeAssetManifest(context) {
   const assets = [
     context?.draft?.settings?.background_image_url,
     context?.entity?.asset_url,
-    context?.entity?.poster_url
+    context?.entity?.poster_url,
+    ...sceneAssetManifest(context)
   ].map(localAsset).filter(Boolean);
   return [...new Set(assets)];
 }
 
+async function fetchCriticalAsset(url, label) {
+  const response = await fetch(url, { cache: 'force-cache', credentials: 'same-origin' });
+  if (!response.ok) throw new Error(`${label} unavailable: HTTP ${response.status}`);
+}
+
 async function prepareCriticalAssets(context, changedNames) {
   const dirty = new Set(changedNames || []);
-  if (!dirty.has('menu') && !dirty.has('screen')) return;
-  const background = localAsset(context?.draft?.settings?.background_image_url);
-  if (!background) return;
-  const response = await fetch(background, { cache: 'force-cache', credentials: 'same-origin' });
-  if (!response.ok) throw new Error(`Critical Player background unavailable: HTTP ${response.status}`);
+  if (dirty.has('menu') || dirty.has('screen')) {
+    const background = localAsset(context?.draft?.settings?.background_image_url);
+    if (background) await fetchCriticalAsset(background, 'Critical Player background');
+  }
+  if (dirty.has('scene')) {
+    for (const asset of sceneAssetManifest(context)) {
+      await fetchCriticalAsset(asset, 'Critical Published Scene asset');
+    }
+  }
 }
 
 function publishActiveAssets(context) {
