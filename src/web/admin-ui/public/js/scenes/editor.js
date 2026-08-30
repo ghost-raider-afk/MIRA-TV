@@ -10,12 +10,14 @@ import {
   appendSlide,
   createElement,
   createScene,
+  duplicateElement,
   removeSlide,
   setDisplayCount,
   touchScene
 } from './model.js';
 import { createSceneRemote, getScene, updateSceneRemote } from './store.js';
 import { normaliseTableConfig, parseTargetVolumes } from './catalog-table.js';
+import { createSceneHistory } from './history.js';
 import {
   compatibleMediaAssets,
   fetchMediaAssets,
@@ -26,6 +28,7 @@ import {
 } from './media-library.js';
 
 const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
+const history = createSceneHistory({ limit: 100 });
 
 const state = {
   scene: null,
@@ -74,6 +77,10 @@ function sceneUsesMedia(scene) {
   );
 }
 
+function sceneUsesCatalog(scene) {
+  return (scene?.slides || []).some((slide) => (slide?.elements || []).some((element) => element.type === 'table'));
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, Number(value) || min));
 }
@@ -90,6 +97,51 @@ function showMessage(message, error = false) {
 function setSaveState(text) {
   const target = document.querySelector('#scene-save-state');
   if (target) target.textContent = text;
+}
+
+function renderHistoryControls() {
+  const undo = document.querySelector('#scene-undo');
+  const redo = document.querySelector('#scene-redo');
+  if (undo) undo.disabled = state.preview || state.saveConflict || !history.canUndo;
+  if (redo) redo.disabled = state.preview || state.saveConflict || !history.canRedo;
+}
+
+function recordHistory(groupKey = null) {
+  if (!state.scene || state.preview || state.saveConflict) return false;
+  const captured = history.capture(state.scene, state.selectedElementId, groupKey);
+  renderHistoryControls();
+  return captured;
+}
+
+function closeHistoryGroup() {
+  history.closeGroup();
+}
+
+function ensureDynamicDataForScene() {
+  if (sceneUsesCatalog(state.scene) && state.catalogStatus === 'idle') void loadCatalogProducts();
+  if (sceneUsesMedia(state.scene) && state.mediaStatus === 'idle') void loadMediaAssets();
+}
+
+function applyHistoryResult(result, message) {
+  if (!result || state.saveConflict) return;
+  state.scene = result.scene;
+  state.selectedElementId = result.selectedElementId;
+  if (!selectedElement()) state.selectedElementId = null;
+  touchScene(state.scene);
+  scheduleAutosave();
+  render();
+  ensureDynamicDataForScene();
+  showMessage(message);
+}
+
+function undoScene() {
+  if (state.preview) return;
+  applyHistoryResult(history.undo(state.scene, state.selectedElementId), 'Действие отменено.');
+}
+
+function redoScene() {
+  if (state.preview) return;
+  applyHistoryResult(history.redo(state.scene, state.selectedElementId), 'Действие повторено.');
 }
 
 async function persistScene({ notify = false } = {}) {
@@ -132,6 +184,7 @@ async function persistScene({ notify = false } = {}) {
       state.saveConflict = true;
       setSaveState('Конфликт изменений');
       showMessage('Сцена была изменена в другой вкладке или другим пользователем. Обновите страницу, чтобы не потерять чужие изменения.', true);
+      renderHistoryControls();
     } else {
       setSaveState('Не сохранено');
       showMessage(error?.message || 'Не удалось сохранить сцену.', true);
@@ -223,6 +276,7 @@ async function uploadForElement(file, elementId, targetType) {
     state.mediaStatus = 'ready';
     const element = findElement(elementId);
     if (element && element.type === targetType) {
+      recordHistory();
       element.asset_id = asset.id;
       touchScene(state.scene);
       scheduleAutosave();
@@ -248,6 +302,7 @@ async function uploadForBackground(file, slideId, backgroundType) {
     state.mediaStatus = 'ready';
     const slide = findSlide(slideId);
     if (slide && slide.background.type === backgroundType) {
+      recordHistory();
       slide.background.asset_id = asset.id;
       touchScene(state.scene);
       scheduleAutosave();
@@ -301,12 +356,19 @@ function installDrag(node, element) {
     const rect = stage.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const start = { x: event.clientX, y: event.clientY, elementX: element.x, elementY: element.y };
+    let captured = false;
     node.setPointerCapture(event.pointerId);
     const move = (moveEvent) => {
       const dx = (moveEvent.clientX - start.x) * (state.scene.canvas_width / rect.width);
       const dy = (moveEvent.clientY - start.y) * (state.scene.canvas_height / rect.height);
-      element.x = clamp(start.elementX + dx, 0, state.scene.canvas_width - element.width);
-      element.y = clamp(start.elementY + dy, 0, state.scene.canvas_height - element.height);
+      const nextX = clamp(start.elementX + dx, 0, state.scene.canvas_width - element.width);
+      const nextY = clamp(start.elementY + dy, 0, state.scene.canvas_height - element.height);
+      if (!captured && (nextX !== element.x || nextY !== element.y)) {
+        recordHistory(`drag:${element.id}`);
+        captured = true;
+      }
+      element.x = nextX;
+      element.y = nextY;
       touchScene(state.scene);
       applySceneElementGeometry(node, element, state.scene, rect.width);
       renderInspectorGeometry();
@@ -315,7 +377,8 @@ function installDrag(node, element) {
       node.removeEventListener('pointermove', move);
       node.removeEventListener('pointerup', stop);
       node.removeEventListener('pointercancel', stop);
-      scheduleAutosave();
+      closeHistoryGroup();
+      if (captured) scheduleAutosave();
     };
     node.addEventListener('pointermove', move);
     node.addEventListener('pointerup', stop);
@@ -331,12 +394,19 @@ function installDrag(node, element) {
     const rect = stage.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const start = { x: event.clientX, y: event.clientY, width: element.width, height: element.height };
+    let captured = false;
     handle.setPointerCapture(event.pointerId);
     const move = (moveEvent) => {
       const dx = (moveEvent.clientX - start.x) * (state.scene.canvas_width / rect.width);
       const dy = (moveEvent.clientY - start.y) * (state.scene.canvas_height / rect.height);
-      element.width = clamp(start.width + dx, 40, state.scene.canvas_width - element.x);
-      element.height = clamp(start.height + dy, 40, state.scene.canvas_height - element.y);
+      const nextWidth = clamp(start.width + dx, 40, state.scene.canvas_width - element.x);
+      const nextHeight = clamp(start.height + dy, 40, state.scene.canvas_height - element.y);
+      if (!captured && (nextWidth !== element.width || nextHeight !== element.height)) {
+        recordHistory(`resize:${element.id}`);
+        captured = true;
+      }
+      element.width = nextWidth;
+      element.height = nextHeight;
       touchScene(state.scene);
       applySceneElementGeometry(node, element, state.scene, rect.width);
       renderInspectorGeometry();
@@ -345,7 +415,8 @@ function installDrag(node, element) {
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', stop);
       handle.removeEventListener('pointercancel', stop);
-      scheduleAutosave();
+      closeHistoryGroup();
+      if (captured) scheduleAutosave();
     };
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', stop);
@@ -422,6 +493,8 @@ function renderSlides() {
     remove.disabled = state.scene.slides.length <= 1;
     remove.addEventListener('click', (event) => {
       event.stopPropagation();
+      if (state.scene.slides.length <= 1) return;
+      recordHistory();
       if (removeSlide(state.scene, slide.id)) {
         state.selectedElementId = null;
         scheduleAutosave();
@@ -534,9 +607,11 @@ function render() {
   renderElements();
   renderSlides();
   renderInspector();
+  renderHistoryControls();
 }
 
 function addElement(type) {
+  recordHistory();
   const slide = currentSlide();
   const element = createElement(type, state.scene, slide);
   slide.elements.push(element);
@@ -548,9 +623,22 @@ function addElement(type) {
   if (MEDIA_ELEMENT_TYPES.has(type) && state.mediaStatus === 'idle') void loadMediaAssets();
 }
 
-function updateSelected(mutator) {
+function duplicateSelectedElement() {
   const element = selectedElement();
   if (!element) return;
+  recordHistory();
+  const copy = duplicateElement(state.scene, currentSlide(), element.id);
+  if (!copy) return;
+  state.selectedElementId = copy.id;
+  scheduleAutosave();
+  render();
+  showMessage('Элемент продублирован.');
+}
+
+function updateSelected(mutator, { historyKey = null } = {}) {
+  const element = selectedElement();
+  if (!element) return;
+  recordHistory(historyKey);
   mutator(element);
   element.x = clamp(element.x, 0, state.scene.canvas_width - element.width);
   element.y = clamp(element.y, 0, state.scene.canvas_height - element.height);
@@ -562,13 +650,20 @@ function updateSelected(mutator) {
   renderInspector();
 }
 
+function closeHistoryOnChange(selector) {
+  const control = document.querySelector(selector);
+  control?.addEventListener('change', closeHistoryGroup);
+  control?.addEventListener('blur', closeHistoryGroup);
+}
+
 function bindTableInspector() {
   document.querySelector('#table-active-only').addEventListener('change', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.active_only = event.target.checked;
   }));
   document.querySelector('#table-row-limit').addEventListener('input', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.row_limit = Math.min(50, Math.max(1, Number(event.target.value) || 1));
-  }));
+  }, { historyKey: 'table-row-limit' }));
+  closeHistoryOnChange('#table-row-limit');
   document.querySelector('#table-volumes').addEventListener('change', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.volumes_l = parseTargetVolumes(event.target.value);
   }));
@@ -608,6 +703,7 @@ function bindMediaInspector() {
 
 function bindBackgroundControls() {
   document.querySelector('#slide-background-type').addEventListener('change', (event) => {
+    recordHistory();
     const slide = currentSlide();
     slide.background.type = event.target.value;
     slide.background.asset_id = '';
@@ -617,12 +713,15 @@ function bindBackgroundControls() {
     if (slide.background.type !== 'color' && state.mediaStatus === 'idle') void loadMediaAssets();
   });
   document.querySelector('#slide-background-color').addEventListener('input', (event) => {
+    recordHistory('slide-background-color');
     currentSlide().background.color = event.target.value;
     touchScene(state.scene);
     scheduleAutosave();
     applySceneStage(document.querySelector('#scene-stage'), state.scene, currentSlide());
   });
+  closeHistoryOnChange('#slide-background-color');
   document.querySelector('#slide-background-asset').addEventListener('change', (event) => {
+    recordHistory();
     currentSlide().background.asset_id = event.target.value;
     touchScene(state.scene);
     scheduleAutosave();
@@ -648,13 +747,18 @@ function bindBackgroundControls() {
 
 function bindInspector() {
   [['#element-x', 'x'], ['#element-y', 'y'], ['#element-width', 'width'], ['#element-height', 'height']].forEach(([selector, key]) => {
-    document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }));
+    document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }, { historyKey: `geometry:${key}` }));
+    closeHistoryOnChange(selector);
   });
-  document.querySelector('#element-content').addEventListener('input', (event) => updateSelected((element) => { element.content = event.target.value; }));
-  document.querySelector('#element-color').addEventListener('input', (event) => updateSelected((element) => { element.style.color = event.target.value; }));
+  document.querySelector('#element-content').addEventListener('input', (event) => updateSelected((element) => { element.content = event.target.value; }, { historyKey: 'element-content' }));
+  closeHistoryOnChange('#element-content');
+  document.querySelector('#element-color').addEventListener('input', (event) => updateSelected((element) => { element.style.color = event.target.value; }, { historyKey: 'element-color' }));
+  closeHistoryOnChange('#element-color');
   document.querySelector('#element-background').addEventListener('change', (event) => updateSelected((element) => { element.style.background = event.target.value || 'transparent'; }));
-  document.querySelector('#element-font-size').addEventListener('input', (event) => updateSelected((element) => { element.style.font_size = Number(event.target.value); }));
-  document.querySelector('#element-opacity').addEventListener('input', (event) => updateSelected((element) => { element.opacity = Number(event.target.value); }));
+  document.querySelector('#element-font-size').addEventListener('input', (event) => updateSelected((element) => { element.style.font_size = Number(event.target.value); }, { historyKey: 'element-font-size' }));
+  closeHistoryOnChange('#element-font-size');
+  document.querySelector('#element-opacity').addEventListener('input', (event) => updateSelected((element) => { element.opacity = Number(event.target.value); }, { historyKey: 'element-opacity' }));
+  closeHistoryOnChange('#element-opacity');
   document.querySelector('#element-variant').addEventListener('change', (event) => updateSelected((element) => { element.variant = event.target.value; }));
   document.querySelector('#element-shadow').addEventListener('change', (event) => updateSelected((element) => { element.effects.shadow = event.target.checked; }));
   document.querySelector('#element-glow').addEventListener('change', (event) => updateSelected((element) => { element.effects.glow = event.target.checked; }));
@@ -666,12 +770,14 @@ function bindInspector() {
     const slide = currentSlide();
     const index = slide.elements.findIndex((item) => item.id === state.selectedElementId);
     if (index < 0) return;
+    recordHistory();
     slide.elements.splice(index, 1);
     state.selectedElementId = null;
     touchScene(state.scene);
     scheduleAutosave();
     render();
   });
+  document.querySelector('#element-duplicate').addEventListener('click', duplicateSelectedElement);
   document.querySelector('#element-forward').addEventListener('click', () => updateSelected((element) => {
     const max = Math.max(0, ...currentSlide().elements.map((item) => item.z_index));
     element.z_index = max + 1;
@@ -681,6 +787,40 @@ function bindInspector() {
   }));
   bindTableInspector();
   bindMediaInspector();
+}
+
+function editableFocus() {
+  return document.activeElement?.matches('input,select,textarea,[contenteditable="true"]');
+}
+
+function bindKeyboardShortcuts() {
+  window.addEventListener('keydown', (event) => {
+    if (state.preview) return;
+    const key = event.key.toLowerCase();
+    const command = event.ctrlKey || event.metaKey;
+    const editing = editableFocus();
+
+    if (command && !editing && key === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) redoScene();
+      else undoScene();
+      return;
+    }
+    if (command && !editing && key === 'y') {
+      event.preventDefault();
+      redoScene();
+      return;
+    }
+    if (command && !editing && key === 'd' && state.selectedElementId) {
+      event.preventDefault();
+      duplicateSelectedElement();
+      return;
+    }
+    if (event.key === 'Delete' && state.selectedElementId && !editing) {
+      event.preventDefault();
+      document.querySelector('#element-delete').click();
+    }
+  });
 }
 
 function bindGlobalControls() {
@@ -693,18 +833,24 @@ function bindGlobalControls() {
     renderElements();
     renderInspector();
   });
+  document.querySelector('#scene-undo').addEventListener('click', undoScene);
+  document.querySelector('#scene-redo').addEventListener('click', redoScene);
   document.querySelector('#scene-save').addEventListener('click', () => void persistScene({ notify: true }));
   document.querySelector('#scene-name').addEventListener('input', (event) => {
+    recordHistory('scene-name');
     state.scene.name = event.target.value;
     touchScene(state.scene);
     scheduleAutosave();
   });
+  closeHistoryOnChange('#scene-name');
   document.querySelector('#scene-display-count').addEventListener('change', (event) => {
+    recordHistory();
     setDisplayCount(state.scene, Number(event.target.value));
     scheduleAutosave();
     render();
   });
   document.querySelector('#add-slide').addEventListener('click', () => {
+    recordHistory();
     appendSlide(state.scene);
     state.selectedElementId = null;
     scheduleAutosave();
@@ -712,14 +858,11 @@ function bindGlobalControls() {
   });
   document.querySelector('#scene-preview-toggle').addEventListener('click', (event) => {
     state.preview = !state.preview;
+    closeHistoryGroup();
     event.target.textContent = state.preview ? 'Вернуться в редактор' : 'Предпросмотр';
     render();
   });
-  window.addEventListener('keydown', (event) => {
-    if (event.key !== 'Delete' || !state.selectedElementId || state.preview) return;
-    if (document.activeElement?.matches('input,select,textarea')) return;
-    document.querySelector('#element-delete').click();
-  });
+  bindKeyboardShortcuts();
   window.addEventListener('beforeunload', (event) => {
     if (state.dirtyVersion <= state.savedVersion && !state.saving) return;
     event.preventDefault();
@@ -757,12 +900,10 @@ export async function initialiseSceneEditor() {
   state.dirtyVersion = 0;
   state.savedVersion = 0;
   state.saveConflict = false;
+  history.reset();
   bindInspector();
   bindGlobalControls();
   setSaveState('Сохранено');
   render();
-  if (state.scene.slides.some((slide) => slide.elements.some((element) => element.type === 'table'))) {
-    void loadCatalogProducts();
-  }
-  if (sceneUsesMedia(state.scene)) void loadMediaAssets();
+  ensureDynamicDataForScene();
 }

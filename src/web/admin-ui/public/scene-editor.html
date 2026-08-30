@@ -34,6 +34,8 @@
                   <option value="6">6 TV · 11520×1080</option>
                 </select>
               </label>
+              <button class="button button-secondary" id="scene-undo" type="button" title="Отменить · Ctrl/⌘ Z" disabled>↶ Отменить</button>
+              <button class="button button-secondary" id="scene-redo" type="button" title="Повторить · Ctrl/⌘ Shift Z" disabled>↷ Повторить</button>
               <button class="button button-secondary" id="scene-preview-toggle" type="button">Предпросмотр</button>
               <button class="button button-secondary" id="scene-save" type="button">Сохранить</button>
               <button class="button button-primary" id="scene-publish" type="button">Опубликовать</button>
@@ -85,7 +87,7 @@
               <div class="scene-panel-heading"><p class="eyebrow">СВОЙСТВА</p><h2 id="inspector-title">Слайд</h2></div>
               <div id="inspector-empty" class="scene-inspector-empty">Выберите элемент на холсте, чтобы изменить его параметры.</div>
               <div id="inspector-fields" class="scene-inspector-fields is-hidden">
-                <div class="scene-inspector-actions"><button class="button button-secondary" id="element-backward" type="button">Слой −</button><button class="button button-secondary" id="element-forward" type="button">Слой +</button><button class="button button-danger" id="element-delete" type="button">Удалить</button></div>
+                <div class="scene-inspector-actions"><button class="button button-secondary" id="element-backward" type="button">Слой −</button><button class="button button-secondary" id="element-forward" type="button">Слой +</button><button class="button button-secondary" id="element-duplicate" type="button" title="Дублировать · Ctrl/⌘ D">Копия</button><button class="button button-danger" id="element-delete" type="button">Удалить</button></div>
                 <div class="geometry-grid">
                   <label class="field"><span>X</span><input id="element-x" type="number" min="0" step="1" /></label>
                   <label class="field"><span>Y</span><input id="element-y" type="number" min="0" step="1" /></label>

@@ -106,6 +106,20 @@ export function createElement(type, scene, slide) {
   };
 }
 
+export function duplicateElement(scene, slide, elementId, offset = 32) {
+  const source = slide?.elements?.find((element) => element.id === elementId);
+  if (!source) return null;
+  const copy = deepClone(source);
+  copy.id = id('element');
+  const shift = Math.max(0, Number(offset) || 0);
+  copy.x = clamp(source.x + shift, 0, Math.max(0, scene.canvas_width - source.width));
+  copy.y = clamp(source.y + shift, 0, Math.max(0, scene.canvas_height - source.height));
+  copy.z_index = Math.max(0, ...slide.elements.map((element) => Number(element.z_index) || 0)) + 1;
+  slide.elements.push(copy);
+  touchScene(scene);
+  return copy;
+}
+
 export function appendSlide(scene) {
   const slide = createSlide(scene.slides.length + 1);
   scene.slides.push(slide);
