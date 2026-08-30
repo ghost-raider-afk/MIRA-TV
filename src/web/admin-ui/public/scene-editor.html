@@ -83,9 +83,20 @@
               </div>
             </section>
 
-            <aside class="scene-inspector" aria-label="Свойства выбранного элемента">
+            <aside class="scene-inspector" aria-label="Свойства выбранного элемента или слайда">
               <div class="scene-panel-heading"><p class="eyebrow">СВОЙСТВА</p><h2 id="inspector-title">Слайд</h2></div>
-              <div id="inspector-empty" class="scene-inspector-empty">Выберите элемент на холсте, чтобы изменить его параметры.</div>
+
+              <div id="slide-inspector-fields" class="scene-inspector-fields">
+                <label class="field"><span>Название слайда</span><input id="slide-name" maxlength="120" autocomplete="off" /></label>
+                <label class="field"><span>Длительность, сек</span><input id="slide-duration" type="number" min="1" max="3600" step="1" inputmode="numeric" /></label>
+                <label class="field"><span>Переход</span><select id="slide-transition"><option value="none">Без перехода</option><option value="fade">Fade</option><option value="slide">Slide</option><option value="zoom">Zoom</option><option value="wipe">Wipe</option><option value="crossfade">Crossfade</option></select></label>
+                <div class="scene-inspector-actions">
+                  <button class="button button-secondary" id="slide-duplicate" type="button">Дублировать</button>
+                  <button class="button button-danger" id="slide-delete" type="button">Удалить</button>
+                </div>
+                <small class="scene-media-status">Изменения слайда сохраняются автоматически и участвуют в Undo/Redo.</small>
+              </div>
+
               <div id="inspector-fields" class="scene-inspector-fields is-hidden">
                 <div class="scene-inspector-actions"><button class="button button-secondary" id="element-backward" type="button">Слой −</button><button class="button button-secondary" id="element-forward" type="button">Слой +</button><button class="button button-secondary" id="element-duplicate" type="button" title="Дублировать · Ctrl/⌘ D">Копия</button><button class="button button-danger" id="element-delete" type="button">Удалить</button></div>
                 <div class="geometry-grid">

@@ -11,6 +11,7 @@ import {
   createElement,
   createScene,
   duplicateElement,
+  duplicateSlide,
   removeSlide,
   setDisplayCount,
   touchScene
@@ -477,10 +478,11 @@ function renderSlides() {
     button.classList.toggle('active', slide.id === state.scene.active_slide_id);
     appendTextElement(button, 'span', String(index + 1));
     appendTextElement(button, 'strong', slide.name);
-    appendTextElement(button, 'small', `${Math.round(slide.duration_ms / 1000)} сек · ${slide.elements.length} эл.`);
+    appendTextElement(button, 'small', `${Math.round(slide.duration_ms / 1000)} сек · ${slide.transition} · ${slide.elements.length} эл.`);
     button.addEventListener('click', () => {
       state.scene.active_slide_id = slide.id;
       state.selectedElementId = null;
+      closeHistoryGroup();
       render();
       if (slide.background.type !== 'color' && state.mediaStatus === 'idle') void loadMediaAssets();
     });
@@ -551,6 +553,14 @@ function renderMediaInspector(element) {
   input.accept = mediaAcceptForTarget(element.type);
 }
 
+function renderSlideInspector() {
+  const slide = currentSlide();
+  document.querySelector('#slide-name').value = slide.name || '';
+  document.querySelector('#slide-duration').value = String(Math.max(1, Math.round((Number(slide.duration_ms) || 10000) / 1000)));
+  document.querySelector('#slide-transition').value = slide.transition || 'fade';
+  document.querySelector('#slide-delete').disabled = state.scene.slides.length <= 1;
+}
+
 function renderBackgroundControls() {
   if (!state.scene) return;
   const background = currentSlide().background;
@@ -570,10 +580,13 @@ function renderBackgroundControls() {
 
 function renderInspector() {
   const element = selectedElement();
-  document.querySelector('#inspector-empty').classList.toggle('is-hidden', Boolean(element));
-  document.querySelector('#inspector-fields').classList.toggle('is-hidden', !element);
+  const slideFields = document.querySelector('#slide-inspector-fields');
+  const elementFields = document.querySelector('#inspector-fields');
+  slideFields.classList.toggle('is-hidden', Boolean(element));
+  elementFields.classList.toggle('is-hidden', !element);
   document.querySelector('#inspector-title').textContent = element ? SCENE_ELEMENT_LABELS[element.type] : 'Слайд';
   if (!element) {
+    renderSlideInspector();
     renderTableInspector(null);
     renderMediaInspector(null);
     return;
@@ -635,6 +648,30 @@ function duplicateSelectedElement() {
   showMessage('Элемент продублирован.');
 }
 
+function duplicateCurrentSlide() {
+  const slide = currentSlide();
+  if (!slide) return;
+  recordHistory();
+  const copy = duplicateSlide(state.scene, slide.id);
+  if (!copy) return;
+  state.selectedElementId = null;
+  scheduleAutosave();
+  render();
+  ensureDynamicDataForScene();
+  showMessage('Слайд продублирован.');
+}
+
+function removeCurrentSlide() {
+  if (state.scene.slides.length <= 1) return;
+  const slide = currentSlide();
+  recordHistory();
+  if (!removeSlide(state.scene, slide.id)) return;
+  state.selectedElementId = null;
+  scheduleAutosave();
+  render();
+  showMessage('Слайд удалён.');
+}
+
 function updateSelected(mutator, { historyKey = null } = {}) {
   const element = selectedElement();
   if (!element) return;
@@ -654,6 +691,58 @@ function closeHistoryOnChange(selector) {
   const control = document.querySelector(selector);
   control?.addEventListener('change', closeHistoryGroup);
   control?.addEventListener('blur', closeHistoryGroup);
+}
+
+function bindSlideInspector() {
+  const name = document.querySelector('#slide-name');
+  name.addEventListener('input', (event) => {
+    const value = String(event.target.value || '').slice(0, 120);
+    if (!value.trim() || value === currentSlide().name) return;
+    recordHistory('slide-name');
+    currentSlide().name = value;
+    touchScene(state.scene);
+    scheduleAutosave();
+    renderSlides();
+  });
+  name.addEventListener('blur', (event) => {
+    closeHistoryGroup();
+    const value = String(event.target.value || '').trim();
+    if (!value) {
+      event.target.value = currentSlide().name;
+      return;
+    }
+    if (value === currentSlide().name) return;
+    recordHistory();
+    currentSlide().name = value;
+    touchScene(state.scene);
+    scheduleAutosave();
+    renderSlides();
+  });
+
+  document.querySelector('#slide-duration').addEventListener('change', (event) => {
+    const seconds = Math.min(3600, Math.max(1, Math.round(Number(event.target.value) || 1)));
+    event.target.value = String(seconds);
+    const duration = seconds * 1000;
+    if (duration === currentSlide().duration_ms) return;
+    recordHistory();
+    currentSlide().duration_ms = duration;
+    touchScene(state.scene);
+    scheduleAutosave();
+    renderSlides();
+  });
+
+  document.querySelector('#slide-transition').addEventListener('change', (event) => {
+    const value = event.target.value;
+    if (value === currentSlide().transition) return;
+    recordHistory();
+    currentSlide().transition = value;
+    touchScene(state.scene);
+    scheduleAutosave();
+    renderSlides();
+  });
+
+  document.querySelector('#slide-duplicate').addEventListener('click', duplicateCurrentSlide);
+  document.querySelector('#slide-delete').addEventListener('click', removeCurrentSlide);
 }
 
 function bindTableInspector() {
@@ -746,6 +835,7 @@ function bindBackgroundControls() {
 }
 
 function bindInspector() {
+  bindSlideInspector();
   [['#element-x', 'x'], ['#element-y', 'y'], ['#element-width', 'width'], ['#element-height', 'height']].forEach(([selector, key]) => {
     document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }, { historyKey: `geometry:${key}` }));
     closeHistoryOnChange(selector);
