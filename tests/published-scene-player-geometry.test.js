@@ -6,12 +6,16 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('shared renderer keeps authoring aspect ratio optional for fixed runtime hosts', async () => {
-  const renderer = await read('src/web/admin-ui/public/js/scene-runtime/renderer.js');
-  const runtime = await read('src/web/admin-ui/public/js/player/published-scene-runtime.js');
+  const [renderer, playback, runtime] = await Promise.all([
+    read('src/web/admin-ui/public/js/scene-runtime/renderer.js'),
+    read('src/web/admin-ui/public/js/scene-runtime/playback.js'),
+    read('src/web/admin-ui/public/js/player/published-scene-runtime.js')
+  ]);
 
   assert.match(renderer, /applySceneStage\(stage, scene, slide, \{ constrainAspect = true \} = \{\}\)/);
   assert.match(renderer, /stage\.style\.aspectRatio = constrainAspect \?/);
-  assert.match(runtime, /applySceneStage\(this\.layer, graph, slide, \{ constrainAspect: false \}\)/);
+  assert.match(playback, /applySceneStage\(this\.stage, scene, slide, \{ constrainAspect: this\.stage !== this\.layer \}\)/);
+  assert.match(runtime, /new ScenePlaybackRuntime\(\{ stage: layer, layer \}\)/);
 });
 
 test('published Scene owns a fullscreen isolated Player layer', async () => {
