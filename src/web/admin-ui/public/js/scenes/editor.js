@@ -8,6 +8,7 @@ import {
   updateSceneClockElements,
   updateSceneWeatherElements
 } from '../scene-runtime/renderer.js';
+import { ScenePlaybackRuntime } from '../scene-runtime/playback.js';
 import {
   appendSlide,
   createElement,
@@ -72,8 +73,14 @@ const state = {
   saveConflict: false
 };
 
+let previewRuntime = null;
+
 function currentSlide() {
   return state.scene.slides.find((slide) => slide.id === state.scene.active_slide_id) || state.scene.slides[0];
+}
+
+function displayedSlide() {
+  return state.preview && previewRuntime?.enabled ? previewRuntime.currentSlide : currentSlide();
 }
 
 function selectedElement() {
@@ -143,12 +150,16 @@ function closeHistoryGroup() {
   history.closeGroup();
 }
 
+function ensureWeatherForSlide(slide) {
+  for (const element of slide?.elements || []) {
+    if (element.type === 'weather') void loadWeatherForElement(element);
+  }
+}
+
 function ensureDynamicDataForScene() {
   if (sceneUsesCatalog(state.scene) && state.catalogStatus === 'idle') void loadCatalogProducts();
   if (sceneUsesMedia(state.scene) && state.mediaStatus === 'idle') void loadMediaAssets();
-  for (const element of currentSlide()?.elements || []) {
-    if (element.type === 'weather') void loadWeatherForElement(element);
-  }
+  ensureWeatherForSlide(displayedSlide());
 }
 
 function applyHistoryResult(result, message) {
@@ -236,6 +247,18 @@ function scheduleAutosave() {
   state.autosaveTimer = window.setTimeout(() => void persistScene(), 650);
 }
 
+function sceneRendererContext() {
+  return {
+    catalogProducts: state.catalogProducts,
+    catalogStatus: state.catalogStatus,
+    catalogError: state.catalogError,
+    mediaAssets: state.mediaAssets,
+    weatherByElement: state.weatherByElement,
+    autoplayMedia: state.preview,
+    now: new Date()
+  };
+}
+
 async function loadCatalogProducts({ force = false } = {}) {
   if (!force && (state.catalogStatus === 'loading' || state.catalogStatus === 'ready')) return;
   state.catalogStatus = 'loading';
@@ -282,7 +305,8 @@ async function loadWeatherForElement(element, { force = false } = {}) {
   if (location.length < 2) {
     delete state.weatherByElement[id];
     state.weatherStatus[id] = { state: 'idle', location, error: '' };
-    updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), currentSlide(), { weatherByElement: state.weatherByElement });
+    if (state.preview && previewRuntime?.enabled) previewRuntime.updateContext(sceneRendererContext(), { weatherOnly: true });
+    else updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), currentSlide(), { weatherByElement: state.weatherByElement });
     if (state.selectedElementId === id) renderWeatherInspector(element);
     return;
   }
@@ -293,7 +317,8 @@ async function loadWeatherForElement(element, { force = false } = {}) {
   state.weatherRequestVersion[id] = version;
   state.weatherStatus[id] = { state: 'loading', location, error: '' };
   delete state.weatherByElement[id];
-  updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), currentSlide(), { weatherByElement: state.weatherByElement });
+  if (state.preview && previewRuntime?.enabled) previewRuntime.updateContext(sceneRendererContext(), { weatherOnly: true });
+  else updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), currentSlide(), { weatherByElement: state.weatherByElement });
   if (state.selectedElementId === id) renderWeatherInspector(element);
 
   try {
@@ -307,9 +332,13 @@ async function loadWeatherForElement(element, { force = false } = {}) {
     state.weatherStatus[id] = { state: 'error', location, error: error?.message || 'Погода недоступна' };
   }
 
-  const slide = currentSlide();
-  if ((slide.elements || []).some((item) => item.id === id)) {
-    updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), slide, { weatherByElement: state.weatherByElement });
+  if (state.preview && previewRuntime?.enabled) {
+    previewRuntime.updateContext(sceneRendererContext(), { weatherOnly: true });
+  } else {
+    const slide = currentSlide();
+    if ((slide.elements || []).some((item) => item.id === id)) {
+      updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), slide, { weatherByElement: state.weatherByElement });
+    }
   }
   if (state.selectedElementId === id) renderWeatherInspector(findElement(id));
 }
@@ -513,26 +542,16 @@ function decorateEditorElement(node, element) {
   installDrag(node, element);
 }
 
-function rendererMediaContext() {
-  return {
-    mediaAssets: state.mediaAssets,
-    autoplayMedia: state.preview
-  };
-}
-
 function renderElements() {
+  if (state.preview && previewRuntime?.enabled) {
+    previewRuntime.updateContext(sceneRendererContext());
+    return;
+  }
   const layer = document.querySelector('#scene-elements-layer');
   renderSceneLayer(layer, {
     scene: state.scene,
     slide: currentSlide(),
-    context: {
-      catalogProducts: state.catalogProducts,
-      catalogStatus: state.catalogStatus,
-      catalogError: state.catalogError,
-      weatherByElement: state.weatherByElement,
-      now: new Date(),
-      ...rendererMediaContext()
-    },
+    context: sceneRendererContext(),
     decorate: decorateEditorElement
   });
   syncClockTimer();
@@ -718,7 +737,7 @@ function render() {
   document.querySelector('#scene-name').value = scene.name;
   document.querySelector('#scene-display-count').value = String(scene.display_count);
   document.querySelector('#scene-resolution-label').textContent = `${scene.canvas_width} × ${scene.canvas_height}`;
-  applySceneStage(document.querySelector('#scene-stage'), scene, currentSlide());
+  applySceneStage(document.querySelector('#scene-stage'), scene, displayedSlide());
   renderBackgroundControls();
   renderGuides();
   renderElements();
@@ -1076,11 +1095,25 @@ function bindGlobalControls() {
     render();
   });
   document.querySelector('#scene-preview-toggle').addEventListener('click', (event) => {
-    state.preview = !state.preview;
+    if (!state.preview) {
+      state.preview = true;
+      closeHistoryGroup();
+      event.target.textContent = 'Вернуться в редактор';
+      render();
+      previewRuntime.load(state.scene, sceneRendererContext(), {
+        startSlideId: state.scene.active_slide_id,
+        preserveSlide: false,
+        animateEntrance: true
+      });
+      ensureDynamicDataForScene();
+      syncClockTimer();
+      return;
+    }
+    previewRuntime.clear();
+    state.preview = false;
     closeHistoryGroup();
-    event.target.textContent = state.preview ? 'Вернуться в редактор' : 'Предпросмотр';
+    event.target.textContent = 'Предпросмотр';
     render();
-    ensureDynamicDataForScene();
   });
   bindKeyboardShortcuts();
   window.addEventListener('beforeunload', (event) => {
@@ -1094,6 +1127,7 @@ function bindGlobalControls() {
 function syncClockTimer() {
   window.clearTimeout(state.clockTimer);
   state.clockTimer = null;
+  if (state.preview && previewRuntime?.enabled) return;
   const slide = currentSlide();
   const clocks = (slide?.elements || []).filter((element) => element.type === 'clock');
   if (!clocks.length || document.visibilityState === 'hidden') return;
@@ -1126,6 +1160,12 @@ export async function initialiseSceneEditor() {
   state.weatherStatus = {};
   state.weatherRequestVersion = {};
   history.reset();
+  previewRuntime = new ScenePlaybackRuntime({
+    stage: document.querySelector('#scene-stage'),
+    layer: document.querySelector('#scene-elements-layer'),
+    onSlideChange: ensureWeatherForSlide
+  });
+  previewRuntime.clear();
   bindInspector();
   bindGlobalControls();
   document.addEventListener('visibilitychange', syncClockTimer);

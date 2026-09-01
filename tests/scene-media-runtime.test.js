@@ -30,10 +30,11 @@ test('Scene Editor uses first-class Media Library instead of arbitrary asset URL
 });
 
 test('Shared Scene Renderer owns image, logo, video and media background rendering', async () => {
-  const [renderer, styles, playerRuntime] = await Promise.all([
+  const [renderer, styles, playerRuntime, playback] = await Promise.all([
     read('src/web/admin-ui/public/js/scene-runtime/renderer.js'),
     read('src/web/admin-ui/public/css/scene-renderer.css'),
-    read('src/web/admin-ui/public/js/player/published-scene-runtime.js')
+    read('src/web/admin-ui/public/js/player/published-scene-runtime.js'),
+    read('src/web/admin-ui/public/js/scene-runtime/playback.js')
   ]);
 
   assert.match(renderer, /document\.createElement\('img'\)/);
@@ -43,9 +44,9 @@ test('Shared Scene Renderer owns image, logo, video and media background renderi
   assert.match(renderer, /createSceneBackgroundNode/);
   assert.match(styles, /\.scene-media-logo \{ object-fit: contain; \}/);
   assert.match(styles, /\.scene-render-background/);
-  assert.match(playerRuntime, /mediaAssets: this\.component\?\.media_assets \|\| \[\]/);
-  assert.match(playerRuntime, /video\.pause\(\)/);
-  assert.match(playerRuntime, /document\.visibilityState !== 'hidden'/);
+  assert.match(playerRuntime, /mediaAssets: component\?\.media_assets \|\| \[\]/);
+  assert.match(playback, /video\.pause\(\)/);
+  assert.match(playback, /document\.visibilityState !== 'hidden'/);
 });
 
 test('Published Scene assets are prepared before LKG activation and cached offline', async () => {
@@ -59,7 +60,7 @@ test('Published Scene assets are prepared before LKG activation and cached offli
   assert.match(sync, /for \(const asset of sceneAssetManifest\(context\)\)/);
   assert.match(sync, /await fetchCriticalAsset\(asset, 'Critical Published Scene asset'\)/);
   assert.match(sync, /await prepareCriticalAssets\(context, changedNames\);[\s\S]*await applyContext/);
-  assert.match(worker, /mira-tv-player-shell-v16-scene4/);
+  assert.match(worker, /mira-tv-player-shell-v16-scene5/);
   assert.match(worker, /\(\?:entities\|media\)/);
   assert.match(worker, /ensureActiveAssets/);
 });

@@ -119,12 +119,13 @@ test('Player state resolves weather through MIRA-TV and exposes refresh interval
   }
 });
 
-test('Informer UI and Player refresh clocks without rebuilding the whole Scene', async () => {
-  const [editor, html, renderer, runtime, sync, worker] = await Promise.all([
+test('Informer UI and shared playback refresh clocks without rebuilding the whole Scene', async () => {
+  const [editor, html, renderer, runtime, playback, sync, worker] = await Promise.all([
     read('src/web/admin-ui/public/js/scenes/editor.js'),
     read('src/web/admin-ui/public/scene-editor.html'),
     read('src/web/admin-ui/public/js/scene-runtime/renderer.js'),
     read('src/web/admin-ui/public/js/player/published-scene-runtime.js'),
+    read('src/web/admin-ui/public/js/scene-runtime/playback.js'),
     read('src/web/admin-ui/public/js/player/player-state-sync.js'),
     read('src/web/admin-ui/public/player-sw.js')
   ]);
@@ -137,10 +138,11 @@ test('Informer UI and Player refresh clocks without rebuilding the whole Scene',
   assert.match(editor, /updateSceneClockElements/);
   assert.match(renderer, /variant === 'analog'/);
   assert.match(renderer, /variant === 'forecast'/);
-  assert.match(runtime, /weatherByElement: this\.component\?\.weather_by_element \|\| \{\}/);
-  assert.match(runtime, /updateSceneClockElements/);
+  assert.match(runtime, /weatherByElement: component\?\.weather_by_element \|\| \{\}/);
+  assert.match(playback, /updateSceneClockElements/);
+  assert.match(playback, /syncClockTimer\(\)/);
   assert.match(sync, /weather_refresh_interval_ms/);
   assert.match(sync, /syncNow\('weather-refresh'\)/);
   assert.match(sync, /clearWeatherTimer\(\)/);
-  assert.match(worker, /mira-tv-player-shell-v16-scene4/);
+  assert.match(worker, /mira-tv-player-shell-v16-scene5/);
 });

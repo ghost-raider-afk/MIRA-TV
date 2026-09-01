@@ -6,9 +6,9 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('shared Scene animation runtime owns transitions and element entrance/exit', async () => {
-  const [animation, player, styles] = await Promise.all([
+  const [animation, playback, styles] = await Promise.all([
     read('src/web/admin-ui/public/js/scene-runtime/animation.js'),
-    read('src/web/admin-ui/public/js/player/published-scene-runtime.js'),
+    read('src/web/admin-ui/public/js/scene-runtime/playback.js'),
     read('src/web/admin-ui/public/css/scene-renderer.css')
   ]);
 
@@ -20,9 +20,12 @@ test('shared Scene animation runtime owns transitions and element entrance/exit'
   assert.match(animation, /node\.animate\(keyframes/);
   assert.match(animation, /prefers-reduced-motion/);
   assert.doesNotMatch(animation, /requestAnimationFrame/);
-  assert.match(player, /transitionSceneLayer/);
-  assert.match(player, /playSceneElementEntrances/);
-  assert.match(player, /void this\.advanceSlide\(\)/);
+  assert.match(playback, /transitionSceneLayer/);
+  assert.match(playback, /playSceneElementEntrances/);
+  assert.match(playback, /void this\.advanceSlide\(\)/);
+  assert.match(playback, /syncClockTimer\(\)/);
+  assert.match(playback, /syncMediaPlayback\(\)/);
+  assert.doesNotMatch(playback, /requestAnimationFrame/);
   assert.match(styles, /\.scene-transition-frame/);
 });
 
@@ -37,10 +40,25 @@ test('slide transition keeps outgoing and incoming frames alive during WAAPI ani
   assert.match(animation, /moveChildren\(incoming, layer\)/);
 });
 
-test('dynamic weather does not cancel an in-flight slide transition', async () => {
-  const player = await read('src/web/admin-ui/public/js/player/published-scene-runtime.js');
-  assert.match(player, /if \(onlyDynamicDataChanged\) \{/);
-  assert.match(player, /if \(!this\.transitioning\) \{[\s\S]*updateSceneWeatherElements/);
-  assert.match(player, /this\.transitioning = true/);
-  assert.match(player, /updateSceneWeatherElements\(this\.layer, activeSlide\(this\)/);
+test('Editor Preview and Published Player delegate to one ScenePlaybackRuntime', async () => {
+  const [editor, player, playback] = await Promise.all([
+    read('src/web/admin-ui/public/js/scenes/editor.js'),
+    read('src/web/admin-ui/public/js/player/published-scene-runtime.js'),
+    read('src/web/admin-ui/public/js/scene-runtime/playback.js')
+  ]);
+
+  assert.match(editor, /import \{ ScenePlaybackRuntime \} from '\.\.\/scene-runtime\/playback\.js'/);
+  assert.match(editor, /previewRuntime = new ScenePlaybackRuntime/);
+  assert.match(editor, /previewRuntime\.load\(state\.scene, sceneRendererContext\(\)/);
+  assert.match(editor, /previewRuntime\.clear\(\)/);
+  assert.doesNotMatch(editor, /transitionSceneLayer/);
+
+  assert.match(player, /import \{ ScenePlaybackRuntime \} from '\.\.\/scene-runtime\/playback\.js'/);
+  assert.match(player, /this\.playback = new ScenePlaybackRuntime/);
+  assert.match(player, /this\.playback\.load\(graph, this\.rendererContext\(\)/);
+  assert.match(player, /this\.playback\.updateContext\(this\.rendererContext\(\), \{ weatherOnly: true \}\)/);
+
+  assert.match(playback, /this\.transitioning = true/);
+  assert.match(playback, /if \(!this\.enabled \|\| this\.transitioning\) return/);
+  assert.match(playback, /updateSceneWeatherElements\(this\.layer, this\.currentSlide/);
 });
