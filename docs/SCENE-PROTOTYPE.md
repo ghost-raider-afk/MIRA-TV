@@ -19,10 +19,12 @@
 - свойства активного Slide: название, длительность, переход, дублирование, удаление;
 - базовые текстовые и визуальные свойства;
 - тень и свечение;
-- каркас Entrance/Loop/Exit;
+- Entrance/Loop/Exit элементов исполняются runtime, а не остаются только настройками;
+- Slide transitions: fade, crossfade, slide, zoom, wipe;
 - фон слайда: цвет, изображение или видео;
 - Preview;
 - общий `scene-runtime/renderer.js` для Editor Preview и нового Player runtime;
+- общий `scene-runtime/playback.js` для Editor Preview и TV Player;
 - Editor добавляет поверх renderer-ноды только selection, drag, resize и Inspector.
 
 ### Draft и серверное хранение
@@ -51,10 +53,15 @@
 - Player Context содержит Scene как отдельный hash-компонент;
 - изменение Scene не заставляет передавать неизменившиеся legacy-компоненты;
 - Player отображает Published Scene тем же shared Renderer, что используется Preview;
+- Preview и Player используют один `ScenePlaybackRuntime` для Slide timeline, переходов, Clock ticks и media pause/resume;
+- Preview не изменяет `active_slide_id` Draft во время просмотра;
 - Published Scene имеет отдельный fullscreen Player layer;
 - authoring `aspect-ratio` не навязывается физическому Player viewport;
 - при активной Published Scene legacy menu/motion runtime останавливается и его слои скрываются;
 - после снятия Assignment legacy runtime восстанавливается;
+- при переходе outgoing и incoming Slide существуют одновременно до завершения эффекта, поэтому видео предыдущего Slide не уничтожается раньше времени;
+- переходы и Entrance/Exit используют WAAPI и не требуют постоянного JavaScript `requestAnimationFrame`;
+- учитывается `prefers-reduced-motion`;
 - несколько Slides переключаются одним таймером без постоянного JavaScript render-loop;
 - при скрытой странице таймеры Slide, Clock и Weather не выполняют бесполезную работу.
 
@@ -106,7 +113,7 @@
 - серверная запись идемпотентна по `(device_id, boot_id, seq)`;
 - неудачная отправка логов после восстановления сети автоматически повторяется;
 - Last Known Good хранится локально;
-- offline shell содержит модули и CSS Published Scene Renderer, поэтому cold restart без сети не должен зависеть от уже загруженных в память модулей.
+- offline shell содержит Renderer, Animation и ScenePlaybackRuntime, поэтому cold restart без сети не должен зависеть от уже загруженных в память модулей.
 
 ### Проверки
 
@@ -116,6 +123,8 @@
 
 - Scene Schema и server revision;
 - shared Renderer boundary;
+- Preview/Player `ScenePlaybackRuntime` parity;
+- Slide transitions и Entrance/Exit runtime;
 - immutable publication/Assignment;
 - PostgreSQL-пути `Draft → Revision → Assignment → Player Context → unassign`;
 - независимого Scene delta hash;
@@ -154,8 +163,9 @@ Draft пока сохраняется одним JSONB-документом. Д�
 - Playlist/Schedule новой модели;
 - полноценный Runtime Compiler для оптимизированных immutable snapshots;
 - UI истории опубликованных ревизий и rollback;
-- окончательная реализация Slide transitions и Entrance/Exit анимаций элементов;
 - реальное browser/TV испытание обрыва сети на VPS.
+
+Эти пункты не блокируют первую эксплуатационную приёмку single-TV прототипа и не должны добавляться до неё без необходимости.
 
 ## Неприкосновенные принципы
 
@@ -163,15 +173,17 @@ Draft пока сохраняется одним JSONB-документом. Д�
 - несколько TV — только горизонтальный ряд;
 - одна Scene может иметь несколько Slides;
 - элементы редактируются на свободном Canvas;
-- Preview и Player используют один runtime renderer;
+- Preview и Player используют один Renderer и один ScenePlaybackRuntime;
 - TV никогда не читает Draft — только опубликованную ревизию;
 - UI минимизирует количество действий и даёт мгновенный визуальный отклик;
 - скрытая или неизменившаяся работа не должна расходовать CPU/сеть без необходимости;
 - Draft не теряет изменения из-за autosave race;
 - AI не добавляется до завершения и эксплуатационной репетиции ручного конструктора.
 
-## Следующая контрольная точка
+## Следующая контрольная точка — VPS-приёмка
 
-Для одного TV программный путь `создать → сохранить Draft → опубликовать → назначить → получить delta → показать shared Renderer → снять назначение` уже замкнут и покрыт тестами.
+Single-TV программный путь `создать → сохранить Draft → Preview → опубликовать → назначить → получить delta → показать тот же ScenePlaybackRuntime → снять назначение` замкнут и покрыт тестами.
 
-Следующий программный слой — довести реальные Slide transitions и Entrance/Exit анимации элементов, не создавая второй renderer или постоянный JavaScript render-loop. После завершения базового конструктора ветка `prototype` устанавливается на отдельный VPS и проходит реальную browser/TV-приёмку, включая физический обрыв и восстановление интернета.
+Ветка `prototype` готова к первой установке на отдельный VPS. До окончания этой приёмки новые архитектурные функции не добавляются: сначала проверяем реальное поведение и исправляем найденные эксплуатационные дефекты.
+
+Обязательная VPS/TV-проверка: чистая установка, вход, каталог, создание Scene, несколько Slides, Table/Image/Logo/Video/Weather/Clock, Preview, публикация, назначение на TV, визуальное совпадение Preview и Player, переходы и Entrance/Exit, перезапуск контейнеров, Last Known Good, холодный offline restart, физический обрыв сети, восстановление HTTP/WebSocket, доставка накопленных Player logs без дублей и отсутствие влияния на посторонние Docker-проекты.
