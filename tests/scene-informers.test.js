@@ -142,5 +142,5 @@ test('Informer UI and Player refresh clocks without rebuilding the whole Scene',
   assert.match(sync, /weather_refresh_interval_ms/);
   assert.match(sync, /syncNow\('weather-refresh'\)/);
   assert.match(sync, /clearWeatherTimer\(\)/);
-  assert.match(worker, /mira-tv-player-shell-v16-scene3/);
+  assert.match(worker, /mira-tv-player-shell-v16-scene4/);
 });

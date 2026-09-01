@@ -7,6 +7,14 @@
   pointer-events: none;
 }
 
+.scene-transition-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform-origin: center;
+  will-change: opacity, transform, clip-path;
+}
+
 .scene-render-background {
   position: absolute;
   inset: 0;
@@ -120,4 +128,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .scene-render-element[data-loop] { animation: none !important; }
+  .scene-transition-frame { will-change: auto; }
 }

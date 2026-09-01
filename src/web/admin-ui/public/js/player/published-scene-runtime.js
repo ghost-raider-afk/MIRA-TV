@@ -1,9 +1,5 @@
-import {
-  applySceneStage,
-  renderSceneLayer,
-  updateSceneClockElements,
-  updateSceneWeatherElements
-} from '../scene-runtime/renderer.js';
+import { applySceneStage, renderSceneLayer, updateSceneClockElements, updateSceneWeatherElements } from '../scene-runtime/renderer.js';
+import { playSceneElementEntrances, transitionSceneLayer } from '../scene-runtime/animation.js';
 
 function validGraph(component) {
   const graph = component?.graph;
@@ -38,6 +34,7 @@ export class PublishedSceneRuntime {
     this.slideIndex = 0;
     this.slideTimer = null;
     this.clockTimer = null;
+    this.transitioning = false;
     this.active = true;
     this.visibilityHandler = () => {
       this.syncSlideTimer();
@@ -84,38 +81,76 @@ export class PublishedSceneRuntime {
     this.layer.classList.remove('is-hidden');
 
     if (onlyDynamicDataChanged) {
-      updateSceneWeatherElements(this.layer, activeSlide(this), { weatherByElement: component?.weather_by_element || {} });
-      this.syncClockTimer();
-      this.syncMediaPlayback();
+      if (!this.transitioning) {
+        updateSceneWeatherElements(this.layer, activeSlide(this), { weatherByElement: component?.weather_by_element || {} });
+        this.syncClockTimer();
+        this.syncMediaPlayback();
+      }
       return true;
     }
 
-    this.renderCurrentSlide();
+    this.transitioning = false;
+    this.renderCurrentSlide({ animateEntrance: true });
     return true;
   }
 
-  renderCurrentSlide() {
+  rendererContext() {
+    const graph = validGraph(this.component);
+    return {
+      catalogStatus: 'ready',
+      catalogProducts: this.component?.catalog_products || [],
+      mediaAssets: this.component?.media_assets || [],
+      weatherByElement: this.component?.weather_by_element || {},
+      autoplayMedia: this.active && document.visibilityState !== 'hidden',
+      now: new Date(),
+      stageWidth: this.layer.clientWidth || graph?.canvas_width || 1920
+    };
+  }
+
+  renderCurrentSlide({ animateEntrance = false } = {}) {
     const graph = validGraph(this.component);
     if (!graph) return;
     const slide = activeSlide(this);
-    const autoplayMedia = this.active && document.visibilityState !== 'hidden';
     applySceneStage(this.layer, graph, slide, { constrainAspect: false });
     renderSceneLayer(this.layer, {
       scene: graph,
       slide,
-      context: {
-        catalogStatus: 'ready',
-        catalogProducts: this.component?.catalog_products || [],
-        mediaAssets: this.component?.media_assets || [],
-        weatherByElement: this.component?.weather_by_element || {},
-        autoplayMedia,
-        now: new Date(),
-        stageWidth: this.layer.clientWidth || graph.canvas_width
-      }
+      context: this.rendererContext()
     });
+    if (animateEntrance) playSceneElementEntrances(this.layer, slide);
     this.syncMediaPlayback();
     this.syncSlideTimer();
     this.syncClockTimer();
+  }
+
+  async advanceSlide() {
+    const graph = validGraph(this.component);
+    if (!graph || graph.slides.length <= 1 || this.transitioning || !this.active || document.visibilityState === 'hidden') return;
+    this.transitioning = true;
+    this.clearSlideTimer();
+    this.clearClockTimer();
+    const fromSlide = activeSlide(this);
+    const nextIndex = (this.slideIndex + 1) % graph.slides.length;
+    const toSlide = graph.slides[nextIndex];
+    const revisionId = this.component?.revision_id;
+    this.slideIndex = nextIndex;
+    try {
+      await transitionSceneLayer({
+        stage: this.layer,
+        layer: this.layer,
+        scene: graph,
+        fromSlide,
+        toSlide,
+        context: this.rendererContext()
+      });
+    } finally {
+      if (revisionId !== this.component?.revision_id) return;
+      this.transitioning = false;
+      updateSceneWeatherElements(this.layer, activeSlide(this), { weatherByElement: this.component?.weather_by_element || {} });
+      this.syncMediaPlayback();
+      this.syncSlideTimer();
+      this.syncClockTimer();
+    }
   }
 
   syncMediaPlayback() {
@@ -129,21 +164,19 @@ export class PublishedSceneRuntime {
   syncSlideTimer() {
     this.clearSlideTimer();
     const graph = validGraph(this.component);
-    if (!graph || graph.slides.length <= 1 || !this.active || document.visibilityState === 'hidden') return;
+    if (!graph || graph.slides.length <= 1 || !this.active || this.transitioning || document.visibilityState === 'hidden') return;
     const slide = activeSlide(this);
     const duration = Math.max(1000, Number(slide?.duration_ms) || 10000);
     this.slideTimer = setTimeout(() => {
       this.slideTimer = null;
-      if (!this.active || document.visibilityState === 'hidden') return;
-      this.slideIndex = (this.slideIndex + 1) % graph.slides.length;
-      this.renderCurrentSlide();
+      void this.advanceSlide();
     }, duration);
   }
 
   syncClockTimer() {
     this.clearClockTimer();
     const slide = activeSlide(this);
-    if (!slide || !this.active || document.visibilityState === 'hidden') return;
+    if (!slide || !this.active || this.transitioning || document.visibilityState === 'hidden') return;
     const clocks = (slide.elements || []).filter((element) => element.type === 'clock');
     if (!clocks.length) return;
     const now = new Date();
@@ -153,7 +186,7 @@ export class PublishedSceneRuntime {
     this.clockTimer = setTimeout(() => {
       this.clockTimer = null;
       const current = activeSlide(this);
-      if (!current || !this.active || document.visibilityState === 'hidden') return;
+      if (!current || !this.active || this.transitioning || document.visibilityState === 'hidden') return;
       updateSceneClockElements(this.layer, current, new Date());
       this.syncClockTimer();
     }, delay);
@@ -166,6 +199,7 @@ export class PublishedSceneRuntime {
     this.component = null;
     this.staticSignature = '';
     this.slideIndex = 0;
+    this.transitioning = false;
     this.layer.replaceChildren();
     this.layer.style.background = '';
     this.layer.style.aspectRatio = '';
