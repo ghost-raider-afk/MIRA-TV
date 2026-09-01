@@ -58,8 +58,45 @@
 .scene-element-weather { display: grid; align-content: center; gap: 3px; }
 .scene-element-clock small,
 .scene-element-weather small { font-size: .32em; opacity: .72; }
+.scene-clock-value,
+.scene-weather-temp { font-variant-numeric: tabular-nums; }
 .scene-weather-icon { position: absolute; left: 10%; font-size: .8em; }
 .scene-weather-temp { font-weight: 800; }
+
+.scene-analog-clock {
+  position: relative;
+  display: block;
+  width: min(72%, 1.8em);
+  aspect-ratio: 1;
+  margin: auto;
+  border: .045em solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+  opacity: .96;
+}
+.scene-clock-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: .035em;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: 50% 100%;
+}
+.scene-clock-hand-hour { height: 25%; width: .065em; }
+.scene-clock-hand-minute { height: 34%; width: .045em; }
+.scene-clock-hand-second { height: 38%; width: .022em; opacity: .72; }
+.scene-clock-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: .11em;
+  height: .11em;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translate(-50%,-50%);
+}
+
 .scene-media-symbol { margin-right: .2em; font-size: .82em; opacity: .72; }
 .scene-element-video,
 .scene-element-image,

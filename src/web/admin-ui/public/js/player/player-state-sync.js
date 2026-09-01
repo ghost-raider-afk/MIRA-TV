@@ -14,6 +14,7 @@ const ALL_COMPONENTS = Object.freeze([
   'entity', 'brand', 'announcement', 'scene', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
+const DEFAULT_WEATHER_REFRESH_MS = 15 * 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
 const DEFAULT_LOG_MAX_ENTRIES = 5000;
 const DEFAULT_LOG_MAX_BYTES = 10 * 1024 * 1024;
@@ -79,6 +80,15 @@ function sceneAssetManifest(context) {
     .filter(Boolean);
 }
 
+function sceneUsesWeather(context) {
+  const graph = context?.scene?.graph;
+  return Array.isArray(graph?.slides) && graph.slides.some((slide) =>
+    Array.isArray(slide?.elements) && slide.elements.some((element) =>
+      element?.type === 'weather' && String(element?.weather?.location || '').trim().length >= 2
+    )
+  );
+}
+
 function activeAssetManifest(context) {
   const assets = [
     context?.draft?.settings?.background_image_url,
@@ -140,6 +150,7 @@ export function createPlayerStateSync({
   let active = null;
   let started = false;
   let fallbackTimer = null;
+  let weatherTimer = null;
   let syncPromise = null;
   let syncQueued = false;
   let logFlushPromise = null;
@@ -151,6 +162,7 @@ export function createPlayerStateSync({
   const currentBootId = bootId();
   let runtime = {
     fallbackPollMs: DEFAULT_FALLBACK_POLL_MS,
+    weatherRefreshMs: DEFAULT_WEATHER_REFRESH_MS,
     logBatchSize: DEFAULT_LOG_BATCH_SIZE,
     logMaxEntries: DEFAULT_LOG_MAX_ENTRIES,
     logMaxBytes: DEFAULT_LOG_MAX_BYTES
@@ -160,6 +172,7 @@ export function createPlayerStateSync({
     const previousFallbackPollMs = runtime.fallbackPollMs;
     runtime = {
       fallbackPollMs: positiveInteger(context?.fallback_poll_interval_ms, DEFAULT_FALLBACK_POLL_MS),
+      weatherRefreshMs: positiveInteger(context?.weather_refresh_interval_ms, DEFAULT_WEATHER_REFRESH_MS),
       logBatchSize: positiveInteger(context?.log_batch_size, DEFAULT_LOG_BATCH_SIZE),
       logMaxEntries: positiveInteger(context?.log_local_max_entries, DEFAULT_LOG_MAX_ENTRIES),
       logMaxBytes: positiveInteger(context?.log_local_max_bytes, DEFAULT_LOG_MAX_BYTES)
@@ -168,6 +181,7 @@ export function createPlayerStateSync({
       clearFallbackTimer();
       scheduleFallbackPoll();
     }
+    if (started) scheduleWeatherRefresh();
   }
 
   function log(type, data = {}, level = 'info') {
@@ -196,6 +210,11 @@ export function createPlayerStateSync({
     fallbackTimer = null;
   }
 
+  function clearWeatherTimer() {
+    if (weatherTimer) clearTimeout(weatherTimer);
+    weatherTimer = null;
+  }
+
   function clearLogFlushTimer() {
     if (logFlushTimer) clearTimeout(logFlushTimer);
     logFlushTimer = null;
@@ -209,6 +228,17 @@ export function createPlayerStateSync({
       await syncNow('fallback').catch(() => undefined);
       scheduleFallbackPoll();
     }, runtime.fallbackPollMs);
+  }
+
+  function scheduleWeatherRefresh() {
+    clearWeatherTimer();
+    if (!started || !navigator.onLine || !sceneUsesWeather(active?.context)) return;
+    weatherTimer = setTimeout(async () => {
+      weatherTimer = null;
+      if (!started || !navigator.onLine || !sceneUsesWeather(active?.context)) return;
+      await syncNow('weather-refresh').catch(() => undefined);
+      scheduleWeatherRefresh();
+    }, runtime.weatherRefreshMs);
   }
 
   function scheduleLogFlush(delay = 1500) {
@@ -391,12 +421,14 @@ export function createPlayerStateSync({
       changed: result?.changed === true,
       has_context: result?.hasContext === true
     }, result?.ok === true ? 'info' : 'warn');
+    scheduleWeatherRefresh();
     scheduleLogFlush(0);
   }
 
   function handleNetworkOffline() {
     if (!started) return;
     clearFallbackTimer();
+    clearWeatherTimer();
     log('network.offline', {}, 'warn');
     onConnectivity?.('offline');
   }
@@ -450,16 +482,18 @@ export function createPlayerStateSync({
     window.addEventListener('offline', handleNetworkOffline);
     realtime.start();
     scheduleFallbackPoll();
+    scheduleWeatherRefresh();
     scheduleLogFlush(250);
   }
 
   function stop() {
-    if (!started && !fallbackTimer && !logFlushTimer) return;
+    if (!started && !fallbackTimer && !weatherTimer && !logFlushTimer) return;
     started = false;
     websocketConnected = false;
     window.removeEventListener('online', handleNetworkOnline);
     window.removeEventListener('offline', handleNetworkOffline);
     clearFallbackTimer();
+    clearWeatherTimer();
     clearLogFlushTimer();
     realtime.stop();
   }

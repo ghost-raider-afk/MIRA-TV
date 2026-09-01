@@ -4,7 +4,9 @@ import {
   applySceneElementGeometry,
   applySceneStage,
   renderSceneLayer,
-  SCENE_ELEMENT_LABELS
+  SCENE_ELEMENT_LABELS,
+  updateSceneClockElements,
+  updateSceneWeatherElements
 } from '../scene-runtime/renderer.js';
 import {
   appendSlide,
@@ -30,6 +32,22 @@ import {
 
 const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
 const history = createSceneHistory({ limit: 100 });
+const VARIANT_OPTIONS = Object.freeze({
+  weather: [
+    ['compact', 'Компактный'],
+    ['temperature', 'Только температура'],
+    ['forecast', 'Прогноз'],
+    ['minimal', 'Минималистичный']
+  ],
+  clock: [
+    ['digital', 'Цифровой'],
+    ['minimal', 'Только время'],
+    ['seconds', 'С секундами'],
+    ['date', 'Время и полная дата'],
+    ['analog', 'Аналоговый']
+  ],
+  default: [['default', 'По умолчанию']]
+});
 
 const state = {
   scene: null,
@@ -42,6 +60,9 @@ const state = {
   mediaStatus: 'idle',
   mediaError: '',
   mediaUploading: false,
+  weatherByElement: {},
+  weatherStatus: {},
+  weatherRequestVersion: {},
   autosaveTimer: null,
   clockTimer: null,
   dirtyVersion: 0,
@@ -80,6 +101,10 @@ function sceneUsesMedia(scene) {
 
 function sceneUsesCatalog(scene) {
   return (scene?.slides || []).some((slide) => (slide?.elements || []).some((element) => element.type === 'table'));
+}
+
+function weatherLocation(element) {
+  return String(element?.weather?.location || '').trim();
 }
 
 function clamp(value, min, max) {
@@ -121,6 +146,9 @@ function closeHistoryGroup() {
 function ensureDynamicDataForScene() {
   if (sceneUsesCatalog(state.scene) && state.catalogStatus === 'idle') void loadCatalogProducts();
   if (sceneUsesMedia(state.scene) && state.mediaStatus === 'idle') void loadMediaAssets();
+  for (const element of currentSlide()?.elements || []) {
+    if (element.type === 'weather') void loadWeatherForElement(element);
+  }
 }
 
 function applyHistoryResult(result, message) {
@@ -247,6 +275,45 @@ async function loadMediaAssets({ force = false } = {}) {
   renderBackgroundControls();
 }
 
+async function loadWeatherForElement(element, { force = false } = {}) {
+  if (!element || element.type !== 'weather') return;
+  const location = weatherLocation(element);
+  const id = element.id;
+  if (location.length < 2) {
+    delete state.weatherByElement[id];
+    state.weatherStatus[id] = { state: 'idle', location, error: '' };
+    updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), currentSlide(), { weatherByElement: state.weatherByElement });
+    if (state.selectedElementId === id) renderWeatherInspector(element);
+    return;
+  }
+
+  const current = state.weatherStatus[id];
+  if (!force && current?.location === location && ['loading', 'ready'].includes(current.state)) return;
+  const version = (state.weatherRequestVersion[id] || 0) + 1;
+  state.weatherRequestVersion[id] = version;
+  state.weatherStatus[id] = { state: 'loading', location, error: '' };
+  delete state.weatherByElement[id];
+  updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), currentSlide(), { weatherByElement: state.weatherByElement });
+  if (state.selectedElementId === id) renderWeatherInspector(element);
+
+  try {
+    const data = await api.get(`${API.weather}?location=${encodeURIComponent(location)}`);
+    if (state.weatherRequestVersion[id] !== version || weatherLocation(findElement(id)) !== location) return;
+    state.weatherByElement[id] = data;
+    state.weatherStatus[id] = { state: 'ready', location, error: '' };
+  } catch (error) {
+    if (state.weatherRequestVersion[id] !== version || weatherLocation(findElement(id)) !== location) return;
+    delete state.weatherByElement[id];
+    state.weatherStatus[id] = { state: 'error', location, error: error?.message || 'Погода недоступна' };
+  }
+
+  const slide = currentSlide();
+  if ((slide.elements || []).some((item) => item.id === id)) {
+    updateSceneWeatherElements(document.querySelector('#scene-elements-layer'), slide, { weatherByElement: state.weatherByElement });
+  }
+  if (state.selectedElementId === id) renderWeatherInspector(findElement(id));
+}
+
 function mediaStatusText(target, selectedId = '') {
   if (state.mediaUploading) return 'Загрузка файла…';
   if (state.mediaStatus === 'loading' || state.mediaStatus === 'idle') return 'Медиатека загружается…';
@@ -347,6 +414,7 @@ function markSelected(node, element) {
   node.classList.add('is-selected');
   renderInspector();
   if (MEDIA_ELEMENT_TYPES.has(element.type) && state.mediaStatus === 'idle') void loadMediaAssets();
+  if (element.type === 'weather') void loadWeatherForElement(element);
 }
 
 function installDrag(node, element) {
@@ -440,6 +508,7 @@ function decorateEditorElement(node, element) {
     renderElements();
     renderInspector();
     if (MEDIA_ELEMENT_TYPES.has(element.type) && state.mediaStatus === 'idle') void loadMediaAssets();
+    if (element.type === 'weather') void loadWeatherForElement(element);
   });
   installDrag(node, element);
 }
@@ -460,6 +529,7 @@ function renderElements() {
       catalogProducts: state.catalogProducts,
       catalogStatus: state.catalogStatus,
       catalogError: state.catalogError,
+      weatherByElement: state.weatherByElement,
       now: new Date(),
       ...rendererMediaContext()
     },
@@ -484,7 +554,7 @@ function renderSlides() {
       state.selectedElementId = null;
       closeHistoryGroup();
       render();
-      if (slide.background.type !== 'color' && state.mediaStatus === 'idle') void loadMediaAssets();
+      ensureDynamicDataForScene();
     });
     const actions = document.createElement('div');
     actions.className = 'scene-slide-actions';
@@ -501,6 +571,7 @@ function renderSlides() {
         state.selectedElementId = null;
         scheduleAutosave();
         render();
+        ensureDynamicDataForScene();
       }
     });
     actions.append(remove);
@@ -553,6 +624,37 @@ function renderMediaInspector(element) {
   input.accept = mediaAcceptForTarget(element.type);
 }
 
+function renderWeatherInspector(element) {
+  const section = document.querySelector('#weather-settings');
+  const isWeather = element?.type === 'weather';
+  section.classList.toggle('is-hidden', !isWeather);
+  if (!isWeather) return;
+  element.weather = element.weather && typeof element.weather === 'object' ? element.weather : { location: '' };
+  const location = weatherLocation(element);
+  document.querySelector('#weather-location').value = location;
+  const status = state.weatherStatus[element.id];
+  const output = document.querySelector('#weather-status');
+  if (!location) output.textContent = 'Укажите город — запросы к погодному сервису пока не выполняются.';
+  else if (status?.state === 'loading') output.textContent = `Загрузка погоды: ${location}…`;
+  else if (status?.state === 'error') output.textContent = status.error || 'Погода временно недоступна.';
+  else if (status?.state === 'ready') {
+    const data = state.weatherByElement[element.id];
+    output.textContent = `${data?.location || location}${data?.current?.label ? ` · ${data.current.label}` : ''}${data?.stale ? ' · последние данные' : ''}`;
+  } else output.textContent = `Готово к загрузке: ${location}`;
+  document.querySelector('#weather-refresh').disabled = status?.state === 'loading' || location.length < 2;
+}
+
+function renderVariantControl(element) {
+  const select = document.querySelector('#element-variant');
+  const variants = VARIANT_OPTIONS[element?.type] || VARIANT_OPTIONS.default;
+  const options = variants.map(([value, label]) => new Option(label, value));
+  if (element?.variant && !variants.some(([value]) => value === element.variant)) {
+    options.unshift(new Option('По умолчанию', element.variant));
+  }
+  select.replaceChildren(...options);
+  select.value = element?.variant || variants[0][0];
+}
+
 function renderSlideInspector() {
   const slide = currentSlide();
   document.querySelector('#slide-name').value = slide.name || '';
@@ -589,6 +691,7 @@ function renderInspector() {
     renderSlideInspector();
     renderTableInspector(null);
     renderMediaInspector(null);
+    renderWeatherInspector(null);
     return;
   }
   renderInspectorGeometry();
@@ -598,7 +701,7 @@ function renderInspector() {
   document.querySelector('#element-background').value = element.style.background || 'transparent';
   document.querySelector('#element-font-size').value = element.style.font_size || 40;
   document.querySelector('#element-opacity').value = element.opacity ?? 1;
-  document.querySelector('#element-variant').value = element.variant || 'default';
+  renderVariantControl(element);
   document.querySelector('#element-shadow').checked = Boolean(element.effects.shadow);
   document.querySelector('#element-glow').checked = Boolean(element.effects.glow);
   document.querySelector('#element-entrance').value = element.animation.entrance || 'none';
@@ -606,6 +709,7 @@ function renderInspector() {
   document.querySelector('#element-exit').value = element.animation.exit || 'none';
   renderTableInspector(element);
   renderMediaInspector(element);
+  renderWeatherInspector(element);
 }
 
 function render() {
@@ -634,6 +738,7 @@ function addElement(type) {
   render();
   if (type === 'table') void loadCatalogProducts();
   if (MEDIA_ELEMENT_TYPES.has(type) && state.mediaStatus === 'idle') void loadMediaAssets();
+  if (type === 'weather') void loadWeatherForElement(element);
 }
 
 function duplicateSelectedElement() {
@@ -645,6 +750,7 @@ function duplicateSelectedElement() {
   state.selectedElementId = copy.id;
   scheduleAutosave();
   render();
+  if (copy.type === 'weather') void loadWeatherForElement(copy);
   showMessage('Элемент продублирован.');
 }
 
@@ -669,6 +775,7 @@ function removeCurrentSlide() {
   state.selectedElementId = null;
   scheduleAutosave();
   render();
+  ensureDynamicDataForScene();
   showMessage('Слайд удалён.');
 }
 
@@ -790,6 +897,27 @@ function bindMediaInspector() {
   });
 }
 
+function bindWeatherInspector() {
+  document.querySelector('#weather-location').addEventListener('change', (event) => {
+    const element = selectedElement();
+    if (!element || element.type !== 'weather') return;
+    const value = String(event.target.value || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+    if (value === weatherLocation(element)) return;
+    delete state.weatherByElement[element.id];
+    delete state.weatherStatus[element.id];
+    updateSelected((target) => {
+      if (target.type !== 'weather') return;
+      target.weather = target.weather && typeof target.weather === 'object' ? target.weather : { location: '' };
+      target.weather.location = value;
+    });
+    void loadWeatherForElement(findElement(element.id), { force: true });
+  });
+  document.querySelector('#weather-refresh').addEventListener('click', () => {
+    const element = selectedElement();
+    if (element?.type === 'weather') void loadWeatherForElement(element, { force: true });
+  });
+}
+
 function bindBackgroundControls() {
   document.querySelector('#slide-background-type').addEventListener('change', (event) => {
     recordHistory();
@@ -877,6 +1005,7 @@ function bindInspector() {
   }));
   bindTableInspector();
   bindMediaInspector();
+  bindWeatherInspector();
 }
 
 function editableFocus() {
@@ -951,6 +1080,7 @@ function bindGlobalControls() {
     closeHistoryGroup();
     event.target.textContent = state.preview ? 'Вернуться в редактор' : 'Предпросмотр';
     render();
+    ensureDynamicDataForScene();
   });
   bindKeyboardShortcuts();
   window.addEventListener('beforeunload', (event) => {
@@ -962,19 +1092,21 @@ function bindGlobalControls() {
 }
 
 function syncClockTimer() {
-  const hasClock = currentSlide().elements.some((element) => element.type === 'clock');
-  if (!hasClock) {
-    window.clearTimeout(state.clockTimer);
-    state.clockTimer = null;
-    return;
-  }
-  if (state.clockTimer) return;
+  window.clearTimeout(state.clockTimer);
+  state.clockTimer = null;
+  const slide = currentSlide();
+  const clocks = (slide?.elements || []).filter((element) => element.type === 'clock');
+  if (!clocks.length || document.visibilityState === 'hidden') return;
+  const precise = clocks.some((element) => ['seconds', 'analog'].includes(element.variant));
   const now = new Date();
-  const delay = (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 20;
+  const delay = precise
+    ? Math.max(120, 1000 - now.getMilliseconds() + 20)
+    : Math.max(1000, (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 20);
   state.clockTimer = window.setTimeout(() => {
     state.clockTimer = null;
-    if (currentSlide().elements.some((element) => element.type === 'clock')) renderElements();
-  }, Math.max(1000, delay));
+    updateSceneClockElements(document.querySelector('#scene-elements-layer'), currentSlide(), new Date());
+    syncClockTimer();
+  }, delay);
 }
 
 export async function initialiseSceneEditor() {
@@ -990,9 +1122,13 @@ export async function initialiseSceneEditor() {
   state.dirtyVersion = 0;
   state.savedVersion = 0;
   state.saveConflict = false;
+  state.weatherByElement = {};
+  state.weatherStatus = {};
+  state.weatherRequestVersion = {};
   history.reset();
   bindInspector();
   bindGlobalControls();
+  document.addEventListener('visibilitychange', syncClockTimer);
   setSaveState('Сохранено');
   render();
   ensureDynamicDataForScene();

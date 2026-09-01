@@ -1,8 +1,32 @@
-import { applySceneStage, renderSceneLayer } from '../scene-runtime/renderer.js';
+import {
+  applySceneStage,
+  renderSceneLayer,
+  updateSceneClockElements,
+  updateSceneWeatherElements
+} from '../scene-runtime/renderer.js';
 
 function validGraph(component) {
   const graph = component?.graph;
   return graph && typeof graph === 'object' && Array.isArray(graph.slides) && graph.slides.length > 0 ? graph : null;
+}
+
+function activeSlide(runtime) {
+  const graph = validGraph(runtime.component);
+  return graph ? (graph.slides[runtime.slideIndex] || graph.slides[0]) : null;
+}
+
+function preciseClock(slide) {
+  return (slide?.elements || []).some((element) =>
+    element?.type === 'clock' && ['seconds', 'analog'].includes(element.variant)
+  );
+}
+
+function staticDataSignature(component) {
+  return JSON.stringify({
+    revision_id: component?.revision_id || '',
+    catalog_products: component?.catalog_products || [],
+    media_assets: component?.media_assets || []
+  });
 }
 
 export class PublishedSceneRuntime {
@@ -10,11 +34,14 @@ export class PublishedSceneRuntime {
     if (!(layer instanceof HTMLElement)) throw new TypeError('PublishedSceneRuntime requires an HTMLElement layer.');
     this.layer = layer;
     this.component = null;
+    this.staticSignature = '';
     this.slideIndex = 0;
-    this.timer = null;
+    this.slideTimer = null;
+    this.clockTimer = null;
     this.active = true;
     this.visibilityHandler = () => {
-      this.syncTimer();
+      this.syncSlideTimer();
+      this.syncClockTimer();
       this.syncMediaPlayback();
     };
     document.addEventListener('visibilitychange', this.visibilityHandler);
@@ -24,14 +51,20 @@ export class PublishedSceneRuntime {
     return Boolean(validGraph(this.component));
   }
 
-  clearTimer() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
+  clearSlideTimer() {
+    if (this.slideTimer) clearTimeout(this.slideTimer);
+    this.slideTimer = null;
+  }
+
+  clearClockTimer() {
+    if (this.clockTimer) clearTimeout(this.clockTimer);
+    this.clockTimer = null;
   }
 
   setActive(active) {
     this.active = active === true;
-    this.syncTimer();
+    this.syncSlideTimer();
+    this.syncClockTimer();
     this.syncMediaPlayback();
   }
 
@@ -43,9 +76,20 @@ export class PublishedSceneRuntime {
     }
 
     const revisionChanged = component?.revision_id !== this.component?.revision_id;
+    const nextStaticSignature = staticDataSignature(component);
+    const onlyDynamicDataChanged = !revisionChanged && this.component && nextStaticSignature === this.staticSignature;
     this.component = component;
+    this.staticSignature = nextStaticSignature;
     if (revisionChanged || this.slideIndex >= graph.slides.length) this.slideIndex = 0;
     this.layer.classList.remove('is-hidden');
+
+    if (onlyDynamicDataChanged) {
+      updateSceneWeatherElements(this.layer, activeSlide(this), { weatherByElement: component?.weather_by_element || {} });
+      this.syncClockTimer();
+      this.syncMediaPlayback();
+      return true;
+    }
+
     this.renderCurrentSlide();
     return true;
   }
@@ -53,7 +97,7 @@ export class PublishedSceneRuntime {
   renderCurrentSlide() {
     const graph = validGraph(this.component);
     if (!graph) return;
-    const slide = graph.slides[this.slideIndex] || graph.slides[0];
+    const slide = activeSlide(this);
     const autoplayMedia = this.active && document.visibilityState !== 'hidden';
     applySceneStage(this.layer, graph, slide, { constrainAspect: false });
     renderSceneLayer(this.layer, {
@@ -63,13 +107,15 @@ export class PublishedSceneRuntime {
         catalogStatus: 'ready',
         catalogProducts: this.component?.catalog_products || [],
         mediaAssets: this.component?.media_assets || [],
+        weatherByElement: this.component?.weather_by_element || {},
         autoplayMedia,
         now: new Date(),
         stageWidth: this.layer.clientWidth || graph.canvas_width
       }
     });
     this.syncMediaPlayback();
-    this.syncTimer();
+    this.syncSlideTimer();
+    this.syncClockTimer();
   }
 
   syncMediaPlayback() {
@@ -80,24 +126,45 @@ export class PublishedSceneRuntime {
     }
   }
 
-  syncTimer() {
-    this.clearTimer();
+  syncSlideTimer() {
+    this.clearSlideTimer();
     const graph = validGraph(this.component);
     if (!graph || graph.slides.length <= 1 || !this.active || document.visibilityState === 'hidden') return;
-    const slide = graph.slides[this.slideIndex] || graph.slides[0];
+    const slide = activeSlide(this);
     const duration = Math.max(1000, Number(slide?.duration_ms) || 10000);
-    this.timer = setTimeout(() => {
-      this.timer = null;
+    this.slideTimer = setTimeout(() => {
+      this.slideTimer = null;
       if (!this.active || document.visibilityState === 'hidden') return;
       this.slideIndex = (this.slideIndex + 1) % graph.slides.length;
       this.renderCurrentSlide();
     }, duration);
   }
 
+  syncClockTimer() {
+    this.clearClockTimer();
+    const slide = activeSlide(this);
+    if (!slide || !this.active || document.visibilityState === 'hidden') return;
+    const clocks = (slide.elements || []).filter((element) => element.type === 'clock');
+    if (!clocks.length) return;
+    const now = new Date();
+    const delay = preciseClock(slide)
+      ? Math.max(120, 1000 - now.getMilliseconds() + 20)
+      : Math.max(1000, (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 20);
+    this.clockTimer = setTimeout(() => {
+      this.clockTimer = null;
+      const current = activeSlide(this);
+      if (!current || !this.active || document.visibilityState === 'hidden') return;
+      updateSceneClockElements(this.layer, current, new Date());
+      this.syncClockTimer();
+    }, delay);
+  }
+
   destroyScene() {
-    this.clearTimer();
+    this.clearSlideTimer();
+    this.clearClockTimer();
     for (const video of this.layer.querySelectorAll('video')) video.pause();
     this.component = null;
+    this.staticSignature = '';
     this.slideIndex = 0;
     this.layer.replaceChildren();
     this.layer.style.background = '';

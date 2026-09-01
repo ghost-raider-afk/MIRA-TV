@@ -66,7 +66,14 @@ const ELEMENT_DEFAULTS = Object.freeze({
   image: { width: 560, height: 360, content: 'Изображение', style: { color: '#ffffff', font_size: 40, background: 'rgba(255,255,255,.08)', radius: 24 } },
   logo: { width: 520, height: 220, content: 'Логотип', style: { color: '#ffffff', font_size: 54, background: 'rgba(255,255,255,.08)', radius: 24 } },
   video: { width: 720, height: 405, content: 'Видео', style: { color: '#ffffff', font_size: 42, background: '#05070a', radius: 20 } },
-  weather: { width: 480, height: 230, content: 'Погода', variant: 'compact', style: { color: '#ffffff', font_size: 42, background: 'rgba(9,15,25,.72)', radius: 28 } },
+  weather: {
+    width: 480,
+    height: 230,
+    content: 'Погода',
+    variant: 'compact',
+    style: { color: '#ffffff', font_size: 42, background: 'rgba(9,15,25,.72)', radius: 28 },
+    weather: { location: '' }
+  },
   clock: { width: 420, height: 180, content: 'Часы', variant: 'digital', style: { color: '#ffffff', font_size: 76, background: 'rgba(9,15,25,.48)', radius: 24 } },
   shape: { width: 520, height: 260, content: '', style: { color: '#ffffff', font_size: 40, background: '#f4c915', radius: 28 } }
 });
@@ -102,7 +109,8 @@ export function createElement(type, scene, slide) {
     },
     ...(MEDIA_ELEMENT_TYPES.has(type) ? { asset_id: '' } : {}),
     ...(defaults.data_binding ? { data_binding: deepClone(defaults.data_binding) } : {}),
-    ...(defaults.table ? { table: deepClone(defaults.table) } : {})
+    ...(defaults.table ? { table: deepClone(defaults.table) } : {}),
+    ...(defaults.weather ? { weather: deepClone(defaults.weather) } : {})
   };
 }
 
@@ -179,6 +187,10 @@ function normaliseElement(element) {
   if (result.type === 'table') {
     result.data_binding = { source: 'catalog_products', ...(result.data_binding || {}) };
     result.table = normaliseTableConfig(result.table || {});
+  }
+  if (result.type === 'weather') {
+    const source = result.weather && typeof result.weather === 'object' ? result.weather : {};
+    result.weather = { location: typeof source.location === 'string' ? source.location.slice(0, 120) : '' };
   }
   return result;
 }

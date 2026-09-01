@@ -83,18 +83,132 @@ function renderCatalogTable(node, element, context) {
   node.append(table);
 }
 
-function renderClock(node, element, now) {
-  appendText(node, 'span', new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(now), 'scene-clock-value');
-  const date = element.variant === 'minimal'
-    ? ''
-    : new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
-  appendText(node, 'small', date);
+function clockTime(now, withSeconds = false) {
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(withSeconds ? { second: '2-digit' } : {})
+  }).format(now);
 }
 
-function renderWeather(node, element) {
-  appendText(node, 'span', '☀', 'scene-weather-icon');
-  appendText(node, 'span', '+18°', 'scene-weather-temp');
-  appendText(node, 'small', element.variant === 'forecast' ? 'Сегодня · +18° · завтра +16°' : 'Ясно');
+function clockDate(now, variant) {
+  if (variant === 'minimal' || variant === 'analog') return '';
+  if (variant === 'date') {
+    return new Intl.DateTimeFormat('ru-RU', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).format(now);
+  }
+  return new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
+}
+
+function setAnalogHands(node, now) {
+  const seconds = now.getSeconds();
+  const minutes = now.getMinutes() + seconds / 60;
+  const hours = (now.getHours() % 12) + minutes / 60;
+  const hour = node.querySelector('.scene-clock-hand-hour');
+  const minute = node.querySelector('.scene-clock-hand-minute');
+  const second = node.querySelector('.scene-clock-hand-second');
+  if (hour) hour.style.transform = `translateX(-50%) rotate(${hours * 30}deg)`;
+  if (minute) minute.style.transform = `translateX(-50%) rotate(${minutes * 6}deg)`;
+  if (second) second.style.transform = `translateX(-50%) rotate(${seconds * 6}deg)`;
+}
+
+function renderAnalogClock(node, now) {
+  const face = document.createElement('span');
+  face.className = 'scene-analog-clock';
+  for (const className of ['hour', 'minute', 'second']) {
+    const hand = document.createElement('span');
+    hand.className = `scene-clock-hand scene-clock-hand-${className}`;
+    face.append(hand);
+  }
+  const pin = document.createElement('span');
+  pin.className = 'scene-clock-pin';
+  face.append(pin);
+  node.append(face);
+  setAnalogHands(node, now);
+}
+
+function renderClock(node, element, now) {
+  const variant = element.variant || 'digital';
+  if (variant === 'analog') {
+    renderAnalogClock(node, now);
+    return;
+  }
+  appendText(node, 'span', clockTime(now, variant === 'seconds'), 'scene-clock-value');
+  appendText(node, 'small', clockDate(now, variant), 'scene-clock-date');
+}
+
+function temperatureText(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—°';
+  const rounded = Math.round(number);
+  return `${rounded > 0 ? '+' : ''}${rounded}°`;
+}
+
+function weatherLocation(element) {
+  return String(element?.weather?.location || '').trim();
+}
+
+function weatherData(context, element) {
+  const source = context.weatherByElement && typeof context.weatherByElement === 'object'
+    ? context.weatherByElement[element.id]
+    : null;
+  return source && typeof source === 'object' ? source : null;
+}
+
+function forecastSummary(data) {
+  const today = data?.daily?.[0];
+  const tomorrow = data?.daily?.[1];
+  const parts = [];
+  if (today) parts.push(`Сегодня ${temperatureText(today.temperature_max_c)}`);
+  if (tomorrow) parts.push(`Завтра ${temperatureText(tomorrow.temperature_max_c)}`);
+  return parts.join(' · ');
+}
+
+function updateWeatherNode(node, element, context = {}) {
+  const icon = node.querySelector('.scene-weather-icon');
+  const temperature = node.querySelector('.scene-weather-temp');
+  const detail = node.querySelector('.scene-weather-detail');
+  if (!icon || !temperature || !detail) return;
+
+  const location = weatherLocation(element);
+  const data = weatherData(context, element);
+  if (!location) {
+    icon.textContent = '·';
+    temperature.textContent = 'Погода';
+    detail.textContent = 'Укажите город';
+    return;
+  }
+  if (!data) {
+    icon.textContent = '…';
+    temperature.textContent = 'Погода';
+    detail.textContent = `${location} · загрузка…`;
+    return;
+  }
+
+  const variant = element.variant || 'compact';
+  icon.textContent = variant === 'minimal' ? '' : (data.current?.icon || '•');
+  temperature.textContent = temperatureText(data.current?.temperature_c);
+  if (variant === 'temperature') {
+    detail.textContent = data.location || location;
+  } else if (variant === 'forecast') {
+    detail.textContent = forecastSummary(data) || data.current?.label || data.location || location;
+  } else if (variant === 'minimal') {
+    detail.textContent = data.location || location;
+  } else {
+    detail.textContent = `${data.current?.label || 'Нет данных'} · ${data.location || location}`;
+  }
+  if (data.stale) detail.textContent += ' · последние данные';
+}
+
+function renderWeather(node, element, context) {
+  appendText(node, 'span', '', 'scene-weather-icon');
+  appendText(node, 'span', '', 'scene-weather-temp');
+  appendText(node, 'small', '', 'scene-weather-detail');
+  updateWeatherNode(node, element, context);
 }
 
 function renderMediaPlaceholder(node, element) {
@@ -137,7 +251,7 @@ export function renderSceneElementContent(node, element, context = {}) {
     return;
   }
   if (element.type === 'weather') {
-    renderWeather(node, element);
+    renderWeather(node, element, resolvedContext);
     return;
   }
   if (element.type === 'table') {
@@ -213,6 +327,32 @@ export function createSceneBackgroundNode(slide, context = {}) {
 export function applySceneStage(stage, scene, slide, { constrainAspect = true } = {}) {
   stage.style.aspectRatio = constrainAspect ? `${scene.canvas_width} / ${scene.canvas_height}` : '';
   stage.style.background = slide?.background?.color || '#10141c';
+}
+
+export function updateSceneClockElements(layer, slide, now = new Date()) {
+  if (!layer || !slide) return;
+  const clockById = new Map((slide.elements || []).filter((element) => element.type === 'clock').map((element) => [element.id, element]));
+  for (const node of layer.querySelectorAll('.scene-element-clock[data-element-id]')) {
+    const element = clockById.get(node.dataset.elementId);
+    if (!element) continue;
+    if ((element.variant || 'digital') === 'analog') {
+      setAnalogHands(node, now);
+      continue;
+    }
+    const value = node.querySelector('.scene-clock-value');
+    const date = node.querySelector('.scene-clock-date');
+    if (value) value.textContent = clockTime(now, element.variant === 'seconds');
+    if (date) date.textContent = clockDate(now, element.variant || 'digital');
+  }
+}
+
+export function updateSceneWeatherElements(layer, slide, context = {}) {
+  if (!layer || !slide) return;
+  const weatherById = new Map((slide.elements || []).filter((element) => element.type === 'weather').map((element) => [element.id, element]));
+  for (const node of layer.querySelectorAll('.scene-element-weather[data-element-id]')) {
+    const element = weatherById.get(node.dataset.elementId);
+    if (element) updateWeatherNode(node, element, context);
+  }
 }
 
 export function renderSceneLayer(layer, { scene, slide, context = {}, decorate = null } = {}) {

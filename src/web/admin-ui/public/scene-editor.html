@@ -53,7 +53,7 @@
                 <button type="button" data-add-element="image"><strong>Изображение</strong><span>Фото и графика</span></button>
                 <button type="button" data-add-element="logo"><strong>Логотип</strong><span>Бренд</span></button>
                 <button type="button" data-add-element="video"><strong>Видео</strong><span>Медиаобъект</span></button>
-                <button type="button" data-add-element="weather"><strong>Погода</strong><span>Информер</span></button>
+                <button type="button" data-add-element="weather"><strong>Погода</strong><span>Реальный информер</span></button>
                 <button type="button" data-add-element="clock"><strong>Часы</strong><span>Несколько видов</span></button>
                 <button type="button" data-add-element="shape"><strong>Фигура</strong><span>Подложка и декор</span></button>
               </div>
@@ -136,11 +136,20 @@
                   </div>
                 </details>
 
+                <details id="weather-settings" class="is-hidden" open>
+                  <summary>Погода</summary>
+                  <div class="scene-media-settings">
+                    <label class="field"><span>Город или населённый пункт</span><input id="weather-location" maxlength="120" autocomplete="off" placeholder="Например, Helsinki" /></label>
+                    <small id="weather-status" class="scene-media-status">Укажите город.</small>
+                    <button class="button button-secondary" id="weather-refresh" type="button">Обновить погоду</button>
+                  </div>
+                </details>
+
                 <label class="field"><span>Цвет текста</span><input id="element-color" type="color" /></label>
                 <label class="field"><span>Фон элемента</span><input id="element-background" type="text" placeholder="transparent или CSS-цвет" /></label>
                 <label class="field"><span>Размер текста</span><input id="element-font-size" type="number" min="12" max="180" step="1" /></label>
                 <label class="field"><span>Прозрачность</span><input id="element-opacity" type="range" min="0.1" max="1" step="0.05" /></label>
-                <label class="field"><span>Вариант</span><select id="element-variant"><option value="default">По умолчанию</option><option value="compact">Компактный</option><option value="digital">Цифровой</option><option value="forecast">Прогноз</option><option value="minimal">Минималистичный</option></select></label>
+                <label class="field"><span>Вариант</span><select id="element-variant"></select></label>
                 <details open><summary>Эффекты</summary><div class="scene-toggle-list"><label><span>Тень</span><input id="element-shadow" type="checkbox" /></label><label><span>Свечение</span><input id="element-glow" type="checkbox" /></label></div></details>
                 <details><summary>Анимация</summary><div class="scene-animation-grid"><label class="field"><span>Появление</span><select id="element-entrance"><option value="none">Нет</option><option value="fade">Fade</option><option value="slide-up">Slide up</option><option value="scale">Scale</option></select></label><label class="field"><span>Постоянная</span><select id="element-loop"><option value="none">Нет</option><option value="pulse">Pulse</option><option value="float">Float</option></select></label><label class="field"><span>Исчезновение</span><select id="element-exit"><option value="none">Нет</option><option value="fade">Fade</option><option value="scale">Scale</option></select></label></div></details>
               </div>

@@ -11,6 +11,8 @@ const CODE_GROUPS = Object.freeze([
   { codes: [95, 96, 99], icon: '⛈', label: 'Гроза' }
 ]);
 
+const sharedServices = new WeakMap();
+
 export function weatherLocation(value) {
   const text = String(value ?? '').trim().replace(/\s+/g, ' ');
   if (text.length < 2 || text.length > 120) throw new ValidationError('Укажите город или населённый пункт длиной от 2 до 120 символов.');
@@ -99,7 +101,12 @@ function pruneCache(cache, maximum) {
   while (cache.size > maximum) cache.delete(cache.keys().next().value);
 }
 
-export function createWeatherService(config, { fetchImpl = globalThis.fetch, now = () => Date.now() } = {}) {
+export function createWeatherService(config, options = {}) {
+  const useShared = config && typeof config === 'object' && options.fetchImpl === undefined && options.now === undefined;
+  if (useShared && sharedServices.has(config)) return sharedServices.get(config);
+
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  const now = options.now ?? (() => Date.now());
   if (typeof fetchImpl !== 'function') throw new TypeError('Weather service requires fetch.');
   const geocodingEndpoint = endpoint(config.weatherGeocodingUrl, 'WEATHER_GEOCODING_URL');
   const forecastEndpoint = endpoint(config.weatherForecastUrl, 'WEATHER_FORECAST_URL');
@@ -160,5 +167,7 @@ export function createWeatherService(config, { fetchImpl = globalThis.fetch, now
     return operation;
   }
 
-  return Object.freeze({ get, get cacheSize() { return cache.size; } });
+  const service = Object.freeze({ get, get cacheSize() { return cache.size; } });
+  if (useShared) sharedServices.set(config, service);
+  return service;
 }

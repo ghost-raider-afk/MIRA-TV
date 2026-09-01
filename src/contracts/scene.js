@@ -76,6 +76,13 @@ function tableConfig(value) {
   };
 }
 
+function weatherConfig(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    location: optionalString(source.location, 'weather.location', 120).trim().replace(/\s+/g, ' ')
+  };
+}
+
 function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
   const value = object(source, `slides[${slideIndex}].elements[${elementIndex}]`);
   const id = stableId(value.id, 'element.id');
@@ -125,6 +132,7 @@ function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
     result.data_binding = { source: 'catalog_products' };
     result.table = tableConfig(value.table);
   }
+  if (type === 'weather') result.weather = weatherConfig(value.weather);
   return result;
 }
 
