@@ -37,6 +37,7 @@ const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
 const CONTENT_ELEMENT_TYPES = new Set(['text', 'table', 'image', 'logo', 'video']);
 const TEXT_STYLE_ELEMENT_TYPES = new Set(['text', 'table', 'weather', 'clock']);
 const DATA_ELEMENT_TYPES = new Set(['table', 'image', 'logo', 'video', 'weather']);
+const QUANTITY_PRICING_MODELS = new Set(['proportional', 'weight']);
 const history = createSceneHistory({ limit: 100 });
 const VARIANT_OPTIONS = Object.freeze({
   weather: [
@@ -61,7 +62,8 @@ const state = {
   clipboardElement: null,
   inspectorTab: 'object',
   preview: false,
-  catalogProducts: [],
+  catalogItems: [],
+  catalogClasses: [],
   catalogStatus: 'idle',
   catalogError: '',
   mediaAssets: [],
@@ -165,7 +167,7 @@ function ensureWeatherForSlide(slide) {
 }
 
 function ensureDynamicDataForScene() {
-  if (sceneUsesCatalog(state.scene) && state.catalogStatus === 'idle') void loadCatalogProducts();
+  if (sceneUsesCatalog(state.scene) && state.catalogStatus === 'idle') void loadCatalogData();
   if (sceneUsesMedia(state.scene) && state.mediaStatus === 'idle') void loadMediaAssets();
   ensureWeatherForSlide(displayedSlide());
 }
@@ -257,7 +259,7 @@ function scheduleAutosave() {
 
 function sceneRendererContext() {
   return {
-    catalogProducts: state.catalogProducts,
+    catalogItems: state.catalogItems,
     catalogStatus: state.catalogStatus,
     catalogError: state.catalogError,
     mediaAssets: state.mediaAssets,
@@ -306,23 +308,55 @@ function refreshVisibleElements(predicate) {
   syncClockTimer();
 }
 
-async function loadCatalogProducts({ force = false } = {}) {
+async function loadCatalogData({ force = false } = {}) {
   if (!force && (state.catalogStatus === 'loading' || state.catalogStatus === 'ready')) return;
   state.catalogStatus = 'loading';
   state.catalogError = '';
   refreshVisibleElements((element) => element.type === 'table');
   renderInspector();
   try {
-    const products = await api.get(API.products);
-    state.catalogProducts = Array.isArray(products) ? products : [];
+    const [items, classes] = await Promise.all([
+      api.get(API.catalogItems),
+      api.get(API.catalogClasses)
+    ]);
+    state.catalogItems = Array.isArray(items) ? items : [];
+    state.catalogClasses = Array.isArray(classes) ? classes : [];
     state.catalogStatus = 'ready';
   } catch (error) {
-    state.catalogProducts = [];
+    state.catalogItems = [];
+    state.catalogClasses = [];
     state.catalogStatus = 'error';
     state.catalogError = error?.message || 'Не удалось загрузить каталог';
   }
   refreshVisibleElements((element) => element.type === 'table');
   renderInspector();
+}
+
+function catalogClassByCode(code) {
+  const normalized = String(code || '');
+  return state.catalogClasses.find((item) => item?.code === normalized) || null;
+}
+
+function catalogClassSupportsQuantities(catalogClass) {
+  return Boolean(catalogClass && QUANTITY_PRICING_MODELS.has(catalogClass.pricing_model));
+}
+
+function catalogClassLabel(catalogClass) {
+  const parent = state.catalogClasses.find((item) => Number(item?.id) === Number(catalogClass?.parent_id));
+  return parent ? `${parent.name} · ${catalogClass.name}` : catalogClass.name;
+}
+
+function fillCatalogClassSelect(select, selectedCode) {
+  if (!select) return;
+  const options = [new Option('Все классы', '')];
+  const classes = state.catalogClasses
+    .filter((item) => item?.active !== false && item?.code)
+    .slice()
+    .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || String(a.name).localeCompare(String(b.name), 'ru'));
+  for (const catalogClass of classes) options.push(new Option(catalogClassLabel(catalogClass), catalogClass.code));
+  if (selectedCode && !options.some((option) => option.value === selectedCode)) options.push(new Option(selectedCode, selectedCode));
+  select.replaceChildren(...options);
+  select.value = options.some((option) => option.value === selectedCode) ? selectedCode : '';
 }
 
 async function loadMediaAssets({ force = false } = {}) {
@@ -669,13 +703,25 @@ function renderTableInspector(element) {
   if (!isTable) return;
   element.table = normaliseTableConfig(element.table || {});
   const appearance = element.table.appearance;
+  const catalogClass = catalogClassByCode(element.table.class_code);
+  const supportsQuantities = catalogClassSupportsQuantities(catalogClass);
+  const classSelect = document.querySelector('#table-class-code');
+  fillCatalogClassSelect(classSelect, element.table.class_code);
   document.querySelector('#table-active-only').checked = element.table.active_only;
   document.querySelector('#table-row-limit').value = element.table.row_limit;
-  document.querySelector('#table-volumes').value = element.table.volumes_l.map((value) => String(value).replace('.', ',')).join('; ');
-  document.querySelector('#table-show-producer').checked = element.table.show_producer;
-  document.querySelector('#table-show-strength').checked = element.table.show_strength;
-  document.querySelector('#table-show-color').checked = element.table.show_color;
-  document.querySelector('#table-show-filtration').checked = element.table.show_filtration;
+  document.querySelector('#table-show-metadata').checked = element.table.show_metadata;
+  document.querySelector('#table-show-description').checked = element.table.show_description;
+  const priceLayout = document.querySelector('#table-price-layout');
+  const quantitiesOption = [...priceLayout.options].find((option) => option.value === 'quantities');
+  if (quantitiesOption) quantitiesOption.disabled = !supportsQuantities;
+  priceLayout.value = element.table.price_layout;
+  const quantitiesField = document.querySelector('#table-quantities-field');
+  quantitiesField.classList.toggle('is-hidden', element.table.price_layout !== 'quantities');
+  document.querySelector('#table-quantities').value = element.table.quantities.map((value) => String(value).replace('.', ',')).join('; ');
+  const unit = catalogClass?.default_unit || element.table.quantity_unit || '';
+  document.querySelector('#table-quantity-help').textContent = unit
+    ? `Значения через точку с запятой, единица: ${unit}. Цена рассчитывается от базовой цены и базового количества позиции.`
+    : 'Значения через точку с запятой. Цена рассчитывается от базовой цены и базового количества позиции.';
   document.querySelector('#table-preset').value = appearance.preset;
   document.querySelector('#table-density').value = appearance.density;
   document.querySelector('#table-header-style').value = appearance.header_style;
@@ -687,7 +733,7 @@ function renderTableInspector(element) {
   const status = document.querySelector('#table-catalog-status');
   if (state.catalogStatus === 'loading' || state.catalogStatus === 'idle') status.textContent = 'Каталог загружается…';
   else if (state.catalogStatus === 'error') status.textContent = state.catalogError || 'Каталог недоступен';
-  else status.textContent = `Каталог подключён · ${state.catalogProducts.length} позиций`;
+  else status.textContent = `Каталог подключён · ${state.catalogItems.length} позиций · ${state.catalogClasses.length} классов`;
 }
 
 function renderMediaInspector(element) {
@@ -870,7 +916,7 @@ function addElement(type) {
   touchScene(state.scene);
   scheduleAutosave();
   render();
-  if (type === 'table') void loadCatalogProducts();
+  if (type === 'table') void loadCatalogData();
   if (MEDIA_ELEMENT_TYPES.has(type) && state.mediaStatus === 'idle') void loadMediaAssets();
   if (type === 'weather') void loadWeatherForElement(element);
 }
@@ -1065,6 +1111,29 @@ function bindInspectorTabs() {
 }
 
 function bindTableInspector() {
+  document.querySelector('#table-class-code').addEventListener('change', (event) => {
+    const code = event.target.value;
+    const catalogClass = catalogClassByCode(code);
+    updateSelected((element) => {
+      if (element.type !== 'table') return;
+      element.table.class_code = code;
+      if (catalogClass?.default_unit) element.table.quantity_unit = catalogClass.default_unit;
+      if (!catalogClassSupportsQuantities(catalogClass)) element.table.price_layout = 'single';
+    }, { refresh: 'content' });
+    renderTableInspector(selectedElement());
+  });
+  document.querySelector('#table-price-layout').addEventListener('change', (event) => {
+    const element = selectedElement();
+    if (!element || element.type !== 'table') return;
+    const requested = event.target.value;
+    const catalogClass = catalogClassByCode(element.table.class_code);
+    const value = requested === 'quantities' && !catalogClassSupportsQuantities(catalogClass) ? 'single' : requested;
+    event.target.value = value;
+    updateSelected((target) => {
+      if (target.type === 'table') target.table.price_layout = value;
+    }, { refresh: 'content' });
+    renderTableInspector(selectedElement());
+  });
   document.querySelector('#table-active-only').addEventListener('change', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.active_only = event.target.checked;
   }, { refresh: 'content' }));
@@ -1072,19 +1141,18 @@ function bindTableInspector() {
     if (element.type === 'table') element.table.row_limit = Math.min(50, Math.max(1, Number(event.target.value) || 1));
   }, { historyKey: 'table-row-limit', refresh: 'content' }));
   closeHistoryOnChange('#table-row-limit');
-  document.querySelector('#table-volumes').addEventListener('change', (event) => updateSelected((element) => {
-    if (element.type === 'table') element.table.volumes_l = parseTargetVolumes(event.target.value);
+  document.querySelector('#table-quantities').addEventListener('change', (event) => updateSelected((element) => {
+    if (element.type !== 'table') return;
+    const quantities = parseTargetVolumes(event.target.value);
+    element.table.quantities = quantities;
+    element.table.volumes_l = [...quantities];
   }, { refresh: 'content' }));
-  [
-    ['#table-show-producer', 'show_producer'],
-    ['#table-show-strength', 'show_strength'],
-    ['#table-show-color', 'show_color'],
-    ['#table-show-filtration', 'show_filtration']
-  ].forEach(([selector, key]) => {
-    document.querySelector(selector).addEventListener('change', (event) => updateSelected((element) => {
-      if (element.type === 'table') element.table[key] = event.target.checked;
-    }, { refresh: 'content' }));
-  });
+  document.querySelector('#table-show-metadata').addEventListener('change', (event) => updateSelected((element) => {
+    if (element.type === 'table') element.table.show_metadata = event.target.checked;
+  }, { refresh: 'content' }));
+  document.querySelector('#table-show-description').addEventListener('change', (event) => updateSelected((element) => {
+    if (element.type === 'table') element.table.show_description = event.target.checked;
+  }, { refresh: 'content' }));
   [
     ['#table-preset', 'preset'],
     ['#table-density', 'density'],
@@ -1108,7 +1176,7 @@ function bindTableInspector() {
       if (element.type === 'table') element.table.appearance[key] = event.target.checked;
     }, { refresh: 'content' }));
   });
-  document.querySelector('#table-refresh-catalog').addEventListener('click', () => void loadCatalogProducts({ force: true }));
+  document.querySelector('#table-refresh-catalog').addEventListener('click', () => void loadCatalogData({ force: true }));
 }
 
 function bindMediaInspector() {
@@ -1489,6 +1557,10 @@ export async function initialiseSceneEditor() {
   state.saveConflict = false;
   state.clipboardElement = null;
   state.inspectorTab = 'object';
+  state.catalogItems = [];
+  state.catalogClasses = [];
+  state.catalogStatus = 'idle';
+  state.catalogError = '';
   state.weatherByElement = {};
   state.weatherStatus = {};
   state.weatherRequestVersion = {};
