@@ -53,13 +53,22 @@ function createSceneCell(screen, assignment) {
   select.className = 'screen-scene-select';
   select.setAttribute('aria-label', `Сцена для ${screen.name}`);
   select.append(new Option('Выберите сцену', ''));
-  for (const item of singleDisplayRevisions()) select.append(new Option(`${item.scene_name} · ${item.revision_number}`, item.id));
+  const available = singleDisplayRevisions();
+  for (const item of available) select.append(new Option(`${item.scene_name} · ${item.revision_number}`, item.id));
   if (assignment?.scene_revision_id) select.value = assignment.scene_revision_id;
   const apply = makeButton(assignment ? 'Сменить' : 'Применить', '', () => void assignScene(screen, select));
-  apply.disabled = singleDisplayRevisions().length === 0;
+  apply.disabled = available.length === 0;
   controls.append(select, apply);
   if (assignment) controls.append(makeButton('Снять', 'secondary', () => void clearSceneAssignment(screen)));
   cell.append(current, revision, controls);
+  if (available.length === 0) {
+    const hint = document.createElement('small');
+    hint.className = 'screen-scene-hint';
+    hint.textContent = state.sceneRevisions.length
+      ? 'Опубликованы только панорамные сцены. Для них нужен Display Group.'
+      : 'Сначала опубликуйте сцену в разделе «Сцены».';
+    cell.append(hint);
+  }
   return cell;
 }
 
@@ -183,7 +192,7 @@ async function deleteScreen(screen) {
 async function createScreenAtLocation(location) {
   try {
     await api.post(`${API.locations}/${location.id}/screens`, {});
-    setMessage('screens-message', `Монитор создан в точке «${location.name}».`, 'success');
+    setMessage('screens-message', `Монитор создан в точке «${location.name}». Назначьте ему опубликованную сцену.`, 'success');
     await loadScreens();
   } catch (error) { setMessage('screens-message', error.message); }
 }
