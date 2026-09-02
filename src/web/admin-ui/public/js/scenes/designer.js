@@ -29,6 +29,31 @@ function availableSize(shell) {
   };
 }
 
+function scaledLength(value, ratio) {
+  const number = Number.parseFloat(value);
+  return Number.isFinite(number) ? `${number * ratio}px` : value;
+}
+
+function rescaleRenderedElements(stage, newScale) {
+  for (const node of stage.querySelectorAll('.scene-render-element')) {
+    const oldScale = Number.parseFloat(node.style.getPropertyValue('--scene-render-scale'));
+    if (!Number.isFinite(oldScale) || oldScale <= 0 || Math.abs(oldScale - newScale) < 0.00001) continue;
+    const ratio = newScale / oldScale;
+    node.style.fontSize = scaledLength(node.style.fontSize, ratio);
+    node.style.letterSpacing = scaledLength(node.style.letterSpacing, ratio);
+    node.style.setProperty('--scene-element-blur', scaledLength(node.style.getPropertyValue('--scene-element-blur'), ratio));
+
+    if (node.classList.contains('scene-element-table')) {
+      node.style.setProperty('--scene-table-radius', scaledLength(node.style.getPropertyValue('--scene-table-radius'), ratio));
+      node.style.setProperty('--scene-table-border-width', scaledLength(node.style.getPropertyValue('--scene-table-border-width'), ratio));
+    } else {
+      node.style.borderRadius = scaledLength(node.style.borderRadius, ratio);
+      node.style.borderWidth = scaledLength(node.style.borderWidth, ratio);
+    }
+    node.style.setProperty('--scene-render-scale', String(newScale));
+  }
+}
+
 function fitStageToWorkspace() {
   const shell = document.querySelector('#scene-stage-shell');
   const stage = document.querySelector('#scene-stage');
@@ -36,17 +61,17 @@ function fitStageToWorkspace() {
   if (!shell || !stage) return;
 
   const count = Math.min(6, Math.max(1, Number(displays?.value) || 1));
-  const aspect = (1920 * count) / 1080;
+  const canvasWidth = 1920 * count;
+  const aspect = canvasWidth / 1080;
   const available = availableSize(shell);
+  const width = Math.max(1, Math.floor(Math.min(available.width, available.height * aspect)));
+  const currentWidth = stage.clientWidth;
+  if (Math.abs(currentWidth - width) < 1) return;
 
-  // Keep one real authoring width. Fit the complete Canvas as one visual surface
-  // instead of resizing it and forcing every child element to recalculate.
-  stage.style.width = '100%';
-  stage.style.maxWidth = '100%';
-  stage.style.transformOrigin = 'center center';
-  const naturalHeight = available.width / aspect;
-  const scale = naturalHeight > available.height ? available.height / naturalHeight : 1;
-  stage.style.transform = scale < 0.9995 ? `scale(${scale})` : '';
+  stage.style.transform = '';
+  stage.style.width = `${width}px`;
+  stage.style.maxWidth = 'none';
+  rescaleRenderedElements(stage, width / canvasWidth);
 }
 
 function syncPanelState(body, toolsButton, inspectorButton) {
