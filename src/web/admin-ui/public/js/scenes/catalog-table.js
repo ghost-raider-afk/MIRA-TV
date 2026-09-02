@@ -1,5 +1,9 @@
 const DEFAULT_VOLUMES = Object.freeze([0.5, 1, 1.5]);
 const MAX_VOLUME_COLUMNS = 6;
+const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
+const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
+const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
+const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
 
 function toNumber(value) {
   if (typeof value === 'string') value = value.replace(',', '.').trim();
@@ -11,6 +15,15 @@ function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
+function option(value, allowed, fallback) {
+  return allowed.has(value) ? value : fallback;
+}
+
+function colour(value, fallback) {
+  const text = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+}
+
 export function normaliseTableConfig(source = {}) {
   const rawVolumes = Array.isArray(source.volumes_l) ? source.volumes_l : DEFAULT_VOLUMES;
   const volumes = [];
@@ -20,6 +33,7 @@ export function normaliseTableConfig(source = {}) {
     volumes.push(volume);
     if (volumes.length >= MAX_VOLUME_COLUMNS) break;
   }
+  const appearanceSource = source.appearance && typeof source.appearance === 'object' ? source.appearance : {};
   return {
     base_volume_l: Math.max(0.001, toNumber(source.base_volume_l) || 1),
     volumes_l: volumes.length ? volumes : [...DEFAULT_VOLUMES],
@@ -28,7 +42,17 @@ export function normaliseTableConfig(source = {}) {
     show_color: source.show_color === true,
     show_filtration: source.show_filtration === true,
     active_only: source.active_only !== false,
-    row_limit: Math.min(50, Math.max(1, Math.round(toNumber(source.row_limit) || 12)))
+    row_limit: Math.min(50, Math.max(1, Math.round(toNumber(source.row_limit) || 12))),
+    appearance: {
+      preset: option(appearanceSource.preset, TABLE_PRESETS, 'clean'),
+      density: option(appearanceSource.density, TABLE_DENSITIES, 'comfortable'),
+      header_style: option(appearanceSource.header_style, TABLE_HEADER_STYLES, 'subtle'),
+      price_style: option(appearanceSource.price_style, TABLE_PRICE_STYLES, 'accent'),
+      accent_color: colour(appearanceSource.accent_color, '#f4c915'),
+      show_title: appearanceSource.show_title !== false,
+      row_dividers: appearanceSource.row_dividers !== false,
+      zebra: appearanceSource.zebra === true
+    }
   };
 }
 
