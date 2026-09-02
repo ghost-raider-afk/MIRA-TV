@@ -19,6 +19,7 @@ import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { migratePrototypeScenes } from './migrations/prototype-scenes.js';
 import { migrateScenePublishing } from './migrations/scene-publishing.js';
 import { migrateMediaAssets } from './migrations/media-assets.js';
+import { migrateUniversalCatalog } from './migrations/universal-catalog.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -54,7 +55,8 @@ const MIGRATIONS = Object.freeze([
   { name: '017-player-telemetry', run: migratePlayerTelemetry },
   { name: '018-prototype-scenes', run: migratePrototypeScenes },
   { name: '019-scene-publishing', run: migrateScenePublishing },
-  { name: '020-media-assets', run: migrateMediaAssets }
+  { name: '020-media-assets', run: migrateMediaAssets },
+  { name: '021-universal-catalog', run: migrateUniversalCatalog }
 ]);
 
 function createRepositories(queryable) {
