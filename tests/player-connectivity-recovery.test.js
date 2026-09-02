@@ -78,7 +78,7 @@ test('offline Player logs survive locally and server ingestion is idempotent', a
 
 test('published Scene runtime is part of the offline Player shell', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /mira-tv-player-shell-v16-scene9/);
+  assert.match(worker, /mira-tv-player-shell-v16-scene10/);
   for (const asset of [
     '/css/scene-renderer.css',
     '/css/scene-table-main.css',

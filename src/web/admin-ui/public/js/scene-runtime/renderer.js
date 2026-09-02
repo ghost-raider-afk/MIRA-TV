@@ -76,6 +76,7 @@ function renderCatalogTable(node, element, context) {
   table.dataset.density = appearance.density;
   table.dataset.headerStyle = appearance.header_style;
   table.dataset.priceStyle = appearance.price_style;
+  table.dataset.priceLayout = config.price_layout;
   table.dataset.rowDividers = String(appearance.row_dividers);
   table.dataset.zebra = String(appearance.zebra);
   table.style.setProperty('--scene-table-accent', appearance.accent_color);
@@ -113,8 +114,21 @@ function renderCatalogTable(node, element, context) {
     const rowNode = document.createElement('tr');
     for (const column of columns) {
       const cell = document.createElement('td');
-      cell.textContent = row.values[column.key] || '—';
-      if (column.kind === 'price') cell.className = 'scene-catalog-price';
+      const value = String(row.values[column.key] || '—');
+      cell.dataset.column = column.key;
+      if (column.kind === 'price') cell.classList.add('scene-catalog-price');
+      if (column.key === 'product') {
+        const [name, ...metadataParts] = value.split('\n');
+        const line = document.createElement('span');
+        line.className = 'scene-catalog-product-line';
+        appendText(line, 'span', name, 'scene-catalog-product-name');
+        appendText(line, 'span', '', 'scene-catalog-product-leader').setAttribute('aria-hidden', 'true');
+        cell.append(line);
+        const metadata = metadataParts.join(' ').trim();
+        if (metadata) appendText(cell, 'span', metadata, 'scene-catalog-product-meta');
+      } else {
+        appendText(cell, 'span', value, 'scene-catalog-cell-content');
+      }
       rowNode.append(cell);
     }
     body.append(rowNode);

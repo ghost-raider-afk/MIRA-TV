@@ -32,7 +32,7 @@ test('Scene Preview and Published Player consume one universal catalog contract'
 
 test('Player refreshes changed shell code without discarding cached media', async () => {
   const serviceWorker = await source('src/web/admin-ui/public/player-sw.js');
-  assert.match(serviceWorker, /mira-tv-player-shell-v16-scene9/);
+  assert.match(serviceWorker, /mira-tv-player-shell-v16-scene10/);
   assert.match(serviceWorker, /mira-tv-player-data-v16-scene8/);
   assert.match(serviceWorker, /'\/js\/scene-runtime\/renderer\.js'/);
   assert.match(serviceWorker, /'\/js\/scenes\/catalog-table\.js'/);

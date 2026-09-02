@@ -109,3 +109,336 @@
   padding-top: .34em;
   padding-bottom: .34em;
 }
+
+/* Preserve the original MIRA-TV hierarchy after the renderer split product text into semantic spans. */
+.scene-catalog-table[data-preset="clean"] .scene-catalog-product-line {
+  display: block;
+}
+
+.scene-catalog-table[data-preset="clean"] .scene-catalog-product-name {
+  display: block;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-size: 1.55em;
+  font-weight: 750;
+  line-height: 1.12;
+  text-overflow: clip;
+}
+
+.scene-catalog-table[data-preset="clean"] .scene-catalog-product-meta {
+  margin-top: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-size: 1em;
+  font-weight: 450;
+  line-height: 1.08;
+  text-overflow: clip;
+}
+
+/* Menu-list presets share one semantic table DOM: product and metadata stay together while prices remain aligned in native table columns. */
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+) {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+)[data-price-layout="single"] thead {
+  display: none;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+) thead th {
+  border-bottom: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  font-size: .36em;
+  letter-spacing: .045em;
+  opacity: .72;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+) thead th:first-child {
+  color: transparent;
+  user-select: none;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+) tbody td {
+  padding: .3em .42em;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  background: transparent;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+) tbody tr:last-child td {
+  border-bottom-color: transparent;
+}
+
+.scene-catalog-product-line {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+}
+
+.scene-catalog-product-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-catalog-product-leader {
+  display: none;
+  min-width: .8em;
+  flex: 1 1 auto;
+  margin: 0 .38em;
+  border-bottom: 1px dotted currentColor;
+  opacity: .48;
+  transform: translateY(-.16em);
+}
+
+.scene-catalog-product-meta {
+  display: block;
+  margin-top: .12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .66em;
+  font-weight: 400;
+  line-height: 1.16;
+  opacity: .7;
+}
+
+/* Menu Board: large distance-readable names and prices connected by a classic dotted leader. */
+.scene-catalog-table[data-preset="menu-board"] {
+  background: var(--scene-table-surface, transparent);
+}
+
+.scene-catalog-table[data-preset="menu-board"] caption {
+  padding: .3em .48em .26em;
+  background: var(--scene-table-accent, #f4c915);
+  color: #101317;
+  font-size: .86em;
+  font-weight: 900;
+  letter-spacing: -.025em;
+  line-height: 1;
+}
+
+.scene-catalog-table[data-preset="menu-board"] tbody td {
+  padding-top: .34em;
+  padding-bottom: .34em;
+  font-size: .66em;
+}
+
+.scene-catalog-table[data-preset="menu-board"] .scene-catalog-product-name {
+  font-weight: 800;
+  letter-spacing: -.018em;
+}
+
+.scene-catalog-table[data-preset="menu-board"] .scene-catalog-product-leader {
+  display: block;
+  border-bottom-width: 2px;
+}
+
+.scene-catalog-table[data-preset="menu-board"] .scene-catalog-price {
+  padding-left: .18em;
+  font-size: .69em;
+  font-weight: 900;
+  letter-spacing: -.025em;
+}
+
+/* Bistro: quiet editorial typography and thin rules, with no decorative surface effects. */
+.scene-catalog-table[data-preset="bistro"] {
+  border-top: 1px solid color-mix(in srgb, currentColor 48%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 48%, transparent);
+  background: var(--scene-table-surface, transparent);
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.scene-catalog-table[data-preset="bistro"] caption {
+  padding: .42em .48em .34em;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 44%, transparent);
+  font-size: .68em;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.scene-catalog-table[data-preset="bistro"] tbody td {
+  padding-top: .32em;
+  padding-bottom: .32em;
+  font-size: .59em;
+}
+
+.scene-catalog-table[data-preset="bistro"] .scene-catalog-product-name {
+  font-weight: 600;
+}
+
+.scene-catalog-table[data-preset="bistro"] .scene-catalog-product-meta {
+  font-style: italic;
+  letter-spacing: .012em;
+}
+
+.scene-catalog-table[data-preset="bistro"] .scene-catalog-price {
+  font-size: .59em;
+  font-weight: 600;
+}
+
+/* Café: warm classic menu composition with an expressive section heading. */
+.scene-catalog-table[data-preset="cafe"] {
+  border: 2px solid color-mix(in srgb, var(--scene-table-accent, #f4c915) 58%, transparent);
+  background: #4b3024;
+  color: #fff4dc;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.scene-catalog-table[data-preset="cafe"] caption {
+  padding: .34em .48em .3em;
+  border-bottom: 3px double color-mix(in srgb, #2b1a12 58%, transparent);
+  background: var(--scene-table-accent, #f4c915);
+  color: #2b1a12;
+  font-size: .8em;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.scene-catalog-table[data-preset="cafe"] tbody td {
+  padding-top: .33em;
+  padding-bottom: .33em;
+  border-bottom-color: rgba(255, 244, 220, .2);
+  font-size: .61em;
+}
+
+.scene-catalog-table[data-preset="cafe"] .scene-catalog-product-name {
+  font-weight: 700;
+}
+
+.scene-catalog-table[data-preset="cafe"] .scene-catalog-product-leader {
+  display: block;
+  color: var(--scene-table-accent, #f4c915);
+  opacity: .55;
+}
+
+.scene-catalog-table[data-preset="cafe"] .scene-catalog-price {
+  font-size: .63em;
+}
+
+/* Chalkboard: a deliberately flat, high-contrast dark surface suitable for low-power TV hardware. */
+.scene-catalog-table[data-preset="chalkboard"] {
+  border: 1px solid rgba(247, 243, 232, .34);
+  background: #151b18;
+  color: #f7f3e8;
+}
+
+.scene-catalog-table[data-preset="chalkboard"] caption {
+  padding: .34em .48em .3em;
+  border-bottom: 2px solid var(--scene-table-accent, #f4c915);
+  background: transparent;
+  color: var(--scene-table-accent, #f4c915);
+  font-size: .8em;
+  font-weight: 900;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.scene-catalog-table[data-preset="chalkboard"] tbody td {
+  padding-top: .33em;
+  padding-bottom: .33em;
+  border-bottom-color: rgba(247, 243, 232, .22);
+  font-size: .64em;
+}
+
+.scene-catalog-table[data-preset="chalkboard"] .scene-catalog-product-name {
+  font-weight: 750;
+}
+
+.scene-catalog-table[data-preset="chalkboard"] .scene-catalog-product-leader {
+  display: block;
+  color: #f7f3e8;
+  opacity: .42;
+}
+
+.scene-catalog-table[data-preset="chalkboard"] .scene-catalog-price {
+  font-size: .67em;
+  color: var(--scene-table-accent, #f4c915);
+  font-weight: 850;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+)[data-density="compact"] tbody td {
+  padding-top: .2em;
+  padding-bottom: .2em;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+)[data-density="spacious"] tbody td {
+  padding-top: .46em;
+  padding-bottom: .46em;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+)[data-price-style="bold"] .scene-catalog-price {
+  color: currentColor;
+  font-weight: 900;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+)[data-price-style="plain"] .scene-catalog-price {
+  color: currentColor;
+  font-weight: 500;
+}
+
+.scene-catalog-table:is(
+  [data-preset="menu-board"],
+  [data-preset="bistro"],
+  [data-preset="cafe"],
+  [data-preset="chalkboard"]
+)[data-row-dividers="false"] tbody td {
+  border-bottom-color: transparent;
+}

@@ -167,7 +167,7 @@ function createRibbon() {
 
   const table = group('Таблица', 'table');
   table.content.append(
-    selectControl('#table-preset', [['clean', 'MIRA-TV'], ['glass', 'Современная'], ['solid', 'Сетка'], ['minimal', 'Минимальная']], 'Вид'),
+    selectControl('#table-preset', [['clean', 'MIRA-TV'], ['glass', 'Современная'], ['solid', 'Сетка'], ['minimal', 'Минимальная'], ['menu-board', 'Menu Board'], ['bistro', 'Bistro'], ['cafe', 'Café'], ['chalkboard', 'Chalkboard']], 'Вид'),
     selectControl('#table-density', [['compact', 'Компактная'], ['comfortable', 'Стандартная'], ['spacious', 'Крупная']], 'Строки'),
     selectControl('#table-header-style', [['subtle', 'Без заливки'], ['accent', 'Акцент'], ['solid', 'Контрастная']], 'Заголовки'),
     selectControl('#table-price-style', [['accent', 'Акцент'], ['bold', 'Жирные'], ['plain', 'Обычные']], 'Цены'),

@@ -1,6 +1,7 @@
 const DEFAULT_QUANTITIES = Object.freeze([0.5, 1, 1.5]);
 const MAX_QUANTITY_COLUMNS = 6;
-const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
+const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal', 'menu-board', 'bistro', 'cafe', 'chalkboard']);
+const MENU_LIST_PRESETS = new Set(['clean', 'menu-board', 'bistro', 'cafe', 'chalkboard']);
 const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
 const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
@@ -205,11 +206,11 @@ function itemPriceLabel(item) {
 
 export function catalogTableColumns(configSource = {}, _itemsSource = []) {
   const config = normaliseTableConfig(configSource);
-  const compact = config.appearance.preset === 'clean';
-  const columns = [{ key: compact ? 'product' : 'name', label: compact ? '' : 'Название', kind: 'product', weight: compact ? 3.2 : 2.4 }];
+  const menuList = MENU_LIST_PRESETS.has(config.appearance.preset);
+  const columns = [{ key: menuList ? 'product' : 'name', label: menuList ? '' : 'Название', kind: 'product', weight: menuList ? 3.2 : 2.4 }];
 
-  if (!compact && !config.group_by_class) columns.push({ key: 'class_name', label: 'Класс', kind: 'text', weight: 1.05 });
-  if (!compact && config.show_metadata) columns.push({ key: 'metadata', label: 'Описание', kind: 'text', weight: 1.8 });
+  if (!menuList && !config.group_by_class) columns.push({ key: 'class_name', label: 'Класс', kind: 'text', weight: 1.05 });
+  if (!menuList && config.show_metadata) columns.push({ key: 'metadata', label: 'Описание', kind: 'text', weight: 1.8 });
 
   if (config.price_layout === 'quantities') {
     for (const quantity of config.quantities) {
