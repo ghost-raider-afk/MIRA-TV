@@ -5,7 +5,7 @@ import test from 'node:test';
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
-test('Scene formatting is exposed through one stable Office-style top ribbon', async () => {
+test('Scene formatting uses one compact contextual top ribbon', async () => {
   const [application, ribbon, css, indexCss] = await Promise.all([
     read('src/web/admin-ui/public/js/application.js'),
     read('src/web/admin-ui/public/js/scenes/ribbon.js'),
@@ -20,8 +20,12 @@ test('Scene formatting is exposed through one stable Office-style top ribbon', a
   for (const group of ['Размер', 'Шрифт и текст', 'Заливка и контур', 'Таблица', 'Виджет', 'Изображение и видео', 'Упорядочить']) {
     assert.ok(ribbon.includes(`group('${group}'`), `missing ribbon group: ${group}`);
   }
-  assert.match(css, /height:104px/);
-  assert.match(css, /grid-template-rows:auto 104px minmax\(0,1fr\) auto/);
+  for (const action of ['Таблица', 'Текст', 'Фото', 'Логотип', 'Видео', 'Погода', 'Часы', 'Фигура', 'Фон слайда']) {
+    assert.ok(ribbon.includes(action), `missing persistent insertion action: ${action}`);
+  }
+  assert.match(css, /height:88px/);
+  assert.match(css, /grid-template-rows:56px 88px minmax\(0,1fr\)/);
+  assert.doesNotMatch(css, /height:104px/);
 });
 
 test('ribbon proxies existing Scene controls instead of introducing duplicate authoring state', async () => {
