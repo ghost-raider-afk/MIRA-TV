@@ -103,19 +103,37 @@ function actionButton(selector, label, title = '') {
   return button;
 }
 
+function insertButton(type, label) {
+  const button = node('button', 'scene-ribbon-insert-action', label);
+  button.type = 'button';
+  button.dataset.ribbonInsert = type;
+  return button;
+}
+
 function createRibbon() {
   const ribbon = node('section', 'scene-format-ribbon');
   ribbon.id = 'scene-format-ribbon';
-  ribbon.setAttribute('aria-label', 'Лента форматирования выбранного объекта');
+  ribbon.setAttribute('aria-label', 'Инструменты сцены и форматирование выбранного объекта');
 
   const head = node('div', 'scene-ribbon-head');
   head.append(
-    node('span', 'scene-ribbon-context', 'ФОРМАТ ОБЪЕКТА'),
-    node('strong', 'scene-ribbon-selection', 'Объект не выбран')
+    node('span', 'scene-ribbon-context', 'ВСТАВКА'),
+    node('strong', 'scene-ribbon-selection', 'Добавить объект на слайд')
   );
 
   const body = node('div', 'scene-ribbon-body');
-  const empty = node('div', 'scene-ribbon-empty', 'Выберите объект на сцене — здесь появятся его основные настройки.');
+  const empty = node('div', 'scene-ribbon-empty');
+  empty.append(
+    insertButton('table', 'Таблица'),
+    insertButton('text', 'Текст'),
+    insertButton('image', 'Фото'),
+    insertButton('logo', 'Логотип'),
+    insertButton('video', 'Видео'),
+    insertButton('weather', 'Погода'),
+    insertButton('clock', 'Часы'),
+    insertButton('shape', 'Фигура'),
+    actionButton('#scene-tools-toggle', 'Фон слайда')
+  );
   body.append(empty);
 
   const size = group('Размер');
@@ -173,7 +191,7 @@ function createRibbon() {
 
   const arrange = group('Упорядочить');
   arrange.content.append(
-    actionButton('#element-forward', 'На передний'),
+    actionButton('#element-forward', 'Вперёд'),
     actionButton('#element-backward', 'Назад'),
     actionButton('#element-duplicate', 'Копия', 'Ctrl+D'),
     actionButton('#element-delete', 'Удалить', 'Delete')
@@ -204,7 +222,8 @@ function syncRibbon(ribbon) {
   const type = selectedType();
   ribbon.dataset.sceneType = type || '';
   ribbon.classList.toggle('has-selection', Boolean(type));
-  ribbon.querySelector('.scene-ribbon-selection').textContent = type ? TYPE_LABELS[type] : 'Объект не выбран';
+  ribbon.querySelector('.scene-ribbon-context').textContent = type ? 'ФОРМАТ ОБЪЕКТА' : 'ВСТАВКА';
+  ribbon.querySelector('.scene-ribbon-selection').textContent = type ? TYPE_LABELS[type] : 'Добавить объект на слайд';
 
   for (const groupNode of ribbon.querySelectorAll('.scene-ribbon-group')) {
     const types = groupNode.dataset.ribbonTypes || '*';
@@ -234,6 +253,10 @@ function bindRibbon(ribbon) {
 
   for (const button of ribbon.querySelectorAll('[data-ribbon-action]')) {
     button.addEventListener('click', () => document.querySelector(button.dataset.ribbonAction)?.click());
+  }
+
+  for (const button of ribbon.querySelectorAll('[data-ribbon-insert]')) {
+    button.addEventListener('click', () => document.querySelector(`[data-add-element="${button.dataset.ribbonInsert}"]`)?.click());
   }
 
   const inspector = document.querySelector('.scene-inspector');
