@@ -12,6 +12,7 @@ const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
 const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
 const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
+const TABLE_PRICE_LAYOUTS = new Set(['single', 'quantities']);
 const FONT_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 900]);
 const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
 const VERTICAL_ALIGNS = new Set(['top', 'center', 'bottom']);
@@ -81,20 +82,39 @@ function optionalMediaAssetId(value, field) {
   return id;
 }
 
+function tableClassCode(value) {
+  const code = optionalString(value, 'table.class_code', 64).trim();
+  if (code && !/^[a-z][a-z0-9_]{1,63}$/.test(code)) throw new ValidationError('Поле «table.class_code» содержит некорректный код класса.');
+  return code;
+}
+
 function tableConfig(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  const volumes = Array.isArray(source.volumes_l) ? source.volumes_l : [0.5, 1, 1.5];
-  if (volumes.length < 1 || volumes.length > 8) throw new ValidationError('Таблица должна содержать от 1 до 8 ценовых объёмов.');
-  const normalizedVolumes = [...new Set(volumes.map((item, index) => numeric(item, `table.volumes_l[${index}]`, 0.01, 100)))].sort((a, b) => a - b);
+  const quantities = Array.isArray(source.quantities)
+    ? source.quantities
+    : Array.isArray(source.volumes_l) ? source.volumes_l : [0.5, 1, 1.5];
+  if (quantities.length < 1 || quantities.length > 6) throw new ValidationError('Таблица должна содержать от 1 до 6 ценовых количеств.');
+  const normalizedQuantities = [];
+  quantities.forEach((item, index) => {
+    const quantity = numeric(item, `table.quantities[${index}]`, 0.001, 1000000);
+    if (!normalizedQuantities.includes(quantity)) normalizedQuantities.push(quantity);
+  });
   const appearance = source.appearance && typeof source.appearance === 'object' && !Array.isArray(source.appearance) ? source.appearance : {};
   return {
+    class_code: tableClassCode(source.class_code),
+    group_by_class: source.group_by_class !== false,
+    show_description: bool(source.show_description),
+    show_metadata: source.show_metadata !== false,
+    price_layout: enumValue(source.price_layout, 'table.price_layout', TABLE_PRICE_LAYOUTS, 'quantities'),
+    quantity_unit: optionalString(source.quantity_unit || 'л', 'table.quantity_unit', 24).trim() || 'л',
     active_only: source.active_only !== false,
     row_limit: integer(source.row_limit ?? 12, 'table.row_limit', 1, 50),
-    volumes_l: normalizedVolumes,
-    show_producer: bool(source.show_producer),
+    quantities: normalizedQuantities,
+    volumes_l: normalizedQuantities,
+    show_producer: source.show_producer !== false,
     show_strength: source.show_strength !== false,
-    show_color: bool(source.show_color),
-    show_filtration: bool(source.show_filtration),
+    show_color: source.show_color !== false,
+    show_filtration: source.show_filtration !== false,
     appearance: {
       preset: enumValue(appearance.preset, 'table.appearance.preset', TABLE_PRESETS, 'clean'),
       density: enumValue(appearance.density, 'table.appearance.density', TABLE_DENSITIES, 'comfortable'),
@@ -178,9 +198,14 @@ function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
   }
   if (type === 'table') {
     const binding = value.data_binding && typeof value.data_binding === 'object' && !Array.isArray(value.data_binding) ? value.data_binding : {};
-    if ((binding.source ?? 'catalog_products') !== 'catalog_products') throw new ValidationError('Текущий прототип поддерживает только источник таблицы catalog_products.');
-    result.data_binding = { source: 'catalog_products' };
-    result.table = tableConfig(value.table);
+    const sourceName = binding.source ?? 'catalog_products';
+    if (!['catalog_products', 'catalog_items'].includes(sourceName)) throw new ValidationError('Источник таблицы каталога не поддерживается.');
+    const tableSource = value.table && typeof value.table === 'object' && !Array.isArray(value.table) ? { ...value.table } : {};
+    if (sourceName === 'catalog_products' && tableSource.class_code === undefined) tableSource.class_code = 'beer';
+    if (sourceName === 'catalog_products' && tableSource.price_layout === undefined) tableSource.price_layout = 'quantities';
+    if (sourceName === 'catalog_items' && tableSource.price_layout === undefined) tableSource.price_layout = 'single';
+    result.data_binding = { source: 'catalog_items' };
+    result.table = tableConfig(tableSource);
   }
   if (type === 'weather') result.weather = weatherConfig(value.weather);
   return result;
