@@ -11,11 +11,14 @@
   <body data-page="screens">
     <div class="app-shell">
       <div class="app-content">
-        <main class="main-content">
-          <div class="page-heading compact-heading"><div><p class="eyebrow">МОНИТОРЫ</p><h1>Мониторы</h1></div><div class="compact-heading-actions"><span>Монитор — это точка вывода. Контент создаётся только в «Сценах».</span><a class="button button-primary" href="/connect-tv.html">Подключить ТВ</a><button class="button button-secondary" id="refresh-screens" type="button">Обновить</button></div></div>
+        <main class="main-content screens-page">
+          <div class="page-heading compact-heading">
+            <div><p class="eyebrow">ПОКАЗ</p><h1>Мониторы</h1><p>Назначайте опубликованные сцены телевизорам и контролируйте подключение. Дизайн контента здесь не редактируется.</p></div>
+            <div class="compact-heading-actions"><button class="button button-secondary" id="refresh-screens" type="button">Обновить</button><a class="button button-primary" href="/connect-tv">+ Подключить ТВ</a></div>
+          </div>
           <p class="form-message is-hidden" id="screens-message" role="status"></p>
           <div class="screen-hierarchy" data-screen-hierarchy></div>
-          <p class="empty-state is-hidden" data-screens-empty>Сначала создайте торговую точку.</p>
+          <section class="settings-card screen-empty-page is-hidden" data-screens-empty><strong>Сначала создайте торговую точку</strong><p>После этого здесь можно создать монитор и привязать к нему телевизор.</p><a class="button button-primary" href="/locations">Создать точку</a></section>
         </main>
       </div>
     </div>
