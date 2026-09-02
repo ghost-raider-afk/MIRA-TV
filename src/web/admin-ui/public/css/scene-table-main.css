@@ -1,0 +1,111 @@
+/* Shared Scene table presentation. Loaded by both the authoring Preview and the TV Player. */
+
+/* MIRA-TV preset follows the stable menu renderer: one product column with metadata below the name, prices on the right, accent section title and dashed row separators. */
+.scene-catalog-table[data-preset="clean"] {
+  border-collapse: collapse;
+  border-spacing: 0;
+  background: var(--scene-table-surface, transparent);
+}
+
+.scene-catalog-table[data-preset="clean"] caption {
+  margin: 0;
+  padding: .24em .48em;
+  border-radius: .12em .12em 0 0;
+  background: var(--scene-table-accent, #f4c915);
+  color: #101317;
+  font-size: .68em;
+  font-weight: 800;
+  line-height: 1.02;
+}
+
+.scene-catalog-table[data-preset="clean"] thead th {
+  padding-top: .18em;
+  padding-bottom: .16em;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  background: transparent;
+  font-size: .34em;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: .78;
+}
+
+.scene-catalog-table[data-preset="clean"] thead th:first-child {
+  color: transparent;
+  user-select: none;
+}
+
+.scene-catalog-table[data-preset="clean"] tbody td {
+  padding-top: .24em;
+  padding-bottom: .24em;
+  border-bottom: 1px dashed color-mix(in srgb, currentColor 32%, transparent);
+  background: transparent;
+}
+
+.scene-catalog-table[data-preset="clean"] tbody tr:last-child td {
+  border-bottom-color: transparent;
+}
+
+.scene-catalog-table[data-preset="clean"] tbody td:first-child {
+  padding-left: .48em;
+  padding-right: .7em;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: .34em;
+  font-weight: 450;
+  line-height: 1.08;
+  opacity: .82;
+}
+
+.scene-catalog-table[data-preset="clean"] tbody td:first-child::first-line {
+  font-size: 1.55em;
+  font-weight: 750;
+  line-height: 1.12;
+  opacity: 1;
+}
+
+.scene-catalog-table[data-preset="clean"] tbody .scene-catalog-price {
+  padding-left: .18em;
+  padding-right: .48em;
+  font-size: .57em;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+.scene-catalog-table[data-preset="clean"][data-price-style="accent"] tbody tr:nth-child(odd) .scene-catalog-price {
+  color: currentColor;
+}
+
+.scene-catalog-table[data-preset="clean"][data-price-style="accent"] tbody tr:nth-child(even) .scene-catalog-price {
+  color: var(--scene-table-accent, #f4c915);
+}
+
+.scene-catalog-table[data-preset="clean"][data-header-style="accent"] thead th {
+  background: var(--scene-table-accent, #f4c915);
+  color: #101317;
+  opacity: 1;
+}
+
+.scene-catalog-table[data-preset="clean"][data-header-style="solid"] thead th {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  opacity: .94;
+}
+
+.scene-catalog-table[data-preset="clean"][data-row-dividers="false"] tbody td {
+  border-bottom-color: transparent;
+}
+
+.scene-catalog-table[data-preset="clean"][data-zebra="true"] tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.scene-catalog-table[data-preset="clean"][data-density="compact"] tbody td {
+  padding-top: .15em;
+  padding-bottom: .15em;
+}
+
+.scene-catalog-table[data-preset="clean"][data-density="spacious"] tbody td {
+  padding-top: .34em;
+  padding-bottom: .34em;
+}
