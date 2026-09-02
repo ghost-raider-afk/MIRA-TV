@@ -7,7 +7,6 @@ import { loadNotifications } from '../core/notifications.js';
 async function loadLocations() {
   state.locations = await api.get(API.locations);
   renderLocations();
-  renderLocationCopyOptions();
   return state.locations;
 }
 
@@ -17,46 +16,60 @@ function renderLocations() {
   if (!list || !empty) return;
   refreshList(list, empty, state.locations.map((location) => recordRow(
     location.name,
+    location.address || 'Адрес не указан',
     [makeButton('Изменить', '', () => editLocation(location)), makeButton('Удалить', 'danger', () => void deleteLocation(location))]
   )));
 }
 
-function renderLocationCopyOptions() {
-  const select = element('location-copy-source');
-  if (!(select instanceof HTMLSelectElement)) return;
-  const selected = select.value;
-  select.replaceChildren(
-    new Option('Пустая точка', ''),
-    ...state.locations.map((location) => new Option(`По образцу: ${location.name}`, String(location.id)))
-  );
-  select.value = selected;
+function drawer() {
+  return element('location-drawer');
 }
 
-function resetLocationForm() {
+function openDrawer() {
+  const root = drawer();
+  if (!root) return;
+  root.classList.remove('is-hidden');
+  root.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('workspace-drawer-open');
+  requestAnimationFrame(() => element('location-name')?.focus());
+}
+
+function closeDrawer() {
+  const root = drawer();
+  if (!root) return;
+  root.classList.add('is-hidden');
+  root.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('workspace-drawer-open');
+}
+
+function resetLocationForm({ close = false } = {}) {
   const form = element('location-form');
   if (!(form instanceof HTMLFormElement)) return;
   state.editingLocationId = null;
   form.reset();
   element('location-active').checked = true;
-  element('location-copy-source').disabled = false;
-  element('location-copy-field')?.classList.remove('is-hidden');
   element('location-form-title').textContent = 'Новая точка';
   element('location-submit').textContent = 'Создать точку';
   element('cancel-location-edit')?.classList.add('is-hidden');
   clearMessage('location-message');
+  if (close) closeDrawer();
+}
+
+function createLocation() {
+  resetLocationForm();
+  openDrawer();
 }
 
 function editLocation(location) {
   state.editingLocationId = location.id;
   element('location-name').value = location.name;
   element('location-address').value = location.address || '';
-  element('location-active').checked = location.active;
-  element('location-copy-source').disabled = true;
-  element('location-copy-field')?.classList.add('is-hidden');
+  element('location-active').checked = location.active !== false;
   element('location-form-title').textContent = 'Редактирование точки';
   element('location-submit').textContent = 'Сохранить точку';
   element('cancel-location-edit')?.classList.remove('is-hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  clearMessage('location-message');
+  openDrawer();
 }
 
 async function deleteLocation(location) {
@@ -72,9 +85,16 @@ async function deleteLocation(location) {
 export function initialiseLocations() {
   const form = element('location-form');
   if (!(form instanceof HTMLFormElement)) return;
+
   void loadLocations().catch((error) => setMessage('location-message', error.message));
   element('refresh-locations')?.addEventListener('click', () => { void loadLocations(); });
-  element('cancel-location-edit')?.addEventListener('click', resetLocationForm);
+  element('create-location')?.addEventListener('click', createLocation);
+  element('cancel-location-edit')?.addEventListener('click', () => resetLocationForm({ close: true }));
+  element('location-drawer-close')?.addEventListener('click', () => resetLocationForm({ close: true }));
+  element('location-drawer-backdrop')?.addEventListener('click', () => resetLocationForm({ close: true }));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !drawer()?.classList.contains('is-hidden')) resetLocationForm({ close: true });
+  });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -86,16 +106,10 @@ export function initialiseLocations() {
         address: element('location-address').value,
         active: element('location-active').checked
       };
-      if (state.editingLocationId) {
-        await api.put(`${API.locations}/${state.editingLocationId}`, payload);
-      } else {
-        const sourceId = Number(element('location-copy-source').value);
-        if (sourceId) await api.post(`${API.locations}/${sourceId}/clone`, payload);
-        else await api.post(API.locations, payload);
-      }
-      resetLocationForm();
-      await loadLocations();
-      await loadNotifications();
+      if (state.editingLocationId) await api.put(`${API.locations}/${state.editingLocationId}`, payload);
+      else await api.post(API.locations, payload);
+      resetLocationForm({ close: true });
+      await Promise.all([loadLocations(), loadNotifications()]);
     } catch (error) {
       setMessage('location-message', error.message);
     } finally {
