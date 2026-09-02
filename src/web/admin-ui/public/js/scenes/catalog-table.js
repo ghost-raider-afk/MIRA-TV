@@ -54,7 +54,7 @@ export function normaliseTableConfig(source = {}) {
     show_color: source.show_color !== false,
     show_filtration: source.show_filtration !== false,
     active_only: source.active_only !== false,
-    row_limit: Math.min(100, Math.max(1, Math.round(toNumber(source.row_limit) || 12))),
+    row_limit: Math.min(50, Math.max(1, Math.round(toNumber(source.row_limit) || 12))),
     appearance: {
       preset: option(appearanceSource.preset, TABLE_PRESETS, 'clean'),
       density: option(appearanceSource.density, TABLE_DENSITIES, 'comfortable'),
