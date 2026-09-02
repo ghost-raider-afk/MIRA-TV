@@ -6,11 +6,8 @@ import { formatDate } from '../core/presentation.js';
 
 async function loadScreens() {
   const [locations, screens, bindings, revisions, assignments] = await Promise.all([
-    api.get(API.locations),
-    api.get(API.screens),
-    api.get(API.deviceBindings),
-    api.get(`${API.scenes}/published/revisions`),
-    api.get(API.sceneAssignments)
+    api.get(API.locations), api.get(API.screens), api.get(API.deviceBindings),
+    api.get(`${API.scenes}/published/revisions`), api.get(API.sceneAssignments)
   ]);
   state.locations = Array.isArray(locations) ? locations : [];
   state.screens = Array.isArray(screens) ? screens : [];
@@ -33,61 +30,70 @@ function singleDisplayRevisions() {
   return state.sceneRevisions.filter((revision) => Number(revision.display_count) === 1);
 }
 
-function bindingSummary(binding) {
-  if (!binding) return 'ТВ не подключён';
+function statusForBinding(binding) {
+  if (!binding) return { label: 'Не подключён', detail: 'Ожидает привязки ТВ', className: 'is-offline' };
   const lastSeen = binding.session_last_seen_at || binding.device_last_seen_at;
-  return lastSeen ? `ТВ подключён · связь ${formatDate(lastSeen)}` : 'ТВ подключён · ожидаем первый сеанс';
+  return {
+    label: 'Подключён',
+    detail: lastSeen ? `Связь: ${formatDate(lastSeen)}` : 'Ожидаем первый сеанс',
+    className: 'is-online'
+  };
 }
 
-function assignmentSummary(assignment) {
-  return assignment ? `${assignment.scene_name} · ревизия ${assignment.revision_number}` : 'Сцена не назначена';
-}
-
-function createSceneControl(screen, assignment) {
-  const control = document.createElement('div');
-  control.className = 'screen-scene-control';
-
-  const current = document.createElement('div');
-  current.className = 'screen-scene-current';
-  const label = document.createElement('span');
-  label.textContent = 'СЦЕНА ПОКАЗА';
-  const value = document.createElement('strong');
-  value.textContent = assignmentSummary(assignment);
-  current.append(label, value);
-
-  const actions = document.createElement('div');
-  actions.className = 'screen-scene-actions';
+function createSceneCell(screen, assignment) {
+  const cell = document.createElement('div');
+  cell.className = 'screen-scene-cell';
+  const current = document.createElement('strong');
+  current.textContent = assignment ? assignment.scene_name : 'Сцена не назначена';
+  const revision = document.createElement('small');
+  revision.textContent = assignment ? `Ревизия ${assignment.revision_number}` : 'Выберите опубликованную сцену';
+  const controls = document.createElement('div');
+  controls.className = 'screen-scene-quick-actions';
   const select = document.createElement('select');
   select.className = 'screen-scene-select';
-  select.setAttribute('aria-label', `Опубликованная сцена для ${screen.name}`);
+  select.setAttribute('aria-label', `Сцена для ${screen.name}`);
   select.append(new Option('Выберите сцену', ''));
-  for (const revision of singleDisplayRevisions()) {
-    select.append(new Option(`${revision.scene_name} · ревизия ${revision.revision_number}`, revision.id));
-  }
+  for (const item of singleDisplayRevisions()) select.append(new Option(`${item.scene_name} · ${item.revision_number}`, item.id));
   if (assignment?.scene_revision_id) select.value = assignment.scene_revision_id;
-
-  const apply = makeButton(assignment ? 'Применить другую' : 'Применить', '', () => void assignScene(screen, select));
-  apply.classList.add('screen-scene-apply');
+  const apply = makeButton(assignment ? 'Сменить' : 'Применить', '', () => void assignScene(screen, select));
   apply.disabled = singleDisplayRevisions().length === 0;
-  actions.append(select, apply);
+  controls.append(select, apply);
+  if (assignment) controls.append(makeButton('Снять', 'secondary', () => void clearSceneAssignment(screen)));
+  cell.append(current, revision, controls);
+  return cell;
+}
 
-  if (assignment) {
-    const clear = makeButton('Снять сцену', 'secondary', () => void clearSceneAssignment(screen));
-    clear.classList.add('screen-scene-clear');
-    actions.append(clear);
-  }
+function createMonitorRow(screen) {
+  const binding = bindingForScreen(screen.id);
+  const assignment = assignmentForScreen(screen.id);
+  const status = statusForBinding(binding);
+  const row = document.createElement('div');
+  row.className = 'screen-monitor-row';
 
-  control.append(current, actions);
-  if (state.sceneRevisions.length === 0) {
-    const hint = document.createElement('small');
-    hint.textContent = 'Сначала создайте и опубликуйте сцену в разделе «Сцены».';
-    control.append(hint);
-  } else if (singleDisplayRevisions().length === 0) {
-    const hint = document.createElement('small');
-    hint.textContent = 'Опубликованы только панорамные сцены. Для них нужен Display Group.';
-    control.append(hint);
-  }
-  return control;
+  const identity = document.createElement('div');
+  identity.className = 'screen-monitor-cell screen-monitor-name';
+  const name = document.createElement('strong');
+  name.textContent = screen.name;
+  const resolution = document.createElement('small');
+  resolution.textContent = screen.resolution || '1920×1080';
+  identity.append(name, resolution);
+
+  const scene = createSceneCell(screen, assignment);
+
+  const connection = document.createElement('div');
+  connection.className = `screen-monitor-cell screen-connection ${status.className}`;
+  const badge = document.createElement('strong');
+  badge.textContent = status.label;
+  const detail = document.createElement('small');
+  detail.textContent = status.detail;
+  connection.append(badge, detail);
+
+  const actions = document.createElement('div');
+  actions.className = 'screen-monitor-actions';
+  if (binding) actions.append(makeButton('Отвязать', 'secondary', () => void unbindScreen(screen)));
+  actions.append(makeButton('Удалить', 'danger', () => void deleteScreen(screen)));
+  row.append(identity, scene, connection, actions);
+  return row;
 }
 
 function renderScreens() {
@@ -95,7 +101,7 @@ function renderScreens() {
   const empty = document.querySelector('[data-screens-empty]');
   if (!list || !empty) return;
   const groups = state.locations.map((location) => {
-    const group = document.createElement('article');
+    const group = document.createElement('section');
     group.className = 'screen-location-group';
     const header = document.createElement('header');
     header.className = 'screen-location-header';
@@ -103,57 +109,32 @@ function renderScreens() {
     title.className = 'screen-location-title';
     const heading = document.createElement('h2');
     heading.textContent = location.name;
-    heading.title = location.name;
-    const details = document.createElement('p');
-    details.textContent = location.address || 'Адрес не указан';
-    title.append(heading, details);
-
+    const address = document.createElement('p');
+    address.textContent = location.address || 'Адрес не указан';
+    title.append(heading, address);
     const add = makeButton('+ Монитор', '', () => void createScreenAtLocation(location));
     add.classList.add('screen-location-add');
     header.append(title, add);
 
-    const screens = state.screens.filter((screen) => screen.location_id === location.id);
-    const items = document.createElement('div');
-    items.className = 'screen-location-items';
-    screens.forEach((screen) => {
-      const binding = bindingForScreen(screen.id);
-      const assignment = assignmentForScreen(screen.id);
-      const row = document.createElement('div');
-      row.className = 'screen-location-item';
-      row.classList.toggle('has-tv-binding', Boolean(binding));
-
-      const main = document.createElement('div');
-      main.className = 'screen-location-main';
-      const identity = document.createElement('div');
-      identity.className = 'screen-monitor-identity';
-      const name = document.createElement('strong');
-      name.textContent = screen.name;
-      const info = document.createElement('span');
-      info.textContent = screen.resolution || '1920×1080';
-      const tv = document.createElement('span');
-      tv.className = `screen-tv-binding${binding ? ' is-bound' : ''}`;
-      tv.textContent = bindingSummary(binding);
-      identity.append(name, info, tv);
-      main.append(identity, createSceneControl(screen, assignment));
-
-      const actions = document.createElement('div');
-      actions.className = 'screen-location-actions';
-      if (binding) {
-        const unbind = makeButton('Отвязать ТВ', 'secondary', () => void unbindScreen(screen));
-        unbind.classList.add('screen-tv-unbind');
-        actions.append(unbind);
-      }
-      actions.append(makeButton('Удалить', 'danger', () => void deleteScreen(screen)));
-      row.append(main, actions);
-      items.append(row);
+    const body = document.createElement('div');
+    body.className = 'screen-monitor-table';
+    const tableHead = document.createElement('div');
+    tableHead.className = 'screen-monitor-head';
+    ['Монитор', 'Сцена', 'Подключение', 'Действия'].forEach((label) => {
+      const cell = document.createElement('span');
+      cell.textContent = label;
+      tableHead.append(cell);
     });
-    if (screens.length === 0) {
+    body.append(tableHead);
+    const screens = state.screens.filter((screen) => Number(screen.location_id) === Number(location.id));
+    if (screens.length) body.append(...screens.map(createMonitorRow));
+    else {
       const hint = document.createElement('p');
-      hint.className = 'empty-state compact-empty';
-      hint.textContent = 'Мониторов пока нет.';
-      items.append(hint);
+      hint.className = 'screen-location-empty';
+      hint.textContent = 'В этой точке пока нет мониторов.';
+      body.append(hint);
     }
-    group.append(header, items);
+    group.append(header, body);
     return group;
   });
   list.replaceChildren(...groups);
@@ -171,9 +152,7 @@ async function assignScene(screen, select) {
     await api.put(`${API.screens}/${screen.id}/scene-assignment`, { scene_revision_id: revisionId });
     setMessage('screens-message', `Сцена применена к монитору «${screen.name}».`, 'success');
     await loadScreens();
-  } catch (error) {
-    setMessage('screens-message', error.message);
-  }
+  } catch (error) { setMessage('screens-message', error.message); }
 }
 
 async function clearSceneAssignment(screen) {
@@ -181,9 +160,7 @@ async function clearSceneAssignment(screen) {
     await api.delete(`${API.screens}/${screen.id}/scene-assignment`);
     setMessage('screens-message', `Сцена снята с монитора «${screen.name}».`, 'success');
     await loadScreens();
-  } catch (error) {
-    setMessage('screens-message', error.message);
-  }
+  } catch (error) { setMessage('screens-message', error.message); }
 }
 
 async function unbindScreen(screen) {
@@ -192,31 +169,23 @@ async function unbindScreen(screen) {
     await api.delete(`${API.deviceBindings}/${screen.id}`);
     setMessage('screens-message', `ТВ отвязан от монитора «${screen.name}».`, 'success');
     await loadScreens();
-  } catch (error) {
-    setMessage('screens-message', error.message);
-  }
+  } catch (error) { setMessage('screens-message', error.message); }
 }
 
 async function deleteScreen(screen) {
   const binding = bindingForScreen(screen.id);
   const warning = binding ? ' Подключённый ТВ также потеряет эту привязку.' : '';
   if (!window.confirm(`Удалить монитор «${screen.name}»?${warning}`)) return;
-  try {
-    await api.delete(`${API.screens}/${screen.id}`);
-    await loadScreens();
-  } catch (error) {
-    setMessage('screens-message', error.message);
-  }
+  try { await api.delete(`${API.screens}/${screen.id}`); await loadScreens(); }
+  catch (error) { setMessage('screens-message', error.message); }
 }
 
 async function createScreenAtLocation(location) {
   try {
     await api.post(`${API.locations}/${location.id}/screens`, {});
-    setMessage('screens-message', `Монитор создан в точке «${location.name}». Назначьте ему опубликованную сцену.`, 'success');
+    setMessage('screens-message', `Монитор создан в точке «${location.name}».`, 'success');
     await loadScreens();
-  } catch (error) {
-    setMessage('screens-message', error.message);
-  }
+  } catch (error) { setMessage('screens-message', error.message); }
 }
 
 export function initialiseScreens() {
