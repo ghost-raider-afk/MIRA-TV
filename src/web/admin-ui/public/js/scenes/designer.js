@@ -1,3 +1,7 @@
+const ZOOM_STEPS = Object.freeze([0.125, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2]);
+let zoomMode = 'fit';
+let manualZoom = 1;
+
 function designerButton(id, label, title) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -29,6 +33,12 @@ function availableSize(shell) {
   };
 }
 
+function canvasMetrics() {
+  const displays = document.querySelector('#scene-display-count');
+  const count = Math.min(6, Math.max(1, Number(displays?.value) || 1));
+  return { count, width: 1920 * count, height: 1080 };
+}
+
 function scaledLength(value, ratio) {
   const number = Number.parseFloat(value);
   return Number.isFinite(number) ? `${number * ratio}px` : value;
@@ -54,24 +64,98 @@ function rescaleRenderedElements(stage, newScale) {
   }
 }
 
-function fitStageToWorkspace() {
-  const shell = document.querySelector('#scene-stage-shell');
+function zoomLabel() {
+  return document.querySelector('#scene-zoom-value');
+}
+
+function syncZoomControls(scale) {
+  const value = zoomLabel();
+  if (value) value.textContent = `${Math.round(scale * 100)}%`;
+  document.querySelector('#scene-zoom-fit')?.classList.toggle('is-active', zoomMode === 'fit');
+}
+
+function applyStageScale(scale) {
   const stage = document.querySelector('#scene-stage');
-  const displays = document.querySelector('#scene-display-count');
-  if (!shell || !stage) return;
-
-  const count = Math.min(6, Math.max(1, Number(displays?.value) || 1));
-  const canvasWidth = 1920 * count;
-  const aspect = canvasWidth / 1080;
-  const available = availableSize(shell);
-  const width = Math.max(1, Math.floor(Math.min(available.width, available.height * aspect)));
+  if (!stage) return;
+  const metrics = canvasMetrics();
+  const nextScale = Math.min(2, Math.max(0.1, Number(scale) || 1));
+  const width = Math.max(1, Math.round(metrics.width * nextScale));
   const currentWidth = stage.clientWidth;
-  if (Math.abs(currentWidth - width) < 1) return;
-
   stage.style.transform = '';
   stage.style.width = `${width}px`;
   stage.style.maxWidth = 'none';
-  rescaleRenderedElements(stage, width / canvasWidth);
+  if (Math.abs(currentWidth - width) >= 1) rescaleRenderedElements(stage, nextScale);
+  syncZoomControls(nextScale);
+}
+
+function fitStageToWorkspace() {
+  const shell = document.querySelector('#scene-stage-shell');
+  if (!shell) return;
+  const metrics = canvasMetrics();
+  const aspect = metrics.width / metrics.height;
+  const available = availableSize(shell);
+  const width = Math.max(1, Math.floor(Math.min(available.width, available.height * aspect)));
+  applyStageScale(width / metrics.width);
+}
+
+function refreshStageZoom() {
+  if (zoomMode === 'fit') fitStageToWorkspace();
+  else applyStageScale(manualZoom);
+}
+
+function currentScale() {
+  const stage = document.querySelector('#scene-stage');
+  const metrics = canvasMetrics();
+  return stage?.clientWidth ? stage.clientWidth / metrics.width : (zoomMode === 'fit' ? 1 : manualZoom);
+}
+
+function stepZoom(direction) {
+  const current = currentScale();
+  const steps = direction > 0 ? ZOOM_STEPS : [...ZOOM_STEPS].reverse();
+  const next = steps.find((value) => direction > 0 ? value > current + 0.005 : value < current - 0.005)
+    ?? (direction > 0 ? ZOOM_STEPS.at(-1) : ZOOM_STEPS[0]);
+  zoomMode = 'manual';
+  manualZoom = next;
+  applyStageScale(manualZoom);
+}
+
+function zoomButton(id, label, title) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.id = id;
+  button.className = 'scene-zoom-button';
+  button.textContent = label;
+  button.title = title;
+  return button;
+}
+
+function mountZoomControls() {
+  const meta = document.querySelector('.scene-stage-meta');
+  if (!meta || meta.querySelector('.scene-zoom-controls')) return;
+  const controls = document.createElement('div');
+  controls.className = 'scene-zoom-controls';
+  const out = zoomButton('scene-zoom-out', '−', 'Уменьшить масштаб');
+  const fit = zoomButton('scene-zoom-fit', 'Вписать', 'Вписать слайд в рабочую область');
+  const value = document.createElement('span');
+  value.id = 'scene-zoom-value';
+  value.className = 'scene-zoom-value';
+  value.textContent = '100%';
+  const input = zoomButton('scene-zoom-in', '+', 'Увеличить масштаб');
+  const actual = zoomButton('scene-zoom-actual', '100%', 'Масштаб 1:1');
+  controls.append(out, fit, value, input, actual);
+  meta.append(controls);
+
+  out.addEventListener('click', () => stepZoom(-1));
+  input.addEventListener('click', () => stepZoom(1));
+  fit.addEventListener('click', () => {
+    zoomMode = 'fit';
+    fitStageToWorkspace();
+  });
+  actual.addEventListener('click', () => {
+    zoomMode = 'manual';
+    manualZoom = 1;
+    applyStageScale(1);
+  });
 }
 
 function mountSlidesPanel() {
@@ -100,6 +184,7 @@ export function initialiseSceneDesigner() {
   body.classList.add('scene-designer-mode', 'scene-tools-collapsed');
   body.classList.remove('scene-inspector-collapsed');
   mountSlidesPanel();
+  mountZoomControls();
 
   const toolsButton = designerButton('scene-tools-toggle', 'Вставка', 'Элементы, фон и медиаданные слайда');
   toolbar.prepend(toolsButton);
@@ -120,11 +205,15 @@ export function initialiseSceneDesigner() {
     if (event.key === 'Escape' && !body.classList.contains('scene-tools-collapsed')) closeTools();
   });
 
-  document.querySelector('#scene-display-count')?.addEventListener('change', () => requestAnimationFrame(fitStageToWorkspace));
-  window.addEventListener('resize', fitStageToWorkspace, { passive: true });
-  const observer = new ResizeObserver(() => fitStageToWorkspace());
+  document.querySelector('#scene-display-count')?.addEventListener('change', () => requestAnimationFrame(refreshStageZoom));
+  window.addEventListener('resize', () => {
+    if (zoomMode === 'fit') fitStageToWorkspace();
+  }, { passive: true });
+  const observer = new ResizeObserver(() => {
+    if (zoomMode === 'fit') fitStageToWorkspace();
+  });
   observer.observe(shell);
 
   syncToolsState(body, toolsButton);
-  requestAnimationFrame(fitStageToWorkspace);
+  requestAnimationFrame(refreshStageZoom);
 }
