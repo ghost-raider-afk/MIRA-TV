@@ -34,7 +34,7 @@ export class PublishedSceneRuntime {
     const graph = validGraph(component);
     return {
       catalogStatus: 'ready',
-      catalogProducts: catalogItems(component),
+      catalogItems: catalogItems(component),
       mediaAssets: component?.media_assets || [],
       weatherByElement: component?.weather_by_element || {},
       stageWidth: this.layer.clientWidth || graph?.canvas_width || 1920
