@@ -28,13 +28,40 @@ test('catalog table rows exclude inactive products by default', () => {
   assert.match(rows[0].values['price:0.5'], /200/);
 });
 
-test('table columns reflect optional product properties and custom volumes', () => {
+test('MIRA-TV preset keeps product metadata in the product cell and prices on the right', () => {
+  const config = {
+    volumes_l: [0.5, 1],
+    show_producer: true,
+    show_strength: true,
+    show_color: true,
+    show_filtration: true,
+    appearance: { preset: 'clean' }
+  };
+  const columns = catalogTableColumns(config);
+  assert.deepEqual(columns.map((column) => column.key), ['product', 'price:0.5', 'price:1']);
+
+  const rows = buildCatalogTableRows([{
+    id: 1,
+    name: 'Lager',
+    producer: 'Brewery',
+    strength: '4.7°',
+    beverage_color: 'light',
+    filtration: 'filtered',
+    price_primary: '400',
+    active: true
+  }], config);
+  assert.equal(rows[0].values.product, 'Lager\nBrewery · 4.7% · светлое · фильтрованное');
+  assert.equal(rows[0].values['price:0.5'], '200');
+});
+
+test('spreadsheet presets expose optional product properties as real columns', () => {
   const columns = catalogTableColumns({
     volumes_l: [0.33, 1],
     show_producer: true,
     show_strength: true,
     show_color: true,
-    show_filtration: true
+    show_filtration: true,
+    appearance: { preset: 'solid' }
   });
   assert.deepEqual(columns.map((column) => column.key), [
     'name', 'producer', 'strength', 'beverage_color', 'filtration', 'price:0.33', 'price:1'
