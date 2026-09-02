@@ -43,15 +43,16 @@ test('normaliseScene limits prototype to supported horizontal display range', ()
   assert.equal(scene.canvas_width, 11520);
 });
 
-test('new table element carries catalog data binding and volume configuration', () => {
+test('new table element uses universal catalog with one generic price layout', () => {
   const scene = createScene();
   const table = createElement('table', scene, scene.slides[0]);
-  assert.equal(table.data_binding.source, 'catalog_products');
-  assert.deepEqual(table.table.volumes_l, [0.5, 1, 1.5]);
+  assert.equal(table.data_binding.source, 'catalog_items');
+  assert.equal(table.table.price_layout, 'single');
+  assert.equal(table.table.class_code, '');
   assert.equal(table.table.active_only, true);
 });
 
-test('old table elements are hydrated by scene normalisation', () => {
+test('old product table elements migrate to beer class with quantity prices', () => {
   const scene = createScene();
   scene.slides[0].elements.push({
     id: 'legacy-table', type: 'table', x: 0, y: 0, width: 500, height: 500,
@@ -59,6 +60,9 @@ test('old table elements are hydrated by scene normalisation', () => {
   });
   const normalised = normaliseScene(scene);
   const table = normalised.slides[0].elements[0];
-  assert.equal(table.data_binding.source, 'catalog_products');
-  assert.deepEqual(table.table.volumes_l, [0.5, 1, 1.5]);
+  assert.equal(table.data_binding.source, 'catalog_items');
+  assert.equal(table.table.class_code, 'beer');
+  assert.equal(table.table.price_layout, 'quantities');
+  assert.equal(table.table.quantity_unit, 'л');
+  assert.deepEqual(table.table.quantities, [0.5, 1, 1.5]);
 });
