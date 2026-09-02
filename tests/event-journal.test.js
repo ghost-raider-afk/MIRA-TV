@@ -4,15 +4,15 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('settings navigation exposes one unified event journal', async () => {
+test('system navigation exposes one unified event journal', async () => {
   const [navigation, application, page, bell] = await Promise.all([
     read('src/web/admin-ui/public/js/core/navigation.js'),
     read('src/web/admin-ui/public/js/application.js'),
     read('src/web/admin-ui/public/events.html'),
     read('src/web/admin-ui/public/js/components/notifications.js')
   ]);
-  assert.match(navigation, /\['Журнал событий', '\/events'\]/);
-  assert.match(navigation, /page: 'events'/);
+  assert.match(navigation, /path: '\/events', page: 'events', section: 'system', title: 'Журнал событий'/);
+  assert.match(navigation, /page: 'events', label: 'Журнал', href: '\/events'/);
   assert.doesNotMatch(navigation, /Журнал ошибок|error-log\.html|Журнал действий/);
   assert.match(application, /case 'events'/);
   assert.match(application, /pages\/events\.js/);
