@@ -172,58 +172,24 @@ test('stored v3 bounce/pop settings are canonicalized instead of reintroducing j
   assert.equal(migrated.promotion_travel_px, 0);
 });
 
-test('Playlist Studio owns previous motion controls and the Scene Playlist UI in one workspace', async () => {
-  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, liveMotion, previewCss, announcement, overlays, brandCss, environment] = await Promise.all([
-    read('playlist.html'), read('js/pages/playlist.js'), read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
-    read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/live-menu-motion.js'),
-    read('css/pages/animation-screen-preview.css'), read('js/motion/announcement.js'), read('css/motion-overlays.css'),
-    read('css/brand-motion-v2.css'), read('js/motion/environment.js')
+test('legacy Motion Studio is retired from the user-facing playlist route while compatibility runtime remains', async () => {
+  const [html, application, navigation, playlistEditor, runtime] = await Promise.all([
+    read('playlist.html'),
+    read('js/application.js'),
+    read('js/core/navigation.js'),
+    read('js/motion/scene-playlist-editor.js'),
+    read('js/motion/scene-playlist-runtime.js')
   ]);
 
-  for (const id of [
-    'animation-stage','animation-screen-select','animation-save','animation-intensity','animation-travel','animation-scale',
-    'animation-section-effect','animation-item-effect','animation-promotion-effect','animation-promotion-intensity',
-    'animation-promotion-scale','animation-promotion-glow','animation-announcement-enabled','animation-announcement-font-family',
-    'animation-announcement-vertical-scale','animation-announcement-glow-enabled','animation-brand-enabled','animation-brand-x',
-    'animation-brand-y','animation-brand-effect','animation-brand-line-spacing','animation-aquarium-enabled','animation-aquarium-style',
-    'animation-aquarium-replay','animation-entity-file','animation-entity-loop','animation-entity-muted','animation-entity-playback-rate'
-  ]) assert.match(html, new RegExp(`id="${id}"`));
-
-  assert.doesNotMatch(html, /id="animation-price-effect"/);
-  assert.match(page, /PLAYLIST STUDIO/);
-  assert.match(page, /data-animation-inspector-tab="playlist"/);
-  assert.match(page, /new ScenePlaylistEditor/);
-  assert.match(page, /scene_playlist:\s*scenePlaylistEditor/);
-  assert.match(page, /scenePlaylistEditor\?\.set\(saved\.scene_playlist\)/);
-  assert.match(page, /scenePlaylistEditor\?\.set\(settings\?\.scene_playlist\)/);
-  assert.match(playlistEditor, /playlist-scene-strip/);
-  assert.match(playlistEditor, /MenuScene/);
-  assert.match(playlistEditor, /PromoScene/);
-  assert.match(playlistEditor, /ContentScene/);
-  assert.match(playlistEditor, /Object Story/);
-  assert.match(page, /renderEnvironmentLayer/);
-  assert.match(page, /environment:\s*aquariumEnvironment/);
-  assert.match(page, /resetEnvironmentIntro/);
-  assert.doesNotMatch(page, /normaliseAquarium|renderAquariumLayer|resetAquariumIntro/);
-  assert.match(page, /ENTITY_MEDIA_TYPES/);
-  assert.match(page, /createEntityMedia/);
-  assert.match(profileEditor, /profile\.price_effect = 'none'/);
-  assert.match(profileEditor, /promotion_scale_amount = clamp/);
-  assert.match(liveMotion, /WasmMotionDriver/);
-  assert.match(motionPlan, /menuTextStatic: true/);
-  assert.match(motionPlan, /procedural:/);
-  assert.doesNotMatch(motionPlan, /keyframes:/);
-  assert.doesNotMatch(domAdapter, /kind: 'background'/);
-  assert.doesNotMatch(domAdapter, /kind: 'price'/);
-  assert.match(domAdapter, /row-motion-surface-item/);
-  assert.match(previewCss, /\.animation-screen-background\{[^}]*background-size:cover/);
-  assert.match(announcement, /scene-announcement-glyphs/);
-  assert.match(overlays, /scene-environment-layer/);
-  assert.doesNotMatch(overlays, /scene-aquarium-layer|tv-player-aquarium-layer|animation-screen-aquarium-layer/);
-  assert.doesNotMatch(overlays, /scene-brand-title/);
-  assert.match(brandCss, /scene-brand-title/);
-  assert.match(brandCss, /--brand-line-spacing/);
-  assert.match(environment, /function renderAquariumEffect/);
-  assert.match(environment, /classList\.add\('environment-effect-aquarium',/);
-  assert.match(environment, /environment\.effect === 'aquarium'/);
+  assert.match(html, /data-page="playlist"/);
+  assert.match(html, /playlist-retired-page/);
+  assert.match(html, /Старый Motion Studio выведен из рабочего интерфейса/);
+  assert.doesNotMatch(html, /id="animation-stage"|id="animation-entity-file"|PLAYLIST STUDIO/);
+  assert.doesNotMatch(application, /import\('\.\/pages\/playlist\.js'\)/);
+  assert.match(application, /case 'playlist':\s*case 'animation':\s*return undefined;/);
+  assert.match(navigation, /path: '\/playlist'.*prefetch: false/);
+  const primaryRoutes = navigation.match(/export const PRIMARY_ROUTES = Object\.freeze\(\[[\s\S]*?\]\);/)?.[0] || '';
+  assert.doesNotMatch(primaryRoutes, /href: '\/playlist'/);
+  assert.match(playlistEditor, /export class ScenePlaylistEditor/);
+  assert.match(runtime, /export class ScenePlaylistRuntime/);
 });
