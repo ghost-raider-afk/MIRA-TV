@@ -38,9 +38,15 @@ function fitStageToWorkspace() {
   const count = Math.min(6, Math.max(1, Number(displays?.value) || 1));
   const aspect = (1920 * count) / 1080;
   const available = availableSize(shell);
-  const width = Math.min(available.width, available.height * aspect);
-  stage.style.width = `${Math.max(1, Math.floor(width))}px`;
-  stage.style.maxWidth = 'none';
+
+  // Keep one real authoring width. Fit the complete Canvas as one visual surface
+  // instead of resizing it and forcing every child element to recalculate.
+  stage.style.width = '100%';
+  stage.style.maxWidth = '100%';
+  stage.style.transformOrigin = 'center center';
+  const naturalHeight = available.width / aspect;
+  const scale = naturalHeight > available.height ? available.height / naturalHeight : 1;
+  stage.style.transform = scale < 0.9995 ? `scale(${scale})` : '';
 }
 
 function syncPanelState(body, toolsButton, inspectorButton) {
