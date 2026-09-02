@@ -8,68 +8,72 @@ import {
   resolveVolumePrice
 } from '../src/web/admin-ui/public/js/scenes/catalog-table.js';
 
-test('table volume parser accepts comma decimals, de-duplicates and keeps order', () => {
+test('table quantity parser accepts comma decimals, de-duplicates and keeps order', () => {
   assert.deepEqual(parseTargetVolumes('0,5; 1; 1,5; 0.5'), [0.5, 1, 1.5]);
 });
 
-test('volume price is proportional to the base 1 litre price', () => {
-  const product = { price_primary: '400.00' };
-  assert.equal(resolveVolumePrice(product, 0.5, 1), 200);
-  assert.equal(resolveVolumePrice(product, 1.5, 1), 600);
+test('proportional catalog price uses the item base quantity and keeps legacy compatibility', () => {
+  assert.equal(resolveVolumePrice({ price_primary: '400.00' }, 0.5, 1), 200);
+  assert.equal(resolveVolumePrice({ base_price: '360', base_quantity: '0.9' }, 0.45), 180);
 });
 
-test('catalog table rows exclude inactive products by default', () => {
+test('catalog table rows exclude inactive items by default', () => {
   const rows = buildCatalogTableRows([
-    { id: 1, name: 'IPA', price_primary: '400', active: true },
-    { id: 2, name: 'Hidden', price_primary: '500', active: false }
-  ], { volumes_l: [0.5] });
+    { id: 1, name: 'IPA', class_code: 'beer', class_name: 'Пиво', pricing_model: 'proportional', base_price: '400', base_quantity: '1', unit: 'л', attributes: {}, active: true },
+    { id: 2, name: 'Hidden', class_code: 'beer', class_name: 'Пиво', pricing_model: 'proportional', base_price: '500', base_quantity: '1', unit: 'л', attributes: {}, active: false }
+  ], { quantities: [0.5] });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].values.name, 'IPA');
   assert.match(rows[0].values['price:0.5'], /200/);
 });
 
-test('MIRA-TV preset keeps product metadata in the product cell and prices on the right', () => {
+test('MIRA preset keeps class metadata in the item cell and proportional prices on the right', () => {
   const config = {
-    volumes_l: [0.5, 1],
-    show_producer: true,
-    show_strength: true,
-    show_color: true,
-    show_filtration: true,
+    quantities: [0.5, 1],
     appearance: { preset: 'clean' }
   };
-  const columns = catalogTableColumns(config);
-  assert.deepEqual(columns.map((column) => column.key), ['product', 'price:0.5', 'price:1']);
-
-  const rows = buildCatalogTableRows([{
+  const items = [{
     id: 1,
     name: 'Lager',
-    producer: 'Brewery',
-    strength: '4.7°',
-    beverage_color: 'light',
-    filtration: 'filtered',
-    price_primary: '400',
+    class_code: 'beer',
+    class_name: 'Пиво',
+    pricing_model: 'proportional',
+    base_price: '400',
+    base_quantity: '1',
+    unit: 'л',
+    attributes: { producer: 'Brewery', abv: 4.7, beverage_color: 'light', filtration: 'filtered' },
     active: true
-  }], config);
-  assert.equal(rows[0].values.product, 'Lager\nBrewery · 4.7% · светлое · фильтрованное');
+  }];
+  const columns = catalogTableColumns(config, items);
+  assert.deepEqual(columns.map((column) => column.key), ['product', 'price:0.5', 'price:1']);
+  const rows = buildCatalogTableRows(items, config);
+  assert.equal(rows[0].values.product, 'Lager\nBrewery · 4,7% · светлое · фильтрованное');
   assert.equal(rows[0].values['price:0.5'], '200');
 });
 
-test('spreadsheet presets expose optional product properties as real columns', () => {
-  const columns = catalogTableColumns({
-    volumes_l: [0.33, 1],
-    show_producer: true,
-    show_strength: true,
-    show_color: true,
-    show_filtration: true,
-    appearance: { preset: 'solid' }
-  });
-  assert.deepEqual(columns.map((column) => column.key), [
-    'name', 'producer', 'strength', 'beverage_color', 'filtration', 'price:0.33', 'price:1'
-  ]);
+test('mixed catalog classes use one universal price column instead of beverage-only volume columns', () => {
+  const items = [
+    { id: 1, name: 'IPA', class_code: 'beer', class_name: 'Пиво', pricing_model: 'proportional', base_price: '400', base_quantity: '1', unit: 'л', attributes: {}, active: true },
+    { id: 2, name: 'Крылья BBQ', class_code: 'snack', class_name: 'Закуска', pricing_model: 'fixed', base_price: '490', base_quantity: '1', unit: 'порц.', attributes: { weight_g: 350, spiciness: 'medium' }, active: true }
+  ];
+  const columns = catalogTableColumns({ appearance: { preset: 'solid' } }, items);
+  assert.deepEqual(columns.map((column) => column.key), ['name', 'metadata', 'price']);
+  const rows = buildCatalogTableRows(items, { appearance: { preset: 'solid' } });
+  assert.equal(rows[1].values.metadata, 'острое · 350 г');
+  assert.match(rows[1].values.price, /490/);
 });
 
-test('table config clamps rows and falls back to safe volumes', () => {
-  const config = normaliseTableConfig({ row_limit: 1000, volumes_l: ['bad', -1] });
+test('table class filter selects one semantic class without a separate catalog', () => {
+  const rows = buildCatalogTableRows([
+    { id: 1, name: 'IPA', class_code: 'beer', class_name: 'Пиво', pricing_model: 'proportional', base_price: '400', base_quantity: '1', unit: 'л', attributes: {}, active: true },
+    { id: 2, name: 'Начос', class_code: 'snack', class_name: 'Закуска', pricing_model: 'fixed', base_price: '250', base_quantity: '1', unit: 'порц.', attributes: {}, active: true }
+  ], { class_code: 'snack' });
+  assert.deepEqual(rows.map((row) => row.values.name), ['Начос']);
+});
+
+test('table config keeps resource bounds and safe quantity defaults', () => {
+  const config = normaliseTableConfig({ row_limit: 1000, quantities: ['bad', -1] });
   assert.equal(config.row_limit, 50);
+  assert.deepEqual(config.quantities, [0.5, 1, 1.5]);
   assert.deepEqual(config.volumes_l, [0.5, 1, 1.5]);
 });
