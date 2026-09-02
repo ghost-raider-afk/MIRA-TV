@@ -34,6 +34,9 @@ import {
 } from './media-library.js';
 
 const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
+const CONTENT_ELEMENT_TYPES = new Set(['text', 'table', 'image', 'logo', 'video']);
+const TEXT_STYLE_ELEMENT_TYPES = new Set(['text', 'table', 'weather', 'clock']);
+const DATA_ELEMENT_TYPES = new Set(['table', 'image', 'logo', 'video', 'weather']);
 const history = createSceneHistory({ limit: 100 });
 const VARIANT_OPTIONS = Object.freeze({
   weather: [
@@ -56,6 +59,7 @@ const state = {
   scene: null,
   selectedElementId: null,
   clipboardElement: null,
+  inspectorTab: 'object',
   preview: false,
   catalogProducts: [],
   catalogStatus: 'idle',
@@ -615,6 +619,7 @@ function renderSlides() {
     button.addEventListener('click', () => {
       state.scene.active_slide_id = slide.id;
       state.selectedElementId = null;
+      state.inspectorTab = 'object';
       closeHistoryGroup();
       render();
       ensureDynamicDataForScene();
@@ -632,6 +637,7 @@ function renderSlides() {
       recordHistory();
       if (removeSlide(state.scene, slide.id)) {
         state.selectedElementId = null;
+        state.inspectorTab = 'object';
         scheduleAutosave();
         render();
         ensureDynamicDataForScene();
@@ -656,10 +662,13 @@ function renderInspectorGeometry() {
 
 function renderTableInspector(element) {
   const section = document.querySelector('#table-settings');
+  const appearanceSection = document.querySelector('#table-appearance-settings');
   const isTable = element?.type === 'table';
   section.classList.toggle('is-hidden', !isTable);
+  appearanceSection.classList.toggle('is-hidden', !isTable);
   if (!isTable) return;
   element.table = normaliseTableConfig(element.table || {});
+  const appearance = element.table.appearance;
   document.querySelector('#table-active-only').checked = element.table.active_only;
   document.querySelector('#table-row-limit').value = element.table.row_limit;
   document.querySelector('#table-volumes').value = element.table.volumes_l.map((value) => String(value).replace('.', ',')).join('; ');
@@ -667,6 +676,14 @@ function renderTableInspector(element) {
   document.querySelector('#table-show-strength').checked = element.table.show_strength;
   document.querySelector('#table-show-color').checked = element.table.show_color;
   document.querySelector('#table-show-filtration').checked = element.table.show_filtration;
+  document.querySelector('#table-preset').value = appearance.preset;
+  document.querySelector('#table-density').value = appearance.density;
+  document.querySelector('#table-header-style').value = appearance.header_style;
+  document.querySelector('#table-price-style').value = appearance.price_style;
+  document.querySelector('#table-accent-color').value = appearance.accent_color;
+  document.querySelector('#table-show-title').checked = appearance.show_title;
+  document.querySelector('#table-row-dividers').checked = appearance.row_dividers;
+  document.querySelector('#table-zebra').checked = appearance.zebra;
   const status = document.querySelector('#table-catalog-status');
   if (state.catalogStatus === 'loading' || state.catalogStatus === 'idle') status.textContent = 'Каталог загружается…';
   else if (state.catalogStatus === 'error') status.textContent = state.catalogError || 'Каталог недоступен';
@@ -718,6 +735,42 @@ function renderVariantControl(element) {
   select.value = element?.variant || variants[0][0];
 }
 
+function inspectorTabsForElement(element) {
+  if (!element) return [];
+  const tabs = ['object', 'format'];
+  if (DATA_ELEMENT_TYPES.has(element.type)) tabs.push('data');
+  tabs.push('animation');
+  return tabs;
+}
+
+function renderInspectorTabs(element) {
+  const tabsRoot = document.querySelector('#inspector-tabs');
+  if (!element) {
+    tabsRoot.classList.add('is-hidden');
+    document.querySelectorAll('[data-inspector-panel]').forEach((panel) => panel.classList.add('is-hidden'));
+    return;
+  }
+  const available = inspectorTabsForElement(element);
+  if (!available.includes(state.inspectorTab)) state.inspectorTab = 'object';
+  tabsRoot.classList.remove('is-hidden');
+  tabsRoot.querySelectorAll('[data-inspector-tab]').forEach((button) => {
+    const visible = available.includes(button.dataset.inspectorTab);
+    button.classList.toggle('is-hidden', !visible);
+    button.classList.toggle('active', visible && button.dataset.inspectorTab === state.inspectorTab);
+    button.setAttribute('aria-selected', String(visible && button.dataset.inspectorTab === state.inspectorTab));
+  });
+  document.querySelectorAll('[data-inspector-panel]').forEach((panel) => {
+    panel.classList.toggle('is-hidden', panel.dataset.inspectorPanel !== state.inspectorTab);
+  });
+}
+
+function renderContextualInspectorFields(element) {
+  document.querySelector('#element-content-field').classList.toggle('is-hidden', !CONTENT_ELEMENT_TYPES.has(element.type));
+  document.querySelector('#element-variant-field').classList.toggle('is-hidden', !['weather', 'clock'].includes(element.type));
+  document.querySelector('#element-color-field').classList.toggle('is-hidden', !TEXT_STYLE_ELEMENT_TYPES.has(element.type));
+  document.querySelector('#element-font-size-field').classList.toggle('is-hidden', !TEXT_STYLE_ELEMENT_TYPES.has(element.type));
+}
+
 function renderSlideInspector() {
   const slide = currentSlide();
   document.querySelector('#slide-name').value = slide.name || '';
@@ -750,6 +803,7 @@ function renderInspector() {
   slideFields.classList.toggle('is-hidden', Boolean(element));
   elementFields.classList.toggle('is-hidden', !element);
   document.querySelector('#inspector-title').textContent = element ? SCENE_ELEMENT_LABELS[element.type] : 'Слайд';
+  renderInspectorTabs(element);
   if (!element) {
     renderSlideInspector();
     renderTableInspector(null);
@@ -757,13 +811,16 @@ function renderInspector() {
     renderWeatherInspector(null);
     return;
   }
+  renderContextualInspectorFields(element);
   renderInspectorGeometry();
   document.querySelector('#element-content').value = element.content || '';
   document.querySelector('#element-content-label').textContent = element.type === 'table' ? 'Заголовок' : MEDIA_ELEMENT_TYPES.has(element.type) ? 'Подпись' : 'Содержимое';
   document.querySelector('#element-color').value = element.style.color || '#ffffff';
   document.querySelector('#element-background').value = element.style.background || 'transparent';
   document.querySelector('#element-font-size').value = element.style.font_size || 40;
+  document.querySelector('#element-radius').value = element.style.radius || 0;
   document.querySelector('#element-opacity').value = element.opacity ?? 1;
+  document.querySelector('#element-blur').value = element.effects.blur || 0;
   renderVariantControl(element);
   document.querySelector('#element-shadow').checked = Boolean(element.effects.shadow);
   document.querySelector('#element-glow').checked = Boolean(element.effects.glow);
@@ -796,6 +853,7 @@ function addElement(type) {
   const element = createElement(type, state.scene, slide);
   slide.elements.push(element);
   state.selectedElementId = element.id;
+  state.inspectorTab = 'object';
   touchScene(state.scene);
   scheduleAutosave();
   render();
@@ -824,6 +882,7 @@ function duplicateCurrentSlide() {
   const copy = duplicateSlide(state.scene, slide.id);
   if (!copy) return;
   state.selectedElementId = null;
+  state.inspectorTab = 'object';
   scheduleAutosave();
   render();
   ensureDynamicDataForScene();
@@ -836,6 +895,7 @@ function removeCurrentSlide() {
   recordHistory();
   if (!removeSlide(state.scene, slide.id)) return;
   state.selectedElementId = null;
+  state.inspectorTab = 'object';
   scheduleAutosave();
   render();
   ensureDynamicDataForScene();
@@ -877,6 +937,7 @@ function deleteSelectedElement({ notify = false } = {}) {
   recordHistory();
   slide.elements.splice(index, 1);
   state.selectedElementId = null;
+  state.inspectorTab = 'object';
   touchScene(state.scene);
   scheduleAutosave();
   renderElements();
@@ -977,6 +1038,19 @@ function bindSlideInspector() {
   document.querySelector('#slide-delete').addEventListener('click', removeCurrentSlide);
 }
 
+function bindInspectorTabs() {
+  document.querySelectorAll('[data-inspector-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const element = selectedElement();
+      if (!element) return;
+      const tab = button.dataset.inspectorTab;
+      if (!inspectorTabsForElement(element).includes(tab)) return;
+      state.inspectorTab = tab;
+      renderInspectorTabs(element);
+    });
+  });
+}
+
 function bindTableInspector() {
   document.querySelector('#table-active-only').addEventListener('change', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.active_only = event.target.checked;
@@ -996,6 +1070,29 @@ function bindTableInspector() {
   ].forEach(([selector, key]) => {
     document.querySelector(selector).addEventListener('change', (event) => updateSelected((element) => {
       if (element.type === 'table') element.table[key] = event.target.checked;
+    }, { refresh: 'content' }));
+  });
+  [
+    ['#table-preset', 'preset'],
+    ['#table-density', 'density'],
+    ['#table-header-style', 'header_style'],
+    ['#table-price-style', 'price_style']
+  ].forEach(([selector, key]) => {
+    document.querySelector(selector).addEventListener('change', (event) => updateSelected((element) => {
+      if (element.type === 'table') element.table.appearance[key] = event.target.value;
+    }, { refresh: 'content' }));
+  });
+  document.querySelector('#table-accent-color').addEventListener('input', (event) => updateSelected((element) => {
+    if (element.type === 'table') element.table.appearance.accent_color = event.target.value;
+  }, { historyKey: 'table-accent-color', refresh: 'content' }));
+  closeHistoryOnChange('#table-accent-color');
+  [
+    ['#table-show-title', 'show_title'],
+    ['#table-row-dividers', 'row_dividers'],
+    ['#table-zebra', 'zebra']
+  ].forEach(([selector, key]) => {
+    document.querySelector(selector).addEventListener('change', (event) => updateSelected((element) => {
+      if (element.type === 'table') element.table.appearance[key] = event.target.checked;
     }, { refresh: 'content' }));
   });
   document.querySelector('#table-refresh-catalog').addEventListener('click', () => void loadCatalogProducts({ force: true }));
@@ -1091,6 +1188,7 @@ function bindBackgroundControls() {
 
 function bindInspector() {
   bindSlideInspector();
+  bindInspectorTabs();
   [['#element-x', 'x'], ['#element-y', 'y'], ['#element-width', 'width'], ['#element-height', 'height']].forEach(([selector, key]) => {
     document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }, { historyKey: `geometry:${key}`, refresh: 'geometry' }));
     closeHistoryOnChange(selector);
@@ -1102,8 +1200,12 @@ function bindInspector() {
   document.querySelector('#element-background').addEventListener('change', (event) => updateSelected((element) => { element.style.background = event.target.value || 'transparent'; }));
   document.querySelector('#element-font-size').addEventListener('input', (event) => updateSelected((element) => { element.style.font_size = Number(event.target.value); }, { historyKey: 'element-font-size' }));
   closeHistoryOnChange('#element-font-size');
+  document.querySelector('#element-radius').addEventListener('input', (event) => updateSelected((element) => { element.style.radius = Number(event.target.value); }, { historyKey: 'element-radius' }));
+  closeHistoryOnChange('#element-radius');
   document.querySelector('#element-opacity').addEventListener('input', (event) => updateSelected((element) => { element.opacity = Number(event.target.value); }, { historyKey: 'element-opacity' }));
   closeHistoryOnChange('#element-opacity');
+  document.querySelector('#element-blur').addEventListener('input', (event) => updateSelected((element) => { element.effects.blur = Number(event.target.value); }, { historyKey: 'element-blur' }));
+  closeHistoryOnChange('#element-blur');
   document.querySelector('#element-variant').addEventListener('change', (event) => updateSelected((element) => { element.variant = event.target.value; }, { refresh: 'content' }));
   document.querySelector('#element-shadow').addEventListener('change', (event) => updateSelected((element) => { element.effects.shadow = event.target.checked; }));
   document.querySelector('#element-glow').addEventListener('change', (event) => updateSelected((element) => { element.effects.glow = event.target.checked; }));
@@ -1188,6 +1290,7 @@ function bindContextMenu() {
       if (element) markSelected(node, element);
     } else {
       state.selectedElementId = null;
+      state.inspectorTab = 'object';
       clearSelectionVisual();
       renderInspector();
     }
@@ -1258,6 +1361,7 @@ function bindGlobalControls() {
   document.querySelector('#scene-stage').addEventListener('click', () => {
     if (state.preview) return;
     state.selectedElementId = null;
+    state.inspectorTab = 'object';
     clearSelectionVisual();
     renderInspector();
   });
@@ -1281,6 +1385,7 @@ function bindGlobalControls() {
     recordHistory();
     appendSlide(state.scene);
     state.selectedElementId = null;
+    state.inspectorTab = 'object';
     scheduleAutosave();
     render();
   });
@@ -1349,6 +1454,7 @@ export async function initialiseSceneEditor() {
   state.savedVersion = 0;
   state.saveConflict = false;
   state.clipboardElement = null;
+  state.inspectorTab = 'object';
   state.weatherByElement = {};
   state.weatherStatus = {};
   state.weatherRequestVersion = {};
