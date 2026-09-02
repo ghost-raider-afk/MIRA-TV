@@ -5,7 +5,6 @@ import { state } from '../core/state.js';
 import { applyTheme, currentTheme } from '../core/presentation.js';
 import { setIcon } from './icons.js';
 import { createNotificationsControl } from './notifications.js';
-import { updateContextAccount } from './context-panel.js';
 
 function initials(value) {
   const parts = String(value || 'TV').trim().split(/\s+/).filter(Boolean);
@@ -23,7 +22,7 @@ function appName() {
 function accountControl() {
   const wrap = document.createElement('div');
   wrap.className = 'header-account';
-  wrap.innerHTML = `<button class="header-account-trigger" type="button" aria-expanded="false" aria-haspopup="menu"><span class="profile-avatar" data-profile-initials>TV</span><span class="header-account-name" data-profile-name></span></button><div class="header-account-menu is-hidden" role="menu"><a href="/profile" role="menuitem">Профиль</a><button type="button" data-logout role="menuitem">Выйти</button></div>`;
+  wrap.innerHTML = `<button class="header-account-trigger" type="button" aria-expanded="false" aria-haspopup="menu"><span class="profile-avatar" data-profile-initials>TV</span><span class="header-account-name" data-profile-name></span></button><div class="header-account-menu is-hidden" role="menu"><a href="/profile" role="menuitem">Профиль</a><a href="/settings" role="menuitem">Настройки</a><button type="button" data-logout role="menuitem">Выйти</button></div>`;
   return wrap;
 }
 
@@ -32,12 +31,8 @@ export function refreshHeaderRoute(root = document) {
   document.title = `${appName()} — ${title}`;
   const header = root.querySelector('.app-header');
   if (!header) return;
-  const titleNode = header.querySelector('.app-header-title span');
+  const titleNode = header.querySelector('[data-page-title]');
   if (titleNode) titleNode.textContent = title;
-  const nameNode = header.querySelector('[data-app-name]');
-  if (nameNode) nameNode.textContent = appName();
-  const sectionTrigger = header.querySelector('[data-mobile-context-trigger]');
-  if (sectionTrigger) sectionTrigger.setAttribute('aria-label', `Открыть меню раздела: ${title}`);
 }
 
 export function createHeader() {
@@ -45,17 +40,14 @@ export function createHeader() {
   document.title = `${appName()} — ${title}`;
   const header = document.createElement('header');
   header.className = 'app-header';
-  header.innerHTML = `<button class="mobile-context-trigger" data-mobile-context-trigger type="button" aria-expanded="false" aria-label="Открыть меню раздела: ${title}"></button><div class="app-header-title"><strong data-app-name></strong><span></span></div><div class="app-header-actions"></div>`;
-  setIcon(header.querySelector('[data-mobile-context-trigger]'), 'menu');
-  header.querySelector('[data-app-name]').textContent = appName();
-  header.querySelector('.app-header-title span').textContent = title;
+  header.innerHTML = `<div class="app-header-title"><strong data-page-title>${title}</strong></div><div class="app-header-actions"></div>`;
   const actions = header.querySelector('.app-header-actions');
-  actions.append(accountControl(), createNotificationsControl());
+  actions.append(createNotificationsControl());
   const theme = document.createElement('button');
   theme.className = 'icon-button';
   theme.id = 'theme-toggle';
   theme.type = 'button';
-  actions.append(theme);
+  actions.append(theme, accountControl());
   updateHeaderAccount(state.user, header);
   syncThemeButton(theme);
   return header;
@@ -67,7 +59,6 @@ export function updateHeaderAccount(user = state.user, root = document) {
   root.querySelectorAll('[data-profile-email]').forEach((node) => { node.textContent = user?.email || 'Настройки учётной записи'; });
   root.querySelectorAll('[data-profile-initials]').forEach((node) => { node.textContent = initials(name); });
   root.querySelectorAll('[data-app-name]').forEach((node) => { node.textContent = appName(); });
-  updateContextAccount(user);
 }
 
 function syncThemeButton(button = document.getElementById('theme-toggle')) {
