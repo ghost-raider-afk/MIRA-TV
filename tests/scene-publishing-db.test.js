@@ -5,6 +5,8 @@ import { newDb } from 'pg-mem';
 import { initialiseSchema } from '../src/db/migrations/schema.js';
 import { migratePrototypeScenes } from '../src/db/migrations/prototype-scenes.js';
 import { migrateScenePublishing } from '../src/db/migrations/scene-publishing.js';
+import { migrateUniversalCatalog } from '../src/db/migrations/universal-catalog.js';
+import { createCatalogRepository } from '../src/db/catalog.js';
 import { createScenesRepository } from '../src/db/scenes.js';
 import { createScreensRepository } from '../src/db/screens.js';
 import { buildPlayerState, deltaPlayerContext, fullPlayerContext } from '../src/services/player-context-service.js';
@@ -14,6 +16,7 @@ const { Pool } = memoryDb.adapters.createPg();
 const pool = new Pool();
 const scenes = createScenesRepository(pool);
 const screens = createScreensRepository(pool);
+const catalog = createCatalogRepository(pool);
 
 const graph = Object.freeze({
   schema_version: 1,
@@ -70,11 +73,6 @@ async function seedOperationsData() {
   );
 }
 
-async function listProducts() {
-  const { rows } = await pool.query('SELECT * FROM catalog_products ORDER BY id');
-  return rows;
-}
-
 const config = {
   playerFallbackPollSeconds: 60,
   playerLogBatchSize: 100,
@@ -87,6 +85,7 @@ test.before(async () => {
   await migratePrototypeScenes(pool);
   await migrateScenePublishing(pool);
   await seedOperationsData();
+  await migrateUniversalCatalog(pool);
 });
 
 test.after(async () => {
@@ -95,6 +94,11 @@ test.after(async () => {
 
 test('Draft -> immutable revision -> screen assignment -> Player Context works through the real PostgreSQL schema', async () => {
   const now = new Date().toISOString();
+  const [migratedItem] = await catalog.listCatalogItems();
+  assert.equal(migratedItem.name, 'IPA E2E');
+  assert.equal(migratedItem.class_code, 'beer');
+  assert.equal(migratedItem.legacy_source_kind, 'product');
+
   const sceneId = `scene-${crypto.randomUUID()}`;
   const created = await scenes.createSceneRecord({ id: sceneId, scene: graph, actor: 'admin', now });
   assert.equal(created.server_revision, 1);
@@ -124,10 +128,8 @@ test('Draft -> immutable revision -> screen assignment -> Player Context works t
   const store = {
     ...scenes,
     ...screens,
-    async getScreenAnimationSettings() { return null; },
-    async listProducts() { return listProducts(); },
-    async listProductsByIds() { return []; },
-    async listPackagingByIds() { return []; }
+    ...catalog,
+    async getScreenAnimationSettings() { return null; }
   };
   const state = await buildPlayerState(store, { screen_id: screenId }, config);
   const context = fullPlayerContext(state);
@@ -135,7 +137,8 @@ test('Draft -> immutable revision -> screen assignment -> Player Context works t
   assert.equal(context.scene.revision_id, revision.id);
   assert.equal(context.scene.graph.name, 'E2E Scene');
   assert.equal(context.scene.graph.slides[0].elements[0].content, 'Меню');
-  assert.equal(context.scene.catalog_products[0].name, 'IPA E2E');
+  assert.equal(context.scene.catalog_items[0].name, 'IPA E2E');
+  assert.equal(context.scene.catalog_items[0].class_code, 'beer');
 
   const known = { schema_version: state.schema_version, hashes: { ...state.hashes, scene: 'old-scene-hash-12345678901234567890' } };
   const delta = deltaPlayerContext(state, known);
