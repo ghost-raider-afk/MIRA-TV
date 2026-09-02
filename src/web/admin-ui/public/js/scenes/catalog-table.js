@@ -75,24 +75,52 @@ export function formatVolume(volume) {
   return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(number)} л`;
 }
 
-export function formatPrice(value) {
+function formatPlainPrice(value) {
   const number = toNumber(value);
   if (number === null) return '—';
-  return `${new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(number)} ₽`;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(number);
+}
+
+export function formatPrice(value) {
+  const plain = formatPlainPrice(value);
+  return plain === '—' ? plain : `${plain} ₽`;
 }
 
 function colourLabel(value) {
-  const labels = { light: 'Светлое', dark: 'Тёмное', amber: 'Янтарное', red: 'Красное', none: '' };
+  const labels = { light: 'светлое', dark: 'тёмное', amber: 'янтарное', red: 'красное', none: '' };
   return labels[value] || String(value || '');
 }
 
 function filtrationLabel(value) {
-  const labels = { filtered: 'Фильтр.', unfiltered: 'Нефильтр.', none: '' };
+  const labels = { filtered: 'фильтрованное', unfiltered: 'нефильтрованное', none: '' };
   return labels[value] || String(value || '');
+}
+
+function productMetadata(product, config) {
+  const parts = [];
+  if (config.show_producer && product?.producer) parts.push(String(product.producer));
+  if (config.show_strength && product?.strength) parts.push(String(product.strength).replaceAll('°', '%'));
+  if (config.show_color) {
+    const label = colourLabel(product?.beverage_color);
+    if (label) parts.push(label);
+  }
+  if (config.show_filtration) {
+    const label = filtrationLabel(product?.filtration);
+    if (label) parts.push(label);
+  }
+  return parts.join(' · ');
 }
 
 export function catalogTableColumns(configSource = {}) {
   const config = normaliseTableConfig(configSource);
+  if (config.appearance.preset === 'clean') {
+    const columns = [{ key: 'product', label: '', kind: 'product', weight: 3.1 }];
+    for (const volume of config.volumes_l) {
+      columns.push({ key: `price:${volume}`, label: formatVolume(volume), kind: 'price', volume, weight: 0.82 });
+    }
+    return columns;
+  }
+
   const columns = [{ key: 'name', label: 'Название', kind: 'text', weight: 2.2 }];
   if (config.show_producer) columns.push({ key: 'producer', label: 'Производитель', kind: 'text', weight: 1.25 });
   if (config.show_strength) columns.push({ key: 'strength', label: 'Крепость', kind: 'text', weight: 0.8 });
@@ -111,15 +139,19 @@ export function buildCatalogTableRows(products, configSource = {}) {
     .filter((product) => !config.active_only || product?.active !== false)
     .slice(0, config.row_limit)
     .map((product) => {
+      const name = String(product?.name || 'Без названия');
+      const metadata = productMetadata(product, config);
       const values = {
-        name: String(product?.name || 'Без названия'),
+        name,
+        product: metadata ? `${name}\n${metadata}` : name,
         producer: String(product?.producer || ''),
         strength: String(product?.strength || ''),
         beverage_color: colourLabel(product?.beverage_color),
         filtration: filtrationLabel(product?.filtration)
       };
       for (const volume of config.volumes_l) {
-        values[`price:${volume}`] = formatPrice(resolveVolumePrice(product, volume, config.base_volume_l));
+        const price = resolveVolumePrice(product, volume, config.base_volume_l);
+        values[`price:${volume}`] = config.appearance.preset === 'clean' ? formatPlainPrice(price) : formatPrice(price);
       }
       return { id: product?.id ?? null, values };
     });
