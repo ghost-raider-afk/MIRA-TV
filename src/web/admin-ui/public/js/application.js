@@ -2,7 +2,7 @@ import { pageName } from './core/config.js';
 import { loadAuthenticatedContext } from './core/session.js';
 import { initialiseNotifications } from './core/notifications.js';
 import { installFrontendDiagnostics, reportFrontendError } from './core/diagnostics.js';
-import { createAppRouter } from './core/router.js';
+import { createAppRouter, navigate } from './core/router.js';
 import { state } from './core/state.js';
 import { initialiseShell, refreshShellRoute } from './components/shell.js';
 
@@ -26,20 +26,17 @@ async function initialisePage(name) {
       return initialiseScenes();
     }
     case 'scene-editor': {
-      const [
-        { initialiseSceneEditor },
-        { initialiseScenePublishControl },
-        { initialiseSceneFormatControls },
-        { initialiseSceneRibbon }
-      ] = await Promise.all([
+      const [{ initialiseSceneEditor }, { initialiseScenePublishControl }, { initialiseSceneFormatControls }, { initialiseSceneRibbon }, { initialiseSceneDesigner }] = await Promise.all([
         import('./scenes/editor.js'),
         import('./scenes/publish-control.js'),
         import('./scenes/format-controls.js'),
-        import('./scenes/ribbon.js')
+        import('./scenes/ribbon.js'),
+        import('./scenes/designer.js')
       ]);
       await initialiseSceneEditor();
       initialiseSceneFormatControls();
       initialiseSceneRibbon();
+      initialiseSceneDesigner();
       return initialiseScenePublishControl();
     }
     case 'settings': {
@@ -71,10 +68,8 @@ async function initialisePage(name) {
       const { initialiseConnectTv } = await import('./pages/connect-tv.js');
       return initialiseConnectTv();
     }
-    case 'screen-editor': {
-      const { initialiseScreenEditor } = await import('./editor/editor.js');
-      return initialiseScreenEditor();
-    }
+    case 'screen-editor':
+      return navigate('/screens.html', { replace: true });
     case 'catalog': {
       const { initialiseCatalog } = await import('./pages/catalog.js');
       return initialiseCatalog();
