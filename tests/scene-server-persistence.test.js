@@ -19,9 +19,22 @@ test('server scene contract derives canonical panoramic canvas and strips client
   assert.equal(scene.canvas_width, 5760);
   assert.equal(scene.canvas_height, 1080);
   assert.equal(scene.slides.length, 1);
-  assert.equal(scene.slides[0].elements[0].data_binding.source, 'catalog_products');
+  assert.equal(scene.slides[0].elements[0].data_binding.source, 'catalog_items');
+  assert.equal(scene.slides[0].elements[0].table.price_layout, 'single');
   assert.equal('server_revision' in scene, false);
   assert.equal('id' in scene, false);
+});
+
+test('server scene contract migrates legacy product binding to beer class', () => {
+  const input = validScene();
+  const table = input.slides[0].elements[0];
+  table.data_binding = { source: 'catalog_products' };
+  table.table = { active_only: true, row_limit: 12, volumes_l: [0.5, 1] };
+  const scene = scenePayloadInput(input);
+  const migrated = scene.slides[0].elements[0];
+  assert.equal(migrated.data_binding.source, 'catalog_items');
+  assert.equal(migrated.table.class_code, 'beer');
+  assert.equal(migrated.table.price_layout, 'quantities');
 });
 
 test('server scene contract rejects geometry outside the global canvas', () => {
