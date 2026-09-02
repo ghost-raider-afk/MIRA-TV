@@ -22,6 +22,8 @@ export const API = Object.freeze({
   deviceResolve: '/api/device-admin/resolve',
   deviceAuthorize: '/api/device-admin/authorize',
   deviceBindings: '/api/device-admin/bindings',
+  catalogClasses: '/api/catalog/classes',
+  catalogItems: '/api/catalog/items',
   products: '/api/catalog/products',
   productsImport: '/api/catalog/products/import',
   productsImportPreview: '/api/catalog/products/import/preview',
