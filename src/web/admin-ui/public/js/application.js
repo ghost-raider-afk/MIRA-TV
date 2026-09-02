@@ -44,10 +44,8 @@ async function initialisePage(name) {
       return initialiseSettings();
     }
     case 'playlist':
-    case 'animation': {
-      const { initialisePlaylistStudio } = await import('./pages/playlist.js');
-      return initialisePlaylistStudio();
-    }
+    case 'animation':
+      return undefined;
     case 'events': {
       const { initialiseEvents } = await import('./pages/events.js');
       return initialiseEvents();
