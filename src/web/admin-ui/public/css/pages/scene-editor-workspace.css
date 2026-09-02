@@ -1,0 +1,31 @@
+/* Scene Constructor workspace: Inspector content must never resize the authoring Canvas. */
+@media (min-width: 901px) {
+  .scene-editor-page {
+    height: calc(100dvh - 24px);
+    min-height: 0;
+    overflow: hidden;
+  }
+  .scene-editor-layout {
+    min-height: 0;
+    height: 100%;
+  }
+  .scene-tools-panel,
+  .scene-inspector,
+  .scene-stage-column,
+  .scene-stage-shell {
+    min-height: 0;
+  }
+  .scene-tools-panel,
+  .scene-inspector {
+    overscroll-behavior: contain;
+  }
+}
+
+.scene-inspector-tabs { top: 0; }
+.scene-background-format-controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.scene-background-format-controls > .field { min-width:0; }
+.scene-widget-presets { display:grid; gap:8px; }
+.scene-widget-preset-note { color:var(--ui-text-muted); font-size:10px; line-height:1.35; }
+.scene-table-settings-group { display:grid; gap:8px; padding:8px; border:1px solid var(--ui-border); border-radius:8px; background:var(--ui-panel-raised); }
+.scene-table-settings-group + .scene-table-settings-group { margin-top:8px; }
+.scene-table-settings-group-title { font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; color:var(--ui-text-muted); }

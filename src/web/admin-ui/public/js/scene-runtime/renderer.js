@@ -41,8 +41,8 @@ function mediaAsset(context, id, kind) {
   return asset;
 }
 
-function gridTemplate(columns) {
-  return columns.map((column) => `minmax(0, ${column.weight || 1}fr)`).join(' ');
+function tableColumnWidth(column, totalWeight) {
+  return `${((Number(column.weight) || 1) / totalWeight) * 100}%`;
 }
 
 function renderCatalogTable(node, element, context) {
@@ -51,7 +51,7 @@ function renderCatalogTable(node, element, context) {
   node.dataset.tablePreset = appearance.preset;
   node.dataset.tableDensity = appearance.density;
   node.style.setProperty('--scene-table-accent', appearance.accent_color);
-  if (appearance.show_title) appendText(node, 'strong', element.content || 'Меню', 'scene-table-title');
+
   const status = context.catalogStatus || 'idle';
   if (status === 'loading' || status === 'idle') {
     appendText(node, 'div', 'Загрузка каталога…', 'scene-table-state');
@@ -69,7 +69,7 @@ function renderCatalogTable(node, element, context) {
     return;
   }
 
-  const table = document.createElement('div');
+  const table = document.createElement('table');
   table.className = 'scene-catalog-table';
   table.dataset.preset = appearance.preset;
   table.dataset.density = appearance.density;
@@ -77,22 +77,48 @@ function renderCatalogTable(node, element, context) {
   table.dataset.priceStyle = appearance.price_style;
   table.dataset.rowDividers = String(appearance.row_dividers);
   table.dataset.zebra = String(appearance.zebra);
-  table.style.setProperty('--scene-table-columns', gridTemplate(columns));
   table.style.setProperty('--scene-table-accent', appearance.accent_color);
-  const header = document.createElement('div');
-  header.className = 'scene-catalog-row scene-catalog-head';
-  for (const column of columns) appendText(header, 'span', column.label);
-  table.append(header);
 
-  for (const row of rows) {
-    const rowNode = document.createElement('div');
-    rowNode.className = 'scene-catalog-row';
-    for (const column of columns) {
-      const cell = appendText(rowNode, 'span', row.values[column.key] || '—');
-      if (column.kind === 'price') cell.className = 'scene-catalog-price';
-    }
-    table.append(rowNode);
+  if (appearance.show_title) {
+    const caption = document.createElement('caption');
+    caption.className = 'scene-table-title';
+    caption.textContent = element.content || 'Меню';
+    table.append(caption);
   }
+
+  const totalWeight = Math.max(1, columns.reduce((sum, column) => sum + (Number(column.weight) || 1), 0));
+  const colgroup = document.createElement('colgroup');
+  for (const column of columns) {
+    const col = document.createElement('col');
+    col.style.width = tableColumnWidth(column, totalWeight);
+    colgroup.append(col);
+  }
+  table.append(colgroup);
+
+  const head = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  for (const column of columns) {
+    const cell = document.createElement('th');
+    cell.scope = 'col';
+    cell.textContent = column.label;
+    if (column.kind === 'price') cell.className = 'scene-catalog-price';
+    headerRow.append(cell);
+  }
+  head.append(headerRow);
+  table.append(head);
+
+  const body = document.createElement('tbody');
+  for (const row of rows) {
+    const rowNode = document.createElement('tr');
+    for (const column of columns) {
+      const cell = document.createElement('td');
+      cell.textContent = row.values[column.key] || '—';
+      if (column.kind === 'price') cell.className = 'scene-catalog-price';
+      rowNode.append(cell);
+    }
+    body.append(rowNode);
+  }
+  table.append(body);
   node.append(table);
 }
 
@@ -146,12 +172,14 @@ function renderAnalogClock(node, now) {
 
 function renderClock(node, element, now) {
   const variant = element.variant || 'digital';
+  node.dataset.variant = variant;
   if (variant === 'analog') {
     renderAnalogClock(node, now);
     return;
   }
+  appendText(node, 'small', clockDate(now, variant), 'scene-clock-kicker');
   appendText(node, 'span', clockTime(now, variant === 'seconds'), 'scene-clock-value');
-  appendText(node, 'small', clockDate(now, variant), 'scene-clock-date');
+  if (variant === 'seconds') appendText(node, 'small', 'точное время', 'scene-clock-date');
 }
 
 function temperatureText(value) {
@@ -181,46 +209,62 @@ function forecastSummary(data) {
   return parts.join(' · ');
 }
 
+function weatherRange(data) {
+  const today = data?.daily?.[0];
+  if (!today) return '';
+  return `Макс. ${temperatureText(today.temperature_max_c)} · Мин. ${temperatureText(today.temperature_min_c)}`;
+}
+
 function updateWeatherNode(node, element, context = {}) {
+  const locationNode = node.querySelector('.scene-weather-location');
   const icon = node.querySelector('.scene-weather-icon');
   const temperature = node.querySelector('.scene-weather-temp');
   const detail = node.querySelector('.scene-weather-detail');
-  if (!icon || !temperature || !detail) return;
+  const range = node.querySelector('.scene-weather-range');
+  const forecast = node.querySelector('.scene-weather-forecast');
+  if (!locationNode || !icon || !temperature || !detail || !range || !forecast) return;
 
   const location = weatherLocation(element);
   const data = weatherData(context, element);
+  const variant = element.variant || 'compact';
+  node.dataset.variant = variant;
+
   if (!location) {
+    locationNode.textContent = 'Погода';
     icon.textContent = '·';
-    temperature.textContent = 'Погода';
+    temperature.textContent = '—°';
     detail.textContent = 'Укажите город';
+    range.textContent = '';
+    forecast.textContent = '';
     return;
   }
   if (!data) {
+    locationNode.textContent = location;
     icon.textContent = '…';
-    temperature.textContent = 'Погода';
-    detail.textContent = `${location} · загрузка…`;
+    temperature.textContent = '—°';
+    detail.textContent = 'Загрузка…';
+    range.textContent = '';
+    forecast.textContent = '';
     return;
   }
 
-  const variant = element.variant || 'compact';
+  locationNode.textContent = data.location || location;
   icon.textContent = variant === 'minimal' ? '' : (data.current?.icon || '•');
   temperature.textContent = temperatureText(data.current?.temperature_c);
-  if (variant === 'temperature') {
-    detail.textContent = data.location || location;
-  } else if (variant === 'forecast') {
-    detail.textContent = forecastSummary(data) || data.current?.label || data.location || location;
-  } else if (variant === 'minimal') {
-    detail.textContent = data.location || location;
-  } else {
-    detail.textContent = `${data.current?.label || 'Нет данных'} · ${data.location || location}`;
-  }
+  detail.textContent = data.current?.label || 'Нет данных';
+  range.textContent = weatherRange(data);
+  forecast.textContent = variant === 'forecast' ? forecastSummary(data) : '';
   if (data.stale) detail.textContent += ' · последние данные';
 }
 
 function renderWeather(node, element, context) {
+  node.dataset.variant = element.variant || 'compact';
+  appendText(node, 'small', '', 'scene-weather-location');
   appendText(node, 'span', '', 'scene-weather-icon');
   appendText(node, 'span', '', 'scene-weather-temp');
   appendText(node, 'small', '', 'scene-weather-detail');
+  appendText(node, 'small', '', 'scene-weather-range');
+  appendText(node, 'small', '', 'scene-weather-forecast');
   updateWeatherNode(node, element, context);
 }
 
@@ -338,10 +382,18 @@ function applyMediaPresentation(node, element) {
   media.style.objectPosition = position;
 }
 
+function isTransparentBackground(value) {
+  return String(value || '').trim().toLowerCase() === 'transparent';
+}
+
 export function applySceneElementGeometry(node, element, scene, stageWidth) {
   const renderedWidth = Number(stageWidth) || scene.canvas_width;
   const scale = renderedWidth / scene.canvas_width;
   const style = element.style || {};
+  const radius = Math.max(0, Number(style.radius) || 0) * scale;
+  const borderWidth = Math.max(0, Number(style.border_width) || 0) * scale;
+  const background = style.background || 'transparent';
+
   node.style.left = `${(element.x / scene.canvas_width) * 100}%`;
   node.style.top = `${(element.y / scene.canvas_height) * 100}%`;
   node.style.width = `${(element.width / scene.canvas_width) * 100}%`;
@@ -349,15 +401,30 @@ export function applySceneElementGeometry(node, element, scene, stageWidth) {
   node.style.zIndex = String(element.z_index);
   node.style.opacity = String(element.opacity);
   node.style.color = style.color || '#ffffff';
-  node.style.background = style.background || 'transparent';
-  node.style.borderRadius = `${Math.max(0, Number(style.radius) || 0) * scale}px`;
-  node.style.borderStyle = 'solid';
-  node.style.borderWidth = `${Math.max(0, Number(style.border_width) || 0) * scale}px`;
-  node.style.borderColor = style.border_color || '#ffffff';
   node.style.fontSize = `${Math.max(8, (Number(style.font_size) || 40) * scale)}px`;
   node.style.fontWeight = String(Number(style.font_weight) || 400);
   node.style.setProperty('--scene-render-scale', String(scale));
   node.style.setProperty('--scene-element-blur', `${Math.max(0, Number(element.effects?.blur) || 0) * scale}px`);
+  node.dataset.transparentBackground = String(isTransparentBackground(background));
+  node.dataset.variant = element.variant || 'default';
+
+  if (element.type === 'table') {
+    node.style.background = 'transparent';
+    node.style.borderRadius = '0px';
+    node.style.borderWidth = '0px';
+    node.style.borderColor = 'transparent';
+    node.style.setProperty('--scene-table-surface', background);
+    node.style.setProperty('--scene-table-radius', `${radius}px`);
+    node.style.setProperty('--scene-table-border-width', `${borderWidth}px`);
+    node.style.setProperty('--scene-table-border-color', style.border_color || '#ffffff');
+  } else {
+    node.style.background = background;
+    node.style.borderRadius = `${radius}px`;
+    node.style.borderStyle = 'solid';
+    node.style.borderWidth = `${borderWidth}px`;
+    node.style.borderColor = style.border_color || '#ffffff';
+  }
+
   applyTypographyPresentation(node, element, style, scale);
   applyMediaPresentation(node, element);
   node.classList.toggle('has-shadow', Boolean(element.effects?.shadow));
@@ -420,14 +487,17 @@ export function updateSceneClockElements(layer, slide, now = new Date()) {
   for (const node of layer.querySelectorAll('.scene-element-clock[data-element-id]')) {
     const element = clockById.get(node.dataset.elementId);
     if (!element) continue;
-    if ((element.variant || 'digital') === 'analog') {
+    const variant = element.variant || 'digital';
+    if (variant === 'analog') {
       setAnalogHands(node, now);
       continue;
     }
+    const kicker = node.querySelector('.scene-clock-kicker');
     const value = node.querySelector('.scene-clock-value');
     const date = node.querySelector('.scene-clock-date');
-    if (value) value.textContent = clockTime(now, element.variant === 'seconds');
-    if (date) date.textContent = clockDate(now, element.variant || 'digital');
+    if (kicker) kicker.textContent = clockDate(now, variant);
+    if (value) value.textContent = clockTime(now, variant === 'seconds');
+    if (date && variant === 'seconds') date.textContent = 'точное время';
   }
 }
 

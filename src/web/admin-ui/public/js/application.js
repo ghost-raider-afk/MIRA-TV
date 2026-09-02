@@ -26,11 +26,13 @@ async function initialisePage(name) {
       return initialiseScenes();
     }
     case 'scene-editor': {
-      const [{ initialiseSceneEditor }, { initialiseScenePublishControl }] = await Promise.all([
+      const [{ initialiseSceneEditor }, { initialiseScenePublishControl }, { initialiseSceneFormatControls }] = await Promise.all([
         import('./scenes/editor.js'),
-        import('./scenes/publish-control.js')
+        import('./scenes/publish-control.js'),
+        import('./scenes/format-controls.js')
       ]);
       await initialiseSceneEditor();
+      initialiseSceneFormatControls();
       return initialiseScenePublishControl();
     }
     case 'settings': {

@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'mira-tv-player-shell-v16-scene6';
-const DATA_CACHE = 'mira-tv-player-data-v16-scene6';
+const SHELL_CACHE = 'mira-tv-player-shell-v16-scene7';
+const DATA_CACHE = 'mira-tv-player-data-v16-scene7';
 const SHELL_ASSETS = [
   '/player.html',
   '/css/player.css',
