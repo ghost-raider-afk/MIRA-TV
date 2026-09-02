@@ -46,14 +46,14 @@
 
           <div class="scene-editor-layout">
             <aside class="scene-tools-panel" aria-label="Инструменты сцены">
-              <div class="scene-panel-heading"><p class="eyebrow">ДОБАВИТЬ</p><h2>Элементы</h2></div>
+              <div class="scene-panel-heading"><p class="eyebrow">ВСТАВКА</p><h2>Элементы</h2></div>
               <div class="scene-tool-grid">
-                <button type="button" data-add-element="table"><strong>Таблица</strong><span>Реальный каталог и цены</span></button>
+                <button type="button" data-add-element="table"><strong>Таблица</strong><span>Каталог и цены</span></button>
                 <button type="button" data-add-element="text"><strong>Текст</strong><span>Заголовки и подписи</span></button>
                 <button type="button" data-add-element="image"><strong>Изображение</strong><span>Фото и графика</span></button>
                 <button type="button" data-add-element="logo"><strong>Логотип</strong><span>Бренд</span></button>
                 <button type="button" data-add-element="video"><strong>Видео</strong><span>Медиаобъект</span></button>
-                <button type="button" data-add-element="weather"><strong>Погода</strong><span>Реальный информер</span></button>
+                <button type="button" data-add-element="weather"><strong>Погода</strong><span>Информер</span></button>
                 <button type="button" data-add-element="clock"><strong>Часы</strong><span>Несколько видов</span></button>
                 <button type="button" data-add-element="shape"><strong>Фигура</strong><span>Подложка и декор</span></button>
               </div>
@@ -74,7 +74,7 @@
             </aside>
 
             <section class="scene-stage-column">
-              <div class="scene-stage-meta"><span id="scene-resolution-label">1920 × 1080</span><span>Границы физических TV показаны направляющими</span></div>
+              <div class="scene-stage-meta"><span id="scene-resolution-label">1920 × 1080</span><span>ЛКМ — выбрать/переместить · ПКМ — действия · Ctrl+C/V — копировать/вставить</span></div>
               <div class="scene-stage-shell" id="scene-stage-shell">
                 <div class="scene-stage" id="scene-stage" tabindex="0" aria-label="Холст сцены">
                   <div class="scene-tv-guides" id="scene-tv-guides" aria-hidden="true"></div>
@@ -84,7 +84,14 @@
             </section>
 
             <aside class="scene-inspector" aria-label="Свойства выбранного элемента или слайда">
-              <div class="scene-panel-heading"><p class="eyebrow">СВОЙСТВА</p><h2 id="inspector-title">Слайд</h2></div>
+              <div class="scene-panel-heading"><p class="eyebrow">ФОРМАТ</p><h2 id="inspector-title">Слайд</h2></div>
+
+              <nav id="inspector-tabs" class="scene-inspector-tabs is-hidden" aria-label="Разделы свойств">
+                <button type="button" data-inspector-tab="object">Объект</button>
+                <button type="button" data-inspector-tab="format">Оформление</button>
+                <button type="button" data-inspector-tab="data">Данные</button>
+                <button type="button" data-inspector-tab="animation">Анимация</button>
+              </nav>
 
               <div id="slide-inspector-fields" class="scene-inspector-fields">
                 <label class="field"><span>Название слайда</span><input id="slide-name" maxlength="120" autocomplete="off" /></label>
@@ -94,64 +101,110 @@
                   <button class="button button-secondary" id="slide-duplicate" type="button">Дублировать</button>
                   <button class="button button-danger" id="slide-delete" type="button">Удалить</button>
                 </div>
-                <small class="scene-media-status">Изменения слайда сохраняются автоматически и участвуют в Undo/Redo.</small>
+                <small class="scene-media-status">Изменения сохраняются автоматически и участвуют в Undo/Redo.</small>
               </div>
 
               <div id="inspector-fields" class="scene-inspector-fields is-hidden">
-                <div class="scene-inspector-actions"><button class="button button-secondary" id="element-backward" type="button">Слой −</button><button class="button button-secondary" id="element-forward" type="button">Слой +</button><button class="button button-secondary" id="element-duplicate" type="button" title="Дублировать · Ctrl/⌘ D">Копия</button><button class="button button-danger" id="element-delete" type="button">Удалить</button></div>
-                <div class="geometry-grid">
-                  <label class="field"><span>X</span><input id="element-x" type="number" min="0" step="1" /></label>
-                  <label class="field"><span>Y</span><input id="element-y" type="number" min="0" step="1" /></label>
-                  <label class="field"><span>Ширина</span><input id="element-width" type="number" min="20" step="1" /></label>
-                  <label class="field"><span>Высота</span><input id="element-height" type="number" min="20" step="1" /></label>
-                </div>
-                <label class="field"><span id="element-content-label">Содержимое</span><input id="element-content" maxlength="160" /></label>
+                <section class="scene-inspector-panel" data-inspector-panel="object">
+                  <div class="scene-inspector-actions">
+                    <button class="button button-secondary" id="element-backward" type="button">Слой −</button>
+                    <button class="button button-secondary" id="element-forward" type="button">Слой +</button>
+                    <button class="button button-secondary" id="element-duplicate" type="button" title="Дублировать · Ctrl/⌘ D">Копия</button>
+                    <button class="button button-danger" id="element-delete" type="button">Удалить</button>
+                  </div>
+                  <div class="scene-inspector-section-title">Положение и размер</div>
+                  <div class="geometry-grid">
+                    <label class="field"><span>X</span><input id="element-x" type="number" min="0" step="1" /></label>
+                    <label class="field"><span>Y</span><input id="element-y" type="number" min="0" step="1" /></label>
+                    <label class="field"><span>Ширина</span><input id="element-width" type="number" min="20" step="1" /></label>
+                    <label class="field"><span>Высота</span><input id="element-height" type="number" min="20" step="1" /></label>
+                  </div>
+                  <label id="element-content-field" class="field"><span id="element-content-label">Содержимое</span><input id="element-content" maxlength="160" /></label>
+                  <label id="element-variant-field" class="field"><span>Вариант</span><select id="element-variant"></select></label>
+                </section>
 
-                <details id="table-settings" class="is-hidden" open>
-                  <summary>Данные таблицы</summary>
-                  <div class="scene-table-settings">
-                    <div class="scene-data-source-line"><div><strong>Каталог MIRA-TV</strong><small id="table-catalog-status">Каталог загружается…</small></div><button class="button button-secondary" id="table-refresh-catalog" type="button">Обновить</button></div>
-                    <label class="field"><span>Цены для объёмов, л</span><input id="table-volumes" inputmode="decimal" placeholder="0,5; 1; 1,5" /><small>Можно указать любые объёмы через точку с запятой. Цена рассчитывается от базовой цены за 1 л.</small></label>
-                    <label class="field"><span>Строк на экране</span><input id="table-row-limit" type="number" min="1" max="50" step="1" /></label>
-                    <div class="scene-toggle-list scene-table-columns">
-                      <label><span>Только активные</span><input id="table-active-only" type="checkbox" /></label>
-                      <label><span>Производитель</span><input id="table-show-producer" type="checkbox" /></label>
-                      <label><span>Крепость</span><input id="table-show-strength" type="checkbox" /></label>
-                      <label><span>Цвет напитка</span><input id="table-show-color" type="checkbox" /></label>
-                      <label><span>Фильтрация</span><input id="table-show-filtration" type="checkbox" /></label>
+                <section class="scene-inspector-panel is-hidden" data-inspector-panel="format">
+                  <div class="scene-inspector-section-title">Основное оформление</div>
+                  <label id="element-color-field" class="field"><span>Цвет</span><input id="element-color" type="color" /></label>
+                  <label class="field"><span>Фон объекта</span><input id="element-background" type="text" placeholder="transparent или CSS-цвет" /></label>
+                  <label id="element-font-size-field" class="field"><span>Размер текста</span><input id="element-font-size" type="number" min="8" max="400" step="1" /></label>
+                  <label class="field"><span>Скругление</span><input id="element-radius" type="number" min="0" max="500" step="1" /></label>
+                  <label class="field"><span>Прозрачность</span><input id="element-opacity" type="range" min="0" max="1" step="0.05" /></label>
+
+                  <details id="table-appearance-settings" class="is-hidden" open>
+                    <summary>Оформление таблицы</summary>
+                    <div class="scene-table-settings">
+                      <label class="field"><span>Стиль</span><select id="table-preset"><option value="clean">Чистый</option><option value="glass">Стекло</option><option value="solid">Плашка</option><option value="minimal">Минимальный</option></select></label>
+                      <label class="field"><span>Плотность строк</span><select id="table-density"><option value="compact">Компактно</option><option value="comfortable">Обычно</option><option value="spacious">Свободно</option></select></label>
+                      <label class="field"><span>Шапка</span><select id="table-header-style"><option value="subtle">Спокойная</option><option value="accent">Акцентная</option><option value="solid">Плашка</option></select></label>
+                      <label class="field"><span>Цены</span><select id="table-price-style"><option value="accent">Акцентным цветом</option><option value="bold">Жирные</option><option value="plain">Обычные</option></select></label>
+                      <label class="field"><span>Акцентный цвет</span><input id="table-accent-color" type="color" /></label>
+                      <div class="scene-toggle-list scene-table-columns">
+                        <label><span>Показывать заголовок</span><input id="table-show-title" type="checkbox" /></label>
+                        <label><span>Разделители строк</span><input id="table-row-dividers" type="checkbox" /></label>
+                        <label><span>Чередование строк</span><input id="table-zebra" type="checkbox" /></label>
+                      </div>
                     </div>
-                  </div>
-                </details>
+                  </details>
 
-                <details id="media-settings" class="is-hidden" open>
-                  <summary>Медиа</summary>
-                  <div class="scene-media-settings">
-                    <label class="field"><span>Файл</span><select id="element-media-asset"><option value="">Не выбран</option></select></label>
-                    <small id="media-library-status" class="scene-media-status">Медиатека загружается…</small>
-                    <div class="scene-media-actions">
-                      <button class="button button-primary" id="element-media-upload" type="button">Загрузить новый</button>
-                      <button class="button button-secondary" id="element-media-refresh" type="button">Обновить</button>
+                  <details open>
+                    <summary>Эффекты</summary>
+                    <div class="scene-toggle-list">
+                      <label><span>Тень</span><input id="element-shadow" type="checkbox" /></label>
+                      <label><span>Свечение</span><input id="element-glow" type="checkbox" /></label>
                     </div>
-                    <input id="element-media-upload-input" type="file" hidden />
-                  </div>
-                </details>
+                    <label class="field scene-effect-slider"><span>Размытие</span><input id="element-blur" type="range" min="0" max="40" step="1" /></label>
+                  </details>
+                </section>
 
-                <details id="weather-settings" class="is-hidden" open>
-                  <summary>Погода</summary>
-                  <div class="scene-media-settings">
-                    <label class="field"><span>Город или населённый пункт</span><input id="weather-location" maxlength="120" autocomplete="off" placeholder="Например, Helsinki" /></label>
-                    <small id="weather-status" class="scene-media-status">Укажите город.</small>
-                    <button class="button button-secondary" id="weather-refresh" type="button">Обновить погоду</button>
-                  </div>
-                </details>
+                <section class="scene-inspector-panel is-hidden" data-inspector-panel="data">
+                  <details id="table-settings" class="is-hidden" open>
+                    <summary>Данные таблицы</summary>
+                    <div class="scene-table-settings">
+                      <div class="scene-data-source-line"><div><strong>Каталог MIRA-TV</strong><small id="table-catalog-status">Каталог загружается…</small></div><button class="button button-secondary" id="table-refresh-catalog" type="button">Обновить</button></div>
+                      <label class="field"><span>Цены для объёмов, л</span><input id="table-volumes" inputmode="decimal" placeholder="0,5; 1; 1,5" /><small>Объёмы через точку с запятой. Цена рассчитывается от базовой цены за 1 л.</small></label>
+                      <label class="field"><span>Строк на экране</span><input id="table-row-limit" type="number" min="1" max="50" step="1" /></label>
+                      <div class="scene-toggle-list scene-table-columns">
+                        <label><span>Только активные</span><input id="table-active-only" type="checkbox" /></label>
+                        <label><span>Производитель</span><input id="table-show-producer" type="checkbox" /></label>
+                        <label><span>Крепость</span><input id="table-show-strength" type="checkbox" /></label>
+                        <label><span>Цвет напитка</span><input id="table-show-color" type="checkbox" /></label>
+                        <label><span>Фильтрация</span><input id="table-show-filtration" type="checkbox" /></label>
+                      </div>
+                    </div>
+                  </details>
 
-                <label class="field"><span>Цвет текста</span><input id="element-color" type="color" /></label>
-                <label class="field"><span>Фон элемента</span><input id="element-background" type="text" placeholder="transparent или CSS-цвет" /></label>
-                <label class="field"><span>Размер текста</span><input id="element-font-size" type="number" min="12" max="180" step="1" /></label>
-                <label class="field"><span>Прозрачность</span><input id="element-opacity" type="range" min="0.1" max="1" step="0.05" /></label>
-                <label class="field"><span>Вариант</span><select id="element-variant"></select></label>
-                <details open><summary>Эффекты</summary><div class="scene-toggle-list"><label><span>Тень</span><input id="element-shadow" type="checkbox" /></label><label><span>Свечение</span><input id="element-glow" type="checkbox" /></label></div></details>
-                <details><summary>Анимация</summary><div class="scene-animation-grid"><label class="field"><span>Появление</span><select id="element-entrance"><option value="none">Нет</option><option value="fade">Fade</option><option value="slide-up">Slide up</option><option value="scale">Scale</option></select></label><label class="field"><span>Постоянная</span><select id="element-loop"><option value="none">Нет</option><option value="pulse">Pulse</option><option value="float">Float</option></select></label><label class="field"><span>Исчезновение</span><select id="element-exit"><option value="none">Нет</option><option value="fade">Fade</option><option value="scale">Scale</option></select></label></div></details>
+                  <details id="media-settings" class="is-hidden" open>
+                    <summary>Медиа</summary>
+                    <div class="scene-media-settings">
+                      <label class="field"><span>Файл</span><select id="element-media-asset"><option value="">Не выбран</option></select></label>
+                      <small id="media-library-status" class="scene-media-status">Медиатека загружается…</small>
+                      <div class="scene-media-actions">
+                        <button class="button button-primary" id="element-media-upload" type="button">Загрузить новый</button>
+                        <button class="button button-secondary" id="element-media-refresh" type="button">Обновить</button>
+                      </div>
+                      <input id="element-media-upload-input" type="file" hidden />
+                    </div>
+                  </details>
+
+                  <details id="weather-settings" class="is-hidden" open>
+                    <summary>Погода</summary>
+                    <div class="scene-media-settings">
+                      <label class="field"><span>Город или населённый пункт</span><input id="weather-location" maxlength="120" autocomplete="off" placeholder="Например, Helsinki" /></label>
+                      <small id="weather-status" class="scene-media-status">Укажите город.</small>
+                      <button class="button button-secondary" id="weather-refresh" type="button">Обновить погоду</button>
+                    </div>
+                  </details>
+                </section>
+
+                <section class="scene-inspector-panel is-hidden" data-inspector-panel="animation">
+                  <div class="scene-inspector-section-title">Анимация объекта</div>
+                  <div class="scene-animation-grid">
+                    <label class="field"><span>Появление</span><select id="element-entrance"><option value="none">Нет</option><option value="fade">Fade</option><option value="slide-up">Slide up</option><option value="scale">Scale</option></select></label>
+                    <label class="field"><span>Постоянная</span><select id="element-loop"><option value="none">Нет</option><option value="pulse">Pulse</option><option value="float">Float</option></select></label>
+                    <label class="field"><span>Исчезновение</span><select id="element-exit"><option value="none">Нет</option><option value="fade">Fade</option><option value="scale">Scale</option></select></label>
+                  </div>
+                </section>
               </div>
             </aside>
           </div>
