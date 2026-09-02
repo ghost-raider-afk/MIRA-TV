@@ -44,7 +44,12 @@ function gridTemplate(columns) {
 }
 
 function renderCatalogTable(node, element, context) {
-  appendText(node, 'strong', element.content || 'Меню', 'scene-table-title');
+  const config = normaliseTableConfig(element.table || {});
+  const appearance = config.appearance;
+  node.dataset.tablePreset = appearance.preset;
+  node.dataset.tableDensity = appearance.density;
+  node.style.setProperty('--scene-table-accent', appearance.accent_color);
+  if (appearance.show_title) appendText(node, 'strong', element.content || 'Меню', 'scene-table-title');
   const status = context.catalogStatus || 'idle';
   if (status === 'loading' || status === 'idle') {
     appendText(node, 'div', 'Загрузка каталога…', 'scene-table-state');
@@ -55,7 +60,6 @@ function renderCatalogTable(node, element, context) {
     return;
   }
 
-  const config = normaliseTableConfig(element.table || {});
   const columns = catalogTableColumns(config);
   const rows = buildCatalogTableRows(context.catalogProducts || [], config);
   if (!rows.length) {
@@ -65,7 +69,14 @@ function renderCatalogTable(node, element, context) {
 
   const table = document.createElement('div');
   table.className = 'scene-catalog-table';
+  table.dataset.preset = appearance.preset;
+  table.dataset.density = appearance.density;
+  table.dataset.headerStyle = appearance.header_style;
+  table.dataset.priceStyle = appearance.price_style;
+  table.dataset.rowDividers = String(appearance.row_dividers);
+  table.dataset.zebra = String(appearance.zebra);
   table.style.setProperty('--scene-table-columns', gridTemplate(columns));
+  table.style.setProperty('--scene-table-accent', appearance.accent_color);
   const header = document.createElement('div');
   header.className = 'scene-catalog-row scene-catalog-head';
   for (const column of columns) appendText(header, 'span', column.label);
@@ -276,8 +287,10 @@ export function applySceneElementGeometry(node, element, scene, stageWidth) {
   node.style.background = element.style.background;
   node.style.borderRadius = `${element.style.radius || 0}px`;
   node.style.fontSize = `${Math.max(12, element.style.font_size * (renderedWidth / scene.canvas_width))}px`;
+  node.style.setProperty('--scene-element-blur', `${Number(element.effects?.blur) || 0}px`);
   node.classList.toggle('has-shadow', Boolean(element.effects?.shadow));
   node.classList.toggle('has-glow', Boolean(element.effects?.glow));
+  node.classList.toggle('has-blur', Number(element.effects?.blur) > 0);
   node.dataset.entrance = element.animation?.entrance || 'none';
   node.dataset.loop = element.animation?.loop || 'none';
   node.dataset.exit = element.animation?.exit || 'none';
