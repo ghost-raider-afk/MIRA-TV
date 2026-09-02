@@ -62,8 +62,9 @@ function renderCatalogTable(node, element, context) {
     return;
   }
 
-  const columns = catalogTableColumns(config);
-  const rows = buildCatalogTableRows(context.catalogProducts || [], config);
+  const catalogItems = context.catalogItems || context.catalogProducts || [];
+  const columns = catalogTableColumns(config, catalogItems);
+  const rows = buildCatalogTableRows(catalogItems, config);
   if (!rows.length) {
     appendText(node, 'div', 'В каталоге нет подходящих активных позиций', 'scene-table-state');
     return;
