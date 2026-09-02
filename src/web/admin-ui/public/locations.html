@@ -11,28 +11,32 @@
   <body data-page="locations">
     <div class="app-shell">
       <div class="app-content">
-        <main class="main-content workspace-content">
-          <div class="page-heading compact-heading"><div><p class="eyebrow">СТРУКТУРА</p><h1>Торговые точки</h1></div><p>Точки, мониторы и копирование структуры.</p></div>
-          <div class="workspace-grid">
-            <section class="settings-card">
-              <div class="card-heading"><div><p class="eyebrow">ТОЧКА</p><h2 id="location-form-title">Новая точка</h2></div><button class="text-button is-hidden" id="cancel-location-edit" type="button">Отменить</button></div>
-              <form id="location-form" class="form-grid">
-                <label class="field field-full" id="location-copy-field"><span>Создать</span><select id="location-copy-source"><option value="">Пустая точка</option></select><small>При выборе образца копируются мониторы, меню и оформление.</small></label>
-                <label class="field"><span>Название точки</span><input id="location-name" maxlength="120" required /></label>
-                <label class="field"><span>Адрес</span><input id="location-address" maxlength="300" /></label>
-                <label class="toggle-row field-full"><span><strong>Активна</strong><small>Точка доступна для работы с мониторами.</small></span><input id="location-active" type="checkbox" checked /><i aria-hidden="true"></i></label>
-                <p class="form-message is-hidden field-full" id="location-message" role="status"></p>
-                <div class="form-actions field-full"><button class="button button-primary" id="location-submit" type="submit">Создать точку</button></div>
-              </form>
-            </section>
-            <section class="settings-card">
-              <div class="card-heading"><div><p class="eyebrow">СПИСОК</p><h2>Все точки</h2></div><button class="button button-secondary" id="refresh-locations" type="button">Обновить</button></div>
-              <div class="record-list" data-locations-list></div>
-              <p class="empty-state is-hidden" data-locations-empty>Торговых точек пока нет.</p>
-            </section>
+        <main class="main-content locations-page">
+          <div class="page-heading compact-heading">
+            <div><p class="eyebrow">ПОКАЗ</p><h1>Торговые точки</h1><p>Места установки телевизоров. Контент создаётся отдельно в разделе «Сцены».</p></div>
+            <button class="button button-primary" id="create-location" type="button">+ Новая точка</button>
           </div>
+          <p class="form-message is-hidden" id="location-message" role="status"></p>
+          <section class="settings-card locations-list-card">
+            <div class="card-heading"><div><h2>Все точки</h2></div><button class="button button-secondary" id="refresh-locations" type="button">Обновить</button></div>
+            <div class="record-list" data-locations-list></div>
+            <p class="empty-state is-hidden" data-locations-empty>Торговых точек пока нет.</p>
+          </section>
         </main>
       </div>
+    </div>
+
+    <div class="workspace-drawer is-hidden" id="location-drawer" aria-hidden="true">
+      <button class="workspace-drawer-backdrop" id="location-drawer-backdrop" type="button" aria-label="Закрыть"></button>
+      <aside class="workspace-drawer-panel" aria-labelledby="location-form-title">
+        <div class="workspace-drawer-head"><div><p class="eyebrow">ТОРГОВАЯ ТОЧКА</p><h2 id="location-form-title">Новая точка</h2></div><button class="workspace-drawer-close" id="location-drawer-close" type="button" aria-label="Закрыть">×</button></div>
+        <form id="location-form" class="form-stack">
+          <label class="field"><span>Название точки</span><input id="location-name" maxlength="120" required /></label>
+          <label class="field"><span>Адрес</span><input id="location-address" maxlength="300" /></label>
+          <label class="toggle-row"><span><strong>Активна</strong><small>Точка доступна для привязки мониторов.</small></span><input id="location-active" type="checkbox" checked /><i aria-hidden="true"></i></label>
+          <div class="form-actions"><button class="button button-secondary is-hidden" id="cancel-location-edit" type="button">Отменить</button><button class="button button-primary" id="location-submit" type="submit">Создать точку</button></div>
+        </form>
+      </aside>
     </div>
   </body>
 </html>
