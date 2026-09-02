@@ -15,6 +15,8 @@ export const SCENE_ELEMENT_LABELS = Object.freeze({
   shape: 'Фигура'
 });
 
+const TYPOGRAPHY_ELEMENT_TYPES = new Set(['text', 'table', 'weather', 'clock']);
+
 function appendText(parent, tagName, text, className = '') {
   const node = document.createElement(tagName);
   if (className) node.className = className;
@@ -287,6 +289,42 @@ function verticalFlex(value) {
   return 'center';
 }
 
+function gridAxis(value, startValue, endValue) {
+  if (value === startValue) return 'start';
+  if (value === endValue) return 'end';
+  return 'center';
+}
+
+function applyTypographyPresentation(node, element, style, scale) {
+  if (!TYPOGRAPHY_ELEMENT_TYPES.has(element.type)) {
+    node.style.textAlign = 'center';
+    node.style.justifyContent = '';
+    node.style.alignItems = '';
+    node.style.justifyItems = '';
+    node.style.alignContent = '';
+    node.style.lineHeight = '';
+    node.style.letterSpacing = '';
+    return;
+  }
+
+  node.style.textAlign = style.text_align || 'center';
+  node.style.lineHeight = String(Number(style.line_height) || 1.06);
+  node.style.letterSpacing = `${(Number(style.letter_spacing) || 0) * scale}px`;
+
+  if (element.type === 'text') {
+    node.style.justifyContent = horizontalFlex(style.text_align);
+    node.style.alignItems = verticalFlex(style.vertical_align);
+    node.style.justifyItems = '';
+    node.style.alignContent = '';
+    return;
+  }
+
+  node.style.justifyContent = element.type === 'table' ? 'stretch' : '';
+  node.style.alignItems = '';
+  node.style.justifyItems = gridAxis(style.text_align, 'left', 'right');
+  node.style.alignContent = gridAxis(style.vertical_align, 'top', 'bottom');
+}
+
 function applyMediaPresentation(node, element) {
   const media = node.querySelector('.scene-media-content');
   if (!media) return;
@@ -320,21 +358,7 @@ export function applySceneElementGeometry(node, element, scene, stageWidth) {
   node.style.fontWeight = String(Number(style.font_weight) || 400);
   node.style.setProperty('--scene-render-scale', String(scale));
   node.style.setProperty('--scene-element-blur', `${Math.max(0, Number(element.effects?.blur) || 0) * scale}px`);
-
-  if (element.type === 'text') {
-    node.style.textAlign = style.text_align || 'center';
-    node.style.justifyContent = horizontalFlex(style.text_align);
-    node.style.alignItems = verticalFlex(style.vertical_align);
-    node.style.lineHeight = String(Number(style.line_height) || 1.06);
-    node.style.letterSpacing = `${(Number(style.letter_spacing) || 0) * scale}px`;
-  } else {
-    node.style.textAlign = 'center';
-    node.style.justifyContent = '';
-    node.style.alignItems = '';
-    node.style.lineHeight = '';
-    node.style.letterSpacing = '';
-  }
-
+  applyTypographyPresentation(node, element, style, scale);
   applyMediaPresentation(node, element);
   node.classList.toggle('has-shadow', Boolean(element.effects?.shadow));
   node.classList.toggle('has-glow', Boolean(element.effects?.glow));
