@@ -124,12 +124,39 @@
                 </section>
 
                 <section class="scene-inspector-panel is-hidden" data-inspector-panel="format">
-                  <div class="scene-inspector-section-title">Основное оформление</div>
-                  <label id="element-color-field" class="field"><span>Цвет</span><input id="element-color" type="color" /></label>
-                  <label class="field"><span>Фон объекта</span><input id="element-background" type="text" placeholder="transparent или CSS-цвет" /></label>
-                  <label id="element-font-size-field" class="field"><span>Размер текста</span><input id="element-font-size" type="number" min="8" max="400" step="1" /></label>
+                  <div class="scene-inspector-section-title">Заливка и контур</div>
+                  <label id="element-color-field" class="field"><span>Цвет текста</span><input id="element-color" type="color" /></label>
+                  <label class="field"><span>Заливка объекта</span><input id="element-background" type="text" placeholder="transparent, #10141c, rgba(...)" /></label>
                   <label class="field"><span>Скругление</span><input id="element-radius" type="number" min="0" max="500" step="1" /></label>
+                  <div class="geometry-grid">
+                    <label class="field"><span>Контур, px</span><input id="element-border-width" type="number" min="0" max="40" step="1" /></label>
+                    <label class="field"><span>Цвет контура</span><input id="element-border-color" type="color" /></label>
+                  </div>
                   <label class="field"><span>Прозрачность</span><input id="element-opacity" type="range" min="0" max="1" step="0.05" /></label>
+
+                  <details id="text-format-settings" class="is-hidden" open>
+                    <summary>Текст</summary>
+                    <div class="scene-table-settings">
+                      <div class="geometry-grid">
+                        <label class="field"><span>Размер</span><input id="element-font-size" type="number" min="8" max="400" step="1" /></label>
+                        <label class="field"><span>Начертание</span><select id="element-font-weight"><option value="300">Тонкое</option><option value="400">Обычное</option><option value="500">Среднее</option><option value="600">Полужирное</option><option value="700">Жирное</option><option value="800">Очень жирное</option><option value="900">Максимум</option></select></label>
+                      </div>
+                      <label class="field"><span>По горизонтали</span><select id="element-text-align"><option value="left">Слева</option><option value="center">По центру</option><option value="right">Справа</option></select></label>
+                      <label class="field"><span>По вертикали</span><select id="element-vertical-align"><option value="top">Сверху</option><option value="center">По центру</option><option value="bottom">Снизу</option></select></label>
+                      <div class="geometry-grid">
+                        <label class="field"><span>Межстрочный</span><input id="element-line-height" type="number" min="0.5" max="3" step="0.05" /></label>
+                        <label class="field"><span>Межбуквенный</span><input id="element-letter-spacing" type="number" min="-50" max="100" step="1" /></label>
+                      </div>
+                    </div>
+                  </details>
+
+                  <details id="media-format-settings" class="is-hidden" open>
+                    <summary>Изображение / видео</summary>
+                    <div class="scene-table-settings">
+                      <label class="field"><span>Заполнение рамки</span><select id="element-media-fit"><option value="cover">Заполнить</option><option value="contain">Вписать целиком</option><option value="fill">Растянуть</option></select></label>
+                      <label class="field"><span>Позиция</span><select id="element-media-position"><option value="center">Центр</option><option value="top">Сверху</option><option value="bottom">Снизу</option><option value="left">Слева</option><option value="right">Справа</option></select></label>
+                    </div>
+                  </details>
 
                   <details id="table-appearance-settings" class="is-hidden" open>
                     <summary>Оформление таблицы</summary>
