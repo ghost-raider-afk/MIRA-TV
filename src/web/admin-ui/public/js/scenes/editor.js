@@ -768,7 +768,8 @@ function renderContextualInspectorFields(element) {
   document.querySelector('#element-content-field').classList.toggle('is-hidden', !CONTENT_ELEMENT_TYPES.has(element.type));
   document.querySelector('#element-variant-field').classList.toggle('is-hidden', !['weather', 'clock'].includes(element.type));
   document.querySelector('#element-color-field').classList.toggle('is-hidden', !TEXT_STYLE_ELEMENT_TYPES.has(element.type));
-  document.querySelector('#element-font-size-field').classList.toggle('is-hidden', !TEXT_STYLE_ELEMENT_TYPES.has(element.type));
+  document.querySelector('#text-format-settings').classList.toggle('is-hidden', !TEXT_STYLE_ELEMENT_TYPES.has(element.type));
+  document.querySelector('#media-format-settings').classList.toggle('is-hidden', !MEDIA_ELEMENT_TYPES.has(element.type));
 }
 
 function renderSlideInspector() {
@@ -818,9 +819,21 @@ function renderInspector() {
   document.querySelector('#element-color').value = element.style.color || '#ffffff';
   document.querySelector('#element-background').value = element.style.background || 'transparent';
   document.querySelector('#element-font-size').value = element.style.font_size || 40;
+  document.querySelector('#element-font-weight').value = String(element.style.font_weight || 400);
+  document.querySelector('#element-text-align').value = element.style.text_align || 'center';
+  document.querySelector('#element-vertical-align').value = element.style.vertical_align || 'center';
+  document.querySelector('#element-line-height').value = element.style.line_height || 1.06;
+  document.querySelector('#element-letter-spacing').value = element.style.letter_spacing || 0;
   document.querySelector('#element-radius').value = element.style.radius || 0;
+  document.querySelector('#element-border-width').value = element.style.border_width || 0;
+  document.querySelector('#element-border-color').value = /^#[0-9a-f]{6}$/i.test(element.style.border_color || '') ? element.style.border_color : '#ffffff';
   document.querySelector('#element-opacity').value = element.opacity ?? 1;
   document.querySelector('#element-blur').value = element.effects.blur || 0;
+  if (MEDIA_ELEMENT_TYPES.has(element.type)) {
+    element.media = element.media && typeof element.media === 'object' ? element.media : { fit: element.type === 'logo' ? 'contain' : 'cover', position: 'center' };
+    document.querySelector('#element-media-fit').value = element.media.fit || (element.type === 'logo' ? 'contain' : 'cover');
+    document.querySelector('#element-media-position').value = element.media.position || 'center';
+  }
   renderVariantControl(element);
   document.querySelector('#element-shadow').checked = Boolean(element.effects.shadow);
   document.querySelector('#element-glow').checked = Boolean(element.effects.glow);
@@ -1200,12 +1213,33 @@ function bindInspector() {
   document.querySelector('#element-background').addEventListener('change', (event) => updateSelected((element) => { element.style.background = event.target.value || 'transparent'; }));
   document.querySelector('#element-font-size').addEventListener('input', (event) => updateSelected((element) => { element.style.font_size = Number(event.target.value); }, { historyKey: 'element-font-size' }));
   closeHistoryOnChange('#element-font-size');
+  document.querySelector('#element-font-weight').addEventListener('change', (event) => updateSelected((element) => { element.style.font_weight = Number(event.target.value); }));
+  document.querySelector('#element-text-align').addEventListener('change', (event) => updateSelected((element) => { element.style.text_align = event.target.value; }));
+  document.querySelector('#element-vertical-align').addEventListener('change', (event) => updateSelected((element) => { element.style.vertical_align = event.target.value; }));
+  document.querySelector('#element-line-height').addEventListener('input', (event) => updateSelected((element) => { element.style.line_height = Number(event.target.value); }, { historyKey: 'element-line-height' }));
+  closeHistoryOnChange('#element-line-height');
+  document.querySelector('#element-letter-spacing').addEventListener('input', (event) => updateSelected((element) => { element.style.letter_spacing = Number(event.target.value); }, { historyKey: 'element-letter-spacing' }));
+  closeHistoryOnChange('#element-letter-spacing');
   document.querySelector('#element-radius').addEventListener('input', (event) => updateSelected((element) => { element.style.radius = Number(event.target.value); }, { historyKey: 'element-radius' }));
   closeHistoryOnChange('#element-radius');
+  document.querySelector('#element-border-width').addEventListener('input', (event) => updateSelected((element) => { element.style.border_width = Number(event.target.value); }, { historyKey: 'element-border-width' }));
+  closeHistoryOnChange('#element-border-width');
+  document.querySelector('#element-border-color').addEventListener('input', (event) => updateSelected((element) => { element.style.border_color = event.target.value; }, { historyKey: 'element-border-color' }));
+  closeHistoryOnChange('#element-border-color');
   document.querySelector('#element-opacity').addEventListener('input', (event) => updateSelected((element) => { element.opacity = Number(event.target.value); }, { historyKey: 'element-opacity' }));
   closeHistoryOnChange('#element-opacity');
   document.querySelector('#element-blur').addEventListener('input', (event) => updateSelected((element) => { element.effects.blur = Number(event.target.value); }, { historyKey: 'element-blur' }));
   closeHistoryOnChange('#element-blur');
+  document.querySelector('#element-media-fit').addEventListener('change', (event) => updateSelected((element) => {
+    if (!MEDIA_ELEMENT_TYPES.has(element.type)) return;
+    element.media = element.media && typeof element.media === 'object' ? element.media : {};
+    element.media.fit = event.target.value;
+  }));
+  document.querySelector('#element-media-position').addEventListener('change', (event) => updateSelected((element) => {
+    if (!MEDIA_ELEMENT_TYPES.has(element.type)) return;
+    element.media = element.media && typeof element.media === 'object' ? element.media : {};
+    element.media.position = event.target.value;
+  }));
   document.querySelector('#element-variant').addEventListener('change', (event) => updateSelected((element) => { element.variant = event.target.value; }, { refresh: 'content' }));
   document.querySelector('#element-shadow').addEventListener('change', (event) => updateSelected((element) => { element.effects.shadow = event.target.checked; }));
   document.querySelector('#element-glow').addEventListener('change', (event) => updateSelected((element) => { element.effects.glow = event.target.checked; }));
