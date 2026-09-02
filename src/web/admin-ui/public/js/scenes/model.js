@@ -82,8 +82,8 @@ const ELEMENT_DEFAULTS = Object.freeze({
     height: 700,
     content: 'Меню',
     style: style({ font_size: 42, background: 'rgba(0,0,0,.28)', radius: 24 }),
-    data_binding: { source: 'catalog_products' },
-    table: normaliseTableConfig()
+    data_binding: { source: 'catalog_items' },
+    table: normaliseTableConfig({ price_layout: 'single' })
   },
   image: {
     width: 560,
@@ -246,8 +246,14 @@ function normaliseElement(element) {
     };
   }
   if (result.type === 'table') {
-    result.data_binding = { source: 'catalog_products', ...(result.data_binding || {}) };
-    result.table = normaliseTableConfig(result.table || {});
+    const previousSource = result.data_binding?.source;
+    const legacyCatalog = previousSource !== 'catalog_items';
+    const tableSource = result.table && typeof result.table === 'object' ? { ...result.table } : {};
+    if (legacyCatalog && tableSource.class_code === undefined) tableSource.class_code = 'beer';
+    if (legacyCatalog && tableSource.price_layout === undefined) tableSource.price_layout = 'quantities';
+    if (!legacyCatalog && tableSource.price_layout === undefined) tableSource.price_layout = 'single';
+    result.data_binding = { source: 'catalog_items' };
+    result.table = normaliseTableConfig(tableSource);
   }
   if (result.type === 'weather') {
     const source = result.weather && typeof result.weather === 'object' ? result.weather : {};
