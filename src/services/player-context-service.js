@@ -28,6 +28,12 @@ function sceneUsesCatalog(scene) {
   );
 }
 
+async function universalCatalogItems(store) {
+  if (typeof store.listCatalogItems === 'function') return store.listCatalogItems();
+  if (typeof store.listProducts === 'function') return store.listProducts();
+  return [];
+}
+
 function sceneWeatherElements(scene) {
   const elements = [];
   for (const slide of Array.isArray(scene?.slides) ? scene.slides : []) {
@@ -98,7 +104,7 @@ async function publishedSceneComponent(store, screenId, config) {
   if (!revision) return null;
   const mediaIds = sceneMediaAssetIds(revision.scene);
   const [catalogItems, mediaAssets, weatherByElement] = await Promise.all([
-    sceneUsesCatalog(revision.scene) ? store.listCatalogItems() : [],
+    sceneUsesCatalog(revision.scene) ? universalCatalogItems(store) : [],
     mediaIds.length ? store.listMediaAssetsByIds(mediaIds) : [],
     sceneWeatherData(revision.scene, config)
   ]);
