@@ -1,0 +1,179 @@
+/* Office-style contextual ribbon for Scene authoring. It occupies a stable row so Canvas scale never changes when selection changes. */
+.scene-format-ribbon {
+  display:grid;
+  grid-template-rows:24px 80px;
+  min-width:0;
+  height:104px;
+  overflow:hidden;
+  border:1px solid var(--ui-border);
+  border-radius:var(--ui-radius-lg);
+  background:var(--ui-panel);
+}
+
+.scene-ribbon-head {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  padding:0 10px;
+  border-bottom:1px solid var(--ui-border);
+  background:var(--ui-panel-raised);
+}
+.scene-ribbon-context {
+  color:var(--ui-accent);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+.scene-ribbon-selection {
+  overflow:hidden;
+  color:var(--ui-text);
+  font-size:11px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.scene-ribbon-body {
+  display:flex;
+  min-width:0;
+  height:80px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-gutter:stable;
+}
+.scene-ribbon-empty {
+  display:flex;
+  flex:1 0 100%;
+  align-items:center;
+  padding:0 14px;
+  color:var(--ui-text-muted);
+  font-size:11px;
+}
+.scene-format-ribbon.has-selection .scene-ribbon-empty { display:none; }
+
+.scene-ribbon-group {
+  position:relative;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) 16px;
+  flex:0 0 auto;
+  min-width:118px;
+  height:80px;
+  padding:5px 8px 0;
+  border-right:1px solid var(--ui-border);
+}
+.scene-ribbon-group.is-hidden { display:none; }
+.scene-ribbon-group-content {
+  display:flex;
+  align-items:flex-start;
+  gap:5px;
+  min-width:0;
+  overflow:hidden;
+}
+.scene-ribbon-group-title {
+  align-self:end;
+  overflow:hidden;
+  color:var(--ui-text-muted);
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.03em;
+  text-align:center;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.scene-ribbon-field {
+  display:grid;
+  flex:0 0 auto;
+  gap:2px;
+  min-width:52px;
+}
+.scene-ribbon-field.is-hidden { display:none; }
+.scene-ribbon-field-label {
+  overflow:hidden;
+  max-width:90px;
+  color:var(--ui-text-muted);
+  font-size:8px;
+  line-height:1;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.scene-ribbon-control {
+  width:auto;
+  min-width:56px;
+  max-width:112px;
+  height:29px;
+  padding:0 6px;
+  border:1px solid var(--ui-border);
+  border-radius:6px;
+  background:var(--ui-input);
+  color:var(--ui-text);
+  font:600 10px/1 var(--ui-font-family);
+  outline:none;
+}
+.scene-ribbon-control:focus {
+  border-color:var(--ui-accent);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--ui-accent) 28%,transparent);
+}
+.scene-ribbon-number { width:62px; min-width:62px; }
+.scene-ribbon-color { width:42px; min-width:42px; padding:2px; }
+.scene-ribbon-range { width:84px; min-width:84px; padding:0; }
+
+.scene-ribbon-toggle {
+  display:flex;
+  height:29px;
+  align-items:center;
+  gap:4px;
+  padding:0 7px;
+  border:1px solid var(--ui-border);
+  border-radius:6px;
+  background:var(--ui-panel-raised);
+  color:var(--ui-text);
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.scene-ribbon-toggle input { margin:0; }
+
+.scene-ribbon-action {
+  height:29px;
+  padding:0 8px;
+  border:1px solid var(--ui-border);
+  border-radius:6px;
+  background:var(--ui-panel-raised);
+  color:var(--ui-text);
+  font:700 9px/1 var(--ui-font-family);
+  cursor:pointer;
+  white-space:nowrap;
+}
+.scene-ribbon-action:hover { border-color:var(--ui-accent); background:var(--ui-panel-hover); }
+
+/* Formatting lives in the top ribbon. The right Inspector keeps object/data/animation only. */
+.scene-inspector-tabs [data-inspector-tab="format"],
+.scene-inspector-panel[data-inspector-panel="format"] { display:none !important; }
+
+@media (min-width:901px) {
+  .scene-editor-page {
+    grid-template-rows:auto 104px minmax(0,1fr) auto;
+  }
+  #scene-editor-message {
+    position:fixed;
+    z-index:10020;
+    top:12px;
+    left:50%;
+    max-width:min(620px,calc(100vw - 40px));
+    margin:0;
+    transform:translateX(-50%);
+    box-shadow:0 14px 34px color-mix(in srgb,var(--ui-shadow-color) 24%,transparent);
+  }
+}
+
+@media (max-width:900px) {
+  .scene-format-ribbon {
+    grid-template-rows:24px 92px;
+    height:116px;
+  }
+  .scene-ribbon-body,
+  .scene-ribbon-group { height:92px; }
+  .scene-ribbon-group { grid-template-rows:minmax(0,1fr) 16px; }
+}
