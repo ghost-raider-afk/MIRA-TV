@@ -1,3 +1,64 @@
+function decimal(value, { decimals = 2, min = 0 } = {}) {
+  const number = Number(String(value ?? '').trim().replace(',', '.'));
+  return Number.isFinite(number) && number >= min ? number.toFixed(decimals) : '0';
+}
+
+function abv(value) {
+  const normalized = String(value ?? '').replace(',', '.').match(/[0-9]+(?:\.[0-9]+)?/u)?.[0];
+  if (!normalized) return null;
+  const number = Number(normalized);
+  return Number.isFinite(number) && number >= 0 && number <= 100 ? number : null;
+}
+
+function productAttributes(product) {
+  const attributes = {
+    alcoholic: product.alcoholic === true,
+    beverage_color: String(product.beverage_color || 'none'),
+    filtration: String(product.filtration || 'none')
+  };
+  const producer = String(product.producer || '').trim();
+  const characteristics = String(product.characteristics || '').trim();
+  const strength = abv(product.strength);
+  if (producer) attributes.producer = producer;
+  if (characteristics) attributes.characteristics = characteristics;
+  if (strength !== null) attributes.abv = strength;
+  return attributes;
+}
+
+async function insertLegacyItems(pool, items) {
+  const BATCH_SIZE = 250;
+  const COLUMNS_PER_ROW = 12;
+  for (let start = 0; start < items.length; start += BATCH_SIZE) {
+    const batch = items.slice(start, start + BATCH_SIZE);
+    const params = [];
+    const tuples = batch.map((item, index) => {
+      const offset = index * COLUMNS_PER_ROW;
+      params.push(
+        item.class_id,
+        item.name,
+        item.description,
+        item.base_price,
+        item.base_quantity,
+        item.unit,
+        JSON.stringify(item.attributes),
+        item.active,
+        item.legacy_source_kind,
+        item.legacy_source_id,
+        item.created_at,
+        item.updated_at
+      );
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}::jsonb, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+    });
+    await pool.query(`
+      INSERT INTO catalog_items (
+        class_id, name, description, base_price, base_quantity, unit, attributes, active,
+        legacy_source_kind, legacy_source_id, created_at, updated_at
+      ) VALUES ${tuples.join(', ')}
+      ON CONFLICT DO NOTHING
+    `, params);
+  }
+}
+
 export async function migrateUniversalCatalog(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS catalog_classes (
@@ -34,8 +95,7 @@ export async function migrateUniversalCatalog(pool) {
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS catalog_items_legacy_source_unique
-      ON catalog_items(legacy_source_kind, legacy_source_id)
-      WHERE legacy_source_kind IS NOT NULL AND legacy_source_id IS NOT NULL;
+      ON catalog_items(legacy_source_kind, legacy_source_id);
     CREATE INDEX IF NOT EXISTS catalog_items_class_index ON catalog_items(class_id, name);
     CREATE INDEX IF NOT EXISTS catalog_items_active_index ON catalog_items(active, name);
     CREATE INDEX IF NOT EXISTS catalog_classes_parent_index ON catalog_classes(parent_id, sort_order, name);
@@ -134,58 +194,47 @@ export async function migrateUniversalCatalog(pool) {
     `, [item.code, item.name, item.description, JSON.stringify(item.fields), item.pricing, item.unit, item.order]);
   }
 
-  await pool.query(`
-    INSERT INTO catalog_items (
-      class_id, name, description, base_price, base_quantity, unit, attributes, active,
-      legacy_source_kind, legacy_source_id, created_at, updated_at
-    )
-    SELECT
-      (SELECT id FROM catalog_classes WHERE code = 'beer'),
-      p.name,
-      '',
-      CASE WHEN replace(trim(p.price_primary), ',', '.') ~ '^[0-9]+([.][0-9]{1,2})?$'
-        THEN replace(trim(p.price_primary), ',', '.')::numeric ELSE 0 END,
-      1,
-      'л',
-      jsonb_strip_nulls(jsonb_build_object(
-        'producer', NULLIF(p.producer, ''),
-        'characteristics', NULLIF(p.characteristics, ''),
-        'alcoholic', p.alcoholic,
-        'abv', CASE
-          WHEN regexp_replace(replace(p.strength, ',', '.'), '[^0-9.]', '', 'g') ~ '^[0-9]+([.][0-9]+)?$'
-          THEN regexp_replace(replace(p.strength, ',', '.'), '[^0-9.]', '', 'g')::numeric
-          ELSE NULL
-        END,
-        'beverage_color', p.beverage_color,
-        'filtration', p.filtration
-      )),
-      p.active,
-      'product',
-      p.id,
-      p.created_at,
-      p.updated_at
-    FROM catalog_products p
-    ON CONFLICT (legacy_source_kind, legacy_source_id) WHERE legacy_source_kind IS NOT NULL AND legacy_source_id IS NOT NULL DO NOTHING;
+  const { rows: classRows } = await pool.query("SELECT id, code FROM catalog_classes WHERE code IN ('beer', 'packaging')");
+  const classIds = new Map(classRows.map((row) => [row.code, Number(row.id)]));
+  const beerClassId = classIds.get('beer');
+  const packagingClassId = classIds.get('packaging');
+  if (!beerClassId || !packagingClassId) throw new Error('Не удалось подготовить системные классы универсального каталога.');
 
-    INSERT INTO catalog_items (
-      class_id, name, description, base_price, base_quantity, unit, attributes, active,
-      legacy_source_kind, legacy_source_id, created_at, updated_at
-    )
-    SELECT
-      (SELECT id FROM catalog_classes WHERE code = 'packaging'),
-      p.name,
-      '',
-      CASE WHEN replace(trim(p.unit_price), ',', '.') ~ '^[0-9]+([.][0-9]{1,2})?$'
-        THEN replace(trim(p.unit_price), ',', '.')::numeric ELSE 0 END,
-      1,
-      'шт',
-      '{}'::jsonb,
-      p.active,
-      'packaging',
-      p.id,
-      p.created_at,
-      p.updated_at
-    FROM catalog_packaging p
-    ON CONFLICT (legacy_source_kind, legacy_source_id) WHERE legacy_source_kind IS NOT NULL AND legacy_source_id IS NOT NULL DO NOTHING;
-  `);
+  const [{ rows: products }, { rows: packaging }] = await Promise.all([
+    pool.query('SELECT p.* FROM catalog_products p ORDER BY p.id'),
+    pool.query('SELECT p.* FROM catalog_packaging p ORDER BY p.id')
+  ]);
+
+  const legacyItems = [
+    ...products.map((product) => ({
+      class_id: beerClassId,
+      name: product.name,
+      description: '',
+      base_price: decimal(product.price_primary),
+      base_quantity: '1',
+      unit: 'л',
+      attributes: productAttributes(product),
+      active: product.active !== false,
+      legacy_source_kind: 'product',
+      legacy_source_id: Number(product.id),
+      created_at: product.created_at,
+      updated_at: product.updated_at
+    })),
+    ...packaging.map((item) => ({
+      class_id: packagingClassId,
+      name: item.name,
+      description: '',
+      base_price: decimal(item.unit_price),
+      base_quantity: '1',
+      unit: 'шт',
+      attributes: {},
+      active: item.active !== false,
+      legacy_source_kind: 'packaging',
+      legacy_source_id: Number(item.id),
+      created_at: item.created_at,
+      updated_at: item.updated_at
+    }))
+  ];
+
+  if (legacyItems.length) await insertLegacyItems(pool, legacyItems);
 }
