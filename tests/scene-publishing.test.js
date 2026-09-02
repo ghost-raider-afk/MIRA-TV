@@ -24,8 +24,8 @@ const publishedGraph = Object.freeze({
       style: { color: '#fff', font_size: 42, background: 'transparent', radius: 0 },
       effects: { shadow: false, glow: false, blur: 0 },
       animation: { entrance: 'none', loop: 'none', exit: 'none', duration_ms: 600 },
-      data_binding: { source: 'catalog_products' },
-      table: { active_only: true, row_limit: 12, volumes_l: [0.5, 1], show_producer: false, show_strength: true, show_color: false, show_filtration: false }
+      data_binding: { source: 'catalog_items' },
+      table: { active_only: true, row_limit: 12, price_layout: 'single', quantities: [0.5, 1] }
     }]
   }]
 });
@@ -70,7 +70,7 @@ test('assignment repository points screen to exact published revision', async ()
   assert.equal(assignment.revision_number, 2);
 });
 
-test('player state uses assigned published revision and resolves catalog data for table binding', async () => {
+test('player state uses assigned published revision and resolves universal catalog data for table binding', async () => {
   const calls = [];
   const store = {
     async getScreen(id) { calls.push(['screen', id]); return { id, name: 'TV 1', resolution: '1920×1080', status: 'ready', active: true, location_id: 1, location_name: 'Бар', location_number: 1 }; },
@@ -78,17 +78,36 @@ test('player state uses assigned published revision and resolves catalog data fo
     async getScreenAnimationSettings() { return null; },
     async getScreenSceneAssignment() { return { scene_revision_id: 'scene-revision-r2' }; },
     async getSceneRevision(id) { calls.push(['revision', id]); return { id, scene_id: 'scene-s1', scene_name: 'Меню бара', revision_number: 2, published_at: '2026-08-29T09:00:00.000Z', scene: publishedGraph }; },
-    async listProducts() { calls.push(['catalog']); return [{ id: 1, name: 'IPA', price_primary: '400', active: true }]; },
+    async listCatalogItems() { calls.push(['catalog']); return [{ id: 1, name: 'IPA', class_code: 'beer', class_name: 'Пиво', base_price: '400', base_quantity: '1', unit: 'л', pricing_model: 'proportional', attributes: {}, active: true }]; },
     async listProductsByIds() { return []; },
     async listPackagingByIds() { return []; }
   };
-  const config = { playerFallbackPollSeconds: 60, playerLogBatchSize: 100, playerLogLocalMaxEntries: 5000, playerLogLocalMaxBytes: 10485760 };
+  const config = { playerFallbackPollSeconds: 60, playerLogBatchSize: 100, playerLogLocalMaxEntries: 5000, playerLogLocalMaxBytes: 10485760, weatherPlayerRefreshSeconds: 300 };
   const state = await buildPlayerState(store, { screen_id: 7 }, config);
   const context = fullPlayerContext(state);
   assert.equal(context.scene.revision_id, 'scene-revision-r2');
   assert.deepEqual(context.scene.graph, publishedGraph);
-  assert.equal(context.scene.catalog_products[0].name, 'IPA');
+  assert.equal(context.scene.catalog_items[0].name, 'IPA');
   assert.ok(calls.some(([name]) => name === 'catalog'));
+});
+
+test('player keeps legacy published catalog readable while emitting the new component name', async () => {
+  const graph = structuredClone(publishedGraph);
+  graph.slides[0].elements[0].data_binding = { source: 'catalog_products' };
+  const store = {
+    async getScreen(id) { return { id, name: 'TV 1', resolution: '1920×1080', status: 'ready', active: true, location_id: 1 }; },
+    async getScreenDraft() { return { rows: [], settings: {}, revision: 1 }; },
+    async getScreenAnimationSettings() { return null; },
+    async getScreenSceneAssignment() { return { scene_revision_id: 'scene-revision-old' }; },
+    async getSceneRevision() { return { id: 'scene-revision-old', scene_id: 'scene-old', scene_name: 'Старая', revision_number: 1, published_at: '2026-08-29T09:00:00.000Z', scene: graph }; },
+    async listProducts() { return [{ id: 1, name: 'Legacy IPA', price_primary: '400', active: true }]; },
+    async listProductsByIds() { return []; },
+    async listPackagingByIds() { return []; }
+  };
+  const config = { playerFallbackPollSeconds: 60, playerLogBatchSize: 100, playerLogLocalMaxEntries: 5000, playerLogLocalMaxBytes: 10485760, weatherPlayerRefreshSeconds: 300 };
+  const context = fullPlayerContext(await buildPlayerState(store, { screen_id: 7 }, config));
+  assert.equal(context.scene.catalog_items[0].name, 'Legacy IPA');
+  assert.equal('catalog_products' in context.scene, false);
 });
 
 test('player state does not fetch full catalog when published scene has no catalog table', async () => {
@@ -101,11 +120,11 @@ test('player state does not fetch full catalog when published scene has no catal
     async getScreenAnimationSettings() { return null; },
     async getScreenSceneAssignment() { return { scene_revision_id: 'scene-revision-r1' }; },
     async getSceneRevision() { return { id: 'scene-revision-r1', scene_id: 'scene-s1', scene_name: 'Текст', revision_number: 1, published_at: '2026-08-29T09:00:00.000Z', scene: graph }; },
-    async listProducts() { catalogReads += 1; return []; },
+    async listCatalogItems() { catalogReads += 1; return []; },
     async listProductsByIds() { return []; },
     async listPackagingByIds() { return []; }
   };
-  const config = { playerFallbackPollSeconds: 60, playerLogBatchSize: 100, playerLogLocalMaxEntries: 5000, playerLogLocalMaxBytes: 10485760 };
+  const config = { playerFallbackPollSeconds: 60, playerLogBatchSize: 100, playerLogLocalMaxEntries: 5000, playerLogLocalMaxBytes: 10485760, weatherPlayerRefreshSeconds: 300 };
   await buildPlayerState(store, { screen_id: 1 }, config);
   assert.equal(catalogReads, 0);
 });
