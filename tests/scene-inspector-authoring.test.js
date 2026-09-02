@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { normaliseTableConfig } from '../src/web/admin-ui/public/js/scenes/catalog-table.js';
+import { createElement, createScene } from '../src/web/admin-ui/public/js/scenes/model.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -21,6 +22,33 @@ test('Scene Inspector is split into contextual authoring tabs', async () => {
   assert.match(editor, /renderInspectorTabs\(element\)/);
   assert.match(html, /id="element-radius"/);
   assert.match(html, /id="element-blur"/);
+  assert.match(html, /id="element-border-width"/);
+  assert.match(html, /id="element-border-color"/);
+  assert.match(html, /id="element-font-weight"/);
+  assert.match(html, /id="element-text-align"/);
+  assert.match(html, /id="element-vertical-align"/);
+  assert.match(html, /id="element-line-height"/);
+  assert.match(html, /id="element-letter-spacing"/);
+  assert.match(html, /id="element-media-fit"/);
+  assert.match(html, /id="element-media-position"/);
+});
+
+test('new elements have usable text and media presentation defaults', () => {
+  const scene = createScene();
+  const slide = scene.slides[0];
+  const text = createElement('text', scene, slide);
+  const image = createElement('image', scene, slide);
+  const logo = createElement('logo', scene, slide);
+
+  assert.equal(text.style.font_weight, 700);
+  assert.equal(text.style.text_align, 'center');
+  assert.equal(text.style.vertical_align, 'center');
+  assert.equal(text.style.line_height, 1.06);
+  assert.equal(text.style.letter_spacing, 0);
+  assert.equal(text.style.border_width, 0);
+  assert.equal(image.media.fit, 'cover');
+  assert.equal(image.media.position, 'center');
+  assert.equal(logo.media.fit, 'contain');
 });
 
 test('table appearance has safe defaults and configurable presentation', () => {
@@ -58,7 +86,7 @@ test('table appearance has safe defaults and configurable presentation', () => {
   assert.equal(configured.zebra, true);
 });
 
-test('shared renderer owns table appearance so Preview and Player stay identical', async () => {
+test('shared renderer owns formatting so Preview and Player stay identical', async () => {
   const [renderer, css, contract] = await Promise.all([
     read('src/web/admin-ui/public/js/scene-runtime/renderer.js'),
     read('src/web/admin-ui/public/css/scene-renderer.css'),
@@ -69,8 +97,15 @@ test('shared renderer owns table appearance so Preview and Player stay identical
   assert.match(renderer, /table\.dataset\.density = appearance\.density/);
   assert.match(renderer, /table\.dataset\.headerStyle = appearance\.header_style/);
   assert.match(renderer, /--scene-table-accent/);
+  assert.match(renderer, /node\.style\.borderWidth/);
+  assert.match(renderer, /node\.style\.letterSpacing/);
+  assert.match(renderer, /media\.style\.objectFit = fit/);
+  assert.match(renderer, /media\.style\.objectPosition = position/);
+  assert.match(renderer, /Number\(style\.radius\).*\* scale/);
   assert.match(css, /data-header-style="accent"/);
   assert.match(css, /data-zebra="true"/);
   assert.match(contract, /table\.appearance\.preset/);
   assert.match(contract, /table\.appearance\.accent_color/);
+  assert.match(contract, /element\.style\.font_weight/);
+  assert.match(contract, /element\.media\.fit/);
 });
