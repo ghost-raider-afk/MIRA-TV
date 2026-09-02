@@ -30,6 +30,8 @@ test('catalog table rows exclude inactive items by default', () => {
 test('MIRA preset keeps class metadata in the item cell and proportional prices on the right', () => {
   const config = {
     quantities: [0.5, 1],
+    price_layout: 'quantities',
+    quantity_unit: 'л',
     appearance: { preset: 'clean' }
   };
   const items = [{
@@ -56,9 +58,10 @@ test('mixed catalog classes use one universal price column instead of beverage-o
     { id: 1, name: 'IPA', class_code: 'beer', class_name: 'Пиво', pricing_model: 'proportional', base_price: '400', base_quantity: '1', unit: 'л', attributes: {}, active: true },
     { id: 2, name: 'Крылья BBQ', class_code: 'snack', class_name: 'Закуска', pricing_model: 'fixed', base_price: '490', base_quantity: '1', unit: 'порц.', attributes: { weight_g: 350, spiciness: 'medium' }, active: true }
   ];
-  const columns = catalogTableColumns({ appearance: { preset: 'solid' } }, items);
+  const config = { price_layout: 'single', appearance: { preset: 'solid' } };
+  const columns = catalogTableColumns(config, items);
   assert.deepEqual(columns.map((column) => column.key), ['name', 'metadata', 'price']);
-  const rows = buildCatalogTableRows(items, { appearance: { preset: 'solid' } });
+  const rows = buildCatalogTableRows(items, config);
   assert.equal(rows[1].values.metadata, 'острое · 350 г');
   assert.match(rows[1].values.price, /490/);
 });
@@ -67,7 +70,7 @@ test('table class filter selects one semantic class without a separate catalog',
   const rows = buildCatalogTableRows([
     { id: 1, name: 'IPA', class_code: 'beer', class_name: 'Пиво', pricing_model: 'proportional', base_price: '400', base_quantity: '1', unit: 'л', attributes: {}, active: true },
     { id: 2, name: 'Начос', class_code: 'snack', class_name: 'Закуска', pricing_model: 'fixed', base_price: '250', base_quantity: '1', unit: 'порц.', attributes: {}, active: true }
-  ], { class_code: 'snack' });
+  ], { class_code: 'snack', price_layout: 'single' });
   assert.deepEqual(rows.map((row) => row.values.name), ['Начос']);
 });
 
