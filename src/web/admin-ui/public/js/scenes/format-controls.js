@@ -1,4 +1,10 @@
 const WIDGET_TITLES = new Set(['Часы', 'Погода']);
+const PRESET_LABELS = Object.freeze({
+  'ios-dark': 'Тёмный',
+  'ios-light': 'Светлый',
+  'ios-blue': 'Синий',
+  clear: 'Без подложки'
+});
 
 function dispatch(control, type) {
   control?.dispatchEvent(new Event(type, { bubbles: true }));
@@ -36,6 +42,7 @@ function syncBackgroundControls() {
   mode.value = transparent ? 'transparent' : 'color';
   color.value = colorFromBackground(source.value);
   colorField.classList.toggle('is-hidden', transparent);
+  mode.closest('.field')?.classList.toggle('is-transparent', transparent);
 }
 
 function widgetSelected() {
@@ -48,6 +55,17 @@ function syncWidgetControls({ resetPreset = false } = {}) {
   if (!section || !preset) return;
   section.classList.toggle('is-hidden', !widgetSelected());
   if (resetPreset) preset.value = '';
+}
+
+function normaliseVisibleLabels() {
+  const mode = document.querySelector('#element-background-mode');
+  const modeLabel = mode?.closest('.field')?.querySelector('span');
+  if (modeLabel) modeLabel.textContent = 'Фон объекта';
+
+  const preset = document.querySelector('#widget-appearance-preset');
+  for (const option of preset?.options || []) {
+    if (PRESET_LABELS[option.value]) option.textContent = PRESET_LABELS[option.value];
+  }
 }
 
 function applyWidgetPreset(value) {
@@ -80,6 +98,13 @@ function applyWidgetPreset(value) {
   syncBackgroundControls();
 }
 
+function syncAfterSelection({ resetPreset = false } = {}) {
+  queueMicrotask(() => {
+    syncBackgroundControls();
+    syncWidgetControls({ resetPreset });
+  });
+}
+
 export function initialiseSceneFormatControls() {
   const inspector = document.querySelector('.scene-inspector');
   const source = document.querySelector('#element-background');
@@ -89,9 +114,10 @@ export function initialiseSceneFormatControls() {
   if (!inspector || !source || !mode || !color || !preset || inspector.dataset.formatControlsBound === '1') return;
   inspector.dataset.formatControlsBound = '1';
 
+  normaliseVisibleLabels();
+
   mode.addEventListener('change', () => {
-    if (mode.value === 'transparent') source.value = 'transparent';
-    else source.value = color.value || '#10141c';
+    source.value = mode.value === 'transparent' ? 'transparent' : (color.value || '#10141c');
     dispatch(source, 'change');
     syncBackgroundControls();
   });
@@ -107,22 +133,23 @@ export function initialiseSceneFormatControls() {
   document.querySelectorAll('[data-inspector-tab]').forEach((button) => {
     button.addEventListener('click', () => {
       inspector.scrollTop = 0;
-      queueMicrotask(() => {
-        syncBackgroundControls();
-        syncWidgetControls();
-      });
+      syncAfterSelection();
     });
   });
 
   document.addEventListener('click', (event) => {
     if (!event.target.closest('#scene-stage, #scene-slide-list, [data-add-element]')) return;
-    queueMicrotask(() => {
-      syncBackgroundControls();
-      syncWidgetControls({ resetPreset: true });
-    });
+    syncAfterSelection({ resetPreset: true });
   });
 
+  const title = document.querySelector('#inspector-title');
+  if (title) {
+    const observer = new MutationObserver(() => syncAfterSelection({ resetPreset: true }));
+    observer.observe(title, { childList: true, characterData: true, subtree: true });
+  }
+
   source.addEventListener('change', syncBackgroundControls);
+  source.addEventListener('input', syncBackgroundControls);
   syncBackgroundControls();
   syncWidgetControls({ resetPreset: true });
 }
