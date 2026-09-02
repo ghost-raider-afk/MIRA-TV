@@ -74,13 +74,19 @@ function fitStageToWorkspace() {
   rescaleRenderedElements(stage, width / canvasWidth);
 }
 
-function syncPanelState(body, toolsButton, inspectorButton) {
-  const toolsOpen = !body.classList.contains('scene-tools-collapsed');
-  const inspectorOpen = !body.classList.contains('scene-inspector-collapsed');
-  toolsButton.setAttribute('aria-pressed', String(toolsOpen));
-  inspectorButton.setAttribute('aria-pressed', String(inspectorOpen));
-  toolsButton.classList.toggle('is-active', toolsOpen);
-  inspectorButton.classList.toggle('is-active', inspectorOpen);
+function mountSlidesPanel() {
+  const layout = document.querySelector('.scene-editor-layout');
+  const stageColumn = document.querySelector('.scene-stage-column');
+  const slides = document.querySelector('.scene-slides-bar');
+  if (!layout || !stageColumn || !slides) return;
+  slides.classList.add('scene-slides-panel');
+  if (slides.parentElement !== layout) layout.insertBefore(slides, stageColumn);
+}
+
+function syncToolsState(body, button) {
+  const open = !body.classList.contains('scene-tools-collapsed');
+  button.setAttribute('aria-pressed', String(open));
+  button.classList.toggle('is-active', open);
 }
 
 export function initialiseSceneDesigner() {
@@ -91,40 +97,27 @@ export function initialiseSceneDesigner() {
   const inspector = document.querySelector('.scene-inspector');
   if (!toolbar || !shell || !tools || !inspector || body.dataset.sceneDesignerBound === '1') return;
   body.dataset.sceneDesignerBound = '1';
-  body.classList.add('scene-designer-mode', 'scene-tools-collapsed', 'scene-inspector-collapsed');
+  body.classList.add('scene-designer-mode', 'scene-tools-collapsed');
+  body.classList.remove('scene-inspector-collapsed');
+  mountSlidesPanel();
 
-  const toolsButton = designerButton('scene-tools-toggle', 'Вставка', 'Показать или скрыть элементы и фон');
-  const inspectorButton = designerButton('scene-inspector-toggle', 'Свойства', 'Показать или скрыть точные свойства объекта');
-  toolbar.prepend(inspectorButton);
+  const toolsButton = designerButton('scene-tools-toggle', 'Вставка', 'Элементы, фон и медиаданные слайда');
   toolbar.prepend(toolsButton);
 
   const closeTools = () => {
     body.classList.add('scene-tools-collapsed');
-    syncPanelState(body, toolsButton, inspectorButton);
-  };
-  const closeInspector = () => {
-    body.classList.add('scene-inspector-collapsed');
-    syncPanelState(body, toolsButton, inspectorButton);
+    syncToolsState(body, toolsButton);
   };
 
   tools.querySelector('.scene-panel-heading')?.append(panelCloseButton('Закрыть панель вставки', closeTools));
-  inspector.querySelector('.scene-panel-heading')?.append(panelCloseButton('Закрыть панель свойств', closeInspector));
 
   toolsButton.addEventListener('click', () => {
     body.classList.toggle('scene-tools-collapsed');
-    syncPanelState(body, toolsButton, inspectorButton);
-  });
-  inspectorButton.addEventListener('click', () => {
-    body.classList.toggle('scene-inspector-collapsed');
-    syncPanelState(body, toolsButton, inspectorButton);
+    syncToolsState(body, toolsButton);
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
-    if (!body.classList.contains('scene-tools-collapsed') || !body.classList.contains('scene-inspector-collapsed')) {
-      closeTools();
-      closeInspector();
-    }
+    if (event.key === 'Escape' && !body.classList.contains('scene-tools-collapsed')) closeTools();
   });
 
   document.querySelector('#scene-display-count')?.addEventListener('change', () => requestAnimationFrame(fitStageToWorkspace));
@@ -132,6 +125,6 @@ export function initialiseSceneDesigner() {
   const observer = new ResizeObserver(() => fitStageToWorkspace());
   observer.observe(shell);
 
-  syncPanelState(body, toolsButton, inspectorButton);
+  syncToolsState(body, toolsButton);
   requestAnimationFrame(fitStageToWorkspace);
 }
