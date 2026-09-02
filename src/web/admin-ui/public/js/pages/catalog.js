@@ -1,275 +1,361 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { state } from '../core/state.js';
-import { element, setMessage, clearMessage, setPending, makeButton, recordRow, refreshList, price } from '../core/dom.js';
+import { element, setMessage, clearMessage, setPending } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
-import { initialiseProductImport } from '../catalog/import-preview.js';
 
-function normalizedQuery(id) {
-  return String(element(id)?.value || '').trim().toLocaleLowerCase('ru-RU');
+const PRICING_LABELS = Object.freeze({
+  fixed: 'Фиксированная цена за позицию.',
+  proportional: 'Цена рассчитывается пропорционально указанному количеству.',
+  weight: 'Цена рассчитывается пропорционально весу или количеству.',
+  variant: 'Цена зависит от варианта позиции.'
+});
+
+function classById(id) {
+  return (state.catalogClasses || []).find((item) => Number(item.id) === Number(id)) || null;
 }
 
-function matchesQuery(values, query) {
+function classPath(item) {
+  const lineage = Array.isArray(item?.lineage) ? item.lineage : [];
+  return lineage.length ? lineage.map((entry) => entry.name).join(' › ') : String(item?.name || '');
+}
+
+function classDepth(item) {
+  return Math.max(0, (Array.isArray(item?.lineage) ? item.lineage.length : 1) - 1);
+}
+
+function formatNumber(value, digits = 3) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value ?? '');
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: digits }).format(number);
+}
+
+function formatPrice(item) {
+  const price = Number(item?.base_price);
+  const money = Number.isFinite(price)
+    ? `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(price)} ₽`
+    : '—';
+  if (['proportional', 'weight'].includes(item?.pricing_model)) {
+    return `${money} / ${formatNumber(item?.base_quantity || 1)} ${item?.unit || ''}`.trim();
+  }
+  if (item?.pricing_model === 'variant') return `${money} · по вариантам`;
+  return money;
+}
+
+function normalizedQuery() {
+  return String(element('catalog-filter')?.value || '').trim().toLocaleLowerCase('ru-RU');
+}
+
+function selectedClassCode() {
+  return String(element('catalog-class-filter')?.value || '');
+}
+
+function matches(item, query, classCode) {
+  if (classCode && item.class_code !== classCode) return false;
   if (!query) return true;
-  return values.some((value) => String(value || '').toLocaleLowerCase('ru-RU').includes(query));
+  const attributes = item.attributes && typeof item.attributes === 'object' ? Object.values(item.attributes) : [];
+  return [item.name, item.description, item.class_name, ...attributes]
+    .some((value) => String(value ?? '').toLocaleLowerCase('ru-RU').includes(query));
 }
 
-function setActiveCatalogTab(tab) {
-  const products = tab !== 'packaging';
-  element('catalog-tab-products')?.classList.toggle('active', products);
-  element('catalog-tab-products')?.setAttribute('aria-selected', String(products));
-  element('catalog-tab-packaging')?.classList.toggle('active', !products);
-  element('catalog-tab-packaging')?.setAttribute('aria-selected', String(!products));
-  element('catalog-products-pane')?.classList.toggle('is-hidden', !products);
-  element('catalog-packaging-pane')?.classList.toggle('is-hidden', products);
+function button(label, className, handler) {
+  const node = document.createElement('button');
+  node.type = 'button';
+  node.className = `small-button${className ? ` ${className}` : ''}`;
+  node.textContent = label;
+  node.addEventListener('click', handler);
+  return node;
 }
 
-function openDrawer(id, focusId) {
-  const root = element(id);
-  if (!root) return;
-  root.classList.remove('is-hidden');
-  root.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('workspace-drawer-open');
-  requestAnimationFrame(() => element(focusId)?.focus());
+function statusBadge(item) {
+  const node = document.createElement('span');
+  node.className = `catalog-status${item.active === false ? ' is-inactive' : ' is-active'}`;
+  node.textContent = item.active === false ? 'Скрыта' : 'Активна';
+  return node;
 }
 
-function closeDrawer(id) {
-  const root = element(id);
-  if (!root) return;
-  root.classList.add('is-hidden');
-  root.setAttribute('aria-hidden', 'true');
-  if (!document.querySelector('.workspace-drawer:not(.is-hidden)')) document.body.classList.remove('workspace-drawer-open');
-}
+function renderCatalog() {
+  const body = element('catalog-items-body');
+  const empty = element('catalog-empty');
+  if (!body || !empty) return;
+  const query = normalizedQuery();
+  const classCode = selectedClassCode();
+  const items = (state.catalogItems || []).filter((item) => matches(item, query, classCode));
+  body.replaceChildren();
 
-async function loadCatalog() {
-  const [products, packaging] = await Promise.all([api.get(API.products), api.get(API.packaging)]);
-  state.products = products;
-  state.packaging = packaging;
-  renderCatalogProducts();
-  renderCatalogPackaging();
-}
+  for (const item of items) {
+    const row = document.createElement('tr');
+    const name = document.createElement('td');
+    const title = document.createElement('strong');
+    title.textContent = item.name;
+    const description = document.createElement('small');
+    description.textContent = item.description || '';
+    name.append(title);
+    if (description.textContent) name.append(description);
 
-function renderCatalogProducts() {
-  const list = document.querySelector('[data-products-list]');
-  const empty = document.querySelector('[data-products-empty]');
-  if (!list || !empty) return;
-  const query = normalizedQuery('product-filter');
-  const products = state.products.filter((product) => matchesQuery([
-    product.name, product.producer, product.characteristics, product.strength
-  ], query));
-  const rows = products.map((product) => recordRow(
-    product.name,
-    [product.producer || 'Производитель не указан', product.characteristics || product.strength || 'Без характеристик', `1 л: ${price(product.price_primary)} · 1,5 л: ${price(product.price_secondary)}`, product.active ? 'активна' : 'скрыта'].join(' · '),
-    [makeButton('Изменить', '', () => editProduct(product)), makeButton('Удалить', 'danger', () => void deleteProduct(product))]
-  ));
-  empty.textContent = query && state.products.length ? 'По запросу ничего не найдено.' : 'Продукции пока нет.';
-  refreshList(list, empty, rows);
-}
+    const classCell = document.createElement('td');
+    const className = document.createElement('span');
+    className.className = 'catalog-class-name';
+    className.textContent = item.class_name || item.class_code || '—';
+    classCell.append(className);
 
-function renderCatalogPackaging() {
-  const list = document.querySelector('[data-packaging-list]');
-  const empty = document.querySelector('[data-packaging-empty]');
-  if (!list || !empty) return;
-  const query = normalizedQuery('packaging-filter');
-  const packaging = state.packaging.filter((item) => matchesQuery([item.name], query));
-  const rows = packaging.map((item) => recordRow(
-    item.name,
-    `${price(item.unit_price)} · ${item.active ? 'активна' : 'скрыта'}`,
-    [makeButton('Изменить', '', () => editPackaging(item)), makeButton('Удалить', 'danger', () => void deletePackaging(item))]
-  ));
-  empty.textContent = query && state.packaging.length ? 'По запросу ничего не найдено.' : 'Тара пока не добавлена.';
-  refreshList(list, empty, rows);
-}
+    const priceCell = document.createElement('td');
+    priceCell.className = 'catalog-price-cell';
+    priceCell.textContent = formatPrice(item);
 
-function resetProductForm({ close = false } = {}) {
-  const form = element('product-form');
-  if (!(form instanceof HTMLFormElement)) return;
-  state.editingProductId = null;
-  form.reset();
-  element('product-active').checked = true;
-  element('product-alcoholic').checked = false;
-  element('product-beverage-color').value = 'none';
-  element('product-filtration').value = 'none';
-  element('product-form-title').textContent = 'Новая продукция';
-  element('product-submit').textContent = 'Добавить продукцию';
-  element('cancel-product-edit')?.classList.add('is-hidden');
-  clearMessage('product-message');
-  if (close) closeDrawer('product-drawer');
-}
+    const status = document.createElement('td');
+    status.append(statusBadge(item));
 
-function createProduct() {
-  resetProductForm();
-  openDrawer('product-drawer', 'product-name');
-}
+    const actions = document.createElement('td');
+    actions.className = 'catalog-row-actions';
+    actions.append(
+      button('Изменить', '', () => editItem(item)),
+      button('Удалить', 'danger', () => void deleteItem(item))
+    );
+    row.append(name, classCell, priceCell, status, actions);
+    body.append(row);
+  }
 
-function editProduct(product) {
-  state.editingProductId = product.id;
-  element('product-name').value = product.name;
-  element('product-producer').value = product.producer || '';
-  element('product-characteristics').value = product.characteristics || '';
-  element('product-strength').value = product.strength || '';
-  element('product-price-primary').value = product.price_primary || '';
-  element('product-alcoholic').checked = product.alcoholic === true;
-  element('product-beverage-color').value = product.beverage_color || 'none';
-  element('product-filtration').value = product.filtration || 'none';
-  element('product-active').checked = product.active !== false;
-  element('product-form-title').textContent = 'Редактирование продукции';
-  element('product-submit').textContent = 'Сохранить продукцию';
-  element('cancel-product-edit')?.classList.remove('is-hidden');
-  clearMessage('product-message');
-  openDrawer('product-drawer', 'product-name');
-}
-
-async function deleteProduct(product) {
-  if (!window.confirm(`Удалить продукцию «${product.name}»?`)) return;
-  try { await api.delete(`${API.products}/${product.id}`); await loadCatalog(); }
-  catch (error) { setMessage('product-message', error.message); }
-}
-
-function downloadCsv(csv) {
-  const content = csv.startsWith('\uFEFF') ? csv : `\uFEFF${csv}`;
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'products.csv';
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-async function exportProducts() {
-  const button = element('product-export');
-  setPending(button, true, 'Выгружаем…');
-  clearMessage('product-message');
-  try {
-    const csv = await api.get(API.productsExport);
-    downloadCsv(csv);
-    setMessage('product-message', `CSV выгружен. Записей: ${state.products.length}.`, 'success');
-  } catch (error) {
-    setMessage('product-message', error.message);
-  } finally {
-    setPending(button, false, 'Выгружаем…');
+  empty.classList.toggle('is-hidden', items.length > 0);
+  if (!items.length) {
+    empty.querySelector('strong').textContent = query || classCode ? 'Ничего не найдено' : 'Каталог пуст';
+    empty.querySelector('span').textContent = query || classCode
+      ? 'Измените поиск или фильтр класса.'
+      : 'Добавьте первую позицию и выберите её класс.';
   }
 }
 
-function resetPackagingForm({ close = false } = {}) {
-  const form = element('packaging-form');
+function fillClassOptions() {
+  const filter = element('catalog-class-filter');
+  const select = element('catalog-item-class');
+  if (!filter || !select) return;
+  const currentFilter = filter.value;
+  const currentSelect = select.value;
+  const active = (state.catalogClasses || []).filter((item) => item.active !== false);
+  filter.replaceChildren(new Option('Все классы', ''));
+  select.replaceChildren(new Option('Выберите класс', ''));
+  for (const item of active) {
+    const prefix = classDepth(item) ? `${'— '.repeat(classDepth(item))}` : '';
+    filter.append(new Option(`${prefix}${item.name}`, item.code));
+    select.append(new Option(`${prefix}${item.name}`, String(item.id)));
+  }
+  filter.value = [...filter.options].some((option) => option.value === currentFilter) ? currentFilter : '';
+  select.value = [...select.options].some((option) => option.value === currentSelect) ? currentSelect : '';
+}
+
+async function loadCatalog() {
+  const [classes, items] = await Promise.all([api.get(API.catalogClasses), api.get(API.catalogItems)]);
+  state.catalogClasses = Array.isArray(classes) ? classes : [];
+  state.catalogItems = Array.isArray(items) ? items : [];
+  fillClassOptions();
+  renderCatalog();
+}
+
+function createFieldNode(field, value) {
+  if (field.type === 'boolean') {
+    const label = document.createElement('label');
+    label.className = 'toggle-row';
+    const copy = document.createElement('span');
+    const strong = document.createElement('strong');
+    strong.textContent = field.label;
+    copy.append(strong);
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = value === true;
+    input.dataset.catalogAttribute = field.key;
+    input.dataset.catalogAttributeType = field.type;
+    const visual = document.createElement('i');
+    visual.setAttribute('aria-hidden', 'true');
+    label.append(copy, input, visual);
+    return label;
+  }
+
+  const label = document.createElement('label');
+  label.className = 'field';
+  const caption = document.createElement('span');
+  caption.textContent = field.label;
+  let input;
+  if (field.type === 'select') {
+    input = document.createElement('select');
+    if (!field.required) input.append(new Option('Не выбрано', ''));
+    for (const option of field.options || []) input.append(new Option(option.label, option.value));
+    input.value = value === undefined || value === null ? '' : String(value);
+  } else {
+    input = document.createElement('input');
+    input.type = field.type === 'number' ? 'number' : 'text';
+    if (field.type === 'number') {
+      input.step = String(field.step || 1);
+      if (Number.isFinite(Number(field.min))) input.min = String(field.min);
+      if (Number.isFinite(Number(field.max))) input.max = String(field.max);
+    } else if (field.max) {
+      input.maxLength = Number(field.max);
+    }
+    input.value = value === undefined || value === null ? '' : String(value);
+  }
+  input.required = field.required === true;
+  input.dataset.catalogAttribute = field.key;
+  input.dataset.catalogAttributeType = field.type;
+  label.append(caption, input);
+  return label;
+}
+
+function renderClassFields(catalogClass, values = {}) {
+  const root = element('catalog-class-fields');
+  const body = element('catalog-class-fields-body');
+  const description = element('catalog-class-description');
+  const path = element('catalog-item-class-path');
+  const hint = element('catalog-pricing-hint');
+  if (!root || !body) return;
+  body.replaceChildren();
+  if (!catalogClass) {
+    root.classList.add('is-hidden');
+    if (description) description.textContent = '';
+    if (path) path.textContent = '';
+    if (hint) hint.textContent = '';
+    return;
+  }
+
+  if (path) path.textContent = classPath(catalogClass);
+  if (description) description.textContent = catalogClass.description || '';
+  if (hint) hint.textContent = PRICING_LABELS[catalogClass.pricing_model] || '';
+  for (const field of catalogClass.resolved_field_schema || []) {
+    body.append(createFieldNode(field, values[field.key]));
+  }
+  root.classList.toggle('is-hidden', body.children.length === 0);
+}
+
+function collectAttributes() {
+  const result = {};
+  document.querySelectorAll('[data-catalog-attribute]').forEach((input) => {
+    const key = input.dataset.catalogAttribute;
+    const type = input.dataset.catalogAttributeType;
+    if (!key) return;
+    if (type === 'boolean') {
+      result[key] = input.checked === true;
+      return;
+    }
+    const value = String(input.value ?? '').trim();
+    if (!value) return;
+    result[key] = type === 'number' ? Number(value.replace(',', '.')) : value;
+  });
+  return result;
+}
+
+function openDrawer() {
+  const drawer = element('catalog-item-drawer');
+  if (!drawer) return;
+  drawer.classList.remove('is-hidden');
+  drawer.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('workspace-drawer-open');
+  requestAnimationFrame(() => element('catalog-item-class')?.focus());
+}
+
+function closeDrawer() {
+  const drawer = element('catalog-item-drawer');
+  if (!drawer) return;
+  drawer.classList.add('is-hidden');
+  drawer.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('workspace-drawer-open');
+}
+
+function resetForm({ close = false } = {}) {
+  const form = element('catalog-item-form');
   if (!(form instanceof HTMLFormElement)) return;
-  state.editingPackagingId = null;
+  state.editingCatalogItemId = null;
   form.reset();
-  element('packaging-active').checked = true;
-  element('packaging-form-title').textContent = 'Новая тара';
-  element('packaging-submit').textContent = 'Добавить тару';
-  element('cancel-packaging-edit')?.classList.add('is-hidden');
-  clearMessage('packaging-message');
-  if (close) closeDrawer('packaging-drawer');
+  element('catalog-item-active').checked = true;
+  element('catalog-item-quantity').value = '1';
+  element('catalog-item-form-title').textContent = 'Новая позиция';
+  element('catalog-item-submit').textContent = 'Добавить';
+  renderClassFields(null);
+  clearMessage('catalog-message');
+  if (close) closeDrawer();
 }
 
-function createPackaging() {
-  resetPackagingForm();
-  openDrawer('packaging-drawer', 'packaging-name');
+function createItem() {
+  resetForm();
+  fillClassOptions();
+  openDrawer();
 }
 
-function editPackaging(item) {
-  state.editingPackagingId = item.id;
-  element('packaging-name').value = item.name;
-  element('packaging-price').value = item.unit_price || '';
-  element('packaging-active').checked = item.active !== false;
-  element('packaging-form-title').textContent = 'Редактирование тары';
-  element('packaging-submit').textContent = 'Сохранить тару';
-  element('cancel-packaging-edit')?.classList.remove('is-hidden');
-  clearMessage('packaging-message');
-  openDrawer('packaging-drawer', 'packaging-name');
+function editItem(item) {
+  state.editingCatalogItemId = item.id;
+  fillClassOptions();
+  element('catalog-item-class').value = String(item.class_id);
+  element('catalog-item-name').value = item.name || '';
+  element('catalog-item-description').value = item.description || '';
+  element('catalog-item-price').value = item.base_price || '0';
+  element('catalog-item-quantity').value = item.base_quantity || '1';
+  element('catalog-item-unit').value = item.unit || '';
+  element('catalog-item-active').checked = item.active !== false;
+  element('catalog-item-form-title').textContent = 'Редактирование позиции';
+  element('catalog-item-submit').textContent = 'Сохранить';
+  renderClassFields(classById(item.class_id), item.attributes || {});
+  clearMessage('catalog-message');
+  openDrawer();
+  requestAnimationFrame(() => element('catalog-item-name')?.focus());
 }
 
-async function deletePackaging(item) {
-  if (!window.confirm(`Удалить тару «${item.name}»?`)) return;
-  try { await api.delete(`${API.packaging}/${item.id}`); await loadCatalog(); }
-  catch (error) { setMessage('packaging-message', error.message); }
+async function deleteItem(item) {
+  if (!window.confirm(`Удалить «${item.name}» из каталога?`)) return;
+  clearMessage('catalog-message');
+  try {
+    await api.delete(`${API.catalogItems}/${item.id}`);
+    await Promise.all([loadCatalog(), loadNotifications()]);
+  } catch (error) {
+    setMessage('catalog-message', error.message);
+  }
 }
 
-function bindDrawerClose(drawerId, closeId, backdropId, reset) {
-  element(closeId)?.addEventListener('click', () => reset({ close: true }));
-  element(backdropId)?.addEventListener('click', () => reset({ close: true }));
-  return () => {
-    if (!element(drawerId)?.classList.contains('is-hidden')) reset({ close: true });
+function payload() {
+  const classId = Number(element('catalog-item-class').value);
+  return {
+    class_id: classId,
+    name: element('catalog-item-name').value,
+    description: element('catalog-item-description').value,
+    base_price: element('catalog-item-price').value,
+    base_quantity: element('catalog-item-quantity').value,
+    unit: element('catalog-item-unit').value,
+    attributes: collectAttributes(),
+    active: element('catalog-item-active').checked
   };
 }
 
 export function initialiseCatalog() {
-  const productForm = element('product-form');
-  const packagingForm = element('packaging-form');
-  if (!(productForm instanceof HTMLFormElement) || !(packagingForm instanceof HTMLFormElement)) return;
+  const form = element('catalog-item-form');
+  if (!(form instanceof HTMLFormElement)) return;
 
-  void loadCatalog().catch((error) => setMessage('product-message', error.message));
-  initialiseProductImport({
-    onApplied: async () => {
-      resetProductForm({ close: true });
-      setActiveCatalogTab('products');
-      await Promise.all([loadCatalog(), loadNotifications()]);
-    }
+  void loadCatalog().catch((error) => setMessage('catalog-message', error.message));
+
+  element('create-catalog-item')?.addEventListener('click', createItem);
+  element('refresh-catalog')?.addEventListener('click', () => { void loadCatalog().catch((error) => setMessage('catalog-message', error.message)); });
+  element('catalog-filter')?.addEventListener('input', renderCatalog);
+  element('catalog-class-filter')?.addEventListener('change', renderCatalog);
+  element('catalog-item-cancel')?.addEventListener('click', () => resetForm({ close: true }));
+  element('catalog-item-drawer-close')?.addEventListener('click', () => resetForm({ close: true }));
+  element('catalog-item-drawer-backdrop')?.addEventListener('click', () => resetForm({ close: true }));
+  element('catalog-item-class')?.addEventListener('change', () => {
+    const selected = classById(element('catalog-item-class').value);
+    renderClassFields(selected);
+    if (selected) element('catalog-item-unit').value = selected.default_unit || 'шт';
   });
-
-  element('catalog-tab-products')?.addEventListener('click', () => setActiveCatalogTab('products'));
-  element('catalog-tab-packaging')?.addEventListener('click', () => setActiveCatalogTab('packaging'));
-  element('create-product')?.addEventListener('click', createProduct);
-  element('create-packaging')?.addEventListener('click', createPackaging);
-  element('refresh-catalog')?.addEventListener('click', () => { void loadCatalog(); });
-  element('product-filter')?.addEventListener('input', renderCatalogProducts);
-  element('packaging-filter')?.addEventListener('input', renderCatalogPackaging);
-  element('cancel-product-edit')?.addEventListener('click', () => resetProductForm({ close: true }));
-  element('cancel-packaging-edit')?.addEventListener('click', () => resetPackagingForm({ close: true }));
-  element('product-export')?.addEventListener('click', () => { void exportProducts(); });
-
-  const closeProduct = bindDrawerClose('product-drawer', 'product-drawer-close', 'product-drawer-backdrop', resetProductForm);
-  const closePackaging = bindDrawerClose('packaging-drawer', 'packaging-drawer-close', 'packaging-drawer-backdrop', resetPackagingForm);
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
-    closeProduct();
-    closePackaging();
+    if (event.key === 'Escape' && !element('catalog-item-drawer')?.classList.contains('is-hidden')) resetForm({ close: true });
   });
 
-  productForm.addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const submit = element('product-submit');
+    const submit = element('catalog-item-submit');
     setPending(submit, true, 'Сохраняем…');
+    clearMessage('catalog-message');
     try {
-      const payload = {
-        name: element('product-name').value,
-        producer: element('product-producer').value,
-        characteristics: element('product-characteristics').value,
-        strength: element('product-strength').value,
-        price_primary: element('product-price-primary').value,
-        alcoholic: element('product-alcoholic').checked,
-        beverage_color: element('product-beverage-color').value,
-        filtration: element('product-filtration').value,
-        active: element('product-active').checked
-      };
-      if (state.editingProductId) await api.put(`${API.products}/${state.editingProductId}`, payload);
-      else await api.post(API.products, payload);
-      resetProductForm({ close: true });
+      const body = payload();
+      if (state.editingCatalogItemId) await api.put(`${API.catalogItems}/${state.editingCatalogItemId}`, body);
+      else await api.post(API.catalogItems, body);
+      resetForm({ close: true });
       await Promise.all([loadCatalog(), loadNotifications()]);
     } catch (error) {
-      setMessage('product-message', error.message);
-    } finally {
-      setPending(submit, false, 'Сохраняем…');
-    }
-  });
-
-  packagingForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submit = element('packaging-submit');
-    setPending(submit, true, 'Сохраняем…');
-    try {
-      const payload = { name: element('packaging-name').value, unit_price: element('packaging-price').value, active: element('packaging-active').checked };
-      if (state.editingPackagingId) await api.put(`${API.packaging}/${state.editingPackagingId}`, payload);
-      else await api.post(API.packaging, payload);
-      resetPackagingForm({ close: true });
-      await Promise.all([loadCatalog(), loadNotifications()]);
-    } catch (error) {
-      setMessage('packaging-message', error.message);
+      setMessage('catalog-message', error.message);
     } finally {
       setPending(submit, false, 'Сохраняем…');
     }
