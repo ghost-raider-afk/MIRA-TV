@@ -125,7 +125,7 @@
 
   body[data-page="scene-editor"].scene-designer-mode .scene-stage {
     max-width: none;
-    max-height: 100%;
+    max-height: none;
     flex: 0 0 auto;
   }
 
