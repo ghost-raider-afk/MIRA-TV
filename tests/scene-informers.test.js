@@ -144,5 +144,5 @@ test('Informer UI and shared playback refresh clocks without rebuilding the whol
   assert.match(sync, /weather_refresh_interval_ms/);
   assert.match(sync, /syncNow\('weather-refresh'\)/);
   assert.match(sync, /clearWeatherTimer\(\)/);
-  assert.match(worker, /mira-tv-player-shell-v16-scene7/);
+  assert.match(worker, /mira-tv-player-shell-v16-scene8/);
 });
