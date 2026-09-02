@@ -5,6 +5,28 @@ const DEFAULT_DISPLAY_HEIGHT = 1080;
 const MIN_DISPLAYS = 1;
 const MAX_DISPLAYS = 6;
 const MEDIA_ELEMENT_TYPES = new Set(['image', 'logo', 'video']);
+const MEDIA_FITS = new Set(['cover', 'contain', 'fill']);
+const MEDIA_POSITIONS = new Set(['center', 'top', 'bottom', 'left', 'right']);
+const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
+const VERTICAL_ALIGNS = new Set(['top', 'center', 'bottom']);
+
+const BASE_STYLE = Object.freeze({
+  color: '#ffffff',
+  font_size: 40,
+  font_weight: 400,
+  text_align: 'center',
+  vertical_align: 'center',
+  line_height: 1.06,
+  letter_spacing: 0,
+  background: 'transparent',
+  radius: 0,
+  border_width: 0,
+  border_color: '#ffffff'
+});
+
+function style(overrides = {}) {
+  return { ...BASE_STYLE, ...overrides };
+}
 
 function id(prefix) {
   if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -54,28 +76,52 @@ export function createScene({ name = 'Новая сцена', displayCount = 1 }
 }
 
 const ELEMENT_DEFAULTS = Object.freeze({
-  text: { width: 760, height: 140, content: 'Новый текст', style: { color: '#ffffff', font_size: 72, background: 'transparent', radius: 0 } },
+  text: { width: 760, height: 140, content: 'Новый текст', style: style({ font_size: 72, font_weight: 700 }) },
   table: {
     width: 1120,
     height: 700,
     content: 'Меню',
-    style: { color: '#ffffff', font_size: 42, background: 'rgba(0,0,0,.28)', radius: 24 },
+    style: style({ font_size: 42, background: 'rgba(0,0,0,.28)', radius: 24 }),
     data_binding: { source: 'catalog_products' },
     table: normaliseTableConfig()
   },
-  image: { width: 560, height: 360, content: 'Изображение', style: { color: '#ffffff', font_size: 40, background: 'rgba(255,255,255,.08)', radius: 24 } },
-  logo: { width: 520, height: 220, content: 'Логотип', style: { color: '#ffffff', font_size: 54, background: 'rgba(255,255,255,.08)', radius: 24 } },
-  video: { width: 720, height: 405, content: 'Видео', style: { color: '#ffffff', font_size: 42, background: '#05070a', radius: 20 } },
+  image: {
+    width: 560,
+    height: 360,
+    content: 'Изображение',
+    style: style({ background: 'rgba(255,255,255,.08)', radius: 24 }),
+    media: { fit: 'cover', position: 'center' }
+  },
+  logo: {
+    width: 520,
+    height: 220,
+    content: 'Логотип',
+    style: style({ background: 'rgba(255,255,255,.08)', radius: 24 }),
+    media: { fit: 'contain', position: 'center' }
+  },
+  video: {
+    width: 720,
+    height: 405,
+    content: 'Видео',
+    style: style({ background: '#05070a', radius: 20 }),
+    media: { fit: 'cover', position: 'center' }
+  },
   weather: {
     width: 480,
     height: 230,
     content: 'Погода',
     variant: 'compact',
-    style: { color: '#ffffff', font_size: 42, background: 'rgba(9,15,25,.72)', radius: 28 },
+    style: style({ font_size: 42, font_weight: 700, background: 'rgba(9,15,25,.72)', radius: 28 }),
     weather: { location: '' }
   },
-  clock: { width: 420, height: 180, content: 'Часы', variant: 'digital', style: { color: '#ffffff', font_size: 76, background: 'rgba(9,15,25,.48)', radius: 24 } },
-  shape: { width: 520, height: 260, content: '', style: { color: '#ffffff', font_size: 40, background: '#f4c915', radius: 28 } }
+  clock: {
+    width: 420,
+    height: 180,
+    content: 'Часы',
+    variant: 'digital',
+    style: style({ font_size: 76, font_weight: 700, background: 'rgba(9,15,25,.48)', radius: 24 })
+  },
+  shape: { width: 520, height: 260, content: '', style: style({ background: '#f4c915', radius: 28 }) }
 });
 
 export function createElement(type, scene, slide) {
@@ -107,7 +153,7 @@ export function createElement(type, scene, slide) {
       exit: 'none',
       duration_ms: 600
     },
-    ...(MEDIA_ELEMENT_TYPES.has(type) ? { asset_id: '' } : {}),
+    ...(MEDIA_ELEMENT_TYPES.has(type) ? { asset_id: '', media: deepClone(defaults.media) } : {}),
     ...(defaults.data_binding ? { data_binding: deepClone(defaults.data_binding) } : {}),
     ...(defaults.table ? { table: deepClone(defaults.table) } : {}),
     ...(defaults.weather ? { weather: deepClone(defaults.weather) } : {})
@@ -182,8 +228,23 @@ function normaliseElement(element) {
   const result = element && typeof element === 'object' ? element : {};
   result.effects = { shadow: false, glow: false, blur: 0, ...(result.effects || {}) };
   result.animation = { entrance: 'none', loop: 'none', exit: 'none', duration_ms: 600, ...(result.animation || {}) };
-  result.style = { color: '#ffffff', font_size: 40, background: 'transparent', radius: 0, ...(result.style || {}) };
-  if (MEDIA_ELEMENT_TYPES.has(result.type)) result.asset_id = typeof result.asset_id === 'string' ? result.asset_id : '';
+  const sourceStyle = result.style && typeof result.style === 'object' ? result.style : {};
+  result.style = { ...BASE_STYLE, ...sourceStyle };
+  result.style.font_weight = [100, 200, 300, 400, 500, 600, 700, 800, 900].includes(Number(result.style.font_weight)) ? Number(result.style.font_weight) : 400;
+  result.style.text_align = TEXT_ALIGNS.has(result.style.text_align) ? result.style.text_align : 'center';
+  result.style.vertical_align = VERTICAL_ALIGNS.has(result.style.vertical_align) ? result.style.vertical_align : 'center';
+  result.style.line_height = clamp(result.style.line_height, 0.5, 3);
+  result.style.letter_spacing = Math.min(100, Math.max(-50, Number(result.style.letter_spacing) || 0));
+  result.style.border_width = clamp(result.style.border_width, 0, 40);
+  result.style.border_color = typeof result.style.border_color === 'string' ? result.style.border_color.slice(0, 64) : '#ffffff';
+  if (MEDIA_ELEMENT_TYPES.has(result.type)) {
+    result.asset_id = typeof result.asset_id === 'string' ? result.asset_id : '';
+    const media = result.media && typeof result.media === 'object' ? result.media : {};
+    result.media = {
+      fit: MEDIA_FITS.has(media.fit) ? media.fit : (result.type === 'logo' ? 'contain' : 'cover'),
+      position: MEDIA_POSITIONS.has(media.position) ? media.position : 'center'
+    };
+  }
   if (result.type === 'table') {
     result.data_binding = { source: 'catalog_products', ...(result.data_binding || {}) };
     result.table = normaliseTableConfig(result.table || {});
