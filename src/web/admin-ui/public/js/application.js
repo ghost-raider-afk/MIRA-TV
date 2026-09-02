@@ -33,10 +33,10 @@ async function initialisePage(name) {
         import('./scenes/ribbon.js'),
         import('./scenes/designer.js')
       ]);
+      initialiseSceneDesigner();
       await initialiseSceneEditor();
       initialiseSceneFormatControls();
       initialiseSceneRibbon();
-      initialiseSceneDesigner();
       return initialiseScenePublishControl();
     }
     case 'settings': {
