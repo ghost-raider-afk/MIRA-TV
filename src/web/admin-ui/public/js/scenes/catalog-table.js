@@ -1,5 +1,5 @@
-const DEFAULT_VOLUMES = Object.freeze([0.5, 1, 1.5]);
-const MAX_VOLUME_COLUMNS = 6;
+const DEFAULT_QUANTITIES = Object.freeze([0.5, 1, 1.5]);
+const MAX_QUANTITY_COLUMNS = 6;
 const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
 const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
@@ -24,25 +24,37 @@ function colour(value, fallback) {
   return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }
 
+function classCode(value) {
+  const code = String(value || '').trim();
+  return /^[a-z][a-z0-9_]{1,63}$/.test(code) ? code : '';
+}
+
 export function normaliseTableConfig(source = {}) {
-  const rawVolumes = Array.isArray(source.volumes_l) ? source.volumes_l : DEFAULT_VOLUMES;
-  const volumes = [];
-  for (const raw of rawVolumes) {
-    const volume = toNumber(raw);
-    if (volume === null || volume <= 0 || volume > 1000 || volumes.includes(volume)) continue;
-    volumes.push(volume);
-    if (volumes.length >= MAX_VOLUME_COLUMNS) break;
+  const rawQuantities = Array.isArray(source.quantities)
+    ? source.quantities
+    : Array.isArray(source.volumes_l) ? source.volumes_l : DEFAULT_QUANTITIES;
+  const quantities = [];
+  for (const raw of rawQuantities) {
+    const quantity = toNumber(raw);
+    if (quantity === null || quantity <= 0 || quantity > 1000000 || quantities.includes(quantity)) continue;
+    quantities.push(quantity);
+    if (quantities.length >= MAX_QUANTITY_COLUMNS) break;
   }
   const appearanceSource = source.appearance && typeof source.appearance === 'object' ? source.appearance : {};
   return {
+    class_code: classCode(source.class_code),
+    group_by_class: source.group_by_class !== false,
+    show_description: source.show_description === true,
+    show_metadata: source.show_metadata !== false,
     base_volume_l: Math.max(0.001, toNumber(source.base_volume_l) || 1),
-    volumes_l: volumes.length ? volumes : [...DEFAULT_VOLUMES],
-    show_producer: source.show_producer === true,
+    quantities: quantities.length ? quantities : [...DEFAULT_QUANTITIES],
+    volumes_l: quantities.length ? quantities : [...DEFAULT_QUANTITIES],
+    show_producer: source.show_producer !== false,
     show_strength: source.show_strength !== false,
-    show_color: source.show_color === true,
-    show_filtration: source.show_filtration === true,
+    show_color: source.show_color !== false,
+    show_filtration: source.show_filtration !== false,
     active_only: source.active_only !== false,
-    row_limit: Math.min(50, Math.max(1, Math.round(toNumber(source.row_limit) || 12))),
+    row_limit: Math.min(100, Math.max(1, Math.round(toNumber(source.row_limit) || 12))),
     appearance: {
       preset: option(appearanceSource.preset, TABLE_PRESETS, 'clean'),
       density: option(appearanceSource.density, TABLE_DENSITIES, 'comfortable'),
@@ -58,21 +70,73 @@ export function normaliseTableConfig(source = {}) {
 
 export function parseTargetVolumes(value) {
   const tokens = Array.isArray(value) ? value : String(value || '').split(/[;\n]+/u);
-  return normaliseTableConfig({ volumes_l: tokens }).volumes_l;
+  return normaliseTableConfig({ quantities: tokens }).quantities;
 }
 
 export function resolveVolumePrice(product, targetVolume, baseVolume = 1) {
-  const basePrice = toNumber(product?.price_primary);
+  const basePrice = toNumber(product?.base_price ?? product?.price_primary);
   const target = toNumber(targetVolume);
-  const base = toNumber(baseVolume);
+  const base = toNumber(product?.base_quantity ?? baseVolume);
   if (basePrice === null || target === null || base === null || base <= 0 || target <= 0) return null;
   return roundMoney(basePrice * target / base);
 }
 
-export function formatVolume(volume) {
-  const number = toNumber(volume);
+function legacyCatalogItem(product) {
+  return {
+    ...product,
+    class_code: 'beer',
+    class_name: 'Пиво',
+    pricing_model: 'proportional',
+    base_price: product?.price_primary ?? 0,
+    base_quantity: 1,
+    unit: 'л',
+    description: '',
+    attributes: {
+      producer: product?.producer || '',
+      characteristics: product?.characteristics || '',
+      alcoholic: product?.alcoholic === true,
+      abv: String(product?.strength || '').replace('%', '').replace('°', '').replace(',', '.'),
+      beverage_color: product?.beverage_color || 'none',
+      filtration: product?.filtration || 'none'
+    }
+  };
+}
+
+function catalogItem(item) {
+  if (item?.class_code) {
+    return {
+      ...item,
+      class_name: item.class_name || item.class_code,
+      pricing_model: item.pricing_model || 'fixed',
+      base_quantity: item.base_quantity || 1,
+      unit: item.unit || item.default_unit || 'шт',
+      attributes: item.attributes && typeof item.attributes === 'object' ? item.attributes : {}
+    };
+  }
+  return legacyCatalogItem(item || {});
+}
+
+function filteredItems(items, config) {
+  return (Array.isArray(items) ? items : [])
+    .map(catalogItem)
+    .filter((item) => (!config.active_only || item.active !== false) && (!config.class_code || item.class_code === config.class_code));
+}
+
+function sameQuantityPricing(items) {
+  if (!items.length) return false;
+  const unit = String(items[0].unit || '');
+  return Boolean(unit) && items.every((item) => ['proportional', 'weight'].includes(item.pricing_model) && String(item.unit || '') === unit);
+}
+
+export function formatQuantity(quantity, unit = '') {
+  const number = toNumber(quantity);
   if (number === null) return '';
-  return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(number)} л`;
+  const formatted = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(number);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+export function formatVolume(volume) {
+  return formatQuantity(volume, 'л');
 }
 
 function formatPlainPrice(value) {
@@ -86,73 +150,105 @@ export function formatPrice(value) {
   return plain === '—' ? plain : `${plain} ₽`;
 }
 
-function colourLabel(value) {
-  const labels = { light: 'светлое', dark: 'тёмное', amber: 'янтарное', red: 'красное', none: '' };
-  return labels[value] || String(value || '');
+const ATTRIBUTE_LABELS = Object.freeze({
+  light: 'светлое', dark: 'тёмное', white: 'белое', semi_dark: 'полутёмное', amber: 'янтарное', red: 'красное', rose: 'розовое',
+  filtered: 'фильтрованное', unfiltered: 'нефильтрованное',
+  dry: 'сухое', semi_dry: 'полусухое', semi_sweet: 'полусладкое', sweet: 'сладкое',
+  mild: 'слабоострое', medium: 'острое', hot: 'очень острое'
+});
+
+function textAttribute(value) {
+  if (value === undefined || value === null || value === '' || value === false || value === 'none') return '';
+  if (value === true) return 'да';
+  return ATTRIBUTE_LABELS[value] || String(value);
 }
 
-function filtrationLabel(value) {
-  const labels = { filtered: 'фильтрованное', unfiltered: 'нефильтрованное', none: '' };
-  return labels[value] || String(value || '');
-}
-
-function productMetadata(product, config) {
+function itemMetadata(item, config) {
+  if (!config.show_metadata) return '';
+  const attributes = item.attributes || {};
   const parts = [];
-  if (config.show_producer && product?.producer) parts.push(String(product.producer));
-  if (config.show_strength && product?.strength) parts.push(String(product.strength).replaceAll('°', '%'));
-  if (config.show_color) {
-    const label = colourLabel(product?.beverage_color);
-    if (label) parts.push(label);
-  }
-  if (config.show_filtration) {
-    const label = filtrationLabel(product?.filtration);
-    if (label) parts.push(label);
-  }
+  const push = (value) => {
+    const text = textAttribute(value);
+    if (text && !parts.includes(text)) parts.push(text);
+  };
+
+  if (config.show_producer) push(attributes.producer);
+  if (config.show_strength && attributes.abv !== undefined && attributes.abv !== '') push(`${String(attributes.abv).replace('.', ',')}%`);
+  if (config.show_color) push(attributes.beverage_color || attributes.wine_color);
+  if (config.show_filtration) push(attributes.filtration);
+  push(attributes.spiciness);
+  if (attributes.weight_g) push(`${attributes.weight_g} г`);
+  push(attributes.sauce);
+  push(attributes.material);
+  push(attributes.volume);
+  if (config.show_description) push(item.description);
+  if (attributes.characteristics) push(attributes.characteristics);
   return parts.join(' · ');
 }
 
-export function catalogTableColumns(configSource = {}) {
-  const config = normaliseTableConfig(configSource);
-  if (config.appearance.preset === 'clean') {
-    const columns = [{ key: 'product', label: '', kind: 'product', weight: 3.1 }];
-    for (const volume of config.volumes_l) {
-      columns.push({ key: `price:${volume}`, label: formatVolume(volume), kind: 'price', volume, weight: 0.82 });
-    }
-    return columns;
-  }
+function itemBasePrice(item) {
+  const base = toNumber(item.base_price);
+  return base === null ? null : base;
+}
 
-  const columns = [{ key: 'name', label: 'Название', kind: 'text', weight: 2.2 }];
-  if (config.show_producer) columns.push({ key: 'producer', label: 'Производитель', kind: 'text', weight: 1.25 });
-  if (config.show_strength) columns.push({ key: 'strength', label: 'Крепость', kind: 'text', weight: 0.8 });
-  if (config.show_color) columns.push({ key: 'beverage_color', label: 'Цвет', kind: 'text', weight: 0.85 });
-  if (config.show_filtration) columns.push({ key: 'filtration', label: 'Фильтрация', kind: 'text', weight: 0.9 });
-  for (const volume of config.volumes_l) {
-    columns.push({ key: `price:${volume}`, label: formatVolume(volume), kind: 'price', volume, weight: 0.85 });
+function itemPriceLabel(item) {
+  const base = itemBasePrice(item);
+  if (base === null) return '—';
+  if (['proportional', 'weight'].includes(item.pricing_model)) {
+    return `${formatPrice(base)} / ${formatQuantity(item.base_quantity, item.unit)}`;
+  }
+  if (item.pricing_model === 'variant' && Array.isArray(item.attributes?.variants) && item.attributes.variants.length) {
+    return 'по вариантам';
+  }
+  return formatPrice(base);
+}
+
+export function catalogTableColumns(configSource = {}, itemsSource = []) {
+  const config = normaliseTableConfig(configSource);
+  const items = filteredItems(itemsSource, config);
+  const quantityPricing = sameQuantityPricing(items);
+  const compact = config.appearance.preset === 'clean';
+  const columns = [{ key: compact ? 'product' : 'name', label: compact ? '' : 'Название', kind: 'product', weight: compact ? 3.2 : 2.4 }];
+
+  if (!compact && !config.group_by_class) columns.push({ key: 'class_name', label: 'Класс', kind: 'text', weight: 1.05 });
+  if (!compact && config.show_metadata) columns.push({ key: 'metadata', label: 'Описание', kind: 'text', weight: 1.8 });
+
+  if (quantityPricing) {
+    const unit = items[0]?.unit || '';
+    for (const quantity of config.quantities) {
+      columns.push({ key: `price:${quantity}`, label: formatQuantity(quantity, unit), kind: 'price', quantity, weight: 0.82 });
+    }
+  } else {
+    columns.push({ key: 'price', label: 'Цена', kind: 'price', weight: 1.05 });
   }
   return columns;
 }
 
-export function buildCatalogTableRows(products, configSource = {}) {
+export function buildCatalogTableRows(itemsSource, configSource = {}) {
   const config = normaliseTableConfig(configSource);
-  const list = Array.isArray(products) ? products : [];
-  return list
-    .filter((product) => !config.active_only || product?.active !== false)
-    .slice(0, config.row_limit)
-    .map((product) => {
-      const name = String(product?.name || 'Без названия');
-      const metadata = productMetadata(product, config);
-      const values = {
-        name,
-        product: metadata ? `${name}\n${metadata}` : name,
-        producer: String(product?.producer || ''),
-        strength: String(product?.strength || ''),
-        beverage_color: colourLabel(product?.beverage_color),
-        filtration: filtrationLabel(product?.filtration)
-      };
-      for (const volume of config.volumes_l) {
-        const price = resolveVolumePrice(product, volume, config.base_volume_l);
-        values[`price:${volume}`] = config.appearance.preset === 'clean' ? formatPlainPrice(price) : formatPrice(price);
+  const items = filteredItems(itemsSource, config).slice(0, config.row_limit);
+  const quantityPricing = sameQuantityPricing(items);
+  return items.map((item) => {
+    const name = String(item.name || 'Без названия');
+    const metadata = itemMetadata(item, config);
+    const values = {
+      name,
+      class_name: String(item.class_name || ''),
+      metadata,
+      product: metadata ? `${name}\n${metadata}` : name,
+      price: itemPriceLabel(item)
+    };
+    if (quantityPricing) {
+      for (const quantity of config.quantities) {
+        const price = resolveVolumePrice(item, quantity, item.base_quantity);
+        values[`price:${quantity}`] = config.appearance.preset === 'clean' ? formatPlainPrice(price) : formatPrice(price);
       }
-      return { id: product?.id ?? null, values };
-    });
+    }
+    return {
+      id: item.id ?? null,
+      class_code: item.class_code || '',
+      group: config.group_by_class ? String(item.class_name || '') : '',
+      values
+    };
+  });
 }
