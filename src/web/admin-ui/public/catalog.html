@@ -13,86 +13,56 @@
       <div class="app-content">
         <main class="main-content catalog-page">
           <div class="page-heading compact-heading">
-            <div><p class="eyebrow">КОНТЕНТ</p><h1>Каталог</h1><p>Единая база продукции и тары для таблиц во всех сценах.</p></div>
+            <div><h1>Каталог</h1><p>Единая база позиций для сцен. Набор свойств определяется классом позиции.</p></div>
+            <button class="button button-primary" id="create-catalog-item" type="button">+ Добавить</button>
           </div>
 
-          <div class="catalog-tabs" role="tablist" aria-label="Разделы каталога">
-            <button class="catalog-tab active" id="catalog-tab-products" type="button" role="tab" aria-selected="true" aria-controls="catalog-products-pane">Продукция</button>
-            <button class="catalog-tab" id="catalog-tab-packaging" type="button" role="tab" aria-selected="false" aria-controls="catalog-packaging-pane">Тара</button>
+          <div class="catalog-toolbar" aria-label="Фильтры каталога">
+            <label class="catalog-search"><span class="is-hidden">Поиск</span><input class="list-filter" id="catalog-filter" type="search" placeholder="Поиск по каталогу" aria-label="Поиск по каталогу" /></label>
+            <label class="catalog-class-filter"><span>Класс</span><select id="catalog-class-filter"><option value="">Все классы</option></select></label>
+            <button class="button button-secondary" id="refresh-catalog" type="button">Обновить</button>
           </div>
 
-          <section class="catalog-pane" id="catalog-products-pane" role="tabpanel" aria-labelledby="catalog-tab-products">
-            <div class="catalog-toolbar">
-              <input class="list-filter" id="product-filter" type="search" placeholder="Поиск продукции" aria-label="Поиск продукции" />
-              <div class="catalog-toolbar-actions">
-                <input class="is-hidden" id="product-import-file" type="file" accept=".csv,text/csv" />
-                <button class="button button-secondary" id="product-import" type="button">Импорт</button>
-                <button class="button button-secondary" id="product-export" type="button">Экспорт</button>
-                <button class="button button-secondary" id="refresh-catalog" type="button">Обновить</button>
-                <button class="button button-primary" id="create-product" type="button">+ Продукция</button>
-              </div>
-            </div>
-            <p class="form-message is-hidden" id="product-message" role="status" aria-live="polite"></p>
-            <section class="settings-card catalog-list-card">
-              <div class="record-list" data-products-list></div>
-              <p class="empty-state is-hidden" data-products-empty>Продукции пока нет.</p>
-            </section>
-          </section>
+          <p class="form-message is-hidden" id="catalog-message" role="status" aria-live="polite"></p>
 
-          <section class="catalog-pane is-hidden" id="catalog-packaging-pane" role="tabpanel" aria-labelledby="catalog-tab-packaging">
-            <div class="catalog-toolbar">
-              <input class="list-filter" id="packaging-filter" type="search" placeholder="Поиск тары" aria-label="Поиск тары" />
-              <div class="catalog-toolbar-actions"><button class="button button-primary" id="create-packaging" type="button">+ Тара</button></div>
-            </div>
-            <p class="form-message is-hidden" id="packaging-message" role="status" aria-live="polite"></p>
-            <section class="settings-card catalog-list-card">
-              <div class="record-list" data-packaging-list></div>
-              <p class="empty-state is-hidden" data-packaging-empty>Тара пока не добавлена.</p>
-            </section>
-          </section>
-
-          <section class="settings-card catalog-import-card is-hidden" id="product-import-preview" aria-live="polite">
-            <div class="card-heading"><div><p class="eyebrow">ИМПОРТ</p><h2>Проверка перед записью</h2><p class="card-description">Исправьте значения прямо в таблице. База изменится только после применения.</p></div><button class="text-button" id="product-import-cancel" type="button">Закрыть</button></div>
-            <div class="catalog-import-summary" id="product-import-summary">
-              <span>Всего <strong data-import-count="total">0</strong></span><span>Новых <strong data-import-count="new">0</strong></span><span>Изменено <strong data-import-count="changed">0</strong></span><span>Без изменений <strong data-import-count="unchanged">0</strong></span><span>Ошибок <strong data-import-count="error">0</strong></span><span>Исключено <strong data-import-count="excluded">0</strong></span>
-            </div>
-            <p class="form-message is-hidden" id="product-import-message" role="status"></p>
-            <div class="catalog-import-table-wrap"><table class="catalog-import-table"><thead><tr><th>Статус</th><th>ID</th><th>Название</th><th>Производитель</th><th>Характеристики</th><th>Крепость</th><th>Цена 1 л</th><th>Цена 1,5 л<br /><small>расчётная</small></th><th>Алкогольная</th><th>Цвет</th><th>Фильтрация</th><th>Активна</th><th>Исключить</th></tr></thead><tbody id="product-import-body"></tbody></table></div>
-            <div class="catalog-import-actions"><span class="catalog-import-hint" id="product-import-hint">Сначала исправьте все ошибки.</span><button class="button button-primary" id="product-import-apply" type="button" disabled>Применить изменения</button></div>
+          <section class="catalog-grid-shell" aria-label="Позиции каталога">
+            <table class="catalog-data-grid">
+              <thead><tr><th>Название</th><th>Класс</th><th>Цена</th><th>Статус</th><th aria-label="Действия"></th></tr></thead>
+              <tbody id="catalog-items-body"></tbody>
+            </table>
+            <div class="catalog-empty is-hidden" id="catalog-empty"><strong>Каталог пуст</strong><span>Добавьте первую позицию и выберите её класс.</span></div>
           </section>
         </main>
       </div>
     </div>
 
-    <div class="workspace-drawer is-hidden" id="product-drawer" aria-hidden="true">
-      <button class="workspace-drawer-backdrop" id="product-drawer-backdrop" type="button" aria-label="Закрыть"></button>
-      <aside class="workspace-drawer-panel" aria-labelledby="product-form-title">
-        <div class="workspace-drawer-head"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2 id="product-form-title">Новая продукция</h2></div><button class="workspace-drawer-close" id="product-drawer-close" type="button" aria-label="Закрыть">×</button></div>
-        <form id="product-form" class="form-stack">
-          <label class="field"><span>Название</span><input id="product-name" maxlength="120" required /></label>
-          <label class="field"><span>Производитель</span><input id="product-producer" maxlength="120" /></label>
-          <label class="field"><span>Крепость</span><input id="product-strength" maxlength="20" placeholder="Например, 4,5%" /></label>
-          <label class="field"><span>Характеристики</span><input id="product-characteristics" maxlength="180" placeholder="Например, светлое, фильтрованное" /></label>
-          <label class="field"><span>Цена за 1 л, ₽</span><input id="product-price-primary" inputmode="decimal" maxlength="16" placeholder="240" required /></label>
-          <label class="field"><span>Цена за 1,5 л</span><input disabled value="Рассчитывается автоматически" /></label>
-          <label class="field"><span>Цвет напитка</span><select id="product-beverage-color"><option value="none">Не указан</option><option value="light">Светлый</option><option value="dark">Тёмный</option><option value="white">Белое</option><option value="semi_dark">Полутёмное</option><option value="amber">Янтарное</option><option value="red">Красное</option></select></label>
-          <label class="field"><span>Фильтрация</span><select id="product-filtration"><option value="none">Не указана</option><option value="filtered">Фильтрованное</option><option value="unfiltered">Нефильтрованное</option></select></label>
-          <label class="toggle-row"><span><strong>Алкогольная продукция</strong><small>Используется как свойство записи.</small></span><input id="product-alcoholic" type="checkbox" /><i aria-hidden="true"></i></label>
-          <label class="toggle-row"><span><strong>Активна</strong><small>Доступна для добавления в сцену.</small></span><input id="product-active" type="checkbox" checked /><i aria-hidden="true"></i></label>
-          <div class="form-actions"><button class="button button-secondary is-hidden" id="cancel-product-edit" type="button">Отменить</button><button class="button button-primary" id="product-submit" type="submit">Добавить продукцию</button></div>
-        </form>
-      </aside>
-    </div>
+    <div class="workspace-drawer is-hidden" id="catalog-item-drawer" aria-hidden="true">
+      <button class="workspace-drawer-backdrop" id="catalog-item-drawer-backdrop" type="button" aria-label="Закрыть"></button>
+      <aside class="workspace-drawer-panel catalog-item-drawer-panel" aria-labelledby="catalog-item-form-title">
+        <div class="workspace-drawer-head">
+          <div><h2 id="catalog-item-form-title">Новая позиция</h2><p id="catalog-item-class-path" class="catalog-class-path"></p></div>
+          <button class="workspace-drawer-close" id="catalog-item-drawer-close" type="button" aria-label="Закрыть">×</button>
+        </div>
 
-    <div class="workspace-drawer is-hidden" id="packaging-drawer" aria-hidden="true">
-      <button class="workspace-drawer-backdrop" id="packaging-drawer-backdrop" type="button" aria-label="Закрыть"></button>
-      <aside class="workspace-drawer-panel" aria-labelledby="packaging-form-title">
-        <div class="workspace-drawer-head"><div><p class="eyebrow">ТАРА</p><h2 id="packaging-form-title">Новая тара</h2></div><button class="workspace-drawer-close" id="packaging-drawer-close" type="button" aria-label="Закрыть">×</button></div>
-        <form id="packaging-form" class="form-stack">
-          <label class="field"><span>Название тары</span><input id="packaging-name" maxlength="120" placeholder="Например, бутылка ПЭТ 1,5 л" required /></label>
-          <label class="field"><span>Цена, ₽</span><input id="packaging-price" inputmode="decimal" maxlength="16" placeholder="12" required /></label>
-          <label class="toggle-row"><span><strong>Активна</strong><small>Доступна для добавления в сцену.</small></span><input id="packaging-active" type="checkbox" checked /><i aria-hidden="true"></i></label>
-          <div class="form-actions"><button class="button button-secondary is-hidden" id="cancel-packaging-edit" type="button">Отменить</button><button class="button button-primary" id="packaging-submit" type="submit">Добавить тару</button></div>
+        <form id="catalog-item-form" class="form-stack">
+          <label class="field"><span>Класс</span><select id="catalog-item-class" required></select></label>
+          <label class="field"><span>Название</span><input id="catalog-item-name" maxlength="160" required autocomplete="off" /></label>
+          <label class="field"><span>Описание</span><textarea id="catalog-item-description" maxlength="1000" rows="3"></textarea></label>
+
+          <div class="catalog-price-fields">
+            <label class="field"><span>Базовая цена</span><input id="catalog-item-price" inputmode="decimal" maxlength="16" required /></label>
+            <label class="field"><span>Количество</span><input id="catalog-item-quantity" inputmode="decimal" maxlength="16" value="1" required /></label>
+            <label class="field"><span>Единица</span><input id="catalog-item-unit" maxlength="24" required /></label>
+          </div>
+          <small id="catalog-pricing-hint" class="catalog-pricing-hint"></small>
+
+          <section class="catalog-class-fields is-hidden" id="catalog-class-fields" aria-label="Свойства класса">
+            <div class="catalog-class-fields-head"><strong>Свойства класса</strong><span id="catalog-class-description"></span></div>
+            <div class="catalog-class-fields-body" id="catalog-class-fields-body"></div>
+          </section>
+
+          <label class="toggle-row"><span><strong>Активна</strong><small>Активные позиции доступны элементам сцены.</small></span><input id="catalog-item-active" type="checkbox" checked /><i aria-hidden="true"></i></label>
+          <div class="form-actions"><button class="button button-secondary" id="catalog-item-cancel" type="button">Отменить</button><button class="button button-primary" id="catalog-item-submit" type="submit">Добавить</button></div>
         </form>
       </aside>
     </div>
