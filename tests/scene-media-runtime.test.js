@@ -60,7 +60,7 @@ test('Published Scene assets are prepared before LKG activation and cached offli
   assert.match(sync, /for \(const asset of sceneAssetManifest\(context\)\)/);
   assert.match(sync, /await fetchCriticalAsset\(asset, 'Critical Published Scene asset'\)/);
   assert.match(sync, /await prepareCriticalAssets\(context, changedNames\);[\s\S]*await applyContext/);
-  assert.match(worker, /mira-tv-player-shell-v16-scene5/);
+  assert.match(worker, /mira-tv-player-shell-v16-scene6/);
   assert.match(worker, /\(\?:entities\|media\)/);
   assert.match(worker, /ensureActiveAssets/);
 });
