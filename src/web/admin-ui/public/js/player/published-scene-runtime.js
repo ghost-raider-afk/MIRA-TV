@@ -5,10 +5,14 @@ function validGraph(component) {
   return graph && typeof graph === 'object' && Array.isArray(graph.slides) && graph.slides.length > 0 ? graph : null;
 }
 
+function catalogItems(component) {
+  return component?.catalog_items || component?.catalog_products || [];
+}
+
 function staticDataSignature(component) {
   return JSON.stringify({
     revision_id: component?.revision_id || '',
-    catalog_products: component?.catalog_products || [],
+    catalog_items: catalogItems(component),
     media_assets: component?.media_assets || []
   });
 }
@@ -30,7 +34,7 @@ export class PublishedSceneRuntime {
     const graph = validGraph(component);
     return {
       catalogStatus: 'ready',
-      catalogProducts: component?.catalog_products || [],
+      catalogProducts: catalogItems(component),
       mediaAssets: component?.media_assets || [],
       weatherByElement: component?.weather_by_element || {},
       stageWidth: this.layer.clientWidth || graph?.canvas_width || 1920
