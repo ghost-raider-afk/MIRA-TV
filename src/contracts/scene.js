@@ -8,6 +8,10 @@ const ENTRANCE = new Set(['none', 'fade', 'slide-up', 'scale']);
 const LOOP = new Set(['none', 'pulse', 'float']);
 const EXIT = new Set(['none', 'fade', 'scale']);
 const BACKGROUND_TYPES = new Set(['color', 'image', 'video']);
+const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
+const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
+const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
+const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
 const MAX_SLIDES = 50;
 const MAX_ELEMENTS_PER_SLIDE = 200;
 const DISPLAY_WIDTH = 1920;
@@ -47,6 +51,12 @@ function enumValue(value, field, allowed, fallback) {
   return result;
 }
 
+function hexColor(value, field, fallback) {
+  const result = optionalString(value ?? fallback, field, 16) || fallback;
+  if (!/^#[0-9a-f]{6}$/i.test(result)) throw new ValidationError(`Поле «${field}» должно содержать цвет в формате #RRGGBB.`);
+  return result.toLowerCase();
+}
+
 function stableId(value, field) {
   const id = requireText(value, field, { max: 120 });
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(id)) throw new ValidationError(`Поле «${field}» содержит недопустимый идентификатор.`);
@@ -65,6 +75,7 @@ function tableConfig(value) {
   const volumes = Array.isArray(source.volumes_l) ? source.volumes_l : [0.5, 1, 1.5];
   if (volumes.length < 1 || volumes.length > 8) throw new ValidationError('Таблица должна содержать от 1 до 8 ценовых объёмов.');
   const normalizedVolumes = [...new Set(volumes.map((item, index) => numeric(item, `table.volumes_l[${index}]`, 0.01, 100)))].sort((a, b) => a - b);
+  const appearance = source.appearance && typeof source.appearance === 'object' && !Array.isArray(source.appearance) ? source.appearance : {};
   return {
     active_only: source.active_only !== false,
     row_limit: integer(source.row_limit ?? 12, 'table.row_limit', 1, 50),
@@ -72,7 +83,17 @@ function tableConfig(value) {
     show_producer: bool(source.show_producer),
     show_strength: source.show_strength !== false,
     show_color: bool(source.show_color),
-    show_filtration: bool(source.show_filtration)
+    show_filtration: bool(source.show_filtration),
+    appearance: {
+      preset: enumValue(appearance.preset, 'table.appearance.preset', TABLE_PRESETS, 'clean'),
+      density: enumValue(appearance.density, 'table.appearance.density', TABLE_DENSITIES, 'comfortable'),
+      header_style: enumValue(appearance.header_style, 'table.appearance.header_style', TABLE_HEADER_STYLES, 'subtle'),
+      price_style: enumValue(appearance.price_style, 'table.appearance.price_style', TABLE_PRICE_STYLES, 'accent'),
+      accent_color: hexColor(appearance.accent_color, 'table.appearance.accent_color', '#f4c915'),
+      show_title: appearance.show_title !== false,
+      row_dividers: appearance.row_dividers !== false,
+      zebra: bool(appearance.zebra)
+    }
   };
 }
 
