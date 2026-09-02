@@ -98,7 +98,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(player, /new PlayerSceneLayerComposer\(playerStage\)/);
   assert.match(player, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
   assert.match(player, /renderBrandTitleLayer\(brandLayer, context\.brand\)/);
-  assert.match(player, /renderAnnouncementLayer\(announcementLayer, context\.announcement\)/);
+  assert.match(player, /renderAnnouncementLayer\(announcementLayer, context\.announcement/);
   assert.match(player, /scenePlaylistRuntime\.render\(context\.scene_playlist/);
   assert.match(player, /playerMenuRenderMode\(context\)/);
   assert.match(player, /profile:\s*context\.animation\?\.profile/);
@@ -203,7 +203,7 @@ test('admin connection flow is mobile-first and diagnoses iOS camera/decoder fai
     read('src/web/admin-ui/public/js/pages/connect-tv.js'), read('src/web/admin-ui/public/connect-tv.html'),
     read('src/web/admin-ui/public/css/connect-tv.css')
   ]);
-  assert.match(navigation, /\['Подключить ТВ', '\/connect-tv'\]/);
+  assert.match(navigation, /label: 'Подключить ТВ', href: '\/connect-tv'/);
   assert.match(application, /case 'connect-tv'/);
   assert.match(page, /selectedLocationId/);
   assert.match(page, /selectedScreenId/);
