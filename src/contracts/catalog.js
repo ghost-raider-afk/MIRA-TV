@@ -20,7 +20,8 @@ function finiteNumber(value, field, { min = Number.NEGATIVE_INFINITY, max = Numb
 
 function decimalString(value, field, { min = 0, max = 999999999.99, decimals = 2 } = {}) {
   const number = finiteNumber(value, field, { min, max });
-  return number.toFixed(decimals).replace(/(?:\.0+|(?<=\.[0-9]*?)0+)$/, '').replace(/\.$/, '');
+  const fixed = number.toFixed(decimals);
+  return fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
 }
 
 function optionValues(field) {
