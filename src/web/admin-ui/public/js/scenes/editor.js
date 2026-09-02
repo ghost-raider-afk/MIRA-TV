@@ -3,6 +3,8 @@ import { api } from '../core/api.js';
 import {
   applySceneElementGeometry,
   applySceneStage,
+  createSceneBackgroundNode,
+  createSceneElementNode,
   renderSceneLayer,
   SCENE_ELEMENT_LABELS,
   updateSceneClockElements,
@@ -53,6 +55,7 @@ const VARIANT_OPTIONS = Object.freeze({
 const state = {
   scene: null,
   selectedElementId: null,
+  clipboardElement: null,
   preview: false,
   catalogProducts: [],
   catalogStatus: 'idle',
@@ -74,6 +77,7 @@ const state = {
 };
 
 let previewRuntime = null;
+let contextMenu = null;
 
 function currentSlide() {
   return state.scene.slides.find((slide) => slide.id === state.scene.active_slide_id) || state.scene.slides[0];
@@ -259,11 +263,50 @@ function sceneRendererContext() {
   };
 }
 
+function elementNode(elementId) {
+  const layer = document.querySelector('#scene-elements-layer');
+  if (!layer || !elementId) return null;
+  return [...layer.querySelectorAll('.scene-render-element[data-element-id]')]
+    .find((node) => node.dataset.elementId === elementId) || null;
+}
+
+function refreshBackgroundNode() {
+  if (state.preview && previewRuntime?.enabled) {
+    previewRuntime.updateContext(sceneRendererContext());
+    return;
+  }
+  const layer = document.querySelector('#scene-elements-layer');
+  if (!layer) return;
+  layer.querySelector('.scene-render-background')?.remove();
+  const background = createSceneBackgroundNode(currentSlide(), sceneRendererContext());
+  if (background) layer.prepend(background);
+}
+
+function rebuildElementNode(element) {
+  if (!element || state.preview) return;
+  const existing = elementNode(element.id);
+  if (!existing) return;
+  const replacement = createSceneElementNode(element, state.scene, sceneRendererContext());
+  decorateEditorElement(replacement, element);
+  existing.replaceWith(replacement);
+}
+
+function refreshVisibleElements(predicate) {
+  if (state.preview && previewRuntime?.enabled) {
+    previewRuntime.updateContext(sceneRendererContext());
+    return;
+  }
+  for (const element of currentSlide()?.elements || []) {
+    if (predicate(element)) rebuildElementNode(element);
+  }
+  syncClockTimer();
+}
+
 async function loadCatalogProducts({ force = false } = {}) {
   if (!force && (state.catalogStatus === 'loading' || state.catalogStatus === 'ready')) return;
   state.catalogStatus = 'loading';
   state.catalogError = '';
-  renderElements();
+  refreshVisibleElements((element) => element.type === 'table');
   renderInspector();
   try {
     const products = await api.get(API.products);
@@ -274,7 +317,7 @@ async function loadCatalogProducts({ force = false } = {}) {
     state.catalogStatus = 'error';
     state.catalogError = error?.message || 'Не удалось загрузить каталог';
   }
-  renderElements();
+  refreshVisibleElements((element) => element.type === 'table');
   renderInspector();
 }
 
@@ -282,7 +325,6 @@ async function loadMediaAssets({ force = false } = {}) {
   if (!force && (state.mediaStatus === 'loading' || state.mediaStatus === 'ready')) return;
   state.mediaStatus = 'loading';
   state.mediaError = '';
-  renderElements();
   renderInspector();
   renderBackgroundControls();
   try {
@@ -293,7 +335,8 @@ async function loadMediaAssets({ force = false } = {}) {
     state.mediaStatus = 'error';
     state.mediaError = error?.message || 'Не удалось загрузить медиатеку';
   }
-  renderElements();
+  refreshVisibleElements((element) => MEDIA_ELEMENT_TYPES.has(element.type));
+  refreshBackgroundNode();
   renderInspector();
   renderBackgroundControls();
 }
@@ -377,13 +420,13 @@ async function uploadForElement(file, elementId, targetType) {
       element.asset_id = asset.id;
       touchScene(state.scene);
       scheduleAutosave();
+      rebuildElementNode(element);
       showMessage(`${SCENE_ELEMENT_LABELS[targetType]} обновлён.`);
     }
   } catch (error) {
     showMessage(error?.message || 'Не удалось загрузить медиафайл.', true);
   } finally {
     state.mediaUploading = false;
-    renderElements();
     renderInspector();
     renderBackgroundControls();
   }
@@ -403,13 +446,13 @@ async function uploadForBackground(file, slideId, backgroundType) {
       slide.background.asset_id = asset.id;
       touchScene(state.scene);
       scheduleAutosave();
+      refreshBackgroundNode();
       showMessage('Фон слайда обновлён.');
     }
   } catch (error) {
     showMessage(error?.message || 'Не удалось загрузить фон.', true);
   } finally {
     state.mediaUploading = false;
-    renderElements();
     renderBackgroundControls();
   }
 }
@@ -437,9 +480,14 @@ function appendTextElement(parent, tagName, text, className = '') {
   return node;
 }
 
-function markSelected(node, element) {
-  state.selectedElementId = element.id;
+function clearSelectionVisual() {
   document.querySelectorAll('.scene-render-element.is-selected').forEach((item) => item.classList.remove('is-selected'));
+}
+
+function markSelected(node, element) {
+  if (!node || !element) return;
+  state.selectedElementId = element.id;
+  clearSelectionVisual();
   node.classList.add('is-selected');
   renderInspector();
   if (MEDIA_ELEMENT_TYPES.has(element.type) && state.mediaStatus === 'idle') void loadMediaAssets();
@@ -448,7 +496,7 @@ function markSelected(node, element) {
 
 function installDrag(node, element) {
   node.addEventListener('pointerdown', (event) => {
-    if (state.preview || event.target.closest('.scene-resize-handle')) return;
+    if (event.button !== 0 || state.preview || event.target.closest('.scene-resize-handle')) return;
     markSelected(node, element);
     const stage = document.querySelector('#scene-stage');
     const rect = stage.getBoundingClientRect();
@@ -485,7 +533,7 @@ function installDrag(node, element) {
 
   const handle = node.querySelector('.scene-resize-handle');
   handle?.addEventListener('pointerdown', (event) => {
-    if (state.preview) return;
+    if (event.button !== 0 || state.preview) return;
     event.stopPropagation();
     markSelected(node, element);
     const stage = document.querySelector('#scene-stage');
@@ -533,11 +581,7 @@ function decorateEditorElement(node, element) {
   node.addEventListener('click', (event) => {
     if (state.preview) return;
     event.stopPropagation();
-    state.selectedElementId = element.id;
-    renderElements();
-    renderInspector();
-    if (MEDIA_ELEMENT_TYPES.has(element.type) && state.mediaStatus === 'idle') void loadMediaAssets();
-    if (element.type === 'weather') void loadWeatherForElement(element);
+    markSelected(node, element);
   });
   installDrag(node, element);
 }
@@ -798,7 +842,20 @@ function removeCurrentSlide() {
   showMessage('Слайд удалён.');
 }
 
-function updateSelected(mutator, { historyKey = null } = {}) {
+function patchSelectedElement(element, refresh = 'style') {
+  if (!element || state.preview) return;
+  if (refresh === 'content') {
+    rebuildElementNode(element);
+    return;
+  }
+  const node = elementNode(element.id);
+  const stage = document.querySelector('#scene-stage');
+  const stageWidth = stage?.getBoundingClientRect().width || state.scene.canvas_width;
+  if (node) applySceneElementGeometry(node, element, state.scene, stageWidth);
+  if (refresh === 'geometry') renderInspectorGeometry();
+}
+
+function updateSelected(mutator, { historyKey = null, refresh = 'style' } = {}) {
   const element = selectedElement();
   if (!element) return;
   recordHistory(historyKey);
@@ -809,8 +866,57 @@ function updateSelected(mutator, { historyKey = null } = {}) {
   element.height = clamp(element.height, 40, state.scene.canvas_height - element.y);
   touchScene(state.scene);
   scheduleAutosave();
+  patchSelectedElement(element, refresh);
+  if (element.type === 'clock') syncClockTimer();
+}
+
+function deleteSelectedElement({ notify = false } = {}) {
+  const slide = currentSlide();
+  const index = slide.elements.findIndex((item) => item.id === state.selectedElementId);
+  if (index < 0) return false;
+  recordHistory();
+  slide.elements.splice(index, 1);
+  state.selectedElementId = null;
+  touchScene(state.scene);
+  scheduleAutosave();
   renderElements();
   renderInspector();
+  if (notify) showMessage('Элемент удалён.');
+  return true;
+}
+
+function copySelectedElement({ notify = false } = {}) {
+  const element = selectedElement();
+  if (!element) return false;
+  state.clipboardElement = structuredClone(element);
+  if (notify) showMessage('Элемент скопирован.');
+  return true;
+}
+
+function pasteClipboardElement() {
+  if (!state.clipboardElement) return false;
+  const slide = currentSlide();
+  recordHistory();
+  const copy = structuredClone(state.clipboardElement);
+  copy.id = `element-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+  copy.x = clamp((Number(copy.x) || 0) + 32, 0, Math.max(0, state.scene.canvas_width - copy.width));
+  copy.y = clamp((Number(copy.y) || 0) + 32, 0, Math.max(0, state.scene.canvas_height - copy.height));
+  copy.z_index = Math.max(0, ...slide.elements.map((item) => Number(item.z_index) || 0)) + 1;
+  slide.elements.push(copy);
+  state.selectedElementId = copy.id;
+  state.clipboardElement = structuredClone(copy);
+  touchScene(state.scene);
+  scheduleAutosave();
+  renderElements();
+  renderInspector();
+  if (copy.type === 'weather') void loadWeatherForElement(copy);
+  showMessage('Элемент вставлен.');
+  return true;
+}
+
+function cutSelectedElement() {
+  if (!copySelectedElement()) return false;
+  return deleteSelectedElement({ notify: true });
 }
 
 function closeHistoryOnChange(selector) {
@@ -874,14 +980,14 @@ function bindSlideInspector() {
 function bindTableInspector() {
   document.querySelector('#table-active-only').addEventListener('change', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.active_only = event.target.checked;
-  }));
+  }, { refresh: 'content' }));
   document.querySelector('#table-row-limit').addEventListener('input', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.row_limit = Math.min(50, Math.max(1, Number(event.target.value) || 1));
-  }, { historyKey: 'table-row-limit' }));
+  }, { historyKey: 'table-row-limit', refresh: 'content' }));
   closeHistoryOnChange('#table-row-limit');
   document.querySelector('#table-volumes').addEventListener('change', (event) => updateSelected((element) => {
     if (element.type === 'table') element.table.volumes_l = parseTargetVolumes(event.target.value);
-  }));
+  }, { refresh: 'content' }));
   [
     ['#table-show-producer', 'show_producer'],
     ['#table-show-strength', 'show_strength'],
@@ -890,7 +996,7 @@ function bindTableInspector() {
   ].forEach(([selector, key]) => {
     document.querySelector(selector).addEventListener('change', (event) => updateSelected((element) => {
       if (element.type === 'table') element.table[key] = event.target.checked;
-    }));
+    }, { refresh: 'content' }));
   });
   document.querySelector('#table-refresh-catalog').addEventListener('click', () => void loadCatalogProducts({ force: true }));
 }
@@ -898,7 +1004,7 @@ function bindTableInspector() {
 function bindMediaInspector() {
   document.querySelector('#element-media-asset').addEventListener('change', (event) => updateSelected((element) => {
     if (MEDIA_ELEMENT_TYPES.has(element.type)) element.asset_id = event.target.value;
-  }));
+  }, { refresh: 'content' }));
   document.querySelector('#element-media-refresh').addEventListener('click', () => void loadMediaAssets({ force: true }));
   document.querySelector('#element-media-upload').addEventListener('click', () => {
     const element = selectedElement();
@@ -928,7 +1034,7 @@ function bindWeatherInspector() {
       if (target.type !== 'weather') return;
       target.weather = target.weather && typeof target.weather === 'object' ? target.weather : { location: '' };
       target.weather.location = value;
-    });
+    }, { refresh: 'content' });
     void loadWeatherForElement(findElement(element.id), { force: true });
   });
   document.querySelector('#weather-refresh').addEventListener('click', () => {
@@ -945,7 +1051,9 @@ function bindBackgroundControls() {
     slide.background.asset_id = '';
     touchScene(state.scene);
     scheduleAutosave();
-    render();
+    applySceneStage(document.querySelector('#scene-stage'), state.scene, slide);
+    refreshBackgroundNode();
+    renderBackgroundControls();
     if (slide.background.type !== 'color' && state.mediaStatus === 'idle') void loadMediaAssets();
   });
   document.querySelector('#slide-background-color').addEventListener('input', (event) => {
@@ -961,7 +1069,7 @@ function bindBackgroundControls() {
     currentSlide().background.asset_id = event.target.value;
     touchScene(state.scene);
     scheduleAutosave();
-    renderElements();
+    refreshBackgroundNode();
     renderBackgroundControls();
   });
   document.querySelector('#slide-background-refresh').addEventListener('click', () => void loadMediaAssets({ force: true }));
@@ -984,10 +1092,10 @@ function bindBackgroundControls() {
 function bindInspector() {
   bindSlideInspector();
   [['#element-x', 'x'], ['#element-y', 'y'], ['#element-width', 'width'], ['#element-height', 'height']].forEach(([selector, key]) => {
-    document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }, { historyKey: `geometry:${key}` }));
+    document.querySelector(selector).addEventListener('input', (event) => updateSelected((element) => { element[key] = Number(event.target.value); }, { historyKey: `geometry:${key}`, refresh: 'geometry' }));
     closeHistoryOnChange(selector);
   });
-  document.querySelector('#element-content').addEventListener('input', (event) => updateSelected((element) => { element.content = event.target.value; }, { historyKey: 'element-content' }));
+  document.querySelector('#element-content').addEventListener('input', (event) => updateSelected((element) => { element.content = event.target.value; }, { historyKey: 'element-content', refresh: 'content' }));
   closeHistoryOnChange('#element-content');
   document.querySelector('#element-color').addEventListener('input', (event) => updateSelected((element) => { element.style.color = event.target.value; }, { historyKey: 'element-color' }));
   closeHistoryOnChange('#element-color');
@@ -996,24 +1104,14 @@ function bindInspector() {
   closeHistoryOnChange('#element-font-size');
   document.querySelector('#element-opacity').addEventListener('input', (event) => updateSelected((element) => { element.opacity = Number(event.target.value); }, { historyKey: 'element-opacity' }));
   closeHistoryOnChange('#element-opacity');
-  document.querySelector('#element-variant').addEventListener('change', (event) => updateSelected((element) => { element.variant = event.target.value; }));
+  document.querySelector('#element-variant').addEventListener('change', (event) => updateSelected((element) => { element.variant = event.target.value; }, { refresh: 'content' }));
   document.querySelector('#element-shadow').addEventListener('change', (event) => updateSelected((element) => { element.effects.shadow = event.target.checked; }));
   document.querySelector('#element-glow').addEventListener('change', (event) => updateSelected((element) => { element.effects.glow = event.target.checked; }));
   document.querySelector('#element-entrance').addEventListener('change', (event) => updateSelected((element) => { element.animation.entrance = event.target.value; }));
   document.querySelector('#element-loop').addEventListener('change', (event) => updateSelected((element) => { element.animation.loop = event.target.value; }));
   document.querySelector('#element-exit').addEventListener('change', (event) => updateSelected((element) => { element.animation.exit = event.target.value; }));
 
-  document.querySelector('#element-delete').addEventListener('click', () => {
-    const slide = currentSlide();
-    const index = slide.elements.findIndex((item) => item.id === state.selectedElementId);
-    if (index < 0) return;
-    recordHistory();
-    slide.elements.splice(index, 1);
-    state.selectedElementId = null;
-    touchScene(state.scene);
-    scheduleAutosave();
-    render();
-  });
+  document.querySelector('#element-delete').addEventListener('click', () => deleteSelectedElement());
   document.querySelector('#element-duplicate').addEventListener('click', duplicateSelectedElement);
   document.querySelector('#element-forward').addEventListener('click', () => updateSelected((element) => {
     const max = Math.max(0, ...currentSlide().elements.map((item) => item.z_index));
@@ -1031,6 +1129,78 @@ function editableFocus() {
   return document.activeElement?.matches('input,select,textarea,[contenteditable="true"]');
 }
 
+function closeContextMenu() {
+  contextMenu?.remove();
+  contextMenu = null;
+}
+
+function contextMenuButton(label, shortcut, handler, { disabled = false, danger = false } = {}) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'scene-context-menu-item';
+  button.classList.toggle('is-danger', danger);
+  button.disabled = disabled;
+  appendTextElement(button, 'span', label);
+  if (shortcut) appendTextElement(button, 'kbd', shortcut);
+  button.addEventListener('click', () => {
+    closeContextMenu();
+    handler();
+  });
+  return button;
+}
+
+function showContextMenu(clientX, clientY) {
+  closeContextMenu();
+  const hasSelection = Boolean(selectedElement());
+  const menu = document.createElement('div');
+  menu.className = 'scene-context-menu';
+  menu.setAttribute('role', 'menu');
+  menu.append(
+    contextMenuButton('Вырезать', 'Ctrl+X', cutSelectedElement, { disabled: !hasSelection }),
+    contextMenuButton('Копировать', 'Ctrl+C', () => copySelectedElement({ notify: true }), { disabled: !hasSelection }),
+    contextMenuButton('Вставить', 'Ctrl+V', pasteClipboardElement, { disabled: !state.clipboardElement }),
+    document.createElement('hr'),
+    contextMenuButton('Дублировать', 'Ctrl+D', duplicateSelectedElement, { disabled: !hasSelection }),
+    contextMenuButton('На передний план', '', () => updateSelected((element) => {
+      element.z_index = Math.max(0, ...currentSlide().elements.map((item) => Number(item.z_index) || 0)) + 1;
+    }), { disabled: !hasSelection }),
+    contextMenuButton('На задний план', '', () => updateSelected((element) => {
+      element.z_index = 0;
+    }), { disabled: !hasSelection }),
+    document.createElement('hr'),
+    contextMenuButton('Удалить', 'Del', () => deleteSelectedElement({ notify: true }), { disabled: !hasSelection, danger: true })
+  );
+  document.body.append(menu);
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(8, Math.min(clientX, window.innerWidth - rect.width - 8))}px`;
+  menu.style.top = `${Math.max(8, Math.min(clientY, window.innerHeight - rect.height - 8))}px`;
+  contextMenu = menu;
+}
+
+function bindContextMenu() {
+  const stage = document.querySelector('#scene-stage');
+  stage.addEventListener('contextmenu', (event) => {
+    if (state.preview) return;
+    event.preventDefault();
+    const node = event.target.closest('.scene-render-element[data-element-id]');
+    if (node) {
+      const element = findElement(node.dataset.elementId);
+      if (element) markSelected(node, element);
+    } else {
+      state.selectedElementId = null;
+      clearSelectionVisual();
+      renderInspector();
+    }
+    showContextMenu(event.clientX, event.clientY);
+  });
+  window.addEventListener('pointerdown', (event) => {
+    if (contextMenu && !contextMenu.contains(event.target)) closeContextMenu();
+  }, true);
+  window.addEventListener('blur', closeContextMenu);
+  window.addEventListener('resize', closeContextMenu);
+  document.addEventListener('scroll', closeContextMenu, true);
+}
+
 function bindKeyboardShortcuts() {
   window.addEventListener('keydown', (event) => {
     if (state.preview) return;
@@ -1038,6 +1208,11 @@ function bindKeyboardShortcuts() {
     const command = event.ctrlKey || event.metaKey;
     const editing = editableFocus();
 
+    if (event.key === 'Escape' && contextMenu) {
+      event.preventDefault();
+      closeContextMenu();
+      return;
+    }
     if (command && !editing && key === 'z') {
       event.preventDefault();
       if (event.shiftKey) redoScene();
@@ -1049,6 +1224,21 @@ function bindKeyboardShortcuts() {
       redoScene();
       return;
     }
+    if (command && !editing && key === 'c' && state.selectedElementId) {
+      event.preventDefault();
+      copySelectedElement();
+      return;
+    }
+    if (command && !editing && key === 'x' && state.selectedElementId) {
+      event.preventDefault();
+      cutSelectedElement();
+      return;
+    }
+    if (command && !editing && key === 'v' && state.clipboardElement) {
+      event.preventDefault();
+      pasteClipboardElement();
+      return;
+    }
     if (command && !editing && key === 'd' && state.selectedElementId) {
       event.preventDefault();
       duplicateSelectedElement();
@@ -1056,7 +1246,7 @@ function bindKeyboardShortcuts() {
     }
     if (event.key === 'Delete' && state.selectedElementId && !editing) {
       event.preventDefault();
-      document.querySelector('#element-delete').click();
+      deleteSelectedElement();
     }
   });
 }
@@ -1068,7 +1258,7 @@ function bindGlobalControls() {
   document.querySelector('#scene-stage').addEventListener('click', () => {
     if (state.preview) return;
     state.selectedElementId = null;
-    renderElements();
+    clearSelectionVisual();
     renderInspector();
   });
   document.querySelector('#scene-undo').addEventListener('click', undoScene);
@@ -1095,6 +1285,7 @@ function bindGlobalControls() {
     render();
   });
   document.querySelector('#scene-preview-toggle').addEventListener('click', (event) => {
+    closeContextMenu();
     if (!state.preview) {
       state.preview = true;
       closeHistoryGroup();
@@ -1115,6 +1306,7 @@ function bindGlobalControls() {
     event.target.textContent = 'Предпросмотр';
     render();
   });
+  bindContextMenu();
   bindKeyboardShortcuts();
   window.addEventListener('beforeunload', (event) => {
     if (state.dirtyVersion <= state.savedVersion && !state.saving) return;
@@ -1156,6 +1348,7 @@ export async function initialiseSceneEditor() {
   state.dirtyVersion = 0;
   state.savedVersion = 0;
   state.saveConflict = false;
+  state.clipboardElement = null;
   state.weatherByElement = {};
   state.weatherStatus = {};
   state.weatherRequestVersion = {};
