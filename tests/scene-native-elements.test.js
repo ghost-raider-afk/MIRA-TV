@@ -25,7 +25,7 @@ test('Table element renders native table structure instead of a card with grid r
   assert.match(html, /Высота строк/);
 });
 
-test('Clock and weather are first-class iPhone-like widget layouts with transparent surface option', async () => {
+test('Clock and weather are first-class widget layouts with transparent surface option', async () => {
   const [renderer, css, html, controls] = await Promise.all([
     read('src/web/admin-ui/public/js/scene-runtime/renderer.js'),
     read('src/web/admin-ui/public/css/scene-renderer.css'),
@@ -40,8 +40,9 @@ test('Clock and weather are first-class iPhone-like widget layouts with transpar
   assert.match(css, /scene-element-weather\[data-transparent-background="false"\]::before/);
   assert.match(html, /id="element-background-mode"/);
   assert.match(html, /<option value="transparent">Прозрачный<\/option>/);
-  assert.match(html, /iPhone · тёмный/);
-  assert.match(html, /iPhone · светлый/);
+  assert.match(html, /<option value="ios-dark">Тёмный<\/option>/);
+  assert.match(html, /<option value="ios-light">Светлый<\/option>/);
+  assert.doesNotMatch(html, /iPhone/i);
   assert.match(controls, /background: 'transparent'/);
 });
 
@@ -50,8 +51,9 @@ test('Inspector scrolling cannot resize desktop Canvas workspace', async () => {
     read('src/web/admin-ui/public/css/pages/scene-editor-workspace.css'),
     read('src/web/admin-ui/public/js/application.js')
   ]);
-  assert.match(workspace, /height: calc\(100dvh - 24px\)/);
-  assert.match(workspace, /\.scene-inspector[\s\S]*overscroll-behavior: contain/);
+  assert.match(workspace, /body\[data-page="scene-editor"\][\s\S]*height: 100dvh/);
+  assert.match(workspace, /body\[data-page="scene-editor"\][\s\S]*overflow: hidden/);
+  assert.match(workspace, /\.scene-inspector[\s\S]*scrollbar-gutter: stable/);
   assert.match(application, /import\('\.\/scenes\/format-controls\.js'\)/);
   assert.match(application, /initialiseSceneFormatControls\(\)/);
 });
