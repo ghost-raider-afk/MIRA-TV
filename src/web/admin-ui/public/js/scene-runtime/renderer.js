@@ -275,19 +275,67 @@ export function renderSceneElementContent(node, element, context = {}) {
   node.textContent = element.content || SCENE_ELEMENT_LABELS[element.type] || '';
 }
 
+function horizontalFlex(value) {
+  if (value === 'left') return 'flex-start';
+  if (value === 'right') return 'flex-end';
+  return 'center';
+}
+
+function verticalFlex(value) {
+  if (value === 'top') return 'flex-start';
+  if (value === 'bottom') return 'flex-end';
+  return 'center';
+}
+
+function applyMediaPresentation(node, element) {
+  const media = node.querySelector('.scene-media-content');
+  if (!media) return;
+  const fit = ['cover', 'contain', 'fill'].includes(element.media?.fit)
+    ? element.media.fit
+    : (element.type === 'logo' ? 'contain' : 'cover');
+  const position = ['center', 'top', 'bottom', 'left', 'right'].includes(element.media?.position)
+    ? element.media.position
+    : 'center';
+  media.style.objectFit = fit;
+  media.style.objectPosition = position;
+}
+
 export function applySceneElementGeometry(node, element, scene, stageWidth) {
   const renderedWidth = Number(stageWidth) || scene.canvas_width;
+  const scale = renderedWidth / scene.canvas_width;
+  const style = element.style || {};
   node.style.left = `${(element.x / scene.canvas_width) * 100}%`;
   node.style.top = `${(element.y / scene.canvas_height) * 100}%`;
   node.style.width = `${(element.width / scene.canvas_width) * 100}%`;
   node.style.height = `${(element.height / scene.canvas_height) * 100}%`;
   node.style.zIndex = String(element.z_index);
   node.style.opacity = String(element.opacity);
-  node.style.color = element.style.color;
-  node.style.background = element.style.background;
-  node.style.borderRadius = `${element.style.radius || 0}px`;
-  node.style.fontSize = `${Math.max(12, element.style.font_size * (renderedWidth / scene.canvas_width))}px`;
-  node.style.setProperty('--scene-element-blur', `${Number(element.effects?.blur) || 0}px`);
+  node.style.color = style.color || '#ffffff';
+  node.style.background = style.background || 'transparent';
+  node.style.borderRadius = `${Math.max(0, Number(style.radius) || 0) * scale}px`;
+  node.style.borderStyle = 'solid';
+  node.style.borderWidth = `${Math.max(0, Number(style.border_width) || 0) * scale}px`;
+  node.style.borderColor = style.border_color || '#ffffff';
+  node.style.fontSize = `${Math.max(8, (Number(style.font_size) || 40) * scale)}px`;
+  node.style.fontWeight = String(Number(style.font_weight) || 400);
+  node.style.setProperty('--scene-render-scale', String(scale));
+  node.style.setProperty('--scene-element-blur', `${Math.max(0, Number(element.effects?.blur) || 0) * scale}px`);
+
+  if (element.type === 'text') {
+    node.style.textAlign = style.text_align || 'center';
+    node.style.justifyContent = horizontalFlex(style.text_align);
+    node.style.alignItems = verticalFlex(style.vertical_align);
+    node.style.lineHeight = String(Number(style.line_height) || 1.06);
+    node.style.letterSpacing = `${(Number(style.letter_spacing) || 0) * scale}px`;
+  } else {
+    node.style.textAlign = 'center';
+    node.style.justifyContent = '';
+    node.style.alignItems = '';
+    node.style.lineHeight = '';
+    node.style.letterSpacing = '';
+  }
+
+  applyMediaPresentation(node, element);
   node.classList.toggle('has-shadow', Boolean(element.effects?.shadow));
   node.classList.toggle('has-glow', Boolean(element.effects?.glow));
   node.classList.toggle('has-blur', Number(element.effects?.blur) > 0);
