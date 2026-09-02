@@ -2,17 +2,17 @@ import { pageName } from './config.js';
 
 export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Обзор', prefetch: false }),
-  Object.freeze({ path: '/scenes', page: 'scenes', section: 'scenes', title: 'Сцены', prefetch: true }),
-  Object.freeze({ path: '/scene-editor', page: 'scene-editor', section: 'scenes', title: 'Конструктор сцены', prefetch: true }),
-  Object.freeze({ path: '/locations', page: 'locations', section: 'monitors', title: 'Торговые точки', prefetch: true }),
-  Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
-  Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
-  Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Редактор меню', prefetch: true }),
-  Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
-  Object.freeze({ path: '/playlist', page: 'playlist', section: 'playlist', title: 'Плейлист', prefetch: true }),
-  Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
-  Object.freeze({ path: '/events', page: 'events', section: 'settings', title: 'Журнал событий', prefetch: true }),
-  Object.freeze({ path: '/profile', page: 'profile', section: 'settings', title: 'Профиль', prefetch: true })
+  Object.freeze({ path: '/scenes', page: 'scenes', section: 'content', title: 'Сцены', prefetch: true }),
+  Object.freeze({ path: '/scene-editor', page: 'scene-editor', section: 'content', title: 'Конструктор сцены', prefetch: true }),
+  Object.freeze({ path: '/catalog', page: 'catalog', section: 'content', title: 'Каталог', prefetch: true }),
+  Object.freeze({ path: '/playlist', page: 'playlist', section: 'content', title: 'Плейлисты', prefetch: true }),
+  Object.freeze({ path: '/screens', page: 'screens', section: 'show', title: 'Мониторы', prefetch: true }),
+  Object.freeze({ path: '/locations', page: 'locations', section: 'show', title: 'Торговые точки', prefetch: true }),
+  Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'show', title: 'Подключить ТВ', prefetch: true }),
+  Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'show', title: 'Мониторы', prefetch: false }),
+  Object.freeze({ path: '/settings', page: 'settings', section: 'system', title: 'Настройки', prefetch: true }),
+  Object.freeze({ path: '/events', page: 'events', section: 'system', title: 'Журнал событий', prefetch: true }),
+  Object.freeze({ path: '/profile', page: 'profile', section: 'system', title: 'Профиль', prefetch: true })
 ]);
 
 const ROUTE_BY_PAGE = new Map(ROUTE_DEFINITIONS.map((route) => [route.page, route]));
@@ -37,21 +37,16 @@ export function isAppRoutePath(pathname) {
 
 export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((route) => route.prefetch).map((route) => route.path));
 
-const CONTEXT_LINKS = Object.freeze({
-  overview: Object.freeze([['Обзор', '/']]),
-  scenes: Object.freeze([['Сцены', '/scenes']]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Подключить ТВ', '/connect-tv']]),
-  catalog: Object.freeze([['Продукция', '/catalog']]),
-  playlist: Object.freeze([['Плейлист', '/playlist']]),
-  settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
-});
-
 export const PRIMARY_ROUTES = Object.freeze([
-  Object.freeze({ key: 'scenes', label: 'Сцены', href: '/scenes', icon: 'motion' }),
-  Object.freeze({ key: 'monitors', label: 'Мониторы', href: '/screens', icon: 'monitor' }),
-  Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
-  Object.freeze({ key: 'playlist', label: 'Плейлист', href: '/playlist', icon: 'motion' }),
-  Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings', icon: 'settings' })
+  Object.freeze({ key: 'overview', page: 'overview', label: 'Обзор', href: '/', icon: 'home', group: 'main' }),
+  Object.freeze({ key: 'scenes', page: 'scenes', label: 'Сцены', href: '/scenes', icon: 'scenes', group: 'content' }),
+  Object.freeze({ key: 'catalog', page: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog', group: 'content' }),
+  Object.freeze({ key: 'playlist', page: 'playlist', label: 'Плейлисты', href: '/playlist', icon: 'playlist', group: 'content' }),
+  Object.freeze({ key: 'screens', page: 'screens', label: 'Мониторы', href: '/screens', icon: 'monitor', group: 'show' }),
+  Object.freeze({ key: 'locations', page: 'locations', label: 'Торговые точки', href: '/locations', icon: 'location', group: 'show' }),
+  Object.freeze({ key: 'connect-tv', page: 'connect-tv', label: 'Подключить ТВ', href: '/connect-tv', icon: 'connect', group: 'show' }),
+  Object.freeze({ key: 'events', page: 'events', label: 'Журнал', href: '/events', icon: 'events', group: 'system' }),
+  Object.freeze({ key: 'settings', page: 'settings', label: 'Настройки', href: '/settings', icon: 'settings', group: 'system' })
 ]);
 
 export function navigationState(currentPage = pageName()) {
@@ -60,7 +55,7 @@ export function navigationState(currentPage = pageName()) {
     currentPage,
     section: route.section,
     title: route.title,
-    contextLinks: CONTEXT_LINKS[route.section] || CONTEXT_LINKS.overview
+    contextLinks: []
   };
 }
 
