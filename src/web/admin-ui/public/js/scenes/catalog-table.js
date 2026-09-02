@@ -4,6 +4,7 @@ const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
 const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
 const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
+const TABLE_PRICE_LAYOUTS = new Set(['single', 'quantities']);
 
 function toNumber(value) {
   if (typeof value === 'string') value = value.replace(',', '.').trim();
@@ -29,6 +30,11 @@ function classCode(value) {
   return /^[a-z][a-z0-9_]{1,63}$/.test(code) ? code : '';
 }
 
+function unit(value, fallback = 'л') {
+  const text = String(value || '').trim().slice(0, 24);
+  return text || fallback;
+}
+
 export function normaliseTableConfig(source = {}) {
   const rawQuantities = Array.isArray(source.quantities)
     ? source.quantities
@@ -46,6 +52,8 @@ export function normaliseTableConfig(source = {}) {
     group_by_class: source.group_by_class !== false,
     show_description: source.show_description === true,
     show_metadata: source.show_metadata !== false,
+    price_layout: option(source.price_layout, TABLE_PRICE_LAYOUTS, 'quantities'),
+    quantity_unit: unit(source.quantity_unit, 'л'),
     base_volume_l: Math.max(0.001, toNumber(source.base_volume_l) || 1),
     quantities: quantities.length ? quantities : [...DEFAULT_QUANTITIES],
     volumes_l: quantities.length ? quantities : [...DEFAULT_QUANTITIES],
@@ -122,17 +130,11 @@ function filteredItems(items, config) {
     .filter((item) => (!config.active_only || item.active !== false) && (!config.class_code || item.class_code === config.class_code));
 }
 
-function sameQuantityPricing(items) {
-  if (!items.length) return false;
-  const unit = String(items[0].unit || '');
-  return Boolean(unit) && items.every((item) => ['proportional', 'weight'].includes(item.pricing_model) && String(item.unit || '') === unit);
-}
-
-export function formatQuantity(quantity, unit = '') {
+export function formatQuantity(quantity, quantityUnit = '') {
   const number = toNumber(quantity);
   if (number === null) return '';
   const formatted = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(number);
-  return unit ? `${formatted} ${unit}` : formatted;
+  return quantityUnit ? `${formatted} ${quantityUnit}` : formatted;
 }
 
 export function formatVolume(volume) {
@@ -197,26 +199,21 @@ function itemPriceLabel(item) {
   if (['proportional', 'weight'].includes(item.pricing_model)) {
     return `${formatPrice(base)} / ${formatQuantity(item.base_quantity, item.unit)}`;
   }
-  if (item.pricing_model === 'variant' && Array.isArray(item.attributes?.variants) && item.attributes.variants.length) {
-    return 'по вариантам';
-  }
+  if (item.pricing_model === 'variant' && Array.isArray(item.attributes?.variants) && item.attributes.variants.length) return 'по вариантам';
   return formatPrice(base);
 }
 
-export function catalogTableColumns(configSource = {}, itemsSource = []) {
+export function catalogTableColumns(configSource = {}, _itemsSource = []) {
   const config = normaliseTableConfig(configSource);
-  const items = filteredItems(itemsSource, config);
-  const quantityPricing = sameQuantityPricing(items);
   const compact = config.appearance.preset === 'clean';
   const columns = [{ key: compact ? 'product' : 'name', label: compact ? '' : 'Название', kind: 'product', weight: compact ? 3.2 : 2.4 }];
 
   if (!compact && !config.group_by_class) columns.push({ key: 'class_name', label: 'Класс', kind: 'text', weight: 1.05 });
   if (!compact && config.show_metadata) columns.push({ key: 'metadata', label: 'Описание', kind: 'text', weight: 1.8 });
 
-  if (quantityPricing) {
-    const unit = items[0]?.unit || '';
+  if (config.price_layout === 'quantities') {
     for (const quantity of config.quantities) {
-      columns.push({ key: `price:${quantity}`, label: formatQuantity(quantity, unit), kind: 'price', quantity, weight: 0.82 });
+      columns.push({ key: `price:${quantity}`, label: formatQuantity(quantity, config.quantity_unit), kind: 'price', quantity, weight: 0.82 });
     }
   } else {
     columns.push({ key: 'price', label: 'Цена', kind: 'price', weight: 1.05 });
@@ -227,7 +224,6 @@ export function catalogTableColumns(configSource = {}, itemsSource = []) {
 export function buildCatalogTableRows(itemsSource, configSource = {}) {
   const config = normaliseTableConfig(configSource);
   const items = filteredItems(itemsSource, config).slice(0, config.row_limit);
-  const quantityPricing = sameQuantityPricing(items);
   return items.map((item) => {
     const name = String(item.name || 'Без названия');
     const metadata = itemMetadata(item, config);
@@ -238,7 +234,7 @@ export function buildCatalogTableRows(itemsSource, configSource = {}) {
       product: metadata ? `${name}\n${metadata}` : name,
       price: itemPriceLabel(item)
     };
-    if (quantityPricing) {
+    if (config.price_layout === 'quantities') {
       for (const quantity of config.quantities) {
         const price = resolveVolumePrice(item, quantity, item.base_quantity);
         values[`price:${quantity}`] = config.appearance.preset === 'clean' ? formatPlainPrice(price) : formatPrice(price);
