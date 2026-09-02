@@ -27,8 +27,25 @@ test('Scene Editor is a full-screen three-pane Designer workspace', async () => 
   assert.doesNotMatch(designer, /classList\.add\([^\n]*scene-inspector-collapsed/);
   assert.match(designer, /classList\.remove\('scene-inspector-collapsed'\)/);
   assert.match(designer, /Math\.min\(available\.width, available\.height \* aspect\)/);
-  assert.match(designer, /rescaleRenderedElements\(stage, width \/ canvasWidth\)/);
+  assert.match(designer, /rescaleRenderedElements\(stage, nextScale\)/);
   assert.doesNotMatch(designer, /stage\.style\.transform = `scale/);
+});
+
+test('Scene Designer owns explicit Fit and manual zoom without resizing from Inspector content', async () => {
+  const [designer, css] = await Promise.all([
+    read('src/web/admin-ui/public/js/scenes/designer.js'),
+    read('src/web/admin-ui/public/css/pages/scene-designer.css')
+  ]);
+
+  for (const id of ['scene-zoom-out', 'scene-zoom-fit', 'scene-zoom-in', 'scene-zoom-actual', 'scene-zoom-value']) {
+    assert.ok(designer.includes(id), `missing zoom control: ${id}`);
+  }
+  assert.match(designer, /let zoomMode = 'fit'/);
+  assert.match(designer, /if \(zoomMode === 'fit'\) fitStageToWorkspace\(\)/);
+  assert.match(designer, /manualZoom = 1/);
+  assert.match(css, /\.scene-stage-column[\s\S]*grid-template-rows: minmax\(0, 1fr\) 38px/);
+  assert.match(css, /\.scene-stage-shell[\s\S]*overflow: auto/);
+  assert.match(css, /\.scene-zoom-controls/);
 });
 
 test('Monitors are assignment endpoints and no longer open the legacy content editor', async () => {
