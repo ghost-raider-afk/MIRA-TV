@@ -1,6 +1,5 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { navigate } from '../core/router.js';
 import { state } from '../core/state.js';
 import { element, makeButton, setMessage } from '../core/dom.js';
 import { formatDate } from '../core/presentation.js';
@@ -22,17 +21,6 @@ async function loadScreens() {
   return state.screens;
 }
 
-function createSourceSelect() {
-  const select = document.createElement('select');
-  select.className = 'screen-copy-source';
-  select.setAttribute('aria-label', 'Образец нового монитора');
-  select.append(new Option('Пустой монитор', ''));
-  state.screens.forEach((screen) => {
-    select.append(new Option(`По образцу: ${screen.location_name} · ${screen.name}`, String(screen.id)));
-  });
-  return select;
-}
-
 function bindingForScreen(screenId) {
   return state.deviceBindings.find((binding) => Number(binding.screen_id) === Number(screenId)) || null;
 }
@@ -52,7 +40,7 @@ function bindingSummary(binding) {
 }
 
 function assignmentSummary(assignment) {
-  return assignment ? `${assignment.scene_name} · ревизия ${assignment.revision_number}` : 'Сцена не назначена · используется текущий экран';
+  return assignment ? `${assignment.scene_name} · ревизия ${assignment.revision_number}` : 'Сцена не назначена';
 }
 
 function createSceneControl(screen, assignment) {
@@ -92,7 +80,7 @@ function createSceneControl(screen, assignment) {
   control.append(current, actions);
   if (state.sceneRevisions.length === 0) {
     const hint = document.createElement('small');
-    hint.textContent = 'Сначала опубликуйте сцену в разделе «Сцены».';
+    hint.textContent = 'Сначала создайте и опубликуйте сцену в разделе «Сцены».';
     control.append(hint);
   } else if (singleDisplayRevisions().length === 0) {
     const hint = document.createElement('small');
@@ -120,13 +108,9 @@ function renderScreens() {
     details.textContent = location.address || 'Адрес не указан';
     title.append(heading, details);
 
-    const create = document.createElement('div');
-    create.className = 'screen-create-control';
-    const source = createSourceSelect();
-    const add = makeButton('+ Монитор', '', () => void createScreenAtLocation(location, source.value));
+    const add = makeButton('+ Монитор', '', () => void createScreenAtLocation(location));
     add.classList.add('screen-location-add');
-    create.append(source, add);
-    header.append(title, create);
+    header.append(title, add);
 
     const screens = state.screens.filter((screen) => screen.location_id === location.id);
     const items = document.createElement('div');
@@ -140,18 +124,17 @@ function renderScreens() {
 
       const main = document.createElement('div');
       main.className = 'screen-location-main';
-      const link = document.createElement('a');
-      link.href = `/screen-editor?id=${screen.id}`;
+      const identity = document.createElement('div');
+      identity.className = 'screen-monitor-identity';
       const name = document.createElement('strong');
       name.textContent = screen.name;
       const info = document.createElement('span');
-      const status = screen.status === 'published' ? 'опубликовано' : screen.status === 'ready' ? 'готово' : 'черновик';
-      info.textContent = `${screen.resolution} · ${status}`;
+      info.textContent = screen.resolution || '1920×1080';
       const tv = document.createElement('span');
       tv.className = `screen-tv-binding${binding ? ' is-bound' : ''}`;
       tv.textContent = bindingSummary(binding);
-      link.append(name, info, tv);
-      main.append(link, createSceneControl(screen, assignment));
+      identity.append(name, info, tv);
+      main.append(identity, createSceneControl(screen, assignment));
 
       const actions = document.createElement('div');
       actions.className = 'screen-location-actions';
@@ -226,11 +209,11 @@ async function deleteScreen(screen) {
   }
 }
 
-async function createScreenAtLocation(location, sourceId) {
+async function createScreenAtLocation(location) {
   try {
-    const payload = sourceId ? { source_screen_id: Number(sourceId) } : {};
-    const screen = await api.post(`${API.locations}/${location.id}/screens`, payload);
-    await navigate(`/screen-editor?id=${screen.id}`);
+    await api.post(`${API.locations}/${location.id}/screens`, {});
+    setMessage('screens-message', `Монитор создан в точке «${location.name}». Назначьте ему опубликованную сцену.`, 'success');
+    await loadScreens();
   } catch (error) {
     setMessage('screens-message', error.message);
   }
