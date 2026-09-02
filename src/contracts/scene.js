@@ -12,6 +12,11 @@ const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal']);
 const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
 const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
+const FONT_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 900]);
+const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
+const VERTICAL_ALIGNS = new Set(['top', 'center', 'bottom']);
+const MEDIA_FITS = new Set(['cover', 'contain', 'fill']);
+const MEDIA_POSITIONS = new Set(['center', 'top', 'bottom', 'left', 'right']);
 const MAX_SLIDES = 50;
 const MAX_ELEMENTS_PER_SLIDE = 200;
 const DISPLAY_WIDTH = 1920;
@@ -47,6 +52,12 @@ function optionalString(value, field, max) {
 
 function enumValue(value, field, allowed, fallback) {
   const result = value ?? fallback;
+  if (!allowed.has(result)) throw new ValidationError(`Поле «${field}» содержит неподдерживаемое значение.`);
+  return result;
+}
+
+function numericEnumValue(value, field, allowed, fallback) {
+  const result = Number(value ?? fallback);
   if (!allowed.has(result)) throw new ValidationError(`Поле «${field}» содержит неподдерживаемое значение.`);
   return result;
 }
@@ -104,6 +115,14 @@ function weatherConfig(value) {
   };
 }
 
+function mediaConfig(value, type) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    fit: enumValue(source.fit, 'element.media.fit', MEDIA_FITS, type === 'logo' ? 'contain' : 'cover'),
+    position: enumValue(source.position, 'element.media.position', MEDIA_POSITIONS, 'center')
+  };
+}
+
 function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
   const value = object(source, `slides[${slideIndex}].elements[${elementIndex}]`);
   const id = stableId(value.id, 'element.id');
@@ -131,8 +150,15 @@ function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
     style: {
       color: optionalString(style.color || '#ffffff', 'element.style.color', 64) || '#ffffff',
       font_size: numeric(style.font_size ?? 40, 'element.style.font_size', 8, 400),
+      font_weight: numericEnumValue(style.font_weight, 'element.style.font_weight', FONT_WEIGHTS, 400),
+      text_align: enumValue(style.text_align, 'element.style.text_align', TEXT_ALIGNS, 'center'),
+      vertical_align: enumValue(style.vertical_align, 'element.style.vertical_align', VERTICAL_ALIGNS, 'center'),
+      line_height: numeric(style.line_height ?? 1.06, 'element.style.line_height', 0.5, 3),
+      letter_spacing: numeric(style.letter_spacing ?? 0, 'element.style.letter_spacing', -50, 100),
       background: optionalString(style.background || 'transparent', 'element.style.background', 160) || 'transparent',
-      radius: numeric(style.radius ?? 0, 'element.style.radius', 0, 500)
+      radius: numeric(style.radius ?? 0, 'element.style.radius', 0, 500),
+      border_width: numeric(style.border_width ?? 0, 'element.style.border_width', 0, 40),
+      border_color: optionalString(style.border_color || '#ffffff', 'element.style.border_color', 64) || '#ffffff'
     },
     effects: {
       shadow: bool(effects.shadow),
@@ -146,7 +172,10 @@ function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
       duration_ms: integer(animation.duration_ms ?? 600, 'element.animation.duration_ms', 0, 60000)
     }
   };
-  if (MEDIA_ELEMENT_TYPES.has(type)) result.asset_id = optionalMediaAssetId(value.asset_id, 'element.asset_id');
+  if (MEDIA_ELEMENT_TYPES.has(type)) {
+    result.asset_id = optionalMediaAssetId(value.asset_id, 'element.asset_id');
+    result.media = mediaConfig(value.media, type);
+  }
   if (type === 'table') {
     const binding = value.data_binding && typeof value.data_binding === 'object' && !Array.isArray(value.data_binding) ? value.data_binding : {};
     if ((binding.source ?? 'catalog_products') !== 'catalog_products') throw new ValidationError('Текущий прототип поддерживает только источник таблицы catalog_products.');
