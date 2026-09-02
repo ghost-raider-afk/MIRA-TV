@@ -1,4 +1,5 @@
 import express from 'express';
+import { catalogItemInput } from '../../contracts/catalog.js';
 import { packagingInput, positiveId, productInput } from '../../contracts/input.js';
 import { applyProductsImport, importProductsCsv, previewProductsImport, productsToCsv } from '../../services/catalog-csv-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
@@ -42,9 +43,68 @@ async function notifyProductImportScreens(store, realtime, updatedIds) {
   realtime.notifyScreens(screenIds(affected));
 }
 
+async function resolvedCatalogClasses(store) {
+  const classes = await store.listCatalogClasses();
+  return Promise.all(classes.map((item) => store.getCatalogClassWithSchema(item.id)));
+}
+
 export function createCatalogRouter({ store, realtime }) {
   const router = express.Router();
 
+  router.get('/classes', async (_request, response) => response.json(await resolvedCatalogClasses(store)));
+  router.get('/items', async (_request, response) => response.json(await store.listCatalogItems()));
+  router.get('/items/:id', async (request, response) => {
+    const item = await store.getCatalogItem(positiveId(request.params.id, 'id'));
+    if (!item) throw notFound();
+    response.json(item);
+  });
+  router.post('/items', async (request, response) => {
+    const classId = positiveId(request.body?.class_id, 'class_id');
+    const catalogClass = await store.getCatalogClassWithSchema(classId);
+    if (!catalogClass || catalogClass.active === false) throw notFound('Класс каталога не найден.');
+    const input = catalogItemInput(request.body, catalogClass);
+    const item = await catalogWrite(() => store.createCatalogItem(input), 'Позиция', input.name);
+    await activity(store, request, {
+      action: 'catalog.item.created',
+      entity_type: 'catalog_item',
+      entity_id: item.id,
+      message: `Добавлена позиция каталога «${item.name}» (${item.class_name}).`
+    });
+    response.status(201).json(item);
+  });
+  router.put('/items/:id', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const classId = positiveId(request.body?.class_id, 'class_id');
+    const catalogClass = await store.getCatalogClassWithSchema(classId);
+    if (!catalogClass || catalogClass.active === false) throw notFound('Класс каталога не найден.');
+    const input = catalogItemInput(request.body, catalogClass);
+    const item = await catalogWrite(() => store.updateCatalogItem(id, input), 'Позиция', input.name);
+    if (!item) throw notFound();
+    await activity(store, request, {
+      action: 'catalog.item.updated',
+      entity_type: 'catalog_item',
+      entity_id: item.id,
+      message: `Обновлена позиция каталога «${item.name}» (${item.class_name}).`
+    });
+    realtime?.notifyAll?.();
+    response.json(item);
+  });
+  router.delete('/items/:id', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const item = await store.getCatalogItem(id);
+    if (!item) throw notFound();
+    await store.deleteCatalogItem(id);
+    await activity(store, request, {
+      action: 'catalog.item.deleted',
+      entity_type: 'catalog_item',
+      entity_id: id,
+      message: `Удалена позиция каталога «${item.name}».`
+    });
+    realtime?.notifyAll?.();
+    response.status(204).end();
+  });
+
+  // Legacy API remains during the transition so existing menu drafts and CSV tooling stay readable.
   router.get('/products', async (_request, response) => response.json(await store.listProducts()));
   router.get('/products/export.csv', async (_request, response) => {
     const csv = productsToCsv(await store.listProducts());
