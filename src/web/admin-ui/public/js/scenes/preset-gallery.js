@@ -1,6 +1,10 @@
 import { SCENE_PRESETS, addScenePresetCampaign, applySceneDesignPreset } from './scene-presets.js';
 import { getScene, updateSceneRemote } from './store.js';
 
+const PRESET_DISPLAY_NAMES = Object.freeze({
+  taproom: 'Taproom'
+});
+
 function sceneId() {
   return new URLSearchParams(window.location.search).get('id') || '';
 }
@@ -11,6 +15,10 @@ function sleep(ms) {
 
 function sceneLooksEmpty() {
   return document.querySelectorAll('#scene-elements-layer .scene-render-element[data-element-id]').length === 0;
+}
+
+function presetDisplayName(preset) {
+  return PRESET_DISPLAY_NAMES[preset.id] || preset.name;
 }
 
 async function flushEditorSave() {
@@ -36,12 +44,13 @@ function setBusy(root, busy) {
 async function applyPreset(preset, root, message, mode = 'style') {
   const id = sceneId();
   if (!id) return;
+  const name = presetDisplayName(preset);
   setBusy(root, true);
   message.classList.add('is-visible');
   message.classList.remove('is-warning');
   message.textContent = mode === 'campaign'
-    ? `Добавляем комплект «${preset.name}» из ${preset.campaign.length} слайдов…`
-    : `Применяем «${preset.name}». Геометрия, тексты и выбранный состав меню сохраняются.`;
+    ? `Добавляем комплект «${name}» из ${preset.campaign.length} слайдов…`
+    : `Применяем «${name}»…`;
   try {
     await flushEditorSave();
     const current = await getScene(id);
@@ -50,10 +59,10 @@ async function applyPreset(preset, root, message, mode = 'style') {
       : applySceneDesignPreset(current, preset, { mode: 'auto' });
     await updateSceneRemote(result.scene);
     message.textContent = mode === 'campaign'
-      ? `Добавлен комплект «${preset.name}»: ${result.addedSlides} слайда.`
+      ? `Добавлен комплект «${name}»: ${result.addedSlides} слайда.`
       : result.seeded
-        ? `Создан готовый комплект «${preset.name}» из ${result.addedSlides} слайдов.`
-        : `Стиль «${preset.name}» применён.`;
+        ? `Создан комплект «${name}» из ${result.addedSlides} слайдов.`
+        : `Дизайн «${name}» применён.`;
     await sleep(240);
     window.location.reload();
   } catch (error) {
@@ -90,13 +99,12 @@ function card(preset) {
       <span class="scene-preset-live-widget">${preset.widget === 'clock' ? '21:45' : '☀ 18°'}</span>
     </div>
     <div class="scene-preset-card-copy">
-      <div class="scene-preset-card-title"><span>${preset.category}</span><h3>${preset.name}</h3><em>${preset.campaign.length} слайда</em></div>
-      <p>${preset.description}</p>
+      <div class="scene-preset-card-title"><span>${preset.category}</span><h3>${presetDisplayName(preset)}</h3><em>${preset.campaign.length} слайда</em></div>
       <div class="scene-preset-campaign-strip" aria-label="Состав комплекта">${campaignStrip(preset)}</div>
     </div>
     <div class="scene-preset-card-actions">
       <button type="button" class="button button-primary" data-apply-preset="${preset.id}">Применить</button>
-      <button type="button" class="button button-secondary" data-add-preset-campaign="${preset.id}" title="Добавить готовый комплект слайдов в текущую сцену">+ ${preset.campaign.length} слайда</button>
+      <button type="button" class="button button-secondary" data-add-preset-campaign="${preset.id}" title="Добавить комплект слайдов">+ ${preset.campaign.length} слайда</button>
     </div>`;
   return article;
 }
