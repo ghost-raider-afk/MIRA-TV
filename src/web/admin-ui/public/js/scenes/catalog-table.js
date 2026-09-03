@@ -7,6 +7,7 @@ const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
 const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
 const TABLE_PRICE_LAYOUTS = new Set(['single', 'quantities']);
+const TABLE_SELECTION_MODES = new Set(['all', 'view']);
 
 function toNumber(value) {
   if (typeof value === 'string') value = value.replace(',', '.').trim();
@@ -64,10 +65,14 @@ export function normaliseTableConfig(source = {}) {
     quantities.push(quantity);
     if (quantities.length >= MAX_QUANTITY_COLUMNS) break;
   }
+  const itemIds = normaliseItemIds(source.item_ids);
+  const viewId = positiveInteger(source.view_id);
+  const defaultSelectionMode = viewId > 0 || itemIds.length > 0 ? 'view' : 'all';
   const appearanceSource = source.appearance && typeof source.appearance === 'object' ? source.appearance : {};
   return {
-    view_id: positiveInteger(source.view_id),
-    item_ids: normaliseItemIds(source.item_ids),
+    selection_mode: option(source.selection_mode, TABLE_SELECTION_MODES, defaultSelectionMode),
+    view_id: viewId,
+    item_ids: itemIds,
     class_code: classCode(source.class_code),
     group_by_class: source.group_by_class !== false,
     show_description: source.show_description === true,
@@ -149,7 +154,8 @@ function filteredItems(items, config) {
     .map(catalogItem)
     .filter((item) => (!config.active_only || item.active !== false) && (!config.class_code || item.class_code === config.class_code));
 
-  if (config.view_id > 0) {
+  if (config.selection_mode === 'view') {
+    if (!config.item_ids.length) return [];
     const order = new Map(config.item_ids.map((id, index) => [Number(id), index]));
     result = result
       .filter((item) => order.has(Number(item.id)))

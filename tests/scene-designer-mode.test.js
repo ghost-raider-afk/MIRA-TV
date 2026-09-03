@@ -26,9 +26,18 @@ test('Scene Editor is a full-screen three-pane Designer workspace', async () => 
   assert.match(designer, /scene-tools-collapsed/);
   assert.doesNotMatch(designer, /classList\.add\([^\n]*scene-inspector-collapsed/);
   assert.match(designer, /classList\.remove\('scene-inspector-collapsed'\)/);
-  assert.match(designer, /Math\.min\(available\.width, available\.height \* aspect\)/);
-  assert.match(designer, /rescaleRenderedElements\(stage, nextScale\)/);
-  assert.doesNotMatch(designer, /stage\.style\.transform = `scale/);
+});
+
+test('Scene Designer zoom is a camera over canonical final canvas geometry', async () => {
+  const designer = await read('src/web/admin-ui/public/js/scenes/designer.js');
+  assert.match(designer, /mountStageViewport\(\)/);
+  assert.match(designer, /stage\.style\.width = `\$\{metrics\.width\}px`/);
+  assert.match(designer, /stage\.style\.height = `\$\{metrics\.height\}px`/);
+  assert.match(designer, /stage\.style\.transform = `scale\(\$\{nextScale\}\)`/);
+  assert.match(designer, /viewport\.style\.width =/);
+  assert.match(designer, /viewport\.style\.height =/);
+  assert.doesNotMatch(designer, /rescaleRenderedElements/);
+  assert.doesNotMatch(designer, /scaledLength/);
 });
 
 test('Scene Designer owns explicit Fit and manual zoom without resizing from Inspector content', async () => {

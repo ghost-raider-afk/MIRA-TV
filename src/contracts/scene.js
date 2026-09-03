@@ -13,7 +13,8 @@ const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const TABLE_HEADER_STYLES = new Set(['subtle', 'accent', 'solid']);
 const TABLE_PRICE_STYLES = new Set(['accent', 'bold', 'plain']);
 const TABLE_PRICE_LAYOUTS = new Set(['single', 'quantities']);
-const FONT_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 900]);
+const TABLE_SELECTION_MODES = new Set(['all', 'view']);
+const FONT_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 850, 900]);
 const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
 const VERTICAL_ALIGNS = new Set(['top', 'center', 'bottom']);
 const MEDIA_FITS = new Set(['cover', 'contain', 'fill']);
@@ -111,10 +112,14 @@ function tableConfig(value) {
     const quantity = numeric(item, `table.quantities[${index}]`, 0.001, 1000000);
     if (!normalizedQuantities.includes(quantity)) normalizedQuantities.push(quantity);
   });
+  const itemIds = tableItemIds(source.item_ids);
+  const viewId = source.view_id === undefined || source.view_id === null || source.view_id === '' ? 0 : integer(source.view_id, 'table.view_id', 0, Number.MAX_SAFE_INTEGER);
+  const defaultSelectionMode = viewId > 0 || itemIds.length > 0 ? 'view' : 'all';
   const appearance = source.appearance && typeof source.appearance === 'object' && !Array.isArray(source.appearance) ? source.appearance : {};
   return {
-    view_id: source.view_id === undefined || source.view_id === null || source.view_id === '' ? 0 : integer(source.view_id, 'table.view_id', 0, Number.MAX_SAFE_INTEGER),
-    item_ids: tableItemIds(source.item_ids),
+    selection_mode: enumValue(source.selection_mode, 'table.selection_mode', TABLE_SELECTION_MODES, defaultSelectionMode),
+    view_id: viewId,
+    item_ids: itemIds,
     class_code: tableClassCode(source.class_code),
     group_by_class: source.group_by_class !== false,
     show_description: bool(source.show_description),
@@ -217,6 +222,7 @@ function elementInput(source, scene, slideIndex, elementIndex, usedIds) {
     const tableSource = value.table && typeof value.table === 'object' && !Array.isArray(value.table) ? { ...value.table } : {};
     if (sourceName === 'catalog_products' && tableSource.class_code === undefined) tableSource.class_code = 'beer';
     if (sourceName === 'catalog_products' && tableSource.price_layout === undefined) tableSource.price_layout = 'quantities';
+    if (sourceName === 'catalog_products' && tableSource.selection_mode === undefined) tableSource.selection_mode = 'all';
     if (sourceName === 'catalog_items' && tableSource.price_layout === undefined) tableSource.price_layout = 'single';
     result.data_binding = { source: 'catalog_items' };
     result.table = tableConfig(tableSource);

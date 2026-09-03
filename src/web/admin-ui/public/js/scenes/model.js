@@ -9,6 +9,7 @@ const MEDIA_FITS = new Set(['cover', 'contain', 'fill']);
 const MEDIA_POSITIONS = new Set(['center', 'top', 'bottom', 'left', 'right']);
 const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
 const VERTICAL_ALIGNS = new Set(['top', 'center', 'bottom']);
+const FONT_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 850, 900]);
 
 const BASE_STYLE = Object.freeze({
   color: '#ffffff',
@@ -83,7 +84,7 @@ const ELEMENT_DEFAULTS = Object.freeze({
     content: 'Меню',
     style: style({ font_size: 42, background: 'rgba(0,0,0,.28)', radius: 24 }),
     data_binding: { source: 'catalog_items' },
-    table: normaliseTableConfig({ price_layout: 'single' })
+    table: normaliseTableConfig({ price_layout: 'single', selection_mode: 'view' })
   },
   image: {
     width: 560,
@@ -230,7 +231,7 @@ function normaliseElement(element) {
   result.animation = { entrance: 'none', loop: 'none', exit: 'none', duration_ms: 600, ...(result.animation || {}) };
   const sourceStyle = result.style && typeof result.style === 'object' ? result.style : {};
   result.style = { ...BASE_STYLE, ...sourceStyle };
-  result.style.font_weight = [100, 200, 300, 400, 500, 600, 700, 800, 900].includes(Number(result.style.font_weight)) ? Number(result.style.font_weight) : 400;
+  result.style.font_weight = FONT_WEIGHTS.has(Number(result.style.font_weight)) ? Number(result.style.font_weight) : 400;
   result.style.text_align = TEXT_ALIGNS.has(result.style.text_align) ? result.style.text_align : 'center';
   result.style.vertical_align = VERTICAL_ALIGNS.has(result.style.vertical_align) ? result.style.vertical_align : 'center';
   result.style.line_height = clamp(result.style.line_height, 0.5, 3);
@@ -252,6 +253,7 @@ function normaliseElement(element) {
     if (legacyCatalog && tableSource.class_code === undefined) tableSource.class_code = 'beer';
     if (legacyCatalog && tableSource.price_layout === undefined) tableSource.price_layout = 'quantities';
     if (!legacyCatalog && tableSource.price_layout === undefined) tableSource.price_layout = 'single';
+    if (legacyCatalog && tableSource.selection_mode === undefined) tableSource.selection_mode = 'all';
     result.data_binding = { source: 'catalog_items' };
     result.table = normaliseTableConfig(tableSource);
   }

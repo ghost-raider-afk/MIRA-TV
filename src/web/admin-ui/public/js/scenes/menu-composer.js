@@ -44,7 +44,7 @@ function classLabel(item) {
   return item.class_name || item.class_code || 'Без класса';
 }
 
-function createComposer({ items, classes, views, currentView, onSave }) {
+function createComposer({ items, classes, currentView, onSave }) {
   const root = document.createElement('section');
   root.className = 'menu-composer';
   root.innerHTML = `
@@ -184,14 +184,17 @@ export async function initialiseSceneMenuComposer() {
   const controls = document.createElement('section');
   controls.id = 'menu-view-controls';
   controls.className = 'menu-view-controls';
-  controls.innerHTML = `<div><strong>Состав меню</strong><small>Выберите сохранённую подборку или соберите новую из каталога.</small></div><label class="field"><span>Подборка</span><select data-menu-view><option value="0">Все позиции каталога</option></select></label><button type="button" class="button button-secondary" data-menu-compose>Настроить состав</button><small data-menu-view-status></small>`;
+  controls.innerHTML = `<div><strong>Состав меню</strong><small>Меню не обязано показывать всю базу. Выберите подборку, соберите новую или явно включите весь каталог.</small></div><label class="field"><span>Что показывать</span><select data-menu-view></select></label><button type="button" class="button button-secondary" data-menu-compose>Настроить состав</button><small data-menu-view-status></small>`;
   tableSettings.prepend(controls);
   const select = controls.querySelector('[data-menu-view]');
   const status = controls.querySelector('[data-menu-view-status]');
 
   function refillViews() {
-    select.replaceChildren(new Option('Все позиции каталога', '0'));
-    views.forEach((view) => select.append(new Option(`${view.name} · ${view.item_ids.length}`, String(view.id))));
+    select.replaceChildren(
+      new Option('Не выбрано — меню пустое', '__none__'),
+      new Option('Все позиции каталога', '__all__')
+    );
+    views.forEach((view) => select.append(new Option(`${view.name} · ${view.item_ids.length}`, `view:${view.id}`)));
   }
 
   function currentTable() {
@@ -204,13 +207,18 @@ export async function initialiseSceneMenuComposer() {
     const table = currentTable();
     controls.classList.toggle('is-hidden', !table);
     if (!table) return;
+    const mode = table.table?.selection_mode === 'all' ? 'all' : 'view';
     const viewId = Number(table.table?.view_id) || 0;
-    select.value = [...select.options].some((option) => Number(option.value) === viewId) ? String(viewId) : '0';
     const view = views.find((item) => Number(item.id) === viewId);
-    status.textContent = view ? `Показывается ${view.item_ids.length} выбранных позиций в заданном порядке.` : 'Сейчас показываются все позиции, проходящие остальные фильтры.';
+    if (mode === 'all') select.value = '__all__';
+    else if (view) select.value = `view:${view.id}`;
+    else select.value = '__none__';
+    if (mode === 'all') status.textContent = 'Явно включён весь каталог, с учётом остальных фильтров.';
+    else if (view) status.textContent = `Показывается ${view.item_ids.length} выбранных позиций в заданном порядке.`;
+    else status.textContent = 'Подборка не выбрана — позиции из общей базы на экран не выводятся.';
   }
 
-  async function applyView(view) {
+  async function applySelection({ mode, view = null }) {
     const elementId = selectedTableId();
     if (!elementId) return;
     await flushEditorSave();
@@ -218,8 +226,9 @@ export async function initialiseSceneMenuComposer() {
     const table = findElement(fresh, elementId);
     if (!table || table.type !== 'table') throw new Error('Выбранный объект меню больше не найден.');
     table.table = table.table && typeof table.table === 'object' ? table.table : {};
-    table.table.view_id = Number(view?.id) || 0;
-    table.table.item_ids = Array.isArray(view?.item_ids) ? [...view.item_ids] : [];
+    table.table.selection_mode = mode === 'all' ? 'all' : 'view';
+    table.table.view_id = mode === 'view' && view ? Number(view.id) : 0;
+    table.table.item_ids = mode === 'view' && view && Array.isArray(view.item_ids) ? [...view.item_ids] : [];
     await updateSceneRemote(fresh);
     window.location.reload();
   }
@@ -227,9 +236,18 @@ export async function initialiseSceneMenuComposer() {
   refillViews();
   sync();
   select.addEventListener('change', () => {
-    const viewId = Number(select.value) || 0;
+    const value = select.value;
+    if (value === '__all__') {
+      void applySelection({ mode: 'all' }).catch((error) => { status.textContent = error?.message || 'Не удалось применить состав.'; });
+      return;
+    }
+    if (value === '__none__') {
+      void applySelection({ mode: 'view' }).catch((error) => { status.textContent = error?.message || 'Не удалось очистить состав.'; });
+      return;
+    }
+    const viewId = Number(value.replace('view:', '')) || 0;
     const view = views.find((item) => Number(item.id) === viewId) || null;
-    void applyView(view).catch((error) => { status.textContent = error?.message || 'Не удалось применить подборку.'; });
+    if (view) void applySelection({ mode: 'view', view }).catch((error) => { status.textContent = error?.message || 'Не удалось применить подборку.'; });
   });
 
   controls.querySelector('[data-menu-compose]').addEventListener('click', () => {
@@ -237,14 +255,14 @@ export async function initialiseSceneMenuComposer() {
     if (!table) return;
     const currentView = views.find((item) => Number(item.id) === Number(table.table?.view_id)) || null;
     const modal = createComposer({
-      items, classes, views, currentView,
+      items, classes, currentView,
       onSave: async (payload) => {
         const saved = currentView
           ? await api.put(`${API.catalogViews}/${currentView.id}`, payload)
           : await api.post(API.catalogViews, payload);
         views = currentView ? views.map((item) => Number(item.id) === Number(saved.id) ? saved : item) : [...views, saved];
         refillViews();
-        await applyView(saved);
+        await applySelection({ mode: 'view', view: saved });
       }
     });
     document.body.append(modal);

@@ -39,29 +39,34 @@ function canvasMetrics() {
   return { count, width: 1920 * count, height: 1080 };
 }
 
-function scaledLength(value, ratio) {
-  const number = Number.parseFloat(value);
-  return Number.isFinite(number) ? `${number * ratio}px` : value;
+function stageViewport() {
+  return document.querySelector('#scene-stage-viewport');
 }
 
-function rescaleRenderedElements(stage, newScale) {
-  for (const node of stage.querySelectorAll('.scene-render-element')) {
-    const oldScale = Number.parseFloat(node.style.getPropertyValue('--scene-render-scale'));
-    if (!Number.isFinite(oldScale) || oldScale <= 0 || Math.abs(oldScale - newScale) < 0.00001) continue;
-    const ratio = newScale / oldScale;
-    node.style.fontSize = scaledLength(node.style.fontSize, ratio);
-    node.style.letterSpacing = scaledLength(node.style.letterSpacing, ratio);
-    node.style.setProperty('--scene-element-blur', scaledLength(node.style.getPropertyValue('--scene-element-blur'), ratio));
+function mountStageViewport() {
+  const stage = document.querySelector('#scene-stage');
+  const shell = document.querySelector('#scene-stage-shell');
+  if (!stage || !shell) return null;
+  const existing = stageViewport();
+  if (existing) return existing;
 
-    if (node.classList.contains('scene-element-table')) {
-      node.style.setProperty('--scene-table-radius', scaledLength(node.style.getPropertyValue('--scene-table-radius'), ratio));
-      node.style.setProperty('--scene-table-border-width', scaledLength(node.style.getPropertyValue('--scene-table-border-width'), ratio));
-    } else {
-      node.style.borderRadius = scaledLength(node.style.borderRadius, ratio);
-      node.style.borderWidth = scaledLength(node.style.borderWidth, ratio);
-    }
-    node.style.setProperty('--scene-render-scale', String(newScale));
-  }
+  const viewport = document.createElement('div');
+  viewport.id = 'scene-stage-viewport';
+  viewport.className = 'scene-stage-viewport';
+  viewport.style.position = 'relative';
+  viewport.style.flex = '0 0 auto';
+  viewport.style.margin = 'auto';
+  viewport.style.overflow = 'visible';
+  stage.before(viewport);
+  viewport.append(stage);
+
+  stage.style.position = 'absolute';
+  stage.style.inset = '0 auto auto 0';
+  stage.style.margin = '0';
+  stage.style.transformOrigin = '0 0';
+  stage.style.maxWidth = 'none';
+  stage.style.maxHeight = 'none';
+  return viewport;
 }
 
 function zoomLabel() {
@@ -76,15 +81,17 @@ function syncZoomControls(scale) {
 
 function applyStageScale(scale) {
   const stage = document.querySelector('#scene-stage');
-  if (!stage) return;
+  const viewport = mountStageViewport();
+  if (!stage || !viewport) return;
   const metrics = canvasMetrics();
-  const nextScale = Math.min(2, Math.max(0.1, Number(scale) || 1));
-  const width = Math.max(1, Math.round(metrics.width * nextScale));
-  const currentWidth = stage.clientWidth;
-  stage.style.transform = '';
-  stage.style.width = `${width}px`;
-  stage.style.maxWidth = 'none';
-  if (Math.abs(currentWidth - width) >= 1) rescaleRenderedElements(stage, nextScale);
+  const nextScale = Math.min(2, Math.max(0.05, Number(scale) || 1));
+
+  // Canonical geometry always stays in final-pixel coordinates. Zoom is only a camera.
+  stage.style.width = `${metrics.width}px`;
+  stage.style.height = `${metrics.height}px`;
+  stage.style.transform = `scale(${nextScale})`;
+  viewport.style.width = `${Math.max(1, Math.round(metrics.width * nextScale))}px`;
+  viewport.style.height = `${Math.max(1, Math.round(metrics.height * nextScale))}px`;
   syncZoomControls(nextScale);
 }
 
@@ -104,9 +111,9 @@ function refreshStageZoom() {
 }
 
 function currentScale() {
-  const stage = document.querySelector('#scene-stage');
+  const viewport = stageViewport();
   const metrics = canvasMetrics();
-  return stage?.clientWidth ? stage.clientWidth / metrics.width : (zoomMode === 'fit' ? 1 : manualZoom);
+  return viewport?.clientWidth ? viewport.clientWidth / metrics.width : (zoomMode === 'fit' ? 1 : manualZoom);
 }
 
 function stepZoom(direction) {
@@ -135,13 +142,13 @@ function mountZoomControls() {
   const controls = document.createElement('div');
   controls.className = 'scene-zoom-controls';
   const out = zoomButton('scene-zoom-out', '−', 'Уменьшить масштаб');
-  const fit = zoomButton('scene-zoom-fit', 'Вписать', 'Вписать слайд в рабочую область');
+  const fit = zoomButton('scene-zoom-fit', 'Вписать', 'Вписать итоговый холст в рабочую область');
   const value = document.createElement('span');
   value.id = 'scene-zoom-value';
   value.className = 'scene-zoom-value';
   value.textContent = '100%';
   const input = zoomButton('scene-zoom-in', '+', 'Увеличить масштаб');
-  const actual = zoomButton('scene-zoom-actual', '100%', 'Масштаб 1:1');
+  const actual = zoomButton('scene-zoom-actual', '100%', 'Итоговый холст 1:1');
   controls.append(out, fit, value, input, actual);
   meta.append(controls);
 
@@ -184,6 +191,7 @@ export function initialiseSceneDesigner() {
   body.classList.add('scene-designer-mode', 'scene-tools-collapsed');
   body.classList.remove('scene-inspector-collapsed');
   mountSlidesPanel();
+  mountStageViewport();
   mountZoomControls();
 
   const toolsButton = designerButton('scene-tools-toggle', 'Вставка', 'Элементы, фон и медиаданные слайда');
@@ -205,7 +213,9 @@ export function initialiseSceneDesigner() {
     if (event.key === 'Escape' && !body.classList.contains('scene-tools-collapsed')) closeTools();
   });
 
-  document.querySelector('#scene-display-count')?.addEventListener('change', () => requestAnimationFrame(refreshStageZoom));
+  // This listener is bound before the editor. Update canonical stage size first,
+  // so renderer always sees final canvas pixels rather than viewport pixels.
+  document.querySelector('#scene-display-count')?.addEventListener('change', refreshStageZoom);
   window.addEventListener('resize', () => {
     if (zoomMode === 'fit') fitStageToWorkspace();
   }, { passive: true });

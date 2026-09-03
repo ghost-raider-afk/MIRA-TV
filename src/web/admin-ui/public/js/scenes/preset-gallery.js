@@ -1,5 +1,4 @@
-import { SCENE_PRESETS, applySceneDesignPreset } from './scene-presets.js';
-import { ensurePresetLogoSlots } from './preset-brand.js';
+import { SCENE_PRESETS, addScenePresetCampaign, applySceneDesignPreset } from './scene-presets.js';
 import { getScene, updateSceneRemote } from './store.js';
 
 function sceneId() {
@@ -29,29 +28,33 @@ async function flushEditorSave() {
 }
 
 function setBusy(root, busy) {
-  root.querySelectorAll('[data-apply-preset]').forEach((button) => {
+  root.querySelectorAll('[data-apply-preset],[data-add-preset-campaign]').forEach((button) => {
     button.disabled = busy;
-    button.textContent = busy ? 'Применяем…' : 'Применить';
   });
 }
 
-async function applyPreset(preset, root, message) {
+async function applyPreset(preset, root, message, mode = 'style') {
   const id = sceneId();
   if (!id) return;
   setBusy(root, true);
-  message.textContent = `Применяем «${preset.name}». Существующие данные и расположение объектов будут сохранены.`;
   message.classList.add('is-visible');
   message.classList.remove('is-warning');
+  message.textContent = mode === 'campaign'
+    ? `Добавляем комплект «${preset.name}» из ${preset.campaign.length} слайдов…`
+    : `Применяем «${preset.name}». Геометрия, тексты и выбранный состав меню сохраняются.`;
   try {
     await flushEditorSave();
     const current = await getScene(id);
-    const { scene, seeded } = applySceneDesignPreset(current, preset);
-    ensurePresetLogoSlots(scene, preset);
-    await updateSceneRemote(scene);
-    message.textContent = seeded
-      ? `«${preset.name}» создан как готовая сцена: меню, логотип, графика, информеры, фон и анимация.`
-      : `Дизайн «${preset.name}» применён поверх существующей сцены без удаления пользовательских элементов.`;
-    await sleep(280);
+    const result = mode === 'campaign'
+      ? addScenePresetCampaign(current, preset)
+      : applySceneDesignPreset(current, preset, { mode: 'auto' });
+    await updateSceneRemote(result.scene);
+    message.textContent = mode === 'campaign'
+      ? `Добавлен продающий комплект «${preset.name}»: ${result.addedSlides} слайда.`
+      : result.seeded
+        ? `Создан готовый комплект «${preset.name}» из ${result.addedSlides} слайдов.`
+        : `Стиль «${preset.name}» применён без добавления объектов поверх существующей сцены.`;
+    await sleep(240);
     window.location.reload();
   } catch (error) {
     setBusy(root, false);
@@ -61,20 +64,15 @@ async function applyPreset(preset, root, message) {
 }
 
 function previewRows(preset) {
-  const rows = {
-    'mira-minimal': [['Фирменная позиция','490'],['Сезонное меню','620'],['Спецпредложение','350']],
-    taproom: [['Citrus IPA','390'],['Helles Lager','340'],['Dark Stout','420']],
-    'modern-bistro': [['Тартар','790'],['Паста с трюфелем','980'],['Десерт дня','520']],
-    'coffee-house': [['Капучино','240'],['Флэт уайт','280'],['Круассан','210']],
-    'chalk-board': [['Латте','260'],['Сэндвич дня','420'],['Чизкейк','330']],
-    'night-neon': [['NEON SOUR','590'],['MIDNIGHT IPA','420'],['HIGHBALL','540']],
-    'premium-black': [['SIGNATURE','1490'],['CHEF SPECIAL','1890'],['DESSERT','690']],
-    'fresh-market': [['Свежая выпечка','190'],['Фермерский сыр','560'],['Сезонные ягоды','430']]
-  }[preset.id] || [];
-  return rows.map(([name, price]) => `<div><span>${name}</span><i></i><b>${price}</b></div>`).join('');
+  return (preset.previewRows || []).map(([name, price]) => `<div><span>${name}</span><i></i><b>${price}</b></div>`).join('');
+}
+
+function campaignStrip(preset) {
+  return preset.campaign.map((slide, index) => `<span><b>${index + 1}</b>${slide.label}</span>`).join('');
 }
 
 function card(preset) {
+  const first = preset.campaign[0];
   const article = document.createElement('article');
   article.className = 'scene-preset-card';
   article.dataset.category = preset.category;
@@ -85,17 +83,20 @@ function card(preset) {
       <span class="scene-preset-live-logo">LOGO</span>
       <div class="scene-preset-live-copy">
         <small>${preset.brand}</small>
-        <strong>${preset.title}</strong>
+        <strong>${first.title}</strong>
         <div class="scene-preset-live-menu">${previewRows(preset)}</div>
       </div>
-      <span class="scene-preset-live-promo">${preset.promo}</span>
+      <span class="scene-preset-live-promo">${first.promo}</span>
       <span class="scene-preset-live-widget">${preset.widget === 'clock' ? '21:45' : '☀ 18°'}</span>
     </div>
     <div class="scene-preset-card-copy">
-      <div><span>${preset.category}</span><h3>${preset.name}</h3></div>
+      <div class="scene-preset-card-title"><span>${preset.category}</span><h3>${preset.name}</h3><em>${preset.campaign.length} слайда</em></div>
       <p>${preset.description}</p>
-      <div class="scene-preset-card-tags"><span>Графика</span><span>Логотип</span><span>Информер</span><span>Анимация</span></div>
+      <div class="scene-preset-campaign-strip" aria-label="Состав комплекта">${campaignStrip(preset)}</div>
+    </div>
+    <div class="scene-preset-card-actions">
       <button type="button" class="button button-primary" data-apply-preset="${preset.id}">Применить</button>
+      <button type="button" class="button button-secondary" data-add-preset-campaign="${preset.id}" title="Добавить готовый комплект слайдов в текущую сцену">+ ${preset.campaign.length} слайда</button>
     </div>`;
   return article;
 }
@@ -108,7 +109,7 @@ function createGallery() {
   root.innerHTML = `
     <div class="scene-preset-gallery-dialog">
       <header class="scene-preset-gallery-head">
-        <div><p class="eyebrow">ГОТОВЫЕ ДИЗАЙНЫ</p><h2>Выберите характер меню</h2><p>Каждый пресет — готовая анимированная сцена. На рабочей сцене меняется дизайн, а ваши данные и расположение объектов сохраняются.</p></div>
+        <div><p class="eyebrow">ГОТОВЫЕ ДИЗАЙНЫ</p><h2>Готовые продающие меню</h2><p>Основная кнопка меняет оформление существующей сцены без добавления лишних объектов. На пустой сцене создаётся готовый комплект из нескольких слайдов. Кнопка «+ слайда» добавляет комплект к текущей сцене.</p></div>
         <button type="button" class="scene-preset-close" aria-label="Закрыть">×</button>
       </header>
       <nav class="scene-preset-filters" aria-label="Категории дизайна"></nav>
@@ -118,7 +119,7 @@ function createGallery() {
   const grid = root.querySelector('.scene-preset-grid');
   SCENE_PRESETS.forEach((preset) => grid.append(card(preset)));
 
-  const filters = ['Все', ...new Set(SCENE_PRESETS.flatMap((preset) => preset.category.split(' · ')))];
+  const filters = ['Все', ...new Set(SCENE_PRESETS.map((preset) => preset.category))];
   const nav = root.querySelector('.scene-preset-filters');
   filters.forEach((name, index) => {
     const button = document.createElement('button');
@@ -127,9 +128,7 @@ function createGallery() {
     button.className = index === 0 ? 'active' : '';
     button.addEventListener('click', () => {
       nav.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
-      root.querySelectorAll('.scene-preset-card').forEach((item) => {
-        item.classList.toggle('is-hidden', name !== 'Все' && !String(item.dataset.category).split(' · ').includes(name));
-      });
+      root.querySelectorAll('.scene-preset-card').forEach((item) => item.classList.toggle('is-hidden', name !== 'Все' && item.dataset.category !== name));
     });
     nav.append(button);
   });
@@ -150,7 +149,7 @@ function relabelLegacyTableTerms() {
   const tool = document.querySelector('[data-add-element="table"] strong');
   if (tool) tool.textContent = 'Меню';
   const toolCaption = document.querySelector('[data-add-element="table"] span');
-  if (toolCaption) toolCaption.textContent = 'Каталог, цены и категории';
+  if (toolCaption) toolCaption.textContent = 'Подборка, цены и категории';
   const appearance = document.querySelector('#table-appearance-settings summary');
   if (appearance) appearance.textContent = 'Оформление меню';
   const data = document.querySelector('#table-settings summary');
@@ -178,10 +177,17 @@ export function initialiseScenePresetGallery() {
   root.querySelector('.scene-preset-close').addEventListener('click', () => closeGallery(root));
   root.addEventListener('click', (event) => {
     if (event.target === root) closeGallery(root);
-    const button = event.target.closest('[data-apply-preset]');
-    if (!button) return;
-    const preset = SCENE_PRESETS.find((item) => item.id === button.dataset.applyPreset);
-    if (preset) void applyPreset(preset, root, message);
+    const apply = event.target.closest('[data-apply-preset]');
+    if (apply) {
+      const preset = SCENE_PRESETS.find((item) => item.id === apply.dataset.applyPreset);
+      if (preset) void applyPreset(preset, root, message, 'style');
+      return;
+    }
+    const add = event.target.closest('[data-add-preset-campaign]');
+    if (add) {
+      const preset = SCENE_PRESETS.find((item) => item.id === add.dataset.addPresetCampaign);
+      if (preset) void applyPreset(preset, root, message, 'campaign');
+    }
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !root.classList.contains('is-hidden')) closeGallery(root);

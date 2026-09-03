@@ -15,11 +15,12 @@ function cloneStyle(preset) {
 }
 
 function logoGeometry(scene, preset) {
-  const scale = scene.canvas_width / 1920;
   const heroLeft = preset.layout === 'hero-left';
+  const multi = scene.canvas_width > 1920;
+  if (multi) return { x: Math.max(90, scene.canvas_width - 470), y: 50, width: 360, height: 76 };
   return heroLeft
-    ? { x: 1410 * scale, y: 34, width: 340 * scale, height: 72 }
-    : { x: 92 * scale, y: 30, width: 310 * scale, height: 72 };
+    ? { x: 1450, y: 38, width: 360, height: 76 }
+    : { x: 90, y: 38, width: 330, height: 76 };
 }
 
 export function ensurePresetLogoSlots(scene, preset) {
@@ -39,7 +40,11 @@ export function ensurePresetLogoSlots(scene, preset) {
       effects: { shadow: false, glow: preset.id === 'night-neon', blur: 0 },
       animation: { entrance: 'fade', loop: 'none', exit: 'none', duration_ms: 700 },
       asset_id: '',
-      media: { fit: 'contain', position: 'center' }
+      media: { fit: 'contain', position: 'center' },
+      preset_owned: true,
+      preset_id: preset.id,
+      preset_role: 'logo',
+      preset_default_content: 'ВАШ ЛОГОТИП'
     });
   }
   return scene;
