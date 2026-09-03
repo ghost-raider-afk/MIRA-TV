@@ -12,6 +12,7 @@ const PUBLIC_DOCS = [
   'USAGE.md',
   'ARCHITECTURE.md',
   'SCENES.md',
+  'SPEC-KIT.md',
   'CATALOG.md',
   'DISPLAY-MANAGEMENT.md',
   'DATA-MODEL.md',

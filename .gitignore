@@ -4,3 +4,7 @@ data/
 coverage/
 ci-node-diagnostic.txt
 
+# Track only the project skills installed by Spec Kit under the agent workspace.
+.agents/*
+!.agents/skills/
+!.agents/skills/**
