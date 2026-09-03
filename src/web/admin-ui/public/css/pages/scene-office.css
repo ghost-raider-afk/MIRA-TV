@@ -1,50 +1,118 @@
-/* Dense Office-style authoring layout layered after scene-designer.css. */
+/* Dense, readable authoring layout. Compactness comes from structure, not microscopic controls. */
 @media (min-width: 901px) {
+  body[data-page="scene-editor"].scene-designer-mode .scene-editor-toolbar {
+    min-height: 48px;
+    padding: 5px 10px;
+    gap: 10px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-editor-title {
+    min-width: 200px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-editor-title .editor-back {
+    width: 32px;
+    height: 32px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-name-input {
+    width: min(330px, 28vw);
+    font-size: 15px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-toolbar-controls {
+    gap: 4px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-toolbar-controls .button,
+  body[data-page="scene-editor"].scene-designer-mode .scene-display-select select {
+    min-height: 32px;
+    height: 32px;
+    padding-inline: 9px;
+    font-size: 10px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-display-select select {
+    width: 126px;
+  }
+
   body[data-page="scene-editor"].scene-designer-mode .scene-editor-layout {
-    grid-template-columns: 176px minmax(0, 1fr) 304px;
+    grid-template-columns: 158px minmax(0, 1fr) 316px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-slides-panel {
+    gap: 7px;
+    padding: 8px 7px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-slides-head {
+    gap: 5px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-slides-head strong {
+    font-size: 12px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-slides-head .button {
+    min-height: 30px;
+    font-size: 10px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-slide-list {
+    gap: 6px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-slide-card {
+    min-height: 70px;
+    padding: 8px 24px 8px 8px;
+    border-radius: 7px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-tools-panel {
-    left: 186px;
+    left: 166px;
+    width: 286px;
+    padding: 10px;
+  }
+
+  body[data-page="scene-editor"].scene-designer-mode .scene-stage-shell {
+    padding: 18px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector {
-    padding: 8px 8px 10px;
+    padding: 9px 10px 12px;
     scrollbar-gutter: stable;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector .scene-panel-heading {
-    margin: 0 0 6px;
-    padding: 0 2px;
+    margin: 0 0 7px;
+    padding: 0 1px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector .scene-panel-heading h2 {
-    font-size: 14px;
-    line-height: 1.2;
+    font-size: 15px;
+    line-height: 1.25;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector-tabs {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 2px;
-    margin: 0 0 7px;
+    margin: 0 0 8px;
     padding: 2px;
     border: 1px solid var(--ui-border);
     border-radius: 7px;
-    background: color-mix(in srgb, var(--ui-panel-raised) 75%, transparent);
+    background: color-mix(in srgb, var(--ui-panel-raised) 72%, transparent);
   }
 
-  body[data-page="scene-editor"].scene-designer-mode .scene-inspector-tabs.is-hidden {
-    display: none;
-  }
+  body[data-page="scene-editor"].scene-designer-mode .scene-inspector-tabs.is-hidden { display: none; }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector-tabs button {
     min-width: 0;
-    min-height: 26px;
-    padding: 0 4px;
+    min-height: 29px;
+    padding: 0 5px;
     border: 0;
     border-radius: 5px;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     white-space: nowrap;
   }
@@ -61,83 +129,82 @@
   body[data-page="scene-editor"].scene-designer-mode .scene-table-settings,
   body[data-page="scene-editor"].scene-designer-mode .scene-media-settings,
   body[data-page="scene-editor"].scene-designer-mode .scene-widget-presets {
-    gap: 6px;
+    gap: 7px;
   }
 
-  body[data-page="scene-editor"].scene-designer-mode .scene-inspector-panel {
-    padding: 0;
-  }
+  body[data-page="scene-editor"].scene-designer-mode .scene-inspector-panel { padding: 0; }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector-section-title {
-    margin: 4px 0 2px;
-    padding: 5px 1px 3px;
+    margin: 5px 0 3px;
+    padding: 7px 1px 3px;
     border-top: 1px solid color-mix(in srgb, var(--ui-border) 78%, transparent);
     color: var(--ui-text-muted);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: .035em;
+    letter-spacing: .025em;
     text-transform: uppercase;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector .field {
-    gap: 3px;
+    gap: 4px;
     margin: 0;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector .field > span,
-  body[data-page="scene-editor"].scene-designer-mode .scene-inspector .field > label,
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector label > span {
-    font-size: 9px;
-    line-height: 1.15;
+    font-size: 10.5px;
+    line-height: 1.2;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector select {
-    min-height: 29px;
-    height: 29px;
-    padding: 0 7px;
+    min-height: 32px;
+    height: 32px;
+    padding: 0 8px;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: 11px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector input[type="color"] {
     width: 100%;
-    min-height: 28px;
-    height: 28px;
+    min-height: 30px;
+    height: 30px;
     padding: 2px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector input[type="range"] {
-    min-height: 22px;
+    min-height: 24px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector small {
-    font-size: 8px;
-    line-height: 1.25;
+    font-size: 9px;
+    line-height: 1.3;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .geometry-grid,
-  body[data-page="scene-editor"].scene-designer-mode .scene-background-format-controls,
-  body[data-page="scene-editor"].scene-designer-mode .scene-animation-grid {
-    gap: 5px;
+  body[data-page="scene-editor"].scene-designer-mode .scene-background-format-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-animation-grid {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector-actions {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
-    margin: 0 0 4px;
+    margin: 0 0 5px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector-actions .button {
     min-width: 0;
-    min-height: 28px;
-    padding: 0 4px;
-    font-size: 9px;
+    min-height: 30px;
+    padding: 0 5px;
+    font-size: 9.5px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector details {
@@ -150,78 +217,71 @@
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-inspector details > summary {
-    min-height: 28px;
+    min-height: 32px;
     padding: 0 2px;
     color: var(--ui-text);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 750;
-    line-height: 28px;
+    line-height: 32px;
   }
 
-  body[data-page="scene-editor"].scene-designer-mode .scene-inspector details[open] > summary {
-    margin-bottom: 5px;
-  }
-
-  body[data-page="scene-editor"].scene-designer-mode .scene-inspector details > :not(summary) {
-    margin-bottom: 6px;
-  }
+  body[data-page="scene-editor"].scene-designer-mode .scene-inspector details[open] > summary { margin-bottom: 6px; }
+  body[data-page="scene-editor"].scene-designer-mode .scene-inspector details > :not(summary) { margin-bottom: 7px; }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-toggle-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 3px 6px;
+    gap: 4px 7px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-toggle-list > label {
-    min-height: 24px;
+    min-height: 26px;
     gap: 5px;
     padding: 0 2px;
-    font-size: 9px;
+    font-size: 10px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-table-settings-group {
-    gap: 4px;
-    padding: 5px 0;
+    gap: 5px;
+    padding: 6px 0;
     border-top: 1px dashed color-mix(in srgb, var(--ui-border) 68%, transparent);
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-table-settings-group-title {
     margin: 0;
     color: var(--ui-text-muted);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 800;
     text-transform: uppercase;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-data-source-line,
-  body[data-page="scene-editor"].scene-designer-mode .scene-media-actions {
-    gap: 5px;
-  }
+  body[data-page="scene-editor"].scene-designer-mode .scene-media-actions { gap: 6px; }
 
   body[data-page="scene-editor"].scene-designer-mode .scene-media-actions .button,
   body[data-page="scene-editor"].scene-designer-mode .scene-data-source-line .button {
-    min-height: 28px;
-    padding: 0 7px;
-    font-size: 9px;
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 10px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .menu-view-controls {
-    gap: 5px;
-    padding: 7px;
+    gap: 6px;
+    padding: 8px;
     border-radius: 7px;
   }
 
   body[data-page="scene-editor"].scene-designer-mode .menu-view-controls > div small {
-    display: none;
+    display: block;
+    margin-top: 2px;
   }
 }
 
 @media (min-width: 901px) and (max-width: 1240px) {
   body[data-page="scene-editor"].scene-designer-mode .scene-editor-layout {
-    grid-template-columns: 150px minmax(0, 1fr) 282px;
+    grid-template-columns: 142px minmax(0, 1fr) 292px;
   }
 
-  body[data-page="scene-editor"].scene-designer-mode .scene-tools-panel {
-    left: 160px;
-  }
+  body[data-page="scene-editor"].scene-designer-mode .scene-tools-panel { left: 150px; }
+  body[data-page="scene-editor"].scene-designer-mode .scene-inspector-tabs button { font-size: 9px; }
 }
