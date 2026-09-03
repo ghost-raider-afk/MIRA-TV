@@ -60,6 +60,16 @@ npm run check
 docker compose config --quiet
 ```
 
+## Spec-driven разработка
+
+В репозитории подключён GitHub Spec Kit для Codex. Каждая новая ограниченная задача проходит
+последовательность `$speckit-specify` → `$speckit-plan` → `$speckit-tasks` →
+`$speckit-implement`. Для неоднозначных требований используется `$speckit-clarify`, а перед
+реализацией изменений нескольких контрактов — `$speckit-analyze`.
+
+Обязательные принципы находятся в `.specify/memory/constitution.md`. Порядок запуска, структура
+артефактов и правила веток описаны в [docs/SPEC-KIT.md](docs/SPEC-KIT.md).
+
 ## Prototype и данные
 
 Пока Scene Schema репетируется, `localStorage` допускается только как явно временное хранилище UX-прототипа.

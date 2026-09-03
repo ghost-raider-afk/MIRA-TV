@@ -77,6 +77,7 @@ MIRA-TV Player
 - [Рабочий процесс пользователя](docs/USAGE.md)
 - [План развития](docs/ROADMAP.md)
 - [Статус прототипа](docs/SCENE-PROTOTYPE.md)
+- [Spec Kit и процесс разработки](docs/SPEC-KIT.md)
 
 ## Установка
 

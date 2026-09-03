@@ -34,6 +34,8 @@
 
 [SCENE-PROTOTYPE.md](SCENE-PROTOTYPE.md) — что уже реализовано и какие ограничения у текущего прототипа.
 
+[SPEC-KIT.md](SPEC-KIT.md) — обязательный spec-driven процесс разработки, команды и правила веток.
+
 ## Эксплуатационные документы
 
 [INSTALLATION.md](INSTALLATION.md), [CONFIGURATION.md](CONFIGURATION.md), [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md) и [TROUBLESHOOTING.md](TROUBLESHOOTING.md) сохраняют инструкции для стабильной серверной линии и отдельно отмечают ограничения ветки `prototype`.
