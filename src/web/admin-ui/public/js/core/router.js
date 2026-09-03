@@ -1,6 +1,7 @@
 import { canonicalRoutePath, isAppRoutePath, PREFETCH_ROUTE_PATHS, routePageForPath } from './navigation.js';
 
 let activeRouter = null;
+const ROUTE_SURFACE_SELECTOR = '[data-route-surface]';
 
 function canonicalUrl(value) {
   const url = value instanceof URL ? new URL(value.href) : new URL(String(value), window.location.href);
@@ -50,6 +51,19 @@ function setRouteMountState(main, mounting) {
   }
 }
 
+function routeSurfaceHtml(root = document) {
+  return Array.from(root.querySelectorAll(ROUTE_SURFACE_SELECTOR), (surface) => surface.outerHTML);
+}
+
+function replaceRouteSurfaces(surfaceHtml = []) {
+  document.querySelectorAll(ROUTE_SURFACE_SELECTOR).forEach((surface) => surface.remove());
+  document.body.classList.remove('workspace-drawer-open');
+  if (!surfaceHtml.length) return;
+  const template = document.createElement('template');
+  template.innerHTML = surfaceHtml.join('');
+  document.body.append(template.content);
+}
+
 function currentViewSnapshot() {
   const main = currentMain();
   const declaredPage = document.body.dataset.page || '';
@@ -58,6 +72,7 @@ function currentViewSnapshot() {
     declaredPage,
     mainClassName: main.className,
     mainHtml: main.innerHTML,
+    surfaceHtml: routeSurfaceHtml(),
     documentTitle: document.title
   };
 }
@@ -78,6 +93,7 @@ function parseViewDocument(html, responseUrl) {
     declaredPage,
     mainClassName: main.className,
     mainHtml: main.innerHTML,
+    surfaceHtml: routeSurfaceHtml(parsed),
     documentTitle: parsed.title || document.title
   };
 }
@@ -162,6 +178,7 @@ export function createAppRouter({ mountPage, syncShell }) {
     const main = currentMain();
     main.className = view.mainClassName;
     main.innerHTML = view.mainHtml;
+    replaceRouteSurfaces(view.surfaceHtml);
     document.title = view.documentTitle;
 
     if (typeof syncShell === 'function') syncShell();

@@ -26,12 +26,16 @@ test('main menu and context submenu navigate inside one persistent document', as
 
   await page.getByRole('link', { name: /Торговые точки/ }).click();
   await expect(page).toHaveURL(/\/locations$/);
+  await expect(page.locator('#location-form')).toHaveCount(1);
+  await page.getByRole('button', { name: '+ Новая точка', exact: true }).click();
   await expect(page.locator('#location-form')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
-  await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#catalog-item-form')).toHaveCount(1);
+  await page.getByRole('button', { name: '+ Добавить', exact: true }).click();
+  await expect(page.locator('#catalog-item-form')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
   await expect(page.locator('.ui-context-body .app-route-link')).toHaveCount(1);
   await expect(page.locator('.ui-context-body .app-route-link')).toHaveText(/Продукция/);
