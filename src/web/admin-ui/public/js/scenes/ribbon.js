@@ -1,7 +1,25 @@
 const TYPE_LABELS = Object.freeze({
-  text: 'Текст', table: 'Меню', image: 'Изображение', logo: 'Логотип', video: 'Видео', weather: 'Погода', clock: 'Часы', shape: 'Фигура'
+  text: 'Текст',
+  table: 'Меню',
+  image: 'Изображение',
+  logo: 'Логотип',
+  video: 'Видео',
+  weather: 'Погода',
+  clock: 'Часы',
+  shape: 'Фигура'
 });
+
 const TYPE_CLASSES = Object.keys(TYPE_LABELS).map((type) => [`scene-element-${type}`, type]);
+const MENU_PRESET_OPTIONS = Object.freeze([
+  ['clean', 'MIRA-TV'],
+  ['glass', 'Современная'],
+  ['solid', 'Сетка'],
+  ['minimal', 'Минимальная'],
+  ['menu-board', 'Menu Board'],
+  ['bistro', 'Bistro'],
+  ['cafe', 'Café'],
+  ['chalkboard', 'Chalkboard']
+]);
 
 function node(tag, className = '', text = '') {
   const element = document.createElement(tag);
@@ -13,161 +31,308 @@ function node(tag, className = '', text = '') {
 function selectedType() {
   const current = document.querySelector('#scene-elements-layer .scene-render-element.is-selected');
   if (!current) return null;
-  for (const [className, type] of TYPE_CLASSES) if (current.classList.contains(className)) return type;
+  for (const [className, type] of TYPE_CLASSES) {
+    if (current.classList.contains(className)) return type;
+  }
   return null;
 }
 
-function proxyControl(bind, kind, label, options = []) {
-  const wrap = node('label', 'scene-ribbon-quick');
-  wrap.dataset.ribbonTypes = kind || '*';
-  wrap.append(node('span', '', label));
-  const source = document.querySelector(bind);
-  let control;
-  if (source?.tagName === 'SELECT') {
-    control = document.createElement('select');
-    for (const option of options.length ? options : [...source.options].map((item) => [item.value, item.textContent])) {
-      control.append(new Option(option[1], option[0]));
-    }
-    control.addEventListener('change', () => {
-      source.value = control.value;
-      source.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-  } else if (source?.type === 'color') {
-    control = document.createElement('input');
-    control.type = 'color';
-    control.addEventListener('input', () => {
-      source.value = control.value;
-      source.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-  } else {
-    control = document.createElement('input');
-    control.type = 'number';
-    control.min = source?.min || '';
-    control.max = source?.max || '';
-    control.step = source?.step || '1';
-    control.addEventListener('input', () => {
-      source.value = control.value;
-      source.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+function closeRibbonPopovers(ribbon, except = null) {
+  for (const item of ribbon.querySelectorAll('.scene-ribbon-group.is-open,.scene-ribbon-menu.is-open')) {
+    if (item !== except) item.classList.remove('is-open');
   }
-  control.dataset.ribbonBind = bind;
-  wrap.append(control);
-  return wrap;
 }
 
-function action(label, handler, className = '') {
-  const button = node('button', `scene-ribbon-command ${className}`.trim(), label);
+function group(title, types = '*') {
+  const root = node('section', 'scene-ribbon-group');
+  root.dataset.ribbonTypes = types;
+  const trigger = node('button', 'scene-ribbon-group-trigger', `${title} ▾`);
+  trigger.type = 'button';
+  trigger.setAttribute('aria-haspopup', 'true');
+  const content = node('div', 'scene-ribbon-group-content');
+  root.append(trigger, content);
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const ribbon = root.closest('.scene-format-ribbon');
+    if (ribbon) closeRibbonPopovers(ribbon, root);
+    root.classList.toggle('is-open');
+  });
+  return { root, content };
+}
+
+function field(labelText, control) {
+  const wrapper = node('label', 'scene-ribbon-field');
+  wrapper.append(node('span', 'scene-ribbon-field-label', labelText), control);
+  return wrapper;
+}
+
+function selectControl(bind, options, label) {
+  const select = node('select', 'scene-ribbon-control');
+  select.dataset.ribbonBind = bind;
+  select.dataset.ribbonEvent = 'change';
+  select.setAttribute('aria-label', label);
+  for (const [value, text] of options) select.append(new Option(text, value));
+  return field(label, select);
+}
+
+function numberControl(bind, label, { min = null, max = null, step = '1' } = {}) {
+  const input = node('input', 'scene-ribbon-control scene-ribbon-number');
+  input.type = 'number';
+  input.dataset.ribbonBind = bind;
+  input.dataset.ribbonEvent = 'input';
+  input.step = step;
+  if (min !== null) input.min = String(min);
+  if (max !== null) input.max = String(max);
+  input.setAttribute('aria-label', label);
+  return field(label, input);
+}
+
+function colorControl(bind, label) {
+  const input = node('input', 'scene-ribbon-control scene-ribbon-color');
+  input.type = 'color';
+  input.dataset.ribbonBind = bind;
+  input.dataset.ribbonEvent = 'input';
+  input.setAttribute('aria-label', label);
+  return field(label, input);
+}
+
+function rangeControl(bind, label) {
+  const input = node('input', 'scene-ribbon-control scene-ribbon-range');
+  input.type = 'range';
+  input.min = '0';
+  input.max = '1';
+  input.step = '0.05';
+  input.dataset.ribbonBind = bind;
+  input.dataset.ribbonEvent = 'input';
+  input.setAttribute('aria-label', label);
+  return field(label, input);
+}
+
+function toggleControl(bind, label) {
+  const wrapper = node('label', 'scene-ribbon-toggle');
+  const input = node('input');
+  input.type = 'checkbox';
+  input.dataset.ribbonBind = bind;
+  input.dataset.ribbonEvent = 'change';
+  wrapper.append(input, node('span', '', label));
+  return wrapper;
+}
+
+function actionButton(selector, label, title = '') {
+  const button = node('button', 'scene-ribbon-action', label);
   button.type = 'button';
-  button.addEventListener('click', handler);
+  button.dataset.ribbonAction = selector;
+  if (title) button.title = title;
   return button;
 }
 
-function insert(type) {
-  document.querySelector(`[data-add-element="${type}"]`)?.click();
+function insertButton(type, label) {
+  const button = node('button', 'scene-ribbon-insert-action', label);
+  button.type = 'button';
+  button.dataset.ribbonInsert = type;
+  return button;
 }
 
-function popoverButton(label, items) {
-  const root = node('div', 'scene-ribbon-popover-root');
-  const trigger = action(label, () => root.classList.toggle('is-open'));
-  trigger.setAttribute('aria-haspopup', 'menu');
-  const panel = node('div', 'scene-ribbon-popover');
-  panel.setAttribute('role', 'menu');
-  for (const [text, callback] of items) panel.append(action(text, () => { root.classList.remove('is-open'); callback(); }, 'scene-ribbon-popover-item'));
-  root.append(trigger, panel);
-  return root;
-}
-
-function inspectorTab(name) {
-  document.querySelector(`[data-inspector-tab="${name}"]`)?.click();
+function menuButton(label, className = '') {
+  const root = node('div', `scene-ribbon-menu ${className}`.trim());
+  const trigger = node('button', 'scene-ribbon-menu-trigger', `${label} ▾`);
+  trigger.type = 'button';
+  trigger.setAttribute('aria-haspopup', 'true');
+  const content = node('div', 'scene-ribbon-menu-content');
+  root.append(trigger, content);
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const ribbon = root.closest('.scene-format-ribbon');
+    if (ribbon) closeRibbonPopovers(ribbon, root);
+    root.classList.toggle('is-open');
+  });
+  return { root, content };
 }
 
 function createRibbon() {
   const ribbon = node('section', 'scene-format-ribbon');
   ribbon.id = 'scene-format-ribbon';
-  ribbon.setAttribute('aria-label', 'Компактная панель сцены');
+  ribbon.setAttribute('aria-label', 'Компактная панель сцены и форматирования');
 
-  const context = node('div', 'scene-ribbon-context');
-  context.append(node('small', '', 'СЦЕНА'), node('strong', 'scene-ribbon-selection', 'Добавление элементов'));
-
-  const commands = node('div', 'scene-ribbon-commands');
-  commands.append(
-    action('✦ Дизайн', () => document.querySelector('#scene-preset-gallery-open, .scene-presets-trigger')?.click(), 'is-primary'),
-    popoverButton('+ Добавить', [
-      ['Меню', () => insert('table')], ['Текст', () => insert('text')], ['Изображение', () => insert('image')], ['Логотип', () => insert('logo')],
-      ['Видео', () => insert('video')], ['Погода', () => insert('weather')], ['Часы', () => insert('clock')], ['Фигура', () => insert('shape')]
-    ]),
-    action('Фон', () => document.querySelector('#scene-tools-toggle')?.click())
+  const head = node('div', 'scene-ribbon-head');
+  head.append(
+    node('span', 'scene-ribbon-context', 'ВСТАВКА'),
+    node('strong', 'scene-ribbon-selection', 'Добавить объект на слайд')
   );
 
-  const quick = node('div', 'scene-ribbon-quickbar');
-  quick.append(
-    proxyControl('#element-font-size', 'text table weather clock', 'Размер'),
-    proxyControl('#element-color', 'text table weather clock', 'Цвет'),
-    proxyControl('#table-preset', 'table', 'Стиль меню'),
-    proxyControl('#table-accent-color', 'table', 'Акцент'),
-    proxyControl('#element-media-fit', 'image logo video', 'Кадр'),
-    proxyControl('#element-radius', '*', 'Скругл.')
+  const body = node('div', 'scene-ribbon-body');
+  const persistent = node('div', 'scene-ribbon-persistent');
+  persistent.append(actionButton('#scene-preset-gallery-open', '✦ Дизайн'));
+
+  const add = menuButton('+ Добавить', 'scene-ribbon-add');
+  add.content.append(
+    insertButton('table', 'Таблица / Меню'),
+    insertButton('text', 'Текст'),
+    insertButton('image', 'Фото'),
+    insertButton('logo', 'Логотип'),
+    insertButton('video', 'Видео'),
+    insertButton('weather', 'Погода'),
+    insertButton('clock', 'Часы'),
+    insertButton('shape', 'Фигура'),
+    actionButton('#scene-tools-toggle', 'Фон слайда')
+  );
+  persistent.append(add.root);
+  body.append(persistent);
+
+  const size = group('Размер');
+  size.content.append(
+    numberControl('#element-width', 'Ширина', { min: 20 }),
+    numberControl('#element-height', 'Высота', { min: 20 })
   );
 
-  const contextual = node('div', 'scene-ribbon-contextual');
-  contextual.append(
-    action('Объект', () => inspectorTab('object')),
-    action('Стиль', () => inspectorTab('format')),
-    action('Данные', () => inspectorTab('data')),
-    action('Анимация', () => inspectorTab('animation')),
-    popoverButton('⋯', [
-      ['На слой вперёд', () => document.querySelector('#element-forward')?.click()],
-      ['На слой назад', () => document.querySelector('#element-backward')?.click()],
-      ['Дублировать', () => document.querySelector('#element-duplicate')?.click()],
-      ['Удалить', () => document.querySelector('#element-delete')?.click()]
-    ])
+  const typography = group('Шрифт и текст', 'text table weather clock');
+  typography.content.append(
+    numberControl('#element-font-size', 'Размер', { min: 8, max: 400 }),
+    selectControl('#element-font-weight', [['300', 'Тонкий'], ['400', 'Обычный'], ['500', 'Средний'], ['600', 'Полужирный'], ['700', 'Жирный'], ['800', 'Очень жирный'], ['900', 'Максимум']], 'Начертание'),
+    colorControl('#element-color', 'Цвет'),
+    selectControl('#element-text-align', [['left', 'Слева'], ['center', 'Центр'], ['right', 'Справа']], 'По горизонтали'),
+    selectControl('#element-vertical-align', [['top', 'Сверху'], ['center', 'Центр'], ['bottom', 'Снизу']], 'По вертикали'),
+    numberControl('#element-line-height', 'Интервал строк', { min: 0.5, max: 3, step: '0.05' }),
+    numberControl('#element-letter-spacing', 'Интервал букв', { min: -50, max: 100 })
   );
 
-  ribbon.append(context, commands, quick, contextual);
+  const surface = group('Заливка и контур');
+  surface.content.append(
+    selectControl('#element-background-mode', [['transparent', 'Прозрачный'], ['color', 'Цвет']], 'Фон'),
+    colorControl('#element-background-color', 'Цвет фона'),
+    numberControl('#element-radius', 'Скругление', { min: 0, max: 500 }),
+    numberControl('#element-border-width', 'Контур', { min: 0, max: 40 }),
+    colorControl('#element-border-color', 'Цвет контура'),
+    rangeControl('#element-opacity', 'Прозрачность'),
+    toggleControl('#element-shadow', 'Тень'),
+    toggleControl('#element-glow', 'Свечение')
+  );
+
+  const table = group('Таблица', 'table');
+  table.content.append(
+    selectControl('#table-preset', MENU_PRESET_OPTIONS, 'Стиль меню'),
+    selectControl('#table-density', [['compact', 'Компактная'], ['comfortable', 'Стандартная'], ['spacious', 'Крупная']], 'Строки'),
+    selectControl('#table-header-style', [['subtle', 'Без заливки'], ['accent', 'Акцент'], ['solid', 'Контрастная']], 'Заголовки'),
+    selectControl('#table-price-style', [['accent', 'Акцент'], ['bold', 'Жирные'], ['plain', 'Обычные']], 'Цены'),
+    colorControl('#table-accent-color', 'Акцент'),
+    toggleControl('#table-show-title', 'Название'),
+    toggleControl('#table-row-dividers', 'Разделители'),
+    toggleControl('#table-zebra', 'Чередование')
+  );
+
+  const widget = group('Виджет', 'weather clock');
+  widget.content.append(
+    selectControl('#element-variant', [], 'Вариант'),
+    selectControl('#widget-appearance-preset', [['', 'Текущий'], ['ios-dark', 'Тёмный'], ['ios-light', 'Светлый'], ['ios-blue', 'Синий'], ['clear', 'Без подложки']], 'Готовый вид')
+  );
+
+  const media = group('Изображение и видео', 'image logo video');
+  media.content.append(
+    selectControl('#element-media-fit', [['cover', 'Заполнить'], ['contain', 'Вписать'], ['fill', 'Растянуть']], 'Заполнение'),
+    selectControl('#element-media-position', [['center', 'Центр'], ['top', 'Сверху'], ['bottom', 'Снизу'], ['left', 'Слева'], ['right', 'Справа']], 'Позиция')
+  );
+
+  const arrange = group('Упорядочить');
+  arrange.content.append(
+    actionButton('#element-forward', 'Вперёд'),
+    actionButton('#element-backward', 'Назад'),
+    actionButton('#element-duplicate', 'Копия', 'Ctrl+D'),
+    actionButton('#element-delete', 'Удалить', 'Delete')
+  );
+
+  const data = node('button', 'scene-ribbon-direct scene-ribbon-data', 'Данные');
+  data.type = 'button';
+  data.addEventListener('click', () => document.querySelector('[data-inspector-tab="data"]')?.click());
+  const animation = node('button', 'scene-ribbon-direct', 'Анимация');
+  animation.type = 'button';
+  animation.addEventListener('click', () => document.querySelector('[data-inspector-tab="animation"]')?.click());
+
+  body.append(size.root, typography.root, surface.root, table.root, widget.root, media.root, arrange.root, data, animation);
+  ribbon.append(head, body);
   return ribbon;
 }
 
-function syncControl(control) {
-  const source = document.querySelector(control.dataset.ribbonBind);
+function syncDynamicSelect(ribbon, bind) {
+  const source = document.querySelector(bind);
+  const target = ribbon.querySelector(`[data-ribbon-bind="${bind}"]`);
+  if (!source || !target || target.tagName !== 'SELECT' || bind !== '#element-variant') return;
+  target.replaceChildren(...[...source.options].map((option) => new Option(option.textContent, option.value)));
+}
+
+function syncControl(target) {
+  const source = document.querySelector(target.dataset.ribbonBind);
   if (!source) return;
-  control.disabled = source.disabled;
-  control.value = source.value;
+  target.disabled = source.disabled;
+  if (target.type === 'checkbox') target.checked = source.checked;
+  else target.value = source.value;
 }
 
 function syncRibbon(ribbon) {
   const type = selectedType();
-  ribbon.classList.toggle('has-selection', Boolean(type));
   ribbon.dataset.sceneType = type || '';
-  ribbon.querySelector('.scene-ribbon-context small').textContent = type ? 'ВЫБРАНО' : 'СЦЕНА';
-  ribbon.querySelector('.scene-ribbon-selection').textContent = type ? TYPE_LABELS[type] : 'Добавление и дизайн';
+  ribbon.classList.toggle('has-selection', Boolean(type));
+  ribbon.querySelector('.scene-ribbon-context').textContent = type ? 'ФОРМАТ ОБЪЕКТА' : 'ВСТАВКА';
+  ribbon.querySelector('.scene-ribbon-selection').textContent = type ? TYPE_LABELS[type] : 'Добавить объект на слайд';
 
-  for (const field of ribbon.querySelectorAll('.scene-ribbon-quick')) {
-    const types = field.dataset.ribbonTypes || '*';
+  for (const groupNode of ribbon.querySelectorAll('.scene-ribbon-group')) {
+    const types = groupNode.dataset.ribbonTypes || '*';
     const visible = Boolean(type) && (types === '*' || types.split(/\s+/).includes(type));
-    field.classList.toggle('is-hidden', !visible);
+    groupNode.classList.toggle('is-hidden', !visible);
+    if (!visible) groupNode.classList.remove('is-open');
   }
-  for (const control of ribbon.querySelectorAll('[data-ribbon-bind]')) syncControl(control);
 
-  const dataButton = [...ribbon.querySelectorAll('.scene-ribbon-contextual>.scene-ribbon-command')].find((button) => button.textContent === 'Данные');
+  const dataButton = ribbon.querySelector('.scene-ribbon-data');
   if (dataButton) dataButton.classList.toggle('is-hidden', !['table', 'image', 'logo', 'video', 'weather'].includes(type || ''));
+  const animationButton = [...ribbon.querySelectorAll('.scene-ribbon-direct')].find((button) => button.textContent === 'Анимация');
+  if (animationButton) animationButton.classList.toggle('is-hidden', !type);
+
+  syncDynamicSelect(ribbon, '#element-variant');
+  for (const target of ribbon.querySelectorAll('[data-ribbon-bind]')) syncControl(target);
+
+  const backgroundMode = ribbon.querySelector('[data-ribbon-bind="#element-background-mode"]');
+  const backgroundColor = ribbon.querySelector('[data-ribbon-bind="#element-background-color"]')?.closest('.scene-ribbon-field');
+  if (backgroundMode && backgroundColor) backgroundColor.classList.toggle('is-hidden', backgroundMode.value === 'transparent');
 }
 
-function bindSync(ribbon) {
-  const sync = () => queueMicrotask(() => syncRibbon(ribbon));
+function bindRibbon(ribbon) {
+  for (const target of ribbon.querySelectorAll('[data-ribbon-bind]')) {
+    const eventName = target.dataset.ribbonEvent || 'change';
+    target.addEventListener(eventName, () => {
+      const source = document.querySelector(target.dataset.ribbonBind);
+      if (!source) return;
+      if (target.type === 'checkbox') source.checked = target.checked;
+      else source.value = target.value;
+      source.dispatchEvent(new Event(eventName, { bubbles: true }));
+      queueMicrotask(() => syncRibbon(ribbon));
+    });
+  }
+
+  for (const button of ribbon.querySelectorAll('[data-ribbon-action]')) {
+    button.addEventListener('click', () => document.querySelector(button.dataset.ribbonAction)?.click());
+  }
+  for (const button of ribbon.querySelectorAll('[data-ribbon-insert]')) {
+    button.addEventListener('click', () => document.querySelector(`[data-add-element="${button.dataset.ribbonInsert}"]`)?.click());
+  }
+
   const inspector = document.querySelector('.scene-inspector');
-  inspector?.addEventListener('input', sync);
-  inspector?.addEventListener('change', sync);
+  inspector?.addEventListener('input', () => queueMicrotask(() => syncRibbon(ribbon)));
+  inspector?.addEventListener('change', () => queueMicrotask(() => syncRibbon(ribbon)));
+
   const layer = document.querySelector('#scene-elements-layer');
-  const observer = layer ? new MutationObserver(sync) : null;
-  observer?.observe(layer, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+  if (layer) {
+    const observer = new MutationObserver(() => queueMicrotask(() => syncRibbon(ribbon)));
+    observer.observe(layer, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+  }
+
   document.addEventListener('click', (event) => {
-    for (const root of ribbon.querySelectorAll('.scene-ribbon-popover-root.is-open')) {
-      if (!root.contains(event.target)) root.classList.remove('is-open');
-    }
-    sync();
+    if (!ribbon.contains(event.target)) closeRibbonPopovers(ribbon);
+    queueMicrotask(() => syncRibbon(ribbon));
   }, true);
-  document.addEventListener('keydown', sync, true);
-  syncRibbon(ribbon);
+  document.addEventListener('contextmenu', () => queueMicrotask(() => syncRibbon(ribbon)), true);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeRibbonPopovers(ribbon);
+    queueMicrotask(() => syncRibbon(ribbon));
+  }, true);
 }
 
 export function initialiseSceneRibbon() {
@@ -176,5 +341,6 @@ export function initialiseSceneRibbon() {
   if (!toolbar) return;
   const ribbon = createRibbon();
   toolbar.after(ribbon);
-  bindSync(ribbon);
+  bindRibbon(ribbon);
+  syncRibbon(ribbon);
 }
