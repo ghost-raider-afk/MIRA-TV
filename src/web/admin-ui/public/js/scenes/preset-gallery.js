@@ -50,10 +50,10 @@ async function applyPreset(preset, root, message, mode = 'style') {
       : applySceneDesignPreset(current, preset, { mode: 'auto' });
     await updateSceneRemote(result.scene);
     message.textContent = mode === 'campaign'
-      ? `Добавлен продающий комплект «${preset.name}»: ${result.addedSlides} слайда.`
+      ? `Добавлен комплект «${preset.name}»: ${result.addedSlides} слайда.`
       : result.seeded
         ? `Создан готовый комплект «${preset.name}» из ${result.addedSlides} слайдов.`
-        : `Стиль «${preset.name}» применён без добавления объектов поверх существующей сцены.`;
+        : `Стиль «${preset.name}» применён.`;
     await sleep(240);
     window.location.reload();
   } catch (error) {
@@ -109,7 +109,7 @@ function createGallery() {
   root.innerHTML = `
     <div class="scene-preset-gallery-dialog">
       <header class="scene-preset-gallery-head">
-        <div><p class="eyebrow">ГОТОВЫЕ ДИЗАЙНЫ</p><h2>Готовые продающие меню</h2><p>Основная кнопка меняет оформление существующей сцены без добавления лишних объектов. На пустой сцене создаётся готовый комплект из нескольких слайдов. Кнопка «+ слайда» добавляет комплект к текущей сцене.</p></div>
+        <div><p class="eyebrow">ГОТОВЫЕ ДИЗАЙНЫ</p><h2>Готовые шаблоны меню</h2></div>
         <button type="button" class="scene-preset-close" aria-label="Закрыть">×</button>
       </header>
       <nav class="scene-preset-filters" aria-label="Категории дизайна"></nav>
