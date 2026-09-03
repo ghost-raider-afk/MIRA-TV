@@ -11,11 +11,14 @@ const TYPE_LABELS = Object.freeze({
 
 const TYPE_CLASSES = Object.keys(TYPE_LABELS).map((type) => [`scene-element-${type}`, type]);
 const DATA_TYPES = new Set(['table', 'image', 'logo', 'video', 'weather']);
+const TEXT_TYPES = 'text table weather clock';
+const MEDIA_TYPES = 'image logo video';
+const WIDGET_TYPES = 'weather clock';
 const MENU_PRESET_OPTIONS = Object.freeze([
   ['clean', 'MIRA-TV'],
-  ['glass', 'Современная'],
+  ['glass', 'Современное'],
   ['solid', 'Сетка'],
-  ['minimal', 'Минимальная'],
+  ['minimal', 'Минимальное'],
   ['menu-board', 'Menu Board'],
   ['bistro', 'Bistro'],
   ['cafe', 'Café'],
@@ -38,19 +41,13 @@ function selectedType() {
   return null;
 }
 
-function group(title, types = '*', className = '') {
-  const root = node('section', `scene-ribbon-group ${className}`.trim());
+function section(label, types = '*', className = '') {
+  const root = node('section', `scene-ribbon-section ${className}`.trim());
   root.dataset.ribbonTypes = types;
-  const content = node('div', 'scene-ribbon-group-content');
-  const label = node('div', 'scene-ribbon-group-label', title);
-  root.append(content, label);
-  return { root, content };
-}
-
-function panel(id) {
-  const root = node('div', 'scene-ribbon-panel');
-  root.dataset.ribbonPanel = id;
-  return root;
+  if (label) root.append(node('span', 'scene-ribbon-section-label', label));
+  const body = node('div', 'scene-ribbon-section-body');
+  root.append(body);
+  return { root, body };
 }
 
 function field(labelText, control, className = '') {
@@ -59,17 +56,17 @@ function field(labelText, control, className = '') {
   return wrapper;
 }
 
-function selectControl(bind, options, label, { dynamic = false } = {}) {
+function selectControl(bind, options, label, { dynamic = false, className = '' } = {}) {
   const select = node('select', 'scene-ribbon-control');
   select.dataset.ribbonBind = bind;
   select.dataset.ribbonEvent = 'change';
   if (dynamic) select.dataset.ribbonDynamic = '1';
   select.setAttribute('aria-label', label);
   for (const [value, text] of options) select.append(new Option(text, value));
-  return field(label, select);
+  return field(label, select, className);
 }
 
-function numberControl(bind, label, { min = null, max = null, step = '1' } = {}) {
+function numberControl(bind, label, { min = null, max = null, step = '1', className = '' } = {}) {
   const input = node('input', 'scene-ribbon-control scene-ribbon-number');
   input.type = 'number';
   input.dataset.ribbonBind = bind;
@@ -78,295 +75,122 @@ function numberControl(bind, label, { min = null, max = null, step = '1' } = {})
   if (min !== null) input.min = String(min);
   if (max !== null) input.max = String(max);
   input.setAttribute('aria-label', label);
-  return field(label, input, 'scene-ribbon-field-number');
+  return field(label, input, className);
 }
 
-function textControl(bind, label) {
-  const input = node('input', 'scene-ribbon-control scene-ribbon-text');
-  input.type = 'text';
-  input.dataset.ribbonBind = bind;
-  input.dataset.ribbonEvent = 'input';
-  input.setAttribute('aria-label', label);
-  return field(label, input, 'scene-ribbon-field-text');
-}
-
-function colorControl(bind, label) {
+function colorControl(bind, label, className = '') {
   const input = node('input', 'scene-ribbon-control scene-ribbon-color');
   input.type = 'color';
   input.dataset.ribbonBind = bind;
   input.dataset.ribbonEvent = 'input';
   input.setAttribute('aria-label', label);
-  return field(label, input, 'scene-ribbon-field-color');
+  return field(label, input, className);
 }
 
-function rangeControl(bind, label, { min = 0, max = 1, step = 0.05 } = {}) {
-  const input = node('input', 'scene-ribbon-control scene-ribbon-range');
-  input.type = 'range';
-  input.min = String(min);
-  input.max = String(max);
-  input.step = String(step);
-  input.dataset.ribbonBind = bind;
-  input.dataset.ribbonEvent = 'input';
-  input.setAttribute('aria-label', label);
-  return field(label, input, 'scene-ribbon-field-range');
-}
-
-function toggleControl(bind, label) {
-  const wrapper = node('label', 'scene-ribbon-toggle');
-  const input = node('input');
-  input.type = 'checkbox';
-  input.dataset.ribbonBind = bind;
-  input.dataset.ribbonEvent = 'change';
-  wrapper.append(input, node('span', '', label));
-  return wrapper;
-}
-
-function actionButton(selector, label, title = '') {
-  const button = node('button', 'scene-ribbon-action', label);
+function actionButton(selector, label, { title = '', className = '' } = {}) {
+  const button = node('button', `scene-ribbon-action ${className}`.trim(), label);
   button.type = 'button';
   button.dataset.ribbonAction = selector;
   if (title) button.title = title;
   return button;
 }
 
-function insertButton(type, label) {
-  const button = node('button', 'scene-ribbon-insert-action', label);
+function insertButton(type, label, className = '') {
+  const button = node('button', `scene-ribbon-action scene-ribbon-insert-action ${className}`.trim(), label);
   button.type = 'button';
   button.dataset.ribbonInsert = type;
   return button;
 }
 
-function createTabs() {
-  const tabs = node('nav', 'scene-ribbon-tabs');
-  tabs.setAttribute('aria-label', 'Разделы панели инструментов');
-  const definitions = [
-    ['home', 'Главная'],
-    ['insert', 'Вставка'],
-    ['format', 'Оформление'],
-    ['data', 'Данные'],
-    ['animation', 'Анимация']
-  ];
-  for (const [id, label] of definitions) {
-    const button = node('button', 'scene-ribbon-tab', label);
-    button.type = 'button';
-    button.dataset.ribbonTab = id;
-    button.setAttribute('role', 'tab');
-    tabs.append(button);
-  }
-  return tabs;
-}
-
-function createHomePanel() {
-  const root = panel('home');
-  const context = group('Выбрано', '*', 'scene-ribbon-context-group');
-  context.content.append(
-    node('strong', 'scene-ribbon-selection', 'Объект'),
-    textControl('#element-content', 'Текст')
-  );
-
-  const position = group('Положение и размер');
-  position.content.append(
-    numberControl('#element-x', 'X', { min: 0 }),
-    numberControl('#element-y', 'Y', { min: 0 }),
-    numberControl('#element-width', 'Ш', { min: 20 }),
-    numberControl('#element-height', 'В', { min: 20 })
-  );
-
-  const arrange = group('Упорядочить');
-  arrange.content.append(
-    actionButton('#element-forward', 'Вперёд'),
-    actionButton('#element-backward', 'Назад'),
-    actionButton('#element-duplicate', 'Копия', 'Ctrl+D'),
-    actionButton('#element-delete', 'Удалить', 'Delete')
-  );
-
-  root.append(context.root, position.root, arrange.root);
-  return root;
-}
-
-function createInsertPanel() {
-  const root = panel('insert');
-  const design = group('Дизайн', 'always');
-  design.content.append(
-    actionButton('#scene-preset-gallery-open', '✦ Шаблоны'),
-    actionButton('#scene-tools-toggle', 'Фон слайда')
-  );
-
-  const elements = group('Элементы', 'always', 'scene-ribbon-insert-group');
-  elements.content.append(
-    insertButton('table', 'Меню'),
-    insertButton('text', 'Текст'),
-    insertButton('image', 'Фото'),
-    insertButton('logo', 'Логотип'),
-    insertButton('video', 'Видео'),
-    insertButton('weather', 'Погода'),
-    insertButton('clock', 'Часы'),
-    insertButton('shape', 'Фигура')
-  );
-
-  root.append(design.root, elements.root);
-  return root;
-}
-
-function createFormatPanel() {
-  const root = panel('format');
-
-  const typography = group('Шрифт и текст', 'text table weather clock');
-  typography.content.append(
-    numberControl('#element-font-size', 'Размер', { min: 8, max: 400 }),
-    selectControl('#element-font-weight', [['300', 'Тонкий'], ['400', 'Обычный'], ['500', 'Средний'], ['600', 'Полужирный'], ['700', 'Жирный'], ['800', 'Очень жирный'], ['900', 'Максимум']], 'Начертание'),
-    colorControl('#element-color', 'Цвет'),
-    selectControl('#element-text-align', [['left', 'Слева'], ['center', 'Центр'], ['right', 'Справа']], 'Горизонтально'),
-    selectControl('#element-vertical-align', [['top', 'Сверху'], ['center', 'Центр'], ['bottom', 'Снизу']], 'Вертикально'),
-    numberControl('#element-line-height', 'Строки', { min: 0.5, max: 3, step: '0.05' }),
-    numberControl('#element-letter-spacing', 'Буквы', { min: -50, max: 100 })
-  );
-
-  const surface = group('Заливка и контур');
-  surface.content.append(
-    selectControl('#element-background-mode', [['transparent', 'Нет'], ['color', 'Цвет']], 'Фон'),
-    colorControl('#element-background-color', 'Фон'),
-    numberControl('#element-radius', 'Радиус', { min: 0, max: 500 }),
-    numberControl('#element-border-width', 'Контур', { min: 0, max: 40 }),
-    colorControl('#element-border-color', 'Контур'),
-    rangeControl('#element-opacity', 'Прозр.', { min: 0, max: 1, step: 0.05 })
-  );
-
-  const effects = group('Эффекты');
-  effects.content.append(
-    toggleControl('#element-shadow', 'Тень'),
-    toggleControl('#element-glow', 'Свечение'),
-    rangeControl('#element-blur', 'Размытие', { min: 0, max: 40, step: 1 })
-  );
-
-  const table = group('Меню', 'table');
-  table.content.append(
-    selectControl('#table-preset', MENU_PRESET_OPTIONS, 'Стиль'),
-    selectControl('#table-density', [['compact', 'Компактно'], ['comfortable', 'Стандартно'], ['spacious', 'Крупно']], 'Строки'),
-    selectControl('#table-header-style', [['subtle', 'Лёгкий'], ['accent', 'Акцент'], ['solid', 'Контраст']], 'Заголовок'),
-    selectControl('#table-price-style', [['accent', 'Акцент'], ['bold', 'Жирный'], ['plain', 'Обычный']], 'Цены'),
-    colorControl('#table-accent-color', 'Акцент'),
-    toggleControl('#table-show-title', 'Название'),
-    toggleControl('#table-row-dividers', 'Линии'),
-    toggleControl('#table-zebra', 'Чередование')
-  );
-
-  const widget = group('Виджет', 'weather clock');
-  widget.content.append(
-    selectControl('#element-variant', [], 'Вариант', { dynamic: true }),
-    selectControl('#widget-appearance-preset', [['', 'Текущий'], ['ios-dark', 'Тёмный'], ['ios-light', 'Светлый'], ['ios-blue', 'Синий'], ['clear', 'Без фона']], 'Стиль')
-  );
-
-  const media = group('Медиа', 'image logo video');
-  media.content.append(
-    selectControl('#element-media-fit', [['cover', 'Заполнить'], ['contain', 'Вписать'], ['fill', 'Растянуть']], 'Масштаб'),
-    selectControl('#element-media-position', [['center', 'Центр'], ['top', 'Сверху'], ['bottom', 'Снизу'], ['left', 'Слева'], ['right', 'Справа']], 'Позиция')
-  );
-
-  root.append(typography.root, surface.root, effects.root, table.root, widget.root, media.root);
-  return root;
-}
-
-function createDataPanel() {
-  const root = panel('data');
-
-  const table = group('Состав меню', 'table');
-  table.content.append(
-    actionButton('[data-menu-compose]', 'Настроить состав'),
-    selectControl('#table-class-code', [], 'Класс', { dynamic: true }),
-    selectControl('#table-price-layout', [['single', 'Одна цена'], ['quantities', 'По объёму']], 'Цены'),
-    numberControl('#table-row-limit', 'Строк', { min: 1, max: 50 }),
-    toggleControl('#table-active-only', 'Только активные'),
-    toggleControl('#table-show-description', 'Описание'),
-    toggleControl('#table-show-metadata', 'Свойства')
-  );
-
-  const media = group('Медиафайл', 'image logo video');
-  media.content.append(
-    actionButton('#element-media-upload', 'Загрузить'),
-    actionButton('#element-media-refresh', 'Обновить')
-  );
-
-  const weather = group('Погода', 'weather');
-  weather.content.append(
-    textControl('#weather-location', 'Город'),
-    actionButton('#weather-refresh', 'Обновить')
-  );
-
-  root.append(table.root, media.root, weather.root);
-  return root;
-}
-
-function createAnimationPanel() {
-  const root = panel('animation');
-  const motion = group('Анимация объекта');
-  motion.content.append(
-    selectControl('#element-entrance', [['none', 'Нет'], ['fade', 'Fade'], ['slide-up', 'Снизу вверх'], ['scale', 'Масштаб']], 'Появление'),
-    selectControl('#element-loop', [['none', 'Нет'], ['pulse', 'Пульсация'], ['float', 'Плавание']], 'Постоянная'),
-    selectControl('#element-exit', [['none', 'Нет'], ['fade', 'Fade'], ['scale', 'Масштаб']], 'Исчезновение')
-  );
-  const details = group('Точно');
-  details.content.append(actionButton('[data-inspector-tab="animation"]', 'Открыть справа'));
-  root.append(motion.root, details.root);
-  return root;
+function inspectorButton(tab, label) {
+  const button = node('button', 'scene-ribbon-action scene-ribbon-inspector-action', label);
+  button.type = 'button';
+  button.dataset.ribbonInspector = tab;
+  return button;
 }
 
 function createRibbon() {
   const ribbon = node('section', 'scene-format-ribbon');
   ribbon.id = 'scene-format-ribbon';
-  ribbon.setAttribute('aria-label', 'Панель инструментов сцены');
-  ribbon.append(
-    createTabs(),
-    node('div', 'scene-ribbon-panels')
+  ribbon.setAttribute('aria-label', 'Быстрые инструменты сцены');
+
+  const insert = section('', 'always', 'scene-ribbon-static');
+  insert.body.append(
+    actionButton('#scene-preset-gallery-open', 'Шаблоны', { className: 'scene-ribbon-design-action' }),
+    insertButton('table', '+ Меню'),
+    insertButton('text', 'Текст', 'scene-ribbon-secondary'),
+    insertButton('image', 'Фото', 'scene-ribbon-secondary'),
+    actionButton('#scene-tools-toggle', 'Ещё…', { className: 'scene-ribbon-more-action' })
   );
-  const panels = ribbon.querySelector('.scene-ribbon-panels');
-  panels.append(
-    createHomePanel(),
-    createInsertPanel(),
-    createFormatPanel(),
-    createDataPanel(),
-    createAnimationPanel()
+
+  const identity = section('', '*', 'scene-ribbon-identity');
+  identity.body.append(
+    node('span', 'scene-ribbon-selection-kicker', 'ВЫБРАНО'),
+    node('strong', 'scene-ribbon-selection', 'Объект')
   );
+
+  const geometry = section('Размер');
+  geometry.body.append(
+    numberControl('#element-width', 'Ш', { min: 20 }),
+    numberControl('#element-height', 'В', { min: 20 })
+  );
+
+  const text = section('Текст', TEXT_TYPES);
+  text.body.append(
+    numberControl('#element-font-size', 'pt', { min: 8, max: 400 }),
+    selectControl('#element-font-weight', [['300', 'Тонкий'], ['400', 'Обычный'], ['500', 'Средний'], ['600', 'Полужирный'], ['700', 'Жирный'], ['800', 'Очень жирный'], ['900', 'Максимум']], 'Начертание'),
+    colorControl('#element-color', 'Цвет'),
+    selectControl('#element-text-align', [['left', 'Слева'], ['center', 'Центр'], ['right', 'Справа']], 'Выравнивание', { className: 'scene-ribbon-secondary' })
+  );
+
+  const table = section('Меню', 'table');
+  table.body.append(
+    selectControl('#table-preset', MENU_PRESET_OPTIONS, 'Стиль'),
+    selectControl('#table-density', [['compact', 'Компактно'], ['comfortable', 'Стандартно'], ['spacious', 'Крупно']], 'Плотность', { className: 'scene-ribbon-secondary' })
+  );
+
+  const media = section('Медиа', MEDIA_TYPES);
+  media.body.append(
+    selectControl('#element-media-fit', [['cover', 'Заполнить'], ['contain', 'Вписать'], ['fill', 'Растянуть']], 'Масштаб'),
+    selectControl('#element-media-position', [['center', 'Центр'], ['top', 'Сверху'], ['bottom', 'Снизу'], ['left', 'Слева'], ['right', 'Справа']], 'Позиция', { className: 'scene-ribbon-secondary' })
+  );
+
+  const widget = section('Виджет', WIDGET_TYPES);
+  widget.body.append(
+    selectControl('#element-variant', [], 'Вариант', { dynamic: true })
+  );
+
+  const surface = section('Объект');
+  surface.body.append(
+    selectControl('#element-background-mode', [['transparent', 'Без фона'], ['color', 'Заливка']], 'Фон', { className: 'scene-ribbon-secondary' }),
+    colorControl('#element-background-color', 'Заливка', 'scene-ribbon-secondary')
+  );
+
+  const arrange = section('', '*', 'scene-ribbon-arrange');
+  arrange.body.append(
+    actionButton('#element-backward', '↓', { title: 'На слой назад' }),
+    actionButton('#element-forward', '↑', { title: 'На слой вперёд' }),
+    actionButton('#element-duplicate', '⧉', { title: 'Дублировать · Ctrl+D' }),
+    actionButton('#element-delete', '×', { title: 'Удалить · Delete', className: 'scene-ribbon-delete-action' })
+  );
+
+  const inspect = section('', '*', 'scene-ribbon-inspect');
+  inspect.body.append(
+    inspectorButton('object', 'Свойства'),
+    inspectorButton('format', 'Оформление'),
+    inspectorButton('data', 'Данные'),
+    inspectorButton('animation', 'Анимация')
+  );
+
+  const empty = node('div', 'scene-ribbon-empty', 'Выберите объект на слайде для быстрых настроек');
+
+  ribbon.append(insert.root, identity.root, geometry.root, text.root, table.root, media.root, widget.root, surface.root, arrange.root, inspect.root, empty);
   return ribbon;
-}
-
-function tabAvailable(id, type) {
-  if (id === 'insert') return true;
-  if (id === 'data') return Boolean(type && DATA_TYPES.has(type));
-  return Boolean(type);
-}
-
-function inspectorTabForRibbon(id) {
-  if (id === 'home') return 'object';
-  if (id === 'format') return 'format';
-  if (id === 'data') return 'data';
-  if (id === 'animation') return 'animation';
-  return '';
-}
-
-function activateTab(ribbon, id, { syncInspector = true } = {}) {
-  const type = selectedType();
-  const requested = tabAvailable(id, type) ? id : (type ? 'home' : 'insert');
-  ribbon.dataset.activeTab = requested;
-  for (const button of ribbon.querySelectorAll('[data-ribbon-tab]')) {
-    const active = button.dataset.ribbonTab === requested;
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-selected', active ? 'true' : 'false');
-  }
-  for (const pane of ribbon.querySelectorAll('[data-ribbon-panel]')) {
-    pane.classList.toggle('is-active', pane.dataset.ribbonPanel === requested);
-  }
-  if (syncInspector) {
-    const inspectorTab = inspectorTabForRibbon(requested);
-    if (inspectorTab) document.querySelector(`[data-inspector-tab="${inspectorTab}"]`)?.click();
-  }
 }
 
 function syncDynamicSelect(target, source) {
   if (target.tagName !== 'SELECT' || target.dataset.ribbonDynamic !== '1') return;
-  const current = target.value;
   target.replaceChildren(...[...source.options].map((option) => new Option(option.textContent, option.value)));
-  target.value = [...target.options].some((option) => option.value === source.value) ? source.value : current;
 }
 
 function syncControl(target) {
@@ -381,8 +205,8 @@ function syncControl(target) {
   else target.value = source.value;
 }
 
-function groupVisible(groupNode, type) {
-  const types = groupNode.dataset.ribbonTypes || '*';
+function sectionVisible(sectionNode, type) {
+  const types = sectionNode.dataset.ribbonTypes || '*';
   if (types === 'always') return true;
   if (!type) return false;
   return types === '*' || types.split(/\s+/).includes(type);
@@ -395,15 +219,10 @@ function syncRibbon(ribbon) {
   const selection = ribbon.querySelector('.scene-ribbon-selection');
   if (selection) selection.textContent = type ? TYPE_LABELS[type] : 'Слайд';
 
-  for (const button of ribbon.querySelectorAll('[data-ribbon-tab]')) {
-    const available = tabAvailable(button.dataset.ribbonTab, type);
-    button.disabled = !available;
-    button.classList.toggle('is-disabled', !available);
+  for (const sectionNode of ribbon.querySelectorAll('.scene-ribbon-section')) {
+    sectionNode.classList.toggle('is-hidden', !sectionVisible(sectionNode, type));
   }
-
-  for (const groupNode of ribbon.querySelectorAll('.scene-ribbon-group')) {
-    groupNode.classList.toggle('is-hidden', !groupVisible(groupNode, type));
-  }
+  ribbon.querySelector('.scene-ribbon-empty')?.classList.toggle('is-hidden', Boolean(type));
 
   for (const target of ribbon.querySelectorAll('[data-ribbon-bind]')) syncControl(target);
   for (const button of ribbon.querySelectorAll('[data-ribbon-action]')) {
@@ -411,18 +230,15 @@ function syncRibbon(ribbon) {
     button.disabled = !source || source.disabled;
   }
 
+  const dataButton = ribbon.querySelector('[data-ribbon-inspector="data"]');
+  if (dataButton) dataButton.classList.toggle('is-hidden', !type || !DATA_TYPES.has(type));
+
   const backgroundMode = ribbon.querySelector('[data-ribbon-bind="#element-background-mode"]');
   const backgroundColor = ribbon.querySelector('[data-ribbon-bind="#element-background-color"]')?.closest('.scene-ribbon-field');
   if (backgroundMode && backgroundColor) backgroundColor.classList.toggle('is-hidden', backgroundMode.value === 'transparent');
-
-  if (!tabAvailable(ribbon.dataset.activeTab || '', type)) activateTab(ribbon, type ? 'home' : 'insert', { syncInspector: false });
 }
 
 function bindRibbon(ribbon) {
-  for (const button of ribbon.querySelectorAll('[data-ribbon-tab]')) {
-    button.addEventListener('click', () => activateTab(ribbon, button.dataset.ribbonTab));
-  }
-
   for (const target of ribbon.querySelectorAll('[data-ribbon-bind]')) {
     const eventName = target.dataset.ribbonEvent || 'change';
     target.addEventListener(eventName, () => {
@@ -441,15 +257,9 @@ function bindRibbon(ribbon) {
   for (const button of ribbon.querySelectorAll('[data-ribbon-insert]')) {
     button.addEventListener('click', () => document.querySelector(`[data-add-element="${button.dataset.ribbonInsert}"]`)?.click());
   }
-
-  const inspectorTabs = document.querySelector('#inspector-tabs');
-  inspectorTabs?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-inspector-tab]');
-    if (!button) return;
-    const map = { object: 'home', format: 'format', data: 'data', animation: 'animation' };
-    const ribbonTab = map[button.dataset.inspectorTab];
-    if (ribbonTab && tabAvailable(ribbonTab, selectedType())) activateTab(ribbon, ribbonTab, { syncInspector: false });
-  });
+  for (const button of ribbon.querySelectorAll('[data-ribbon-inspector]')) {
+    button.addEventListener('click', () => document.querySelector(`[data-inspector-tab="${button.dataset.ribbonInspector}"]`)?.click());
+  }
 
   const observer = new MutationObserver(() => queueMicrotask(() => syncRibbon(ribbon)));
   const layer = document.querySelector('#scene-elements-layer');
@@ -469,6 +279,5 @@ export function initialiseSceneRibbon() {
   const ribbon = createRibbon();
   toolbar.after(ribbon);
   bindRibbon(ribbon);
-  activateTab(ribbon, selectedType() ? 'home' : 'insert', { syncInspector: false });
   syncRibbon(ribbon);
 }
