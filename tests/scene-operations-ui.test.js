@@ -6,13 +6,18 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('Scene Editor exposes one-step publish that waits for confirmed Draft save', async () => {
-  const [application, control, store] = await Promise.all([
+  const [application, control, store, html] = await Promise.all([
     read('src/web/admin-ui/public/js/application.js'),
     read('src/web/admin-ui/public/js/scenes/publish-control.js'),
-    read('src/web/admin-ui/public/js/scenes/store.js')
+    read('src/web/admin-ui/public/js/scenes/store.js'),
+    read('src/web/admin-ui/public/scene-editor.html')
   ]);
 
   assert.match(application, /initialiseScenePublishControl/);
+  assert.match(html, /id="scene-publish"/);
+  assert.match(control, /const existing = document\.querySelector\('#scene-publish'\)/);
+  assert.match(control, /existing instanceof HTMLButtonElement/);
+  assert.match(control, /button\.dataset\.publishControlReady = 'true'/);
   assert.match(control, /button\.textContent = 'Опубликовать'/);
   assert.match(control, /document\.querySelector\('#scene-save'\)\?\.click\(\)/);
   assert.match(control, /state\.textContent\.trim\(\) === SAVE_OK/);

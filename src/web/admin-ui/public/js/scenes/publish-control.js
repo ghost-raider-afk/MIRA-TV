@@ -43,7 +43,9 @@ function showEditorMessage(message, error = false) {
 function createPublishButton() {
   const toolbar = document.querySelector('.scene-toolbar-controls');
   const saveButton = document.querySelector('#scene-save');
-  if (!toolbar || !saveButton || document.querySelector('#scene-publish')) return null;
+  const existing = document.querySelector('#scene-publish');
+  if (existing instanceof HTMLButtonElement) return existing;
+  if (!toolbar || !saveButton) return null;
   const button = document.createElement('button');
   button.id = 'scene-publish';
   button.type = 'button';
@@ -59,7 +61,8 @@ function createPublishButton() {
 
 export function initialiseScenePublishControl() {
   const button = createPublishButton();
-  if (!button) return;
+  if (!button || button.dataset.publishControlReady === 'true') return;
+  button.dataset.publishControlReady = 'true';
 
   button.addEventListener('click', async () => {
     const id = sceneId();
