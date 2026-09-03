@@ -20,18 +20,59 @@ function catalogIds(draft) {
   return { productIds: [...productIds], packagingIds: [...packagingIds] };
 }
 
+function sceneCatalogElements(scene) {
+  const result = [];
+  for (const slide of Array.isArray(scene?.slides) ? scene.slides : []) {
+    for (const element of Array.isArray(slide?.elements) ? slide.elements : []) {
+      if (element?.type === 'table' && ['catalog_items', 'catalog_products'].includes(element?.data_binding?.source)) result.push(element);
+    }
+  }
+  return result;
+}
+
 function sceneUsesCatalog(scene) {
-  return Array.isArray(scene?.slides) && scene.slides.some((slide) =>
-    Array.isArray(slide?.elements) && slide.elements.some((element) =>
-      element?.type === 'table' && ['catalog_items', 'catalog_products'].includes(element?.data_binding?.source)
-    )
-  );
+  return sceneCatalogElements(scene).length > 0;
 }
 
 async function universalCatalogItems(store) {
   if (typeof store.listCatalogItems === 'function') return store.listCatalogItems();
   if (typeof store.listProducts === 'function') return store.listProducts();
   return [];
+}
+
+function cloneScene(scene) {
+  return typeof structuredClone === 'function' ? structuredClone(scene) : JSON.parse(JSON.stringify(scene));
+}
+
+async function resolvedSceneCatalog(store, sourceScene) {
+  const elements = sceneCatalogElements(sourceScene);
+  if (!elements.length) return { scene: sourceScene, catalogItems: [] };
+
+  const viewIds = [...new Set(elements.map((element) => Number(element?.table?.view_id)).filter((id) => Number.isSafeInteger(id) && id > 0))];
+  const hasUnfilteredElement = elements.some((element) => !(Number(element?.table?.view_id) > 0));
+  if (hasUnfilteredElement || !viewIds.length || typeof store.listCatalogViewsByIds !== 'function') {
+    return { scene: sourceScene, catalogItems: await universalCatalogItems(store) };
+  }
+
+  const views = await store.listCatalogViewsByIds(viewIds);
+  const viewMap = new Map((views || []).map((view) => [Number(view.id), view]));
+  const scene = cloneScene(sourceScene);
+  const itemIds = new Set();
+
+  for (const element of sceneCatalogElements(scene)) {
+    const viewId = Number(element?.table?.view_id);
+    const view = viewMap.get(viewId);
+    const ids = Array.isArray(view?.item_ids)
+      ? view.item_ids
+      : Array.isArray(element?.table?.item_ids) ? element.table.item_ids : [];
+    element.table.item_ids = [...new Set(ids.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))];
+    for (const id of element.table.item_ids) itemIds.add(id);
+  }
+
+  let catalogItems;
+  if (typeof store.listCatalogItemsByIds === 'function') catalogItems = await store.listCatalogItemsByIds([...itemIds]);
+  else catalogItems = (await universalCatalogItems(store)).filter((item) => itemIds.has(Number(item.id)));
+  return { scene, catalogItems };
 }
 
 function sceneWeatherElements(scene) {
@@ -102,11 +143,15 @@ async function publishedSceneComponent(store, screenId, config) {
   if (!assignment) return null;
   const revision = await store.getSceneRevision(assignment.scene_revision_id);
   if (!revision) return null;
-  const mediaIds = sceneMediaAssetIds(revision.scene);
-  const [catalogItems, mediaAssets, weatherByElement] = await Promise.all([
-    sceneUsesCatalog(revision.scene) ? universalCatalogItems(store) : [],
+
+  const resolvedCatalog = sceneUsesCatalog(revision.scene)
+    ? await resolvedSceneCatalog(store, revision.scene)
+    : { scene: revision.scene, catalogItems: [] };
+  const scene = resolvedCatalog.scene;
+  const mediaIds = sceneMediaAssetIds(scene);
+  const [mediaAssets, weatherByElement] = await Promise.all([
     mediaIds.length ? store.listMediaAssetsByIds(mediaIds) : [],
-    sceneWeatherData(revision.scene, config)
+    sceneWeatherData(scene, config)
   ]);
   return {
     revision_id: revision.id,
@@ -114,8 +159,8 @@ async function publishedSceneComponent(store, screenId, config) {
     scene_name: revision.scene_name,
     revision_number: revision.revision_number,
     published_at: revision.published_at,
-    graph: revision.scene,
-    catalog_items: catalogItems,
+    graph: scene,
+    catalog_items: resolvedCatalog.catalogItems,
     media_assets: mediaAssets,
     weather_by_element: weatherByElement
   };

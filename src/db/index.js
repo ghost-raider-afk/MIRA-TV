@@ -20,6 +20,7 @@ import { migratePrototypeScenes } from './migrations/prototype-scenes.js';
 import { migrateScenePublishing } from './migrations/scene-publishing.js';
 import { migrateMediaAssets } from './migrations/media-assets.js';
 import { migrateUniversalCatalog } from './migrations/universal-catalog.js';
+import { migrateCatalogViews } from './migrations/catalog-views.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -29,6 +30,7 @@ import { createNotificationsRepository } from './notifications.js';
 import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
+import { createCatalogViewsRepository } from './catalog-views.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
@@ -56,7 +58,8 @@ const MIGRATIONS = Object.freeze([
   { name: '018-prototype-scenes', run: migratePrototypeScenes },
   { name: '019-scene-publishing', run: migrateScenePublishing },
   { name: '020-media-assets', run: migrateMediaAssets },
-  { name: '021-universal-catalog', run: migrateUniversalCatalog }
+  { name: '021-universal-catalog', run: migrateUniversalCatalog },
+  { name: '022-catalog-views', run: migrateCatalogViews }
 ]);
 
 function createRepositories(queryable) {
@@ -70,6 +73,7 @@ function createRepositories(queryable) {
     locations,
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
+    createCatalogViewsRepository(queryable),
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
     createPlayerTelemetryRepository(queryable),

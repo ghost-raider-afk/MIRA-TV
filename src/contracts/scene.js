@@ -20,6 +20,7 @@ const MEDIA_FITS = new Set(['cover', 'contain', 'fill']);
 const MEDIA_POSITIONS = new Set(['center', 'top', 'bottom', 'left', 'right']);
 const MAX_SLIDES = 50;
 const MAX_ELEMENTS_PER_SLIDE = 200;
+const MAX_VIEW_ITEMS = 1000;
 const DISPLAY_WIDTH = 1920;
 const DISPLAY_HEIGHT = 1080;
 const MAX_DISPLAYS = 6;
@@ -88,6 +89,17 @@ function tableClassCode(value) {
   return code;
 }
 
+function tableItemIds(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > MAX_VIEW_ITEMS) throw new ValidationError(`Подборка меню должна содержать не более ${MAX_VIEW_ITEMS} позиций.`);
+  const ids = [];
+  for (const raw of value) {
+    const id = integer(raw, 'table.item_ids[]', 1, Number.MAX_SAFE_INTEGER);
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 function tableConfig(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const quantities = Array.isArray(source.quantities)
@@ -101,6 +113,8 @@ function tableConfig(value) {
   });
   const appearance = source.appearance && typeof source.appearance === 'object' && !Array.isArray(source.appearance) ? source.appearance : {};
   return {
+    view_id: source.view_id === undefined || source.view_id === null || source.view_id === '' ? 0 : integer(source.view_id, 'table.view_id', 0, Number.MAX_SAFE_INTEGER),
+    item_ids: tableItemIds(source.item_ids),
     class_code: tableClassCode(source.class_code),
     group_by_class: source.group_by_class !== false,
     show_description: bool(source.show_description),

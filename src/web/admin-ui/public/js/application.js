@@ -32,20 +32,23 @@ async function initialisePage(name) {
         { initialiseSceneFormatControls },
         { initialiseSceneRibbon },
         { initialiseSceneDesigner },
-        { initialiseScenePresetGallery }
+        { initialiseScenePresetGallery },
+        { initialiseSceneMenuComposer }
       ] = await Promise.all([
         import('./scenes/editor.js'),
         import('./scenes/publish-control.js'),
         import('./scenes/format-controls.js'),
         import('./scenes/ribbon.js'),
         import('./scenes/designer.js'),
-        import('./scenes/preset-gallery.js')
+        import('./scenes/preset-gallery.js'),
+        import('./scenes/menu-composer.js')
       ]);
       initialiseSceneDesigner();
       await initialiseSceneEditor();
       initialiseSceneFormatControls();
       initialiseSceneRibbon();
       initialiseScenePresetGallery();
+      await initialiseSceneMenuComposer();
       return initialiseScenePublishControl();
     }
     case 'settings': {

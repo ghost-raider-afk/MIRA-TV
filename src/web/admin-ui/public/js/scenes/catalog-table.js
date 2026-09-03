@@ -1,5 +1,6 @@
 const DEFAULT_QUANTITIES = Object.freeze([0.5, 1, 1.5]);
 const MAX_QUANTITY_COLUMNS = 6;
+const MAX_VIEW_ITEMS = 1000;
 const TABLE_PRESETS = new Set(['clean', 'glass', 'solid', 'minimal', 'menu-board', 'bistro', 'cafe', 'chalkboard']);
 const MENU_LIST_PRESETS = new Set(['clean', 'menu-board', 'bistro', 'cafe', 'chalkboard']);
 const TABLE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
@@ -11,6 +12,22 @@ function toNumber(value) {
   if (typeof value === 'string') value = value.replace(',', '.').trim();
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function positiveInteger(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : 0;
+}
+
+function normaliseItemIds(value) {
+  const ids = [];
+  for (const raw of Array.isArray(value) ? value : []) {
+    const id = positiveInteger(raw);
+    if (!id || ids.includes(id)) continue;
+    ids.push(id);
+    if (ids.length >= MAX_VIEW_ITEMS) break;
+  }
+  return ids;
 }
 
 function roundMoney(value) {
@@ -49,6 +66,8 @@ export function normaliseTableConfig(source = {}) {
   }
   const appearanceSource = source.appearance && typeof source.appearance === 'object' ? source.appearance : {};
   return {
+    view_id: positiveInteger(source.view_id),
+    item_ids: normaliseItemIds(source.item_ids),
     class_code: classCode(source.class_code),
     group_by_class: source.group_by_class !== false,
     show_description: source.show_description === true,
@@ -126,9 +145,17 @@ function catalogItem(item) {
 }
 
 function filteredItems(items, config) {
-  return (Array.isArray(items) ? items : [])
+  let result = (Array.isArray(items) ? items : [])
     .map(catalogItem)
     .filter((item) => (!config.active_only || item.active !== false) && (!config.class_code || item.class_code === config.class_code));
+
+  if (config.view_id > 0) {
+    const order = new Map(config.item_ids.map((id, index) => [Number(id), index]));
+    result = result
+      .filter((item) => order.has(Number(item.id)))
+      .sort((left, right) => order.get(Number(left.id)) - order.get(Number(right.id)));
+  }
+  return result;
 }
 
 export function formatQuantity(quantity, quantityUnit = '') {
