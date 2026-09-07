@@ -5,7 +5,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 function playerContext(version) {
   const second = version > 1;
   return {
-    schema_version: 1,
+    schema_version: 2,
     revision: second ? 'scene-parity-v2' : 'scene-parity-v1',
     hashes: {
       screen: 'screen-v1',
@@ -16,15 +16,16 @@ function playerContext(version) {
       entity: 'entity-v1',
       brand: second ? 'brand-v2' : 'brand-v1',
       announcement: 'announcement-v1',
-      runtime: 'runtime-v1'
+      weather: 'weather-v1',
+      runtime: second ? 'runtime-v2' : 'runtime-v1'
     },
     screen: { id: 1, name: 'ТВ 1', resolution: '1920x1080', location_id: 1, location_name: 'Точка 1', location_number: 1 },
     draft: { rows: [], settings: { background_color: '#123456' }, revision: 1 },
-    products: [],
-    packaging: [],
+    products: [], packaging: [],
     animation: { enabled: false, profile: null },
     entity: null,
     announcement: null,
+    weather: null,
     brand: {
       enabled: true,
       text: second ? 'НОВЫЙ\nБРЕНД' : 'ПЕРВЫЙ\nБРЕНД',
@@ -130,27 +131,19 @@ test('TV Player updates Brand and environment from WebSocket invalidation withou
     await page.route('**/api/device/player-delta', (route) => {
       requests += 1;
       if (requests === 1) {
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ full_snapshot_required: true, context: first })
-        });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ full_snapshot_required: true, context: first }) });
       }
       if (requests === 2) {
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ unchanged: true, schema_version: 1, revision: first.revision, hashes: first.hashes })
-        });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ unchanged: true, schema_version: 2, revision: first.revision, hashes: first.hashes }) });
       }
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          schema_version: 1,
+          schema_version: 2,
           revision: second.revision,
           hashes: second.hashes,
-          changed: { environment: second.environment, brand: second.brand }
+          changed: { environment: second.environment, brand: second.brand, runtime: { fallback_poll_interval_ms: 60000 } }
         })
       });
     });
@@ -159,7 +152,7 @@ test('TV Player updates Brand and environment from WebSocket invalidation withou
 
     const environment = page.locator('[data-player-environment-layer]');
     const brand = page.locator('[data-brand-layer] .scene-brand-title');
-    const menu = page.locator('[data-player-menu-layer] canvas');
+    const menu = page.locator('[data-player-menu-layer] svg.menu-table-svg');
     await expect(environment).toHaveClass(/environment-effect-aquarium/);
     await expect(environment.locator('.aquarium-fish')).toHaveCount(2);
     await expect(brand.locator('.scene-brand-title-line')).toHaveCount(2);
@@ -178,7 +171,7 @@ test('TV Player updates Brand and environment from WebSocket invalidation withou
     await expect(environment.locator('.aquarium-fish')).toHaveCount(4);
     await expect(brand).toHaveAttribute('aria-label', 'НОВЫЙ\nБРЕНД');
     expect(await brand.evaluate((node) => node.style.getPropertyValue('--brand-line-spacing'))).toBe('-1.25cqw');
-    await expect(page.locator('[data-player-menu-layer] canvas[data-identity-probe="stable-menu"]')).toHaveCount(1);
+    await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg[data-identity-probe="stable-menu"]')).toHaveCount(1);
   } finally {
     await context.close();
   }
