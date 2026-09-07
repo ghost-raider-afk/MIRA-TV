@@ -223,6 +223,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
     });
 
     const elapsedSeconds = animation.durationMs / 1000;
+    const headlessRafFps = Number(animation.fps.toFixed(1));
     const audit = {
       viewport: '1920x1080',
       jsHeapUsedMiB: Number(((after.JSHeapUsedSize || 0) / MiB).toFixed(2)),
@@ -234,8 +235,9 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
       scriptCpuPercent: Number((((after.ScriptDuration || 0) - (before.ScriptDuration || 0)) / elapsedSeconds * 100).toFixed(1)),
       layoutCpuPercent: Number((((after.LayoutDuration || 0) - (before.LayoutDuration || 0)) / elapsedSeconds * 100).toFixed(1)),
       recalcStyleCpuPercent: Number((((after.RecalcStyleDuration || 0) - (before.RecalcStyleDuration || 0)) / elapsedSeconds * 100).toFixed(1)),
-      fps: Number(animation.fps.toFixed(1)),
-      maxFrameGapMs: Number(animation.maxFrameGapMs.toFixed(1)),
+      headlessRafFps,
+      headlessRafThrottled: headlessRafFps < 15,
+      maxHeadlessRafGapMs: Number(animation.maxFrameGapMs.toFixed(1)),
       resourceRequests: resources.count,
       transferMiB: Number((resources.transferBytes / MiB).toFixed(2)),
       encodedMiB: Number((resources.encodedBytes / MiB).toFixed(2)),
@@ -249,12 +251,11 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
     await testInfo.attach('tv-player-runtime-metrics', { body: Buffer.from(JSON.stringify({ audit, resources: resources.rows }, null, 2)), contentType: 'application/json' });
 
     expect(errors).toEqual([]);
-    expect(audit.domNodes).toBeLessThan(2500);
-    expect(audit.jsHeapUsedMiB).toBeLessThan(40);
-    expect(audit.mainThreadUtilizationPercent).toBeLessThan(50);
-    expect(audit.fps).toBeGreaterThan(30);
-    expect(audit.encodedMiB).toBeLessThan(8);
-    expect(audit.resourceRequests).toBeLessThan(100);
+    expect(audit.domNodes).toBeLessThan(2200);
+    expect(audit.jsHeapUsedMiB).toBeLessThan(16);
+    expect(audit.mainThreadUtilizationPercent).toBeLessThan(15);
+    expect(audit.encodedMiB).toBeLessThan(4);
+    expect(audit.resourceRequests).toBeLessThan(80);
   } finally {
     await browserContext.close();
   }
