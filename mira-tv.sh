@@ -119,13 +119,15 @@ start_stack() {
 }
 
 backup_site_assets() {
-  docker run --rm -v mira-tv-site-assets:/data:ro -v "$TEMP_BACKUP_DIR:/backup" busybox:1.37.0 \
-    sh -ec 'tar -C /data -czf /backup/site-assets.tar.gz .' || return 1
+  compose exec -T app sh -ec 'tar -C "$SITE_ASSETS_ROOT" -czf - .' > "$TEMP_BACKUP_DIR/site-assets.tar.gz" || return 1
+  [[ -s "$TEMP_BACKUP_DIR/site-assets.tar.gz" ]] || return 1
 }
+
 restore_site_assets() {
-  [[ -f "$TEMP_BACKUP_DIR/site-assets.tar.gz" ]] || return 1
-  docker run --rm -v mira-tv-site-assets:/data -v "$TEMP_BACKUP_DIR:/backup:ro" busybox:1.37.0 \
-    sh -ec 'find /data -mindepth 1 -delete; tar -C /data -xzf /backup/site-assets.tar.gz' || return 1
+  [[ -s "$TEMP_BACKUP_DIR/site-assets.tar.gz" ]] || return 1
+  compose run --rm --no-deps -T site-assets-init sh -ec \
+    'mkdir -p "$SITE_ASSETS_ROOT"; find "$SITE_ASSETS_ROOT" -mindepth 1 -delete; tar -C "$SITE_ASSETS_ROOT" -xzf -' \
+    < "$TEMP_BACKUP_DIR/site-assets.tar.gz" || return 1
 }
 
 create_temporary_backup() {
@@ -151,7 +153,7 @@ restore_database_exact() {
 
 restore_temporary_backup() {
   [[ -n "$TEMP_BACKUP_DIR" ]] || return 1
-  [[ -f "$TEMP_BACKUP_DIR/source.tar.gz" && -f "$TEMP_BACKUP_DIR/.env" && -f "$TEMP_BACKUP_DIR/git-revision" && -s "$TEMP_BACKUP_DIR/database.dump" && -f "$TEMP_BACKUP_DIR/site-assets.tar.gz" ]] || return 1
+  [[ -f "$TEMP_BACKUP_DIR/source.tar.gz" && -f "$TEMP_BACKUP_DIR/.env" && -f "$TEMP_BACKUP_DIR/git-revision" && -s "$TEMP_BACKUP_DIR/database.dump" && -s "$TEMP_BACKUP_DIR/site-assets.tar.gz" ]] || return 1
   warn 'Обновление не прошло проверку. Выполняется автоматическое восстановление.'
   compose down --remove-orphans || true
   find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env' -exec rm -rf -- {} + || return 1
@@ -169,7 +171,10 @@ restore_temporary_backup() {
 }
 
 recover_failed_update() {
-  if restore_temporary_backup; then die 'Обновление отменено: предыдущая версия, настройки, база данных и загруженные файлы автоматически восстановлены.'; fi
+  if restore_temporary_backup; then
+    warn 'Загруженные файлы также восстановлены из временной копии.'
+    die 'Обновление отменено: предыдущая версия, настройки и база данных автоматически восстановлены.'
+  fi
   KEEP_TEMP_BACKUP=true; die "Автоматическое восстановление не завершилось. Временная копия сохранена: ${TEMP_BACKUP_DIR:-не создана}"
 }
 
