@@ -8,7 +8,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 FROM base AS runtime
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+  && apt-get install -y --no-install-recommends ffmpeg ca-certificates fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --gid 11000 mira-tv-assets \
   && useradd --uid 10001 --gid mira-tv-assets --create-home --shell /usr/sbin/nologin mira-tv
