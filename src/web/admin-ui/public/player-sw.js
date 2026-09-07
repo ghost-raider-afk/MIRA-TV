@@ -2,6 +2,11 @@ const SHELL_CACHE = 'mira-tv-player-shell-v17';
 const DATA_CACHE = 'mira-tv-player-data-v17';
 const SHELL_ASSETS = [
   '/player.html',
+  '/css/fonts.css',
+  '/fonts/DejaVuSans.ttf',
+  '/fonts/DejaVuSans-Bold.ttf',
+  '/fonts/DejaVuSansCondensed.ttf',
+  '/fonts/DejaVuSansCondensed-Bold.ttf',
   '/css/player.css',
   '/css/weather-widget.css',
   '/css/motion-overlays.css',
