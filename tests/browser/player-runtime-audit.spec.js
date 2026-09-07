@@ -187,10 +187,31 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
     await page.goto('/player', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
     await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg')).toHaveCount(1);
-    await expect(page.locator('[data-brand-layer] .scene-brand-title')).toBeVisible();
+    const brandLocator = page.locator('[data-brand-layer] .scene-brand-title');
+    await expect(brandLocator).toBeVisible();
     await expect(page.locator('[data-player-environment-layer] .aquarium-fish')).toHaveCount(4);
     await expect(page.locator('[data-weather-layer] .weather-widget')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
+
+    const brandGeometry = await brandLocator.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        position: getComputedStyle(node).position,
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top + rect.height / 2
+      };
+    });
+    expect(brandGeometry.position).toBe('absolute');
+    expect(Math.abs(brandGeometry.centerX - snapshot.brand.x)).toBeLessThan(2);
+    expect(Math.abs(brandGeometry.centerY - snapshot.brand.y)).toBeLessThan(2);
+    expect(brandGeometry.left).toBeGreaterThanOrEqual(0);
+    expect(brandGeometry.top).toBeGreaterThanOrEqual(0);
+    expect(brandGeometry.right).toBeLessThanOrEqual(1920);
+    expect(brandGeometry.bottom).toBeLessThanOrEqual(1080);
 
     const weatherStyle = await page.locator('[data-weather-layer] .weather-widget').evaluate((node) => {
       const style = getComputedStyle(node);
@@ -248,7 +269,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
 
     console.log(`MIRA_PLAYER_RESOURCE_AUDIT ${JSON.stringify(audit)}`);
     await testInfo.attach('tv-player-runtime-1920x1080', { body: await page.screenshot({ type: 'png' }), contentType: 'image/png' });
-    await testInfo.attach('tv-player-runtime-metrics', { body: Buffer.from(JSON.stringify({ audit, resources: resources.rows }, null, 2)), contentType: 'application/json' });
+    await testInfo.attach('tv-player-runtime-metrics', { body: Buffer.from(JSON.stringify({ audit, brandGeometry, resources: resources.rows }, null, 2)), contentType: 'application/json' });
 
     expect(errors).toEqual([]);
     expect(audit.domNodes).toBeLessThan(2200);
