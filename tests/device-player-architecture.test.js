@@ -22,20 +22,7 @@ test('player is public while TV connection page remains admin protected', async 
 });
 
 test('real TV player owns all scene layers and uses one offline-first state owner', async () => {
-  const [
-    worker,
-    player,
-    sync,
-    store,
-    realtimeClient,
-    playerHtml,
-    gpuRuntime,
-    layerComposer,
-    publicRoutes,
-    playerContextService,
-    playerCss,
-    playlistCss
-  ] = await Promise.all([
+  const [worker, player, sync, store, realtimeClient, playerHtml, gpuRuntime, layerComposer, publicRoutes, playerContextService, playerCss, playlistCss, flatRenderer, weatherBootstrap, weatherWidget, weatherCss] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
     read('src/web/admin-ui/public/js/player/player.js'),
     read('src/web/admin-ui/public/js/player/player-state-sync.js'),
@@ -47,16 +34,21 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     read('src/api/device/public-routes.js'),
     read('src/services/player-context-service.js'),
     read('src/web/admin-ui/public/css/player.css'),
-    read('src/web/admin-ui/public/css/scene-playlist.css')
+    read('src/web/admin-ui/public/css/scene-playlist.css'),
+    read('src/web/admin-ui/public/js/player/flat-menu-renderer.js'),
+    read('src/web/admin-ui/public/js/player/weather-bootstrap.js'),
+    read('src/web/admin-ui/public/js/motion/weather-widget.js'),
+    read('src/web/admin-ui/public/css/weather-widget.css')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v16/);
+  assert.match(worker, /mira-tv-player-shell-v17/);
   for (const asset of [
-    '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css',
+    '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css','/css/weather-widget.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
     '/js/player/player-store.js','/js/player/player-realtime-client.js','/js/player/player-state-sync.js',
     '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/gpu-scene-runtime.js',
-    '/js/player/entity-runtime.js','/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
+    '/js/player/entity-runtime.js','/js/player/weather-bootstrap.js','/js/motion/weather-widget.js',
+    '/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
     '/js/motion/scene-playlist-runtime.js','/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js','/js/motion/scene-graph.js',
     '/js/motion/scene-composer.js','/js/motion/scene-runtime.js','/js/motion/timeline.js','/js/motion/drivers/waapi-driver.js'
   ]) assert.ok(worker.includes(`'${asset}'`), `offline shell is missing ${asset}`);
@@ -73,6 +65,8 @@ test('real TV player owns all scene layers and uses one offline-first state owne
 
   assert.match(playerHtml, /\/css\/brand-motion-v2\.css/);
   assert.match(playerHtml, /\/css\/scene-playlist\.css/);
+  assert.match(playerHtml, /\/css\/weather-widget\.css/);
+  assert.match(playerHtml, /\/js\/player\/weather-bootstrap\.js/);
   assert.doesNotMatch(playerHtml, /overlay-runtime\.js/);
   assert.match(player, /createPlayerStateSync/);
   assert.match(player, /restoreLastKnownGood\(\)/);
@@ -112,13 +106,14 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(playlistCss, /tv-player-entity-layer/);
   assert.match(playlistCss, /tv-player-brand-layer/);
   assert.match(playlistCss, /tv-player-announcement-layer/);
-  for (const layer of ['environment','menu','fx','content','entity','brand','announcement']) {
-    assert.match(layerComposer, new RegExp(`'${layer}'`));
-  }
+  for (const layer of ['environment','menu','fx','content','entity','brand','announcement']) assert.match(layerComposer, new RegExp(`'${layer}'`));
 
-  assert.match(publicRoutes, /buildPlayerState\(store, session, config\)/);
+  assert.match(publicRoutes, /playerRuntimeHash\(config, currentRevision\)/);
+  assert.match(publicRoutes, /known\.hashes\.runtime === runtimeHash/);
+  assert.match(publicRoutes, /buildPlayerState\(store, session, config, \{ renderRevision: currentRevision \}\)/);
   assert.match(publicRoutes, /router\.post\('\/player-delta'/);
   assert.match(publicRoutes, /router\.post\('\/player-logs'/);
+  assert.match(publicRoutes, /router\.get\('\/weather'/);
   assert.doesNotMatch(publicRoutes, /store\.getScreenAnimationSettings\(/);
   assert.match(playerContextService, /animation:\s*\{\s*enabled:/);
   assert.match(playerContextService, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
@@ -126,6 +121,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.doesNotMatch(playerContextService, /store\.getAnimationSettings\(\)/);
   assert.match(playerContextService, /enabled:\s*animationSettings\?\.enabled === true/);
   assert.match(playerContextService, /environment:\s*animationSettings\?\.environment \|\| null/);
+  assert.match(playerContextService, /weather:\s*weather \|\| null/);
   assert.doesNotMatch(playerContextService, /aquarium: animationSettings/);
   assert.match(playerCss, /\.tv-player-environment-layer/);
   assert.match(playerCss, /\.tv-player-announcement-layer/);
@@ -135,6 +131,20 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(player, /void registerOfflinePlayer\(\)/);
   assert.doesNotMatch(player, /await registerOfflinePlayer\(\)/);
   assert.match(player, /function keepNeutralBoot\(\)/);
+
+  assert.match(flatRenderer, /layer\.innerHTML = svg/);
+  assert.doesNotMatch(flatRenderer, /createElement\('canvas'\)|drawImage\(|createImageBitmap/);
+  assert.match(weatherBootstrap, /localStorage\.getItem\(CACHE_KEY\)/);
+  assert.match(weatherBootstrap, /if \(!settings\.enabled \|\| !active \|\| !visible \|\| !navigator\.onLine\) return/);
+  assert.match(weatherBootstrap, /window\.addEventListener\('offline', clearTimer\)/);
+  assert.match(weatherWidget, /export function weatherVisualState/);
+  assert.match(weatherWidget, /weather-atmosphere-/);
+  assert.doesNotMatch(weatherWidget, /WEATHER_WIDGET_PRESETS|weather-preset-/);
+  assert.match(weatherCss, /background:none!important/);
+  assert.match(weatherCss, /drop-shadow/);
+  assert.match(weatherCss, /weather-rain-fall/);
+  assert.match(weatherCss, /weather-snow-fall/);
+  assert.match(weatherCss, /weather-lightning-flash/);
 });
 
 test('Player rerenders only dirty scene components', async () => {
@@ -154,10 +164,7 @@ test('scene entity normalization accepts an absent entity from player context', 
 });
 
 test('offline player caches Video Entity once without copying cached Range requests through JavaScript', async () => {
-  const [worker, sync] = await Promise.all([
-    read('src/web/admin-ui/public/player-sw.js'),
-    read('src/web/admin-ui/public/js/player/player-state-sync.js')
-  ]);
+  const [worker, sync] = await Promise.all([read('src/web/admin-ui/public/player-sw.js'), read('src/web/admin-ui/public/js/player/player-state-sync.js')]);
   assert.match(sync, /activeAssetManifest/);
   assert.match(sync, /context\?\.entity\?\.asset_url/);
   assert.match(sync, /mira:player-active-assets/);
@@ -177,10 +184,7 @@ test('offline player caches Video Entity once without copying cached Range reque
 
 test('TV identity is persistent and monitor binding is a first-class one-to-one relation', async () => {
   const [migration, repository, routes, player] = await Promise.all([
-    read('src/db/migrations/device-bindings.js'),
-    read('src/db/devices.js'),
-    read('src/api/device/public-routes.js'),
-    read('src/web/admin-ui/public/js/player/player.js')
+    read('src/db/migrations/device-bindings.js'), read('src/db/devices.js'), read('src/api/device/public-routes.js'), read('src/web/admin-ui/public/js/player/player.js')
   ]);
   assert.match(migration, /device_key TEXT/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS tv_device_bindings/);
@@ -200,8 +204,7 @@ test('TV identity is persistent and monitor binding is a first-class one-to-one 
 test('admin connection flow is mobile-first and diagnoses iOS camera/decoder failures', async () => {
   const [navigation, application, page, html, css] = await Promise.all([
     read('src/web/admin-ui/public/js/core/navigation.js'), read('src/web/admin-ui/public/js/application.js'),
-    read('src/web/admin-ui/public/js/pages/connect-tv.js'), read('src/web/admin-ui/public/connect-tv.html'),
-    read('src/web/admin-ui/public/css/connect-tv.css')
+    read('src/web/admin-ui/public/js/pages/connect-tv.js'), read('src/web/admin-ui/public/connect-tv.html'), read('src/web/admin-ui/public/css/connect-tv.css')
   ]);
   assert.match(navigation, /\['Подключить ТВ', '\/connect-tv'\]/);
   assert.match(application, /case 'connect-tv'/);
@@ -227,9 +230,7 @@ test('admin connection flow is mobile-first and diagnoses iOS camera/decoder fai
 });
 
 test('TV activation lifetime is env-driven, defaults to two minutes and rotates automatically', async () => {
-  const [env, player, publicRoutes] = await Promise.all([
-    read('.env.example'), read('src/web/admin-ui/public/js/player/player.js'), read('src/api/device/public-routes.js')
-  ]);
+  const [env, player, publicRoutes] = await Promise.all([read('.env.example'), read('src/web/admin-ui/public/js/player/player.js'), read('src/api/device/public-routes.js')]);
   assert.match(env, /^DEVICE_ACTIVATION_TTL_MINUTES=2$/m);
   assert.match(publicRoutes, /config\.deviceActivationTtlMinutes \* 60_000/);
   assert.match(publicRoutes, /expires_at: expiresAt/);
