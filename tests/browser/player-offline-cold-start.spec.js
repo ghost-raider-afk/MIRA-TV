@@ -31,7 +31,8 @@ test('TV cold-starts the last working screen after a browser restart with no net
   const context = await browser.newContext({ baseURL, serviceWorkers: 'allow' });
   const page = await context.newPage();
   try {
-    // Prime the immutable Player shell and let the Service Worker take control of the origin.
+    // Prime the Player shell and let its Service Worker take control of the origin.
+    // The temporary responses below only keep the pairing screen quiet while the shell is installed.
     await page.route('**/api/device/session', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
     await page.route('**/api/device/activations', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
     await page.goto('/player');
@@ -51,6 +52,10 @@ test('TV cold-starts the last working screen after a browser restart with no net
       });
     }, saved);
 
+    // A real network outage produces no HTTP response. Leaving the mocked 401 installed here would
+    // correctly tell Player that authorization was revoked and would therefore invalidate the LKG.
+    await page.unroute('**/api/device/session');
+    await page.unroute('**/api/device/activations');
     await context.setOffline(true);
     await page.goto('/player', { waitUntil: 'domcontentloaded' });
 
