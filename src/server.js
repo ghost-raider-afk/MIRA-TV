@@ -30,6 +30,7 @@ import { createWeatherRouter } from './api/weather/routes.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, 'web', 'admin-ui', 'public');
 const nodeModulesDir = path.resolve(__dirname, '..', 'node_modules');
+const miraFontDir = '/usr/share/fonts/truetype/dejavu';
 
 async function initialiseStore(store, config) {
   await store.init();
@@ -123,6 +124,7 @@ function mountPublicRoutes(app, { store, config, realtime }) {
     }
   });
   app.use('/site-assets', express.static(config.siteAssetsRoot, { etag: true, maxAge: '1d', immutable: true }));
+  app.use('/fonts', express.static(miraFontDir, { etag: true, maxAge: '30d', immutable: true }));
   app.get('/api/public/config', async (_request, response) => {
     const site = siteSettingsResponse(await store.getSiteSettings(), config);
     response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
