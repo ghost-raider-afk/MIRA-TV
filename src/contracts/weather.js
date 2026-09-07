@@ -1,10 +1,5 @@
 import { ValidationError } from '../shared/errors.js';
 
-export const WEATHER_PRESETS = Object.freeze([
-  'glass', 'minimal', 'neon', 'aurora', 'chalk',
-  'paper', 'midnight', 'sunrise', 'marine', 'mono'
-]);
-
 export const WEATHER_POSITIONS = Object.freeze(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 export const DEFAULT_WEATHER_WIDGET = Object.freeze({
@@ -13,7 +8,7 @@ export const DEFAULT_WEATHER_WIDGET = Object.freeze({
   latitude: null,
   longitude: null,
   timezone: 'auto',
-  preset: 'glass',
+  preset: 'adaptive',
   position: 'top-right',
   refresh_minutes: 15,
   width_px: 420,
@@ -52,7 +47,6 @@ function timezone(value) {
 
 export function completeWeatherWidget(source = {}) {
   const value = source && typeof source === 'object' && !Array.isArray(source) ? source : {};
-  const preset = WEATHER_PRESETS.includes(value.preset) ? value.preset : DEFAULT_WEATHER_WIDGET.preset;
   const position = WEATHER_POSITIONS.includes(value.position) ? value.position : DEFAULT_WEATHER_WIDGET.position;
   return {
     enabled: booleanValue(value.enabled, DEFAULT_WEATHER_WIDGET.enabled),
@@ -60,7 +54,8 @@ export function completeWeatherWidget(source = {}) {
     latitude: numberValue(value.latitude, null, -90, 90),
     longitude: numberValue(value.longitude, null, -180, 180),
     timezone: timezone(value.timezone),
-    preset,
+    // 1.0.4 has one premium adaptive design. Legacy preset values intentionally collapse into it.
+    preset: 'adaptive',
     position,
     refresh_minutes: integerValue(value.refresh_minutes, DEFAULT_WEATHER_WIDGET.refresh_minutes, 5, 120),
     width_px: integerValue(value.width_px, DEFAULT_WEATHER_WIDGET.width_px, 260, 760),
@@ -82,7 +77,6 @@ export function weatherWidgetInput(source) {
   if (current.enabled && (!Number.isFinite(current.latitude) || !Number.isFinite(current.longitude))) {
     throw new ValidationError('Для включённого виджета погоды выберите населённый пункт.');
   }
-  if (!WEATHER_PRESETS.includes(current.preset)) throw new ValidationError('Неизвестный пресет погоды.');
   if (!WEATHER_POSITIONS.includes(current.position)) throw new ValidationError('Неизвестное положение виджета погоды.');
   return current;
 }
