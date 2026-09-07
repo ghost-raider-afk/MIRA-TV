@@ -1,17 +1,3 @@
-export const WEATHER_WIDGET_PRESETS = Object.freeze([
-  Object.freeze({ id: 'glass', label: 'Стекло', motion: 'weather-float' }),
-  Object.freeze({ id: 'minimal', label: 'Минимал', motion: 'weather-rise' }),
-  Object.freeze({ id: 'neon', label: 'Неон', motion: 'weather-neon-pulse' }),
-  Object.freeze({ id: 'aurora', label: 'Аврора', motion: 'weather-aurora-drift' }),
-  Object.freeze({ id: 'chalk', label: 'Меловая', motion: 'weather-chalk-wobble' }),
-  Object.freeze({ id: 'paper', label: 'Бумага', motion: 'weather-paper-breathe' }),
-  Object.freeze({ id: 'midnight', label: 'Полночь', motion: 'weather-stars' }),
-  Object.freeze({ id: 'sunrise', label: 'Рассвет', motion: 'weather-sunrise' }),
-  Object.freeze({ id: 'marine', label: 'Море', motion: 'weather-wave' }),
-  Object.freeze({ id: 'mono', label: 'Моно', motion: 'weather-scan' })
-]);
-
-const PRESET_IDS = new Set(WEATHER_WIDGET_PRESETS.map((item) => item.id));
 const POSITIONS = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 export const WEATHER_SAMPLE = Object.freeze({
@@ -20,14 +6,15 @@ export const WEATHER_SAMPLE = Object.freeze({
   apparent_temperature: 17,
   humidity: 64,
   wind_speed: 12,
-  weather_code: 2,
-  condition: 'Переменная облачность',
-  icon: 'partly-cloudy',
+  weather_code: 61,
+  is_day: true,
+  condition: 'Дождь',
+  icon: 'rain',
   updated_at: new Date().toISOString(),
   forecast: Object.freeze([
-    Object.freeze({ time: '2026-09-07T14:00', temperature: 19, icon: 'partly-cloudy', precipitation_probability: 10 }),
-    Object.freeze({ time: '2026-09-07T16:00', temperature: 17, icon: 'cloud', precipitation_probability: 20 }),
-    Object.freeze({ time: '2026-09-07T18:00', temperature: 15, icon: 'rain', precipitation_probability: 45 })
+    Object.freeze({ time: '2026-09-07T14:00', temperature: 19, icon: 'rain', precipitation_probability: 70 }),
+    Object.freeze({ time: '2026-09-07T16:00', temperature: 17, icon: 'cloud', precipitation_probability: 35 }),
+    Object.freeze({ time: '2026-09-07T18:00', temperature: 15, icon: 'partly-cloudy', precipitation_probability: 20 })
   ])
 });
 
@@ -44,7 +31,7 @@ export function normaliseWeatherWidget(source = {}) {
     latitude: Number.isFinite(Number(value.latitude)) ? Number(value.latitude) : null,
     longitude: Number.isFinite(Number(value.longitude)) ? Number(value.longitude) : null,
     timezone: String(value.timezone || 'auto'),
-    preset: PRESET_IDS.has(value.preset) ? value.preset : 'glass',
+    preset: 'adaptive',
     position: POSITIONS.has(value.position) ? value.position : 'top-right',
     refresh_minutes: Math.round(clamp(value.refresh_minutes, 5, 120, 15)),
     width_px: Math.round(clamp(value.width_px, 260, 760, 420)),
@@ -89,6 +76,57 @@ function text(tag, className, value) {
   return node;
 }
 
+export function weatherVisualState(snapshot = WEATHER_SAMPLE) {
+  const code = Number(snapshot?.weather_code);
+  const isDay = snapshot?.is_day !== false;
+  if ([95, 96, 99].includes(code)) return 'storm';
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snow';
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return 'rain';
+  if ([51, 53, 55, 56, 57].includes(code)) return 'drizzle';
+  if ([45, 48].includes(code)) return 'fog';
+  if (code === 3) return 'cloudy';
+  if ([1, 2].includes(code)) return isDay ? 'partly-cloudy-day' : 'partly-cloudy-night';
+  if (code === 0) return isDay ? 'clear-day' : 'clear-night';
+  return isDay ? 'cloudy' : 'partly-cloudy-night';
+}
+
+function effectNode(className, count = 1) {
+  const container = document.createElement('div');
+  container.className = className;
+  container.setAttribute('aria-hidden', 'true');
+  for (let index = 0; index < count; index += 1) {
+    const item = document.createElement('i');
+    item.style.setProperty('--i', String(index));
+    container.append(item);
+  }
+  return container;
+}
+
+function createAtmosphere(state) {
+  const atmosphere = document.createElement('div');
+  atmosphere.className = `weather-atmosphere weather-atmosphere-${state}`;
+  atmosphere.setAttribute('aria-hidden', 'true');
+
+  if (state === 'rain' || state === 'drizzle' || state === 'storm') {
+    atmosphere.append(effectNode('weather-rain', state === 'drizzle' ? 14 : 24));
+    atmosphere.append(effectNode('weather-clouds', 3));
+    if (state === 'storm') atmosphere.append(effectNode('weather-lightning', 2));
+  } else if (state === 'snow') {
+    atmosphere.append(effectNode('weather-snow', 28), effectNode('weather-clouds', 3));
+  } else if (state === 'fog') {
+    atmosphere.append(effectNode('weather-fog', 4));
+  } else if (state === 'cloudy' || state.startsWith('partly-cloudy')) {
+    atmosphere.append(effectNode('weather-clouds', state === 'cloudy' ? 4 : 3));
+    if (state.endsWith('night')) atmosphere.append(effectNode('weather-stars', 14));
+    else atmosphere.append(effectNode('weather-sun-rays', 8));
+  } else if (state === 'clear-night') {
+    atmosphere.append(effectNode('weather-stars', 20), effectNode('weather-moon-glow', 1));
+  } else {
+    atmosphere.append(effectNode('weather-sun-rays', 12), effectNode('weather-sun-glow', 1));
+  }
+  return atmosphere;
+}
+
 export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) {
   if (!(layer instanceof HTMLElement)) return;
   const config = normaliseWeatherWidget(settings);
@@ -98,13 +136,17 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   if (!config.enabled) return;
 
   const data = snapshot && typeof snapshot === 'object' ? snapshot : WEATHER_SAMPLE;
-  const preset = WEATHER_WIDGET_PRESETS.find((item) => item.id === config.preset) || WEATHER_WIDGET_PRESETS[0];
+  const state = weatherVisualState(data);
   const card = document.createElement('section');
-  card.className = `weather-widget weather-preset-${preset.id} ${preset.motion}`;
+  card.className = 'weather-widget weather-widget-adaptive';
+  card.dataset.weatherState = state;
   card.dataset.position = config.position;
   card.style.setProperty('--weather-width', `${config.width_px}px`);
   card.style.setProperty('--weather-opacity', String(config.opacity));
+  card.append(createAtmosphere(state));
 
+  const content = document.createElement('div');
+  content.className = 'weather-widget-content';
   const top = document.createElement('div');
   top.className = 'weather-widget-main';
   const icon = document.createElement('div');
@@ -113,18 +155,17 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   const primary = document.createElement('div');
   primary.className = 'weather-widget-primary';
   primary.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
-  const temp = text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`);
-  primary.append(temp);
+  primary.append(text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`));
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
   top.append(icon, primary);
-  card.append(top);
+  content.append(top);
 
   const facts = document.createElement('div');
   facts.className = 'weather-widget-facts';
   if (config.show_feels_like) facts.append(text('span', '', `Ощущается ${Math.round(number(data.apparent_temperature, data.temperature))}°`));
   if (config.show_humidity) facts.append(text('span', '', `Влажность ${Math.round(number(data.humidity))}%`));
   if (config.show_wind) facts.append(text('span', '', `Ветер ${Math.round(number(data.wind_speed))} км/ч`));
-  if (facts.childElementCount) card.append(facts);
+  if (facts.childElementCount) content.append(facts);
 
   if (config.show_forecast) {
     const forecast = document.createElement('div');
@@ -138,8 +179,9 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
       entry.append(mini, text('strong', '', `${Math.round(number(item.temperature))}°`));
       forecast.append(entry);
     }
-    if (forecast.childElementCount) card.append(forecast);
+    if (forecast.childElementCount) content.append(forecast);
   }
 
+  card.append(content);
   layer.append(card);
 }
