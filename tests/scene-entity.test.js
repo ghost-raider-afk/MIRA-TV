@@ -38,19 +38,10 @@ test('scene entity v2 keeps canonical FullHD coordinates and image compatibility
 
 test('scene entity v2 accepts MP4/WebM playback metadata and rejects media mismatches', () => {
   const video = sceneEntityInput({
-    id: 'beer-glass',
-    name: 'Видео бокала',
+    id: 'beer-glass', name: 'Видео бокала',
     asset_url: '/site-assets/entities/entity-123e4567-e89b-42d3-a456-426614174000.mp4',
-    asset_type: 'video',
-    media_type: 'video/mp4',
-    width: 720,
-    height: 1280,
-    has_alpha: false,
-    loop: true,
-    muted: true,
-    playsinline: true,
-    playback_rate: 0.85,
-    visible: true
+    asset_type: 'video', media_type: 'video/mp4', width: 720, height: 1280, has_alpha: false,
+    loop: true, muted: true, playsinline: true, playback_rate: 0.85, visible: true
   });
   assert.equal(video.asset_type, 'video');
   assert.equal(video.media_type, 'video/mp4');
@@ -82,9 +73,7 @@ test('Video Entity processing uses ffprobe and never a per-frame chroma key', as
 
 test('Entity media upload streams to disk and has an independent env-controlled size limit', async () => {
   const [service, routes, config] = await Promise.all([
-    read('services/entity-assets-service.js'),
-    read('api/settings/routes.js'),
-    read('config/index.js')
+    read('services/entity-assets-service.js'), read('api/settings/routes.js'), read('config/index.js')
   ]);
   assert.match(service, /replaceEntityAssetStream/);
   assert.match(service, /for await \(const part of stream\)/);
@@ -103,10 +92,7 @@ test('Entity Editor renders image or video on a layer independent from menu and 
     read('web/admin-ui/public/js/motion/screen-preview.js'), read('web/admin-ui/public/js/motion/entity-editor.js'),
     read('contracts/animation.js'), read('db/settings.js'), read('db/migrations/scene-entity.js')
   ]);
-
-  for (const id of ['animation-entity-file','animation-entity-upload','animation-entity-name','animation-entity-visible','animation-entity-x','animation-entity-y','animation-entity-width','animation-entity-loop','animation-entity-muted','animation-entity-playback-rate']) {
-    assert.match(html, new RegExp(`id="${id}"`));
-  }
+  for (const id of ['animation-entity-file','animation-entity-upload','animation-entity-name','animation-entity-visible','animation-entity-x','animation-entity-y','animation-entity-width','animation-entity-loop','animation-entity-muted','animation-entity-playback-rate']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /accept="image\/png,image\/webp,video\/mp4,video\/webm"/);
   assert.match(preview, /data-motion-entity-layer/);
   assert.match(editor, /document\.createElement\('video'\)/);
@@ -125,7 +111,8 @@ test('TV player receives, renders and caches Video Entity without JavaScript byt
     read('api/device/public-routes.js'), read('services/player-context-service.js'), read('web/admin-ui/public/js/player/player.js'),
     read('web/admin-ui/public/js/player/player-state-sync.js'), read('web/admin-ui/public/css/player.css'), read('web/admin-ui/public/player-sw.js')
   ]);
-  assert.match(routes, /buildPlayerState\(store, session, config\)/);
+  assert.match(routes, /buildPlayerState\(store, session, config, \{ renderRevision: currentRevision \}\)/);
+  assert.match(routes, /known\.hashes\.runtime === runtimeHash/);
   assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
   assert.match(playerContextService, /entity:\s*animationSettings\?\.entity/);
   assert.match(player, /renderSceneEntity\(playerStage, context\.entity, \{ editable: false \}\)/);
