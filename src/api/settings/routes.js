@@ -15,6 +15,10 @@ async function animationInputPreservingPlaylist(store, body) {
   return animationSettingsInput({ ...body, scene_playlist: current?.scene_playlist });
 }
 
+function notifyRevisions(realtime, revisions) {
+  for (const item of revisions || []) realtime?.notifyScreen(item.screen_id, item.revision);
+}
+
 export function createSettingsRouter({ store, config, realtime }) {
   const router = express.Router();
   router.get('/user', async (request, response) => response.json(await store.getUserPreferences(request.session.sub)));
@@ -41,7 +45,8 @@ export function createSettingsRouter({ store, config, realtime }) {
   router.put('/animation', async (request, response) => {
     const input = await animationInputPreservingPlaylist(store, request.body);
     const settings = await store.updateAnimationSettings({ ...input, updated_by: request.session.sub });
-    await activity(store, request, { action: 'settings.animation.updated', entity_type: 'animation_settings', entity_id: settings.id, message: 'Сохранён рабочий плейлист.' }); response.json(settings);
+    await activity(store, request, { action: 'settings.animation.updated', entity_type: 'animation_settings', entity_id: settings.id, message: 'Сохранён рабочий плейлист.' });
+    response.json(settings);
   });
   router.put('/animation/apply', async (request, response) => {
     const screenIds = animationTargetScreenIds(request.body?.screen_ids);
@@ -50,24 +55,20 @@ export function createSettingsRouter({ store, config, realtime }) {
       const settings = await tx.updateAnimationSettings({ ...input, updated_by: request.session.sub });
       const appliedScreenIds = await tx.applyAnimationSettingsToScreens(screenIds, settings, request.session.sub);
       if (appliedScreenIds.length !== screenIds.length) throw new ValidationError('Один или несколько выбранных мониторов больше не существуют. Обновите список и повторите применение.');
-      return { settings, applied_screen_ids: appliedScreenIds };
+      const revisions = await tx.markScreenRenderChanged(
+        appliedScreenIds,
+        ['animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement'],
+        'animation.applied',
+        request.session.sub
+      );
+      return { settings, applied_screen_ids: appliedScreenIds, revisions };
     });
-    await activity(store, request, {
-      action: 'settings.animation.applied', entity_type: 'screen_animation_settings', entity_id: result.applied_screen_ids.join(','),
-      message: `Плейлист применён к мониторам: ${result.applied_screen_ids.join(', ')}.`
-    });
-    realtime?.notifyScreens(result.applied_screen_ids);
-    response.json(result);
+    await activity(store, request, { action: 'settings.animation.applied', entity_type: 'screen_animation_settings', entity_id: result.applied_screen_ids.join(','), message: `Плейлист применён к мониторам: ${result.applied_screen_ids.join(', ')}.` });
+    notifyRevisions(realtime, result.revisions);
+    response.json({ settings: result.settings, applied_screen_ids: result.applied_screen_ids });
   });
   router.put('/animation/entity-asset', async (request, response) => {
-    const settings = await replaceEntityAssetStream({
-      stream: request,
-      contentLength: request.get('content-length'),
-      contentType: request.get('content-type'),
-      config,
-      store,
-      username: request.session.sub
-    });
+    const settings = await replaceEntityAssetStream({ stream: request, contentLength: request.get('content-length'), contentType: request.get('content-type'), config, store, username: request.session.sub });
     await activity(store, request, { action: 'settings.animation.entity_asset_updated', entity_type: 'animation_settings', entity_id: settings.id, message: 'Обновлён медиафайл Entity.' }); response.json(settings);
   });
   router.put('/site/logo', express.raw({ type: '*/*', limit: config.siteLogoMaxBytes }), async (request, response) => {

@@ -55,14 +55,40 @@ services:
     volumes:
       - mira-tv-site-assets:${SITE_ASSETS_ROOT}
     networks: [mira-tv-internal, mira-tv-proxy]
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=mira-tv-proxy
-      - traefik.http.routers.mira-tv.rule=Host(`${MIRA_TV_DOMAIN}`)
-      - traefik.http.routers.mira-tv.entrypoints=websecure
-      - traefik.http.routers.mira-tv.tls=true
-      - traefik.http.routers.mira-tv.tls.certresolver=letsencrypt
-      - traefik.http.services.mira-tv.loadbalancer.server.port=8080
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+
+  proxy-config-init:
+    image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+    container_name: mira-tv-proxy-config-init
+    env_file: [.env]
+    command:
+      - sh
+      - -ec
+      - |
+        cat > /dynamic/dynamic.yml <<EOF
+        http:
+          routers:
+            mira-tv:
+              rule: "Host(`$${MIRA_TV_DOMAIN}`)"
+              entryPoints: [websecure]
+              service: mira-tv
+              tls:
+                certResolver: letsencrypt
+          services:
+            mira-tv:
+              loadBalancer:
+                servers:
+                  - url: "http://app:8080"
+        EOF
+    volumes:
+      - mira-tv-proxy-config:/dynamic
+    network_mode: none
+    restart: "no"
 
   proxy:
     image: traefik:v3.7.12@sha256:5447d0eaf375d832b8f224f88db0e80c0a2d44554fc973e3ba72c3a52946cfcc
@@ -71,9 +97,14 @@ services:
     mem_limit: ${PROXY_MEMORY_LIMIT}
     pids_limit: ${PROXY_PIDS_LIMIT}
     security_opt: [no-new-privileges:true]
+    depends_on:
+      app:
+        condition: service_healthy
+      proxy-config-init:
+        condition: service_completed_successfully
     command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
+      - --providers.file.filename=/dynamic/dynamic.yml
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
@@ -85,7 +116,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - mira-tv-proxy-config:/dynamic:ro
       - mira-tv-letsencrypt:/letsencrypt
     networks: [mira-tv-proxy]
 
@@ -96,6 +127,8 @@ volumes:
     name: mira-tv-site-assets
   mira-tv-letsencrypt:
     name: mira-tv-letsencrypt
+  mira-tv-proxy-config:
+    name: mira-tv-proxy-config
 
 networks:
   mira-tv-internal:

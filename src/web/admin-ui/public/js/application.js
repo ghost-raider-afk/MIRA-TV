@@ -14,6 +14,15 @@ function resetTransientPageState(name) {
   }
 }
 
+function composeLifecycle(...lifecycles) {
+  const active = lifecycles.filter(Boolean);
+  if (!active.length) return undefined;
+  return {
+    canLeave() { return active.every((item) => typeof item.canLeave !== 'function' || item.canLeave() !== false); },
+    dispose() { for (const item of [...active].reverse()) item.dispose?.(); }
+  };
+}
+
 async function initialisePage(name) {
   resetTransientPageState(name);
   switch (name) {
@@ -27,8 +36,13 @@ async function initialisePage(name) {
     }
     case 'playlist':
     case 'animation': {
-      const { initialisePlaylistStudio } = await import('./pages/playlist.js');
-      return initialisePlaylistStudio();
+      const [{ initialisePlaylistStudio }, { initialiseWeatherStudio }] = await Promise.all([
+        import('./pages/playlist.js'),
+        import('./pages/weather-studio.js')
+      ]);
+      const playlist = initialisePlaylistStudio();
+      const weather = await initialiseWeatherStudio();
+      return composeLifecycle(playlist, weather);
     }
     case 'events': {
       const { initialiseEvents } = await import('./pages/events.js');

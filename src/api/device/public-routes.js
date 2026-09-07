@@ -11,9 +11,16 @@ import {
   tokenHash,
   userAgent
 } from '../../services/device-session-service.js';
-import { buildPlayerState, deltaPlayerContext, fullPlayerContext } from '../../services/player-context-service.js';
+import {
+  PLAYER_STATE_SCHEMA_VERSION,
+  buildPlayerState,
+  deltaPlayerContext,
+  fullPlayerContext,
+  playerRuntimeHash
+} from '../../services/player-context-service.js';
+import { getWeatherSnapshot } from '../../services/weather-service.js';
 
-const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'runtime']);
+const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
 
 function activationId(value) {
@@ -114,30 +121,18 @@ async function resolveDeviceSession(store, config, request, response) {
     response.setHeader('Set-Cookie', deviceSessionCookie('', config, 0));
     return null;
   }
-
   const now = Date.now();
   const staleBeforeMs = now - config.deviceHeartbeatWriteSeconds * 1000;
   const lastSeenMs = Date.parse(session.session_last_seen_at || '');
   if (!Number.isFinite(lastSeenMs) || lastSeenMs < staleBeforeMs) {
-    await store.touchDeviceSession(
-      session.session_id,
-      session.device_id,
-      new Date(now).toISOString(),
-      new Date(staleBeforeMs).toISOString()
-    );
+    await store.touchDeviceSession(session.session_id, session.device_id, new Date(now).toISOString(), new Date(staleBeforeMs).toISOString());
   }
   return session;
 }
 
-async function playerStateOrUnauthorized(store, config, request, response) {
-  const session = await resolveDeviceSession(store, config, request, response);
-  if (!session) return null;
-  const state = await buildPlayerState(store, session, config);
-  if (!state) {
-    response.setHeader('Set-Cookie', deviceSessionCookie('', config, 0));
-    return null;
-  }
-  return { session, state };
+async function renderRevision(store, screenId) {
+  const value = Number(await store.getScreenRenderRevision(screenId));
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 export function createDevicePublicRouter({ store, config, realtime }) {
@@ -177,20 +172,16 @@ export function createDevicePublicRouter({ store, config, realtime }) {
       if (!activation) return { status: 'missing' };
       if (Date.parse(activation.expires_at) <= Date.now()) return { status: 'expired' };
       if (activation.status === 'pending') return { status: 'pending', expiresAt: activation.expires_at };
-
       const rawToken = deterministicDeviceSessionToken(activation.id, secret, config);
       const rawTokenHash = tokenHash(rawToken);
-
       if (activation.status === 'consumed') {
         const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
         if (!session) return { status: 'expired' };
         return { status: 'authorized', rawToken, session, bindingChanged: false };
       }
-
       if (activation.status !== 'approved' || !activation.approved_screen_id) return { status: 'expired' };
       const screen = await tx.getScreen(activation.approved_screen_id);
       if (!screen || screen.active === false) return { status: 'expired' };
-
       const device = await tx.bindDevice({
         deviceKey: persistentDeviceKey(activation.device_key) || activation.id,
         screenId: screen.id,
@@ -206,20 +197,12 @@ export function createDevicePublicRouter({ store, config, realtime }) {
       if (!consumed) throw new Error('Не удалось завершить авторизацию телевизора.');
       const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
       if (!session) throw new Error('Созданная Device Session недоступна.');
-      return {
-        status: 'authorized',
-        rawToken,
-        session,
-        bindingChanged: true,
-        deviceId: device.id,
-        screenId: screen.id
-      };
+      return { status: 'authorized', rawToken, session, bindingChanged: true, deviceId: device.id, screenId: screen.id };
     });
 
     if (result.status === 'missing') return response.status(404).json({ error: 'Активация не найдена.' });
     if (result.status === 'expired') return response.status(410).json({ status: 'expired' });
     if (result.status === 'pending') return response.json({ status: 'pending', expires_at: result.expiresAt });
-
     if (result.bindingChanged) {
       realtime?.disconnectDevice(result.deviceId);
       realtime?.disconnectScreen(result.screenId);
@@ -241,21 +224,51 @@ export function createDevicePublicRouter({ store, config, realtime }) {
   });
 
   router.get('/player-context', async (request, response) => {
-    const resolved = await playerStateOrUnauthorized(store, config, request, response);
-    if (!resolved) return response.status(401).json({ error: 'Телевизор не авторизован.' });
-    const context = fullPlayerContext(resolved.state);
-    const etag = `"${resolved.state.revision}"`;
+    const session = await resolveDeviceSession(store, config, request, response);
+    if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const currentRevision = await renderRevision(store, session.screen_id);
+    if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
+    const etag = `"${PLAYER_STATE_SCHEMA_VERSION}:${currentRevision}"`;
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', etag);
     if (request.get('if-none-match') === etag) return response.status(304).end();
-    return response.json(context);
+    const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision });
+    if (!state) return response.status(401).json({ error: 'Монитор недоступен.' });
+    return response.json(fullPlayerContext(state));
   });
 
   router.post('/player-delta', async (request, response) => {
-    const resolved = await playerStateOrUnauthorized(store, config, request, response);
-    if (!resolved) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const session = await resolveDeviceSession(store, config, request, response);
+    if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const known = knownPlayerState(request.body);
+    const currentRevision = await renderRevision(store, session.screen_id);
+    if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
+    const runtimeHash = playerRuntimeHash(config, currentRevision);
     response.setHeader('Cache-Control', 'private, no-store');
-    return response.json(deltaPlayerContext(resolved.state, knownPlayerState(request.body)));
+    // Fast path: no screen revision change means no draft/catalog/animation/weather reads and no full hashing.
+    if (known.schema_version === PLAYER_STATE_SCHEMA_VERSION && known.hashes.runtime === runtimeHash) {
+      return response.json({
+        schema_version: PLAYER_STATE_SCHEMA_VERSION,
+        revision: `${PLAYER_STATE_SCHEMA_VERSION}:${currentRevision}`,
+        render_revision: currentRevision,
+        hashes: known.hashes,
+        changed: {},
+        unchanged: true
+      });
+    }
+    const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision });
+    if (!state) return response.status(401).json({ error: 'Монитор недоступен.' });
+    return response.json(deltaPlayerContext(state, known));
+  });
+
+  router.get('/weather', async (request, response) => {
+    const session = await resolveDeviceSession(store, config, request, response);
+    if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const settings = await store.getScreenWeatherSettings(session.screen_id);
+    if (!settings?.enabled) return response.status(204).end();
+    const snapshot = await getWeatherSnapshot(settings, config);
+    response.setHeader('Cache-Control', 'private, no-store');
+    return response.json({ settings, snapshot });
   });
 
   router.post('/player-logs', async (request, response) => {

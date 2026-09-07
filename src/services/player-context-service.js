@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PLAYER_STATE_SCHEMA_VERSION = 1;
+export const PLAYER_STATE_SCHEMA_VERSION = 2;
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('base64url');
@@ -30,23 +30,32 @@ function screenComponent(screen) {
   };
 }
 
-function runtimeComponent(config) {
+export function playerRuntimeComponent(config, renderRevision = 1) {
   return {
     fallback_poll_interval_ms: config.playerFallbackPollSeconds * 1000,
     log_batch_size: config.playerLogBatchSize,
     log_local_max_entries: config.playerLogLocalMaxEntries,
-    log_local_max_bytes: config.playerLogLocalMaxBytes
+    log_local_max_bytes: config.playerLogLocalMaxBytes,
+    render_revision: Number(renderRevision) || 1
   };
 }
 
-export async function buildPlayerState(store, session, config) {
-  const [screen, draft, animationSettings] = await Promise.all([
+export function playerRuntimeHash(config, renderRevision = 1) {
+  return digest(playerRuntimeComponent(config, renderRevision));
+}
+
+export async function buildPlayerState(store, session, config, { renderRevision = null } = {}) {
+  const [screen, draft, animationSettings, weather] = await Promise.all([
     store.getScreen(session.screen_id),
     store.getScreenDraft(session.screen_id),
-    store.getScreenAnimationSettings(session.screen_id)
+    store.getScreenAnimationSettings(session.screen_id),
+    store.getScreenWeatherSettings(session.screen_id)
   ]);
   if (!screen || screen.active === false) return null;
 
+  const currentRenderRevision = Number.isSafeInteger(Number(renderRevision))
+    ? Number(renderRevision)
+    : await store.getScreenRenderRevision(session.screen_id);
   const { productIds, packagingIds } = catalogIds(draft);
   const [products, packaging] = await Promise.all([
     store.listProductsByIds(productIds),
@@ -62,12 +71,13 @@ export async function buildPlayerState(store, session, config) {
     entity: animationSettings?.entity || null,
     brand: animationSettings?.brand || null,
     announcement: animationSettings?.announcement || null,
-    runtime: runtimeComponent(config)
+    weather: weather || null,
+    runtime: playerRuntimeComponent(config, currentRenderRevision || 1)
   };
 
   const hashes = Object.fromEntries(Object.entries(components).map(([name, value]) => [name, digest(value)]));
-  const revision = digest({ schema_version: PLAYER_STATE_SCHEMA_VERSION, hashes });
-  return { schema_version: PLAYER_STATE_SCHEMA_VERSION, revision, hashes, components };
+  const revision = `${PLAYER_STATE_SCHEMA_VERSION}:${currentRenderRevision || 1}`;
+  return { schema_version: PLAYER_STATE_SCHEMA_VERSION, revision, render_revision: currentRenderRevision || 1, hashes, components };
 }
 
 export function fullPlayerContext(state) {
@@ -75,6 +85,7 @@ export function fullPlayerContext(state) {
   return {
     schema_version: state.schema_version,
     revision: state.revision,
+    render_revision: state.render_revision,
     hashes: state.hashes,
     screen: components.screen,
     draft: components.menu.draft,
@@ -86,6 +97,7 @@ export function fullPlayerContext(state) {
     entity: components.entity,
     brand: components.brand,
     announcement: components.announcement,
+    weather: components.weather,
     ...components.runtime
   };
 }
@@ -93,10 +105,7 @@ export function fullPlayerContext(state) {
 export function deltaPlayerContext(state, known = {}) {
   const knownSchema = Number(known?.schema_version);
   const knownHashes = known?.hashes && typeof known.hashes === 'object' && !Array.isArray(known.hashes) ? known.hashes : {};
-  if (knownSchema !== PLAYER_STATE_SCHEMA_VERSION) {
-    return { full_snapshot_required: true, context: fullPlayerContext(state) };
-  }
-
+  if (knownSchema !== PLAYER_STATE_SCHEMA_VERSION) return { full_snapshot_required: true, context: fullPlayerContext(state) };
   const changed = {};
   for (const [name, hash] of Object.entries(state.hashes)) {
     if (knownHashes[name] !== hash) changed[name] = state.components[name];
@@ -104,6 +113,7 @@ export function deltaPlayerContext(state, known = {}) {
   return {
     schema_version: state.schema_version,
     revision: state.revision,
+    render_revision: state.render_revision,
     hashes: state.hashes,
     changed,
     unchanged: Object.keys(changed).length === 0

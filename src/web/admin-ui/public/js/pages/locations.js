@@ -17,6 +17,7 @@ function renderLocations() {
   if (!list || !empty) return;
   refreshList(list, empty, state.locations.map((location) => recordRow(
     location.name,
+    location.address || 'Адрес не указан',
     [makeButton('Изменить', '', () => editLocation(location)), makeButton('Удалить', 'danger', () => void deleteLocation(location))]
   )));
 }
@@ -25,10 +26,7 @@ function renderLocationCopyOptions() {
   const select = element('location-copy-source');
   if (!(select instanceof HTMLSelectElement)) return;
   const selected = select.value;
-  select.replaceChildren(
-    new Option('Пустая точка', ''),
-    ...state.locations.map((location) => new Option(`По образцу: ${location.name}`, String(location.id)))
-  );
+  select.replaceChildren(new Option('Пустая точка', ''), ...state.locations.map((location) => new Option(`По образцу: ${location.name}`, String(location.id))));
   select.value = selected;
 }
 
@@ -61,12 +59,8 @@ function editLocation(location) {
 
 async function deleteLocation(location) {
   if (!window.confirm(`Удалить точку «${location.name}»?`)) return;
-  try {
-    await api.delete(`${API.locations}/${location.id}`);
-    await loadLocations();
-  } catch (error) {
-    setMessage('location-message', error.message);
-  }
+  try { await api.delete(`${API.locations}/${location.id}`); await loadLocations(); }
+  catch (error) { setMessage('location-message', error.message); }
 }
 
 export function initialiseLocations() {
@@ -75,31 +69,20 @@ export function initialiseLocations() {
   void loadLocations().catch((error) => setMessage('location-message', error.message));
   element('refresh-locations')?.addEventListener('click', () => { void loadLocations(); });
   element('cancel-location-edit')?.addEventListener('click', resetLocationForm);
-
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = element('location-submit');
     setPending(submit, true, 'Сохраняем…');
     try {
-      const payload = {
-        name: element('location-name').value,
-        address: element('location-address').value,
-        active: element('location-active').checked
-      };
-      if (state.editingLocationId) {
-        await api.put(`${API.locations}/${state.editingLocationId}`, payload);
-      } else {
+      const payload = { name: element('location-name').value, address: element('location-address').value, active: element('location-active').checked };
+      if (state.editingLocationId) await api.put(`${API.locations}/${state.editingLocationId}`, payload);
+      else {
         const sourceId = Number(element('location-copy-source').value);
         if (sourceId) await api.post(`${API.locations}/${sourceId}/clone`, payload);
         else await api.post(API.locations, payload);
       }
-      resetLocationForm();
-      await loadLocations();
-      await loadNotifications();
-    } catch (error) {
-      setMessage('location-message', error.message);
-    } finally {
-      setPending(submit, false, 'Сохраняем…');
-    }
+      resetLocationForm(); await loadLocations(); await loadNotifications();
+    } catch (error) { setMessage('location-message', error.message); }
+    finally { setPending(submit, false, 'Сохраняем…'); }
   });
 }

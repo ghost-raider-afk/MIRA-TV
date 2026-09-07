@@ -16,6 +16,8 @@ import { migrateScreenAnimationSettings } from './migrations/screen-animation-se
 import { migrateEnvironmentLayer } from './migrations/environment-layer.js';
 import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
+import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
+import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -28,6 +30,8 @@ import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
+import { createScreenRenderJournalRepository } from './screen-render-journal.js';
+import { createWeatherRepository } from './weather.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -46,7 +50,9 @@ const MIGRATIONS = Object.freeze([
   { name: '014-screen-animation-settings', run: migrateScreenAnimationSettings },
   { name: '015-environment-layer', run: migrateEnvironmentLayer },
   { name: '016-scene-playlist', run: migrateScenePlaylist },
-  { name: '017-player-telemetry', run: migratePlayerTelemetry }
+  { name: '017-player-telemetry', run: migratePlayerTelemetry },
+  { name: '018-screen-render-journal', run: migrateScreenRenderJournal },
+  { name: '019-weather-widget', run: migrateWeatherWidget }
 ]);
 
 function createRepositories(queryable) {
@@ -62,7 +68,9 @@ function createRepositories(queryable) {
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
-    createPlayerTelemetryRepository(queryable)
+    createPlayerTelemetryRepository(queryable),
+    createScreenRenderJournalRepository(queryable),
+    createWeatherRepository(queryable)
   );
 }
 

@@ -42,17 +42,22 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
       if (socket !== next) return;
       attempt = 0;
       onConnected?.();
+      window.dispatchEvent(new CustomEvent('mira:player-realtime-connected'));
     });
     next.addEventListener('message', (event) => {
       if (socket !== next || typeof event.data !== 'string') return;
       try {
         const message = JSON.parse(event.data);
-        if (message?.type === 'context.changed') onChanged?.(message);
+        if (message?.type === 'context.changed') {
+          window.dispatchEvent(new CustomEvent('mira:player-realtime-change', { detail: message }));
+          onChanged?.(message);
+        }
       } catch {}
     });
     next.addEventListener('close', () => {
       if (socket === next) socket = null;
       onDisconnected?.();
+      window.dispatchEvent(new CustomEvent('mira:player-realtime-disconnected'));
       scheduleReconnect();
     });
     next.addEventListener('error', () => {
@@ -60,9 +65,7 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     });
   }
 
-  function handleOnline() {
-    connect();
-  }
+  function handleOnline() { connect(); }
 
   function handleOffline() {
     clearRetry();
@@ -95,9 +98,5 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     }
   }
 
-  return Object.freeze({
-    start,
-    stop,
-    get connected() { return socket?.readyState === WebSocket.OPEN; }
-  });
+  return Object.freeze({ start, stop, get connected() { return socket?.readyState === WebSocket.OPEN; } });
 }

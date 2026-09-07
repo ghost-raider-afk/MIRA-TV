@@ -1,8 +1,9 @@
-const SHELL_CACHE = 'mira-tv-player-shell-v16';
-const DATA_CACHE = 'mira-tv-player-data-v16';
+const SHELL_CACHE = 'mira-tv-player-shell-v17';
+const DATA_CACHE = 'mira-tv-player-data-v17';
 const SHELL_ASSETS = [
   '/player.html',
   '/css/player.css',
+  '/css/weather-widget.css',
   '/css/motion-overlays.css',
   '/css/brand-motion-v2.css',
   '/css/scene-playlist.css',
@@ -11,12 +12,14 @@ const SHELL_ASSETS = [
   '/js/player/player-realtime-client.js',
   '/js/player/player-state-sync.js',
   '/js/player/entity-runtime.js',
+  '/js/player/weather-bootstrap.js',
   '/js/player/flat-menu-renderer.js',
   '/js/player/scene-layer-composer.js',
   '/js/player/gpu-scene-runtime.js',
   '/js/editor/renderer.js',
   '/js/editor/renderer-model.js',
   '/js/editor/renderer-svg.js',
+  '/js/motion/weather-widget.js',
   '/js/motion/entity-editor.js',
   '/js/motion/entity-behavior.js',
   '/js/motion/announcement.js',
@@ -40,11 +43,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keep = new Set([SHELL_CACHE, DATA_CACHE]);
     const names = await caches.keys();
-    await Promise.all(
-      names
-        .filter((name) => name.startsWith('mira-tv-player-') && !keep.has(name))
-        .map((name) => caches.delete(name))
-    );
+    await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-') && !keep.has(name)).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -64,22 +63,14 @@ async function ensureActiveAssets(values) {
   const active = activeAssetSet(values);
   const cache = await caches.open(DATA_CACHE);
   let complete = true;
-
-  // Keep this deliberately sequential. A TV must not download a large Entity video
-  // and other media in parallel just to warm its offline cache.
   for (const href of active) {
     const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
     if (await cache.match(request)) continue;
     try {
       const response = await fetch(request, { cache: 'force-cache' });
-      if (response.status !== 200) {
-        complete = false;
-        continue;
-      }
+      if (response.status !== 200) { complete = false; continue; }
       await cache.put(request, response.clone());
-    } catch {
-      complete = false;
-    }
+    } catch { complete = false; }
   }
   return { active, complete, cache };
 }
@@ -103,11 +94,8 @@ self.addEventListener('message', (event) => {
 async function networkWithTimeout(request, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(request, { signal: controller.signal, cache: 'no-cache' });
-  } finally {
-    clearTimeout(timer);
-  }
+  try { return await fetch(request, { signal: controller.signal, cache: 'no-cache' }); }
+  finally { clearTimeout(timer); }
 }
 
 async function cachedShell(request, fallbackPath = null) {
@@ -118,9 +106,7 @@ async function cachedShell(request, fallbackPath = null) {
     const response = await networkWithTimeout(request, 4000);
     if (response.ok) await cache.put(request, response.clone());
     return response;
-  } catch {
-    return Response.error();
-  }
+  } catch { return Response.error(); }
 }
 
 async function cachedAsset(request) {
@@ -131,33 +117,22 @@ async function cachedAsset(request) {
     const response = await networkWithTimeout(request, 8000);
     if (response.ok) await cache.put(request, response.clone());
     return response;
-  } catch {
-    return Response.error();
-  }
+  } catch { return Response.error(); }
 }
 
 async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
   const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
   const cached = await cache.match(fullRequest);
-  if (cached) {
-    // HTTP Range is optional. Returning the cached full 200 response lets the native
-    // media stack consume the stream without copying the whole video into JS memory.
-    return cached;
-  }
+  if (cached) return cached;
   if (!request.headers.has('range')) return cachedAsset(request);
-  try {
-    // Keep uncached Range traffic native and never store partial 206 responses as full assets.
-    return await networkWithTimeout(request, 8000);
-  } catch {
-    return Response.error();
-  }
+  try { return await networkWithTimeout(request, 8000); }
+  catch { return Response.error(); }
 }
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
-
   if (event.request.mode === 'navigate' && url.pathname === '/player.html') {
     event.respondWith(Response.redirect(new URL('/player', self.location.origin).href, 308));
     return;

@@ -4,9 +4,8 @@ import { applyProductsImport, importProductsCsv, previewProductsImport, products
 import { activity, conflict, notFound } from '../helpers.js';
 
 async function catalogWrite(operation, entity, name) {
-  try {
-    return await operation();
-  } catch (error) {
+  try { return await operation(); }
+  catch (error) {
     if (error?.code !== '23505') throw error;
     throw conflict(`${entity} «${name}» уже существует.`);
   }
@@ -36,10 +35,18 @@ function trackedProductImportStore(store, updatedIds) {
   };
 }
 
-async function notifyProductImportScreens(store, realtime, updatedIds) {
-  if (!realtime || updatedIds.size === 0) return;
+async function markAndNotify(store, realtime, affected, reason, actor) {
+  const ids = screenIds(affected);
+  if (!ids.length) return [];
+  const revisions = await store.markScreenRenderChanged(ids, ['menu'], reason, actor);
+  for (const item of revisions) realtime?.notifyScreen(item.screen_id, item.revision);
+  return revisions;
+}
+
+async function notifyProductImportScreens(store, realtime, updatedIds, actor) {
+  if (updatedIds.size === 0) return;
   const affected = await store.screensUsingCatalogIds('product', [...updatedIds]);
-  realtime.notifyScreens(screenIds(affected));
+  await markAndNotify(store, realtime, affected, 'catalog.products.imported', actor);
 }
 
 export function createCatalogRouter({ store, realtime }) {
@@ -63,12 +70,10 @@ export function createCatalogRouter({ store, realtime }) {
       ? await applyProductsImport(trackedStore, request.body.rows)
       : await importProductsCsv(trackedStore, request.body?.csv);
     await activity(store, request, {
-      action: 'catalog.products.imported',
-      entity_type: 'catalog_product',
-      entity_id: null,
+      action: 'catalog.products.imported', entity_type: 'catalog_product', entity_id: null,
       message: `Импортирована продукция: создано ${result.created}, обновлено ${result.updated}.`
     });
-    await notifyProductImportScreens(store, realtime, updatedIds);
+    await notifyProductImportScreens(store, realtime, updatedIds, request.session.sub);
     response.json(result);
   });
   router.post('/products', async (request, response) => {
@@ -84,7 +89,7 @@ export function createCatalogRouter({ store, realtime }) {
     if (!product) throw notFound();
     const affected = await store.screensUsingCatalog('product', id);
     await activity(store, request, { action: 'catalog.product.updated', entity_type: 'catalog_product', entity_id: product.id, message: `Обновлена продукция «${product.name}».` });
-    realtime?.notifyScreens(screenIds(affected));
+    await markAndNotify(store, realtime, affected, 'catalog.product.updated', request.session.sub);
     response.json(product);
   });
   router.delete('/products/:id', async (request, response) => {
@@ -112,7 +117,7 @@ export function createCatalogRouter({ store, realtime }) {
     if (!packaging) throw notFound();
     const affected = await store.screensUsingCatalog('packaging', id);
     await activity(store, request, { action: 'catalog.packaging.updated', entity_type: 'catalog_packaging', entity_id: packaging.id, message: `Обновлена тара «${packaging.name}».` });
-    realtime?.notifyScreens(screenIds(affected));
+    await markAndNotify(store, realtime, affected, 'catalog.packaging.updated', request.session.sub);
     response.json(packaging);
   });
   router.delete('/packaging/:id', async (request, response) => {
