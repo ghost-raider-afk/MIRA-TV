@@ -5,7 +5,7 @@ function positiveDimension(value, fallback) {
 
 function standaloneSvg(markup) {
   const source = String(markup || '').trim();
-  if (!source.startsWith('<svg')) throw new TypeError('MIRA-TV menu renderer requires SVG markup.');
+  if (!source.startsWith('<svg')) throw new TypeError('MIRA-TV renderer requires SVG markup.');
   if (/\sxmlns=/.test(source.slice(0, source.indexOf('>') + 1))) return source;
   return source.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
 }
@@ -54,7 +54,7 @@ export class FlatMenuRenderer {
   }
 
   async render(layer, svgMarkup, viewport = {}) {
-    if (!(layer instanceof Element)) throw new TypeError('MIRA-TV menu renderer requires a layer element.');
+    if (!(layer instanceof Element)) throw new TypeError('MIRA-TV renderer requires a layer element.');
     const generation = ++this.generation;
     this.layer = layer;
     const width = positiveDimension(viewport.width, 1920);
@@ -64,8 +64,8 @@ export class FlatMenuRenderer {
     try { await document.fonts?.ready; } catch {}
     if (generation !== this.generation || layer !== this.layer) return false;
 
-    // Keep the canonical vector output in the DOM. This is the same final SVG path as
-    // Preview, avoids an expensive SVG->bitmap->canvas conversion and stays sharp on 4K/HiDPI.
+    // Keep the canonical vector output in the DOM. Preview and Player use the same final SVG path,
+    // avoiding SVG-to-bitmap conversion while remaining sharp on 4K and HiDPI displays.
     layer.innerHTML = svg;
     layer.dataset.vectorMenu = 'true';
     const stage = layer.closest('[data-player-stage]');
