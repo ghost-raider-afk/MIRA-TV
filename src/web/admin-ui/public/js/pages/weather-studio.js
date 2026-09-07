@@ -1,11 +1,6 @@
 import { api } from '../core/api.js';
 import { setMessage, setPending } from '../core/dom.js';
-import {
-  normaliseWeatherWidget,
-  renderWeatherWidget,
-  WEATHER_SAMPLE,
-  WEATHER_WIDGET_PRESETS
-} from '../motion/weather-widget.js';
+import { normaliseWeatherWidget, renderWeatherWidget, WEATHER_SAMPLE } from '../motion/weather-widget.js';
 
 const ENDPOINTS = Object.freeze({
   settings: '/api/weather/settings',
@@ -46,7 +41,6 @@ function formSettings() {
     latitude: number('weather-latitude'),
     longitude: number('weather-longitude'),
     timezone: value('weather-timezone') || 'auto',
-    preset: document.querySelector('.weather-preset-choice.active')?.dataset.weatherPreset || current.preset,
     position: value('weather-position'),
     refresh_minutes: number('weather-refresh'),
     width_px: number('weather-width'),
@@ -79,7 +73,6 @@ function sync(settings = current) {
     'weather-show-wind': current.show_wind,
     'weather-show-forecast': current.show_forecast
   })) { const input = node(id); if (input) input.checked = state; }
-  document.querySelectorAll('.weather-preset-choice').forEach((button) => button.classList.toggle('active', button.dataset.weatherPreset === current.preset));
   ensureLayer();
 }
 
@@ -89,15 +82,14 @@ function selectedScreenIds() {
 }
 
 function cardMarkup() {
-  const presets = WEATHER_WIDGET_PRESETS.map((preset) => `<button type="button" class="weather-preset-choice" data-weather-preset="${preset.id}">${preset.label}</button>`).join('');
   return `<section class="settings-card weather-settings-card" aria-label="Виджет погоды">
-    <div class="card-heading"><div><p class="eyebrow">WEATHER</p><h2>Погода</h2><p>Независимый информер. Обновляется отдельно и не пересобирает меню.</p></div></div>
+    <div class="card-heading"><div><p class="eyebrow">WEATHER</p><h2>Погода</h2><p>Погодный информер поверх общего фона сцены.</p></div></div>
     <label class="animation-entity-visible"><input id="weather-enabled" type="checkbox"><span>Показывать погоду</span></label>
     <div class="weather-location-search"><input id="weather-search" type="search" maxlength="120" placeholder="Город или населённый пункт"><button id="weather-search-button" class="button button-secondary" type="button">Найти</button></div>
     <div class="weather-location-results" id="weather-location-results"></div>
     <input id="weather-location-name" type="hidden"><input id="weather-latitude" type="hidden"><input id="weather-longitude" type="hidden"><input id="weather-timezone" type="hidden" value="auto">
     <div class="weather-preview-status" id="weather-location-status">Населённый пункт не выбран.</div>
-    <div><span class="field"><span>Дизайн и анимация</span></span><div class="weather-preset-grid">${presets}</div></div>
+    <div class="weather-adaptive-note">Оформление и анимация меняются автоматически по текущей погоде и времени суток: дождь, снег, гроза, туман, облака, солнце или ночное небо.</div>
     <div class="weather-config-grid">
       <label class="field"><span>Положение</span><select id="weather-position"><option value="top-left">Сверху слева</option><option value="top-right">Сверху справа</option><option value="bottom-left">Снизу слева</option><option value="bottom-right">Снизу справа</option></select></label>
       <label class="field"><span>Обновление</span><select id="weather-refresh"><option value="5">5 минут</option><option value="10">10 минут</option><option value="15">15 минут</option><option value="30">30 минут</option><option value="60">60 минут</option></select></label>
@@ -140,12 +132,6 @@ async function previewWeather() {
 }
 
 function bindControls() {
-  document.querySelectorAll('.weather-preset-choice').forEach((button) => button.addEventListener('click', () => {
-    document.querySelectorAll('.weather-preset-choice').forEach((candidate) => candidate.classList.remove('active'));
-    button.classList.add('active');
-    current = formSettings();
-    ensureLayer();
-  }));
   for (const id of ['weather-enabled','weather-position','weather-refresh','weather-width','weather-opacity','weather-forecast-items','weather-show-condition','weather-show-feels','weather-show-humidity','weather-show-wind','weather-show-forecast']) {
     const control = node(id); if (!control) continue;
     control.addEventListener(control instanceof HTMLSelectElement || control.type === 'checkbox' ? 'change' : 'input', () => { current = formSettings(); ensureLayer(); });
