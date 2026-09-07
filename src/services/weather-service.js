@@ -110,6 +110,7 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
   url.searchParams.set('wind_speed_unit', 'kmh');
   const body = await fetchJson(url, config);
   const current = body?.current || {};
+  const isDay = Number(current.is_day) !== 0;
   const value = Object.freeze({
     location_name: String(settings?.location_name || '').trim(),
     latitude,
@@ -121,8 +122,9 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
     humidity: Number(current.relative_humidity_2m),
     wind_speed: Number(current.wind_speed_10m),
     weather_code: Number(current.weather_code),
+    is_day: isDay,
     condition: condition(current.weather_code),
-    icon: icon(current.weather_code, Number(current.is_day) !== 0),
+    icon: icon(current.weather_code, isDay),
     forecast: forecastItems(body?.hourly, 6)
   });
   cache.set(key, { expiresAt: Date.now() + config.weatherCacheSeconds * 1000, value });
