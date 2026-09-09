@@ -30,7 +30,7 @@ const requiredFontAssets = [
 
 test('Player owns deterministic local font aliases instead of relying on TV system fonts', () => {
   for (const family of requiredFamilies) {
-    assert.match(fonts, new RegExp(`font-family:\\"${family.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\"`));
+    assert.ok(fonts.includes(`font-family:"${family}"`), `fonts.css must own ${family}`);
   }
   for (const asset of requiredFontAssets) {
     assert.ok(fonts.includes(asset), `fonts.css must reference ${asset}`);
