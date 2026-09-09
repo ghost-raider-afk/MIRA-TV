@@ -65,16 +65,15 @@ services:
   proxy-config-init:
     image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
     container_name: mira-tv-proxy-config-init
-    env_file: [.env]
     command:
       - sh
       - -ec
       - |
-        cat > /dynamic/dynamic.yml <<EOF
+        cat > /dynamic/dynamic.yml <<'EOF'
         http:
           routers:
             mira-tv:
-              rule: "Host(`$${MIRA_TV_DOMAIN}`)"
+              rule: "Host(`${MIRA_TV_DOMAIN:?MIRA_TV_DOMAIN must be set}`)"
               entryPoints: [websecure]
               service: mira-tv
               tls:
@@ -110,7 +109,7 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
-      - --certificatesresolvers.letsencrypt.acme.email=${MIRA_TV_ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.email=${MIRA_TV_ACME_EMAIL:?MIRA_TV_ACME_EMAIL must be set}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
     ports:
       - "80:80"
