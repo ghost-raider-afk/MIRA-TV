@@ -41,7 +41,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     read('src/web/admin-ui/public/css/weather-widget.css')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v17/);
+  assert.match(worker, /mira-tv-player-shell-v18/);
   for (const asset of [
     '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css','/css/weather-widget.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
