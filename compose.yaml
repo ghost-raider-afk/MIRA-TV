@@ -65,25 +65,13 @@ services:
   proxy-config-init:
     image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
     container_name: mira-tv-proxy-config-init
+    environment:
+      MIRA_TV_DOMAIN: ${MIRA_TV_DOMAIN:?MIRA_TV_DOMAIN must be set}
     command:
       - sh
       - -ec
       - |
-        cat > /dynamic/dynamic.yml <<'EOF'
-        http:
-          routers:
-            mira-tv:
-              rule: "Host(`${MIRA_TV_DOMAIN:?MIRA_TV_DOMAIN must be set}`)"
-              entryPoints: [websecure]
-              service: mira-tv
-              tls:
-                certResolver: letsencrypt
-          services:
-            mira-tv:
-              loadBalancer:
-                servers:
-                  - url: "http://app:8080"
-        EOF
+        printf 'http:\n  routers:\n    mira-tv:\n      rule: "Host(\140%s\140)"\n      entryPoints: [websecure]\n      service: mira-tv\n      tls:\n        certResolver: letsencrypt\n  services:\n    mira-tv:\n      loadBalancer:\n        servers:\n          - url: "http://app:8080"\n' "$$MIRA_TV_DOMAIN" > /dynamic/dynamic.yml
     volumes:
       - mira-tv-proxy-config:/dynamic
     network_mode: none
