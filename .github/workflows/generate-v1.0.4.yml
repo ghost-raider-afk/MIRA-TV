@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   generate:
-    if: github.event.head_commit.message != 'chore: generate v1.0.4 release files'
+    if: "${{ github.event.head_commit.message != 'chore: generate v1.0.4 release files' }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout generator branch
