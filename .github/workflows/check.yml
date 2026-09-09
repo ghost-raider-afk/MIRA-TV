@@ -148,6 +148,8 @@ jobs:
           sed -i \
             -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
             -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
+            -e 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=ci-production-db-password-0123456789|' \
+            -e 's|^SESSION_SECRET=.*|SESSION_SECRET=ci-production-session-secret-012345678901234567890123456789|' \
             .env
 
       - name: Validate Docker Compose model
