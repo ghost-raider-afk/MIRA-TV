@@ -1,0 +1,49 @@
+name: generate-v1.0.4
+
+on:
+  push:
+    branches:
+      - release-gen-v1.0.4
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: github.event.head_commit.message != 'chore: generate v1.0.4 release files'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout generator branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Generate and verify v1.0.4 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='1.0.4'
+          npm version "$VERSION" --no-git-tag-version
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); p.miraVersion='1.0.4'; fs.writeFileSync('package.json', JSON.stringify(p,null,2)+'\n')"
+          npm install --package-lock-only --ignore-scripts
+
+          sed -i -E "s/^# MIRA-TV [0-9]+\.[0-9]+\.[0-9]+$/# MIRA-TV ${VERSION}/" .env.example
+          sed -i -E "s/^MIRA_TV_VERSION=.*/MIRA_TV_VERSION=${VERSION}/" .env.example
+          sed -i -E "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"${VERSION}\"/" mira-tv.sh
+          sed -i 's/mira-tv-player-shell-v17/mira-tv-player-shell-v18/g' tests/device-player-architecture.test.js
+
+          python3 -c "from pathlib import Path; p=Path('CHANGELOG.md'); t=p.read_text(encoding='utf-8'); m='## 1.0.3 — 29 августа 2026'; s='## 1.0.4 — 9 сентября 2026\n\nСтабилизационный выпуск MIRA-TV после эксплуатационного и browser-тестирования Player.\n\n### Экран телевизора\n\n- исправлено расхождение положения названия бренда между Preview и реальным Player: координаты X/Y теперь управляют абсолютным объектом сцены;\n- добавлены многострочное название бренда и уменьшение межстрочного интервала без деформации текста;\n- погода отображается прозрачным информером поверх общей сцены без собственной карточки-фона;\n- Player использует единый стек слоёв сцены для меню, окружения, эффектов, контента, Entity, бренда и объявления;\n- усилено восстановление последнего корректного состояния при отсутствии связи, realtime-синхронизация и устойчивость к обновлению страницы;\n- шрифты Player закреплены за локальными DejaVu-ресурсами, чтобы Preview и разные телевизоры использовали одинаковые метрики текста;\n- Service Worker обновлён и кэширует необходимые локальные шрифты для автономного запуска.\n\n### Анимация и сцены\n\n- доработаны Playlist Studio, Scene Playlist, Brand Entity, Announcement, Environment и Entity runtime;\n- аквариум работает как эффект слоя Environment, без отдельного конкурирующего архитектурного слоя;\n- тяжёлые покадровые операции для Video Entity не выполняются в Player;\n- анимация скрытых пикселей и видео при невидимой странице приостанавливается.\n\n### Подключение ТВ и надёжность\n\n- усилена логика QR-активации, повторного подключения и сохранения физической идентичности телевизора;\n- один монитор имеет одну активную привязку телевизора, замена и отвязка корректно отзывают старую сессию;\n- улучшена работа подключения ТВ на мобильных устройствах и диагностика камеры/QR.\n\n### Производительность и контроль качества\n\n- добавлен browser-аудит реального Player в 1920×1080 с меню, брендом, погодой и анимированным окружением;\n- добавлены автоматические бюджеты DOM, JS heap, main thread, сетевых запросов и передаваемых данных;\n- текущий контрольный прогон Player: около 4 MiB используемого JS heap, менее 1% загрузки main thread и около 0.21 MiB сетевой передачи без ошибок консоли;\n- добавлены regression-проверки геометрии бренда и детерминированных локальных шрифтов.\n'; (m in t) or (_ for _ in ()).throw(SystemExit('CHANGELOG marker for 1.0.3 not found')); p.write_text(t if '## 1.0.4' in t else t.replace(m, s+'\n'+m, 1), encoding='utf-8')"
+
+          npm ci
+          npm run build
+          npm test
+          bash -n mira-tv.sh
+
+          git config user.name 'MIRA-TV Release Bot'
+          git config user.email 'mira-tv-release@users.noreply.github.com'
+          git add package.json package-lock.json .env.example mira-tv.sh CHANGELOG.md tests/device-player-architecture.test.js
+          git commit -m 'chore: generate v1.0.4 release files'
+          git push origin HEAD:release-gen-v1.0.4
