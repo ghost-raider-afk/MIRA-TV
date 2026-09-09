@@ -67,7 +67,6 @@ jobs:
           root = Path('.')
           excluded_dirs = {'.git', 'node_modules', 'playwright-report', 'test-results'}
 
-          # Build legacy tokens in pieces so this workflow does not match itself.
           old_menu_dash = 'me' + 'nu' + '-tv'
           old_tv_dash = 'tv' + '-me' + 'nu'
           old_menu_under = 'me' + 'nu' + '_tv'
@@ -92,7 +91,6 @@ jobs:
               removed_transfer,
           }
 
-          # Obsolete first-party versions are forbidden outside immutable dependency metadata.
           project_version_forbidden = {
               '1.' + '7.0',
               '1.' + '3.3',
@@ -142,7 +140,7 @@ jobs:
       - name: Validate installer syntax
         run: bash -n mira-tv.sh
 
-      - name: Validate Docker Compose model
+      - name: Prepare production env
         shell: bash
         run: |
           set -euo pipefail
@@ -151,21 +149,37 @@ jobs:
             -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
             -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
             .env
+
+      - name: Validate Docker Compose model
+        shell: bash
+        run: |
+          set -euo pipefail
           docker compose config --quiet
           test "$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" = 'mira-tv'
-          rm -f .env
+
+      - name: Validate generated proxy configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps -T proxy-config-init
+          docker compose run --rm --no-deps -T --entrypoint cat proxy-config-init /dynamic/dynamic.yml \
+            | grep -F 'rule: "Host(`mira.example.test`)"'
 
       - name: Build application image
         shell: bash
         run: |
           set -euo pipefail
-          cp .env.example .env
-          sed -i \
-            -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
-            -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
-            .env
           docker compose build app
-          rm -f .env
+
+      - name: Validate production application config
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps -T app node -e "import('./src/config/index.js').then(({ loadConfig }) => { loadConfig(); })"
+
+      - name: Cleanup compose env
+        if: always()
+        run: rm -f .env
 
   browser-visual:
     runs-on: ubuntu-latest
@@ -186,7 +200,7 @@ jobs:
           --health-retries 10
     env:
       APP_NAME: MIRA-TV
-      MIRA_TV_VERSION: '1.0.4'
+      MIRA_TV_VERSION: '1.0.5'
       NODE_ENV: test
       HOST: 127.0.0.1
       PORT: '8080'
