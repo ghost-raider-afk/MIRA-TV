@@ -32,7 +32,7 @@ test('legacy weather positions migrate to stable coordinates and transform limit
   assert.equal(bounded.scale, 1);
 });
 
-test('weather editor exposes drag, coordinates and scale while visual design inherits menu palette', async () => {
+test('weather editor keeps atmosphere independent from the floating table-coloured informer', async () => {
   const [studio, widget, css, preview] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/weather-studio.js'),
     read('src/web/admin-ui/public/js/motion/weather-widget.js'),
@@ -48,12 +48,19 @@ test('weather editor exposes drag, coordinates and scale while visual design inh
   assert.match(studio, /\* 1920/);
   assert.match(studio, /\* 1080/);
 
-  assert.match(widget, /--weather-x/);
-  assert.match(widget, /--weather-y/);
+  assert.match(widget, /layer\.append\(atmosphere, widget\)/);
+  assert.match(widget, /dataset\.weatherAtmosphere = 'true'/);
+  assert.match(widget, /card\.style\.left = `\$\{\(config\.x \/ 1920\) \* 100\}%`/);
+  assert.match(widget, /card\.style\.top = `\$\{\(config\.y \/ 1080\) \* 100\}%`/);
   assert.match(widget, /--weather-scale/);
+
+  assert.match(css, /\.weather-atmosphere\s*\{[\s\S]*?inset:\s*0;/);
+  assert.match(css, /rgba\(205,232,252,/);
   assert.match(css, /var\(--mira-menu-accent/);
   assert.match(css, /var\(--mira-menu-text/);
-  assert.match(css, /translate\(-50%,-50%\) scale\(var\(--weather-scale\)\)/);
+  assert.match(css, /background:\s*none\s*!important/);
+  assert.match(css, /translate\(-50%,\s*-50%\)\s*scale\(var\(--weather-scale\)\)/);
+
   assert.match(preview, /--mira-menu-accent/);
   assert.match(preview, /--mira-menu-text/);
 });
