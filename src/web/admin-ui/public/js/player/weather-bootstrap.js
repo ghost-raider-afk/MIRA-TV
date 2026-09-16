@@ -23,13 +23,31 @@ function ensureLayer() {
   return layer;
 }
 
+function syncMenuPalette() {
+  if (!(stage instanceof HTMLElement)) return;
+  const section = stage.querySelector('[data-player-menu-layer] .table-section rect');
+  const primary = stage.querySelector('[data-player-menu-layer] .table-item.tone-light .item-name')
+    || stage.querySelector('[data-player-menu-layer] .item-name');
+  const accent = section?.getAttribute?.('fill');
+  const text = primary?.getAttribute?.('fill');
+  if (/^#[0-9a-f]{6}$/i.test(String(accent || ''))) stage.style.setProperty('--mira-menu-accent', accent);
+  if (/^#[0-9a-f]{6}$/i.test(String(text || ''))) stage.style.setProperty('--mira-menu-text', text);
+}
+
+function renderCurrentWeather() {
+  syncMenuPalette();
+  const target = ensureLayer();
+  if (settings.enabled && snapshot) renderWeatherWidget(target, settings, snapshot);
+  else target?.replaceChildren();
+}
+
 function loadCachedWeather() {
   try {
     const record = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     if (!record || typeof record !== 'object') return;
     settings = normaliseWeatherWidget(record.settings);
     snapshot = record.snapshot && typeof record.snapshot === 'object' ? record.snapshot : null;
-    if (settings.enabled && snapshot) renderWeatherWidget(ensureLayer(), settings, snapshot);
+    renderCurrentWeather();
   } catch {}
 }
 
@@ -60,7 +78,7 @@ async function refresh({ configurationChanged = false } = {}) {
     if (response.status === 204) {
       settings = normaliseWeatherWidget();
       snapshot = null;
-      ensureLayer()?.replaceChildren();
+      renderCurrentWeather();
       saveCachedWeather();
       clearTimer();
       return;
@@ -71,13 +89,11 @@ async function refresh({ configurationChanged = false } = {}) {
     if (currentGeneration !== generation) return;
     settings = normaliseWeatherWidget(body?.settings);
     snapshot = body?.snapshot || snapshot;
-    if (settings.enabled && snapshot) renderWeatherWidget(ensureLayer(), settings, snapshot);
-    else ensureLayer()?.replaceChildren();
+    renderCurrentWeather();
     saveCachedWeather();
     schedule(configurationChanged ? Math.min(settings.refresh_minutes * 60_000, 60_000) : undefined);
   } catch (error) {
     console.warn('MIRA-TV weather refresh failed', error);
-    // Keep the last successful snapshot visible. Retry only while the browser says it is online.
     schedule(60_000);
   }
 }
@@ -88,13 +104,18 @@ if (stage instanceof HTMLElement) {
     active = event?.detail?.active !== false;
     if (active) schedule(1000); else clearTimer();
   });
+  stage.addEventListener('mira:entity-rendered', syncMenuPalette);
   document.addEventListener('visibilitychange', () => {
     visible = document.visibilityState !== 'hidden';
     if (visible) schedule(1000); else clearTimer();
   });
   window.addEventListener('online', () => schedule(1000));
   window.addEventListener('offline', clearTimer);
-  window.addEventListener('mira:player-realtime-change', () => schedule(500));
+  window.addEventListener('mira:player-realtime-change', () => {
+    syncMenuPalette();
+    renderCurrentWeather();
+    schedule(500);
+  });
   window.addEventListener('mira:player-realtime-connected', () => schedule(1000));
   if (navigator.onLine) void refresh({ configurationChanged: true });
 }
