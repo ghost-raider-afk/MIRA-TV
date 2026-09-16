@@ -36,11 +36,13 @@ test('weather studio keeps atmosphere full-scene while widget remains movable an
   await expect(widget.locator('.weather-atmosphere')).toHaveCount(0);
   await expect(layer).toHaveAttribute('data-weather-state', /rain|drizzle|storm|snow|fog|cloudy|partly-cloudy|clear/);
 
-  const [stageBox, atmosphereBox] = await Promise.all([stage.boundingBox(), atmosphere.boundingBox()]);
-  expect(stageBox).not.toBeNull();
+  const [stageClient, atmosphereBox] = await Promise.all([
+    stage.evaluate((node) => ({ width: node.clientWidth, height: node.clientHeight })),
+    atmosphere.boundingBox()
+  ]);
   expect(atmosphereBox).not.toBeNull();
-  expect(Math.abs(atmosphereBox.width - stageBox.width)).toBeLessThan(2);
-  expect(Math.abs(atmosphereBox.height - stageBox.height)).toBeLessThan(2);
+  expect(Math.abs(atmosphereBox.width - stageClient.width)).toBeLessThan(1);
+  expect(Math.abs(atmosphereBox.height - stageClient.height)).toBeLessThan(1);
 
   await page.locator('#weather-scale').fill('1.65');
   await page.locator('#weather-x').fill('640');
