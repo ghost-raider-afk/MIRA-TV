@@ -64,3 +64,22 @@ test('weather editor keeps atmosphere independent from the floating table-colour
   assert.match(preview, /--mira-menu-accent/);
   assert.match(preview, /--mira-menu-text/);
 });
+
+test('weather targeting is independent from playlist targets and defaults to one current monitor', async () => {
+  const [studio, routes, repository] = await Promise.all([
+    read('src/web/admin-ui/public/js/pages/weather-studio.js'),
+    read('src/api/weather/routes.js'),
+    read('src/db/weather.js')
+  ]);
+
+  assert.match(studio, /const weatherTargetScreenIds = new Set\(\)/);
+  assert.match(studio, /id="weather-target-list"/);
+  assert.match(studio, /id="weather-target-current"/);
+  assert.match(studio, /id="weather-target-all"/);
+  assert.match(studio, /id="weather-target-none"/);
+  assert.match(studio, /weatherTargetScreenIds\.add\(currentId\)/);
+  assert.doesNotMatch(studio, /#animation-target-list input\[type="checkbox"\]:checked/);
+  assert.match(studio, /ENDPOINTS\.screen\(ids\[0\]\)/);
+  assert.match(routes, /router\.get\('\/screens\/:screenId'/);
+  assert.match(repository, /ON CONFLICT \(screen_id\) DO UPDATE/);
+});
