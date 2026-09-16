@@ -9,6 +9,13 @@ function applyTypography(stage, layout) {
   svg.dataset.fontKey = layout.typography.key;
 }
 
+function applyPalette(stage, palette) {
+  if (!(stage instanceof HTMLElement)) return;
+  stage.style.setProperty('--mira-menu-background', palette.background);
+  stage.style.setProperty('--mira-menu-accent', palette.accent);
+  stage.style.setProperty('--mira-menu-text', palette.primaryText);
+}
+
 function backgroundStyle(layer, model, palette) {
   layer.style.backgroundColor = palette.background;
   layer.style.backgroundImage = model.settings.background_image_url ? `url("${model.settings.background_image_url}")` : '';
@@ -57,6 +64,7 @@ export function renderAnimationScreenPreview(stage, bundle) {
     <div class="animation-screen-announcement-layer" data-announcement-layer aria-label="Бегущая строка"></div>`;
 
   backgroundStyle(stage.querySelector('.animation-screen-background'), model, layout.palette);
+  applyPalette(stage, layout.palette);
   applyTypography(stage, layout);
 
   return { model, lines, layout };
