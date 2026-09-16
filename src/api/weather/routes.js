@@ -7,11 +7,24 @@ function notifyRevisions(realtime, revisions) {
   for (const item of revisions || []) realtime?.notifyScreen(item.screen_id, item.revision);
 }
 
+function screenId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
 export function createWeatherRouter({ store, config, realtime }) {
   const router = express.Router();
 
   router.get('/settings', async (_request, response) => {
     response.json(await store.getWeatherSettings());
+  });
+
+  router.get('/screens/:screenId', async (request, response) => {
+    const id = screenId(request.params.screenId);
+    if (!id) return response.status(400).json({ error: 'Некорректный идентификатор монитора.' });
+    const screen = await store.getScreen(id);
+    if (!screen) return response.status(404).json({ error: 'Монитор не найден.' });
+    return response.json(await store.getScreenWeatherSettings(id));
   });
 
   router.put('/settings', async (request, response) => {
