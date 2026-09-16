@@ -83,3 +83,14 @@ test('weather targeting is independent from playlist targets and defaults to one
   assert.match(routes, /router\.get\('\/screens\/:screenId'/);
   assert.match(repository, /ON CONFLICT \(screen_id\) DO UPDATE/);
 });
+
+test('offline weather cache is isolated by monitor and restores through Player Last Known Good state', async () => {
+  const bootstrap = await read('src/web/admin-ui/public/js/player/weather-bootstrap.js');
+  assert.match(bootstrap, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
+  assert.match(bootstrap, /loadLastKnownGood/);
+  assert.match(bootstrap, /record\?\.screen_id \?\? context\?\.screen\?\.id/);
+  assert.match(bootstrap, /return screenId \? `\$\{CACHE_PREFIX\}\$\{screenId\}` : ''/);
+  assert.match(bootstrap, /settings:\s*\{ \.\.\.settings, screen_id: screenId \}/);
+  assert.match(bootstrap, /legacyScreenId === screenId/);
+  assert.doesNotMatch(bootstrap, /localStorage\.setItem\(LEGACY_CACHE_KEY/);
+});
