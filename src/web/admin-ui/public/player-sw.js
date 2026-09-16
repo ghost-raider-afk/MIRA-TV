@@ -1,4 +1,5 @@
-const SHELL_CACHE = 'mira-tv-player-shell-v18';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v18';
+const SHELL_CACHE = 'mira-tv-player-shell-v19';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_ASSETS = [
   '/player.html',
@@ -48,6 +49,7 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    await caches.delete(LEGACY_SHELL_CACHE);
     const keep = new Set([SHELL_CACHE, DATA_CACHE]);
     const names = await caches.keys();
     await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-') && !keep.has(name)).map((name) => caches.delete(name)));
