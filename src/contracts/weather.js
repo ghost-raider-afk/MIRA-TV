@@ -2,6 +2,13 @@ import { ValidationError } from '../shared/errors.js';
 
 export const WEATHER_POSITIONS = Object.freeze(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
+const POSITION_COORDINATES = Object.freeze({
+  'top-left': Object.freeze({ x: 260, y: 190 }),
+  'top-right': Object.freeze({ x: 1660, y: 190 }),
+  'bottom-left': Object.freeze({ x: 260, y: 890 }),
+  'bottom-right': Object.freeze({ x: 1660, y: 890 })
+});
+
 export const DEFAULT_WEATHER_WIDGET = Object.freeze({
   enabled: false,
   location_name: '',
@@ -10,6 +17,9 @@ export const DEFAULT_WEATHER_WIDGET = Object.freeze({
   timezone: 'auto',
   preset: 'adaptive',
   position: 'top-right',
+  x: POSITION_COORDINATES['top-right'].x,
+  y: POSITION_COORDINATES['top-right'].y,
+  scale: 1,
   refresh_minutes: 15,
   width_px: 420,
   opacity: 0.96,
@@ -45,18 +55,25 @@ function timezone(value) {
   return /^[A-Za-z0-9_+\-/]{1,64}$/.test(text) ? text : 'auto';
 }
 
+function legacyCoordinates(position) {
+  return POSITION_COORDINATES[position] || POSITION_COORDINATES[DEFAULT_WEATHER_WIDGET.position];
+}
+
 export function completeWeatherWidget(source = {}) {
   const value = source && typeof source === 'object' && !Array.isArray(source) ? source : {};
   const position = WEATHER_POSITIONS.includes(value.position) ? value.position : DEFAULT_WEATHER_WIDGET.position;
+  const legacy = legacyCoordinates(position);
   return {
     enabled: booleanValue(value.enabled, DEFAULT_WEATHER_WIDGET.enabled),
     location_name: locationName(value.location_name),
     latitude: numberValue(value.latitude, null, -90, 90),
     longitude: numberValue(value.longitude, null, -180, 180),
     timezone: timezone(value.timezone),
-    // 1.0.4 has one premium adaptive design. Legacy preset values intentionally collapse into it.
     preset: 'adaptive',
     position,
+    x: numberValue(value.x, legacy.x, 0, 1920),
+    y: numberValue(value.y, legacy.y, 0, 1080),
+    scale: numberValue(value.scale, DEFAULT_WEATHER_WIDGET.scale, 0.4, 2.5),
     refresh_minutes: integerValue(value.refresh_minutes, DEFAULT_WEATHER_WIDGET.refresh_minutes, 5, 120),
     width_px: integerValue(value.width_px, DEFAULT_WEATHER_WIDGET.width_px, 260, 760),
     opacity: numberValue(value.opacity, DEFAULT_WEATHER_WIDGET.opacity, 0.35, 1),
