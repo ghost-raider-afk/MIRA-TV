@@ -53,9 +53,9 @@ function renderCurrentWeather() {
   else target?.replaceChildren();
 }
 
-function cachedRecord(key) {
+function cachedRecord(CACHE_KEY) {
   try {
-    const record = JSON.parse(localStorage.getItem(key) || 'null');
+    const record = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     return record && typeof record === 'object' ? record : null;
   } catch {
     return null;
