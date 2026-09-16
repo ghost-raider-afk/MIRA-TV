@@ -140,7 +140,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(weatherWidget, /export function weatherVisualState/);
   assert.match(weatherWidget, /weather-atmosphere-/);
   assert.doesNotMatch(weatherWidget, /WEATHER_WIDGET_PRESETS|weather-preset-/);
-  assert.match(weatherCss, /background:none!important/);
+  assert.match(weatherCss, /background:\s*none\s*!important/);
   assert.match(weatherCss, /drop-shadow/);
   assert.match(weatherCss, /weather-rain-fall/);
   assert.match(weatherCss, /weather-snow-fall/);
