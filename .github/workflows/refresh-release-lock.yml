@@ -23,14 +23,61 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Refresh package lock
+      - name: Prepare 1.0.6 metadata
         shell: bash
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('package.json')
+          package = json.loads(path.read_text(encoding='utf-8'))
+          package['version'] = '1.0.6'
+          package['miraVersion'] = '1.0.6'
+          path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
           npm install --package-lock-only --ignore-scripts
-          git diff --exit-code -- package-lock.json && exit 0
+
+          sed -i \
+            -e 's/^# MIRA-TV 1\.0\.5 /# MIRA-TV 1.0.6 /' \
+            -e 's/^MIRA_TV_VERSION=1\.0\.5$/MIRA_TV_VERSION=1.0.6/' \
+            .env.example
+          sed -i 's/^SCRIPT_VERSION="1\.0\.5"$/SCRIPT_VERSION="1.0.6"/' mira-tv.sh
+          sed -i "s/MIRA_TV_VERSION: '1\.0\.5'/MIRA_TV_VERSION: '1.0.6'/" .github/workflows/check.yml
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('CHANGELOG.md')
+          text = path.read_text(encoding='utf-8')
+          if '## 1.0.6 ' not in text:
+              marker = 'Здесь перечисляются заметные изменения MIRA-TV по версиям.\n\n'
+              section = '''## 1.0.6 — 16 сентября 2026
+
+Обновление погодного слоя MIRA-TV и управления его композицией.
+
+### Погода
+
+- добавлено свободное позиционирование погодного информера по X/Y в канонической сцене 1920×1080;
+- добавлено масштабирование виджета от 0.40× до 2.50×;
+- виджет можно перетаскивать мышью или пальцем прямо в Live Preview;
+- добавлены девять быстрых позиций для выравнивания;
+- прежние угловые позиции автоматически преобразуются в новые координаты;
+- цвет текста, линий, иконок и атмосферных акцентов автоматически синхронизируется с палитрой таблицы текущего экрана;
+- информер остаётся без собственной подложки и сохраняет парящую тень поверх общего фона;
+- добавлена regression-проверка координат, масштаба, drag-позиционирования и наследования палитры.
+
+'''
+              if marker not in text:
+                  raise SystemExit('CHANGELOG marker not found')
+              path.write_text(text.replace(marker, marker + section, 1), encoding='utf-8')
+          PY
+
+          rm -f .release-1.0.6-trigger
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json
-          git commit -m 'chore: refresh 1.0.6 package lock'
+          git add -A
+          git commit -m 'chore: prepare MIRA-TV 1.0.6 metadata'
           git push origin HEAD:main
