@@ -82,6 +82,13 @@ test('weather targeting is independent from playlist targets and defaults to one
   assert.match(studio, /ENDPOINTS\.screen\(ids\[0\]\)/);
   assert.match(routes, /router\.get\('\/screens\/:screenId'/);
   assert.match(repository, /ON CONFLICT \(screen_id\) DO UPDATE/);
+
+  const applyRouteStart = routes.indexOf("router.put('/apply'");
+  const applyRouteEnd = routes.indexOf("router.get('/locations'", applyRouteStart);
+  const applyRoute = routes.slice(applyRouteStart, applyRouteEnd);
+  assert.ok(applyRouteStart >= 0 && applyRouteEnd > applyRouteStart);
+  assert.doesNotMatch(applyRoute, /updateWeatherSettings/);
+  assert.match(applyRoute, /applyWeatherSettingsToScreens/);
 });
 
 test('offline weather cache is isolated by monitor and restores through Player Last Known Good state', async () => {
