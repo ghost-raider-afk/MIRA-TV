@@ -1,4 +1,10 @@
 const POSITIONS = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
+const LEGACY_POSITION = Object.freeze({
+  'top-left': Object.freeze({ x: 260, y: 190 }),
+  'top-right': Object.freeze({ x: 1660, y: 190 }),
+  'bottom-left': Object.freeze({ x: 260, y: 890 }),
+  'bottom-right': Object.freeze({ x: 1660, y: 890 })
+});
 
 export const WEATHER_SAMPLE = Object.freeze({
   location_name: 'Хельсинки',
@@ -25,6 +31,8 @@ function clamp(value, min, max, fallback) {
 
 export function normaliseWeatherWidget(source = {}) {
   const value = source && typeof source === 'object' ? source : {};
+  const position = POSITIONS.has(value.position) ? value.position : 'top-right';
+  const legacy = LEGACY_POSITION[position];
   return {
     enabled: value.enabled === true,
     location_name: String(value.location_name || '').trim().slice(0, 120),
@@ -32,7 +40,10 @@ export function normaliseWeatherWidget(source = {}) {
     longitude: Number.isFinite(Number(value.longitude)) ? Number(value.longitude) : null,
     timezone: String(value.timezone || 'auto'),
     preset: 'adaptive',
-    position: POSITIONS.has(value.position) ? value.position : 'top-right',
+    position,
+    x: clamp(value.x, 0, 1920, legacy.x),
+    y: clamp(value.y, 0, 1080, legacy.y),
+    scale: clamp(value.scale, 0.4, 2.5, 1),
     refresh_minutes: Math.round(clamp(value.refresh_minutes, 5, 120, 15)),
     width_px: Math.round(clamp(value.width_px, 260, 760, 420)),
     opacity: clamp(value.opacity, .35, 1, .96),
@@ -106,7 +117,6 @@ function createAtmosphere(state) {
   const atmosphere = document.createElement('div');
   atmosphere.className = `weather-atmosphere weather-atmosphere-${state}`;
   atmosphere.setAttribute('aria-hidden', 'true');
-
   if (state === 'rain' || state === 'drizzle' || state === 'storm') {
     atmosphere.append(effectNode('weather-rain', state === 'drizzle' ? 14 : 24));
     atmosphere.append(effectNode('weather-clouds', 3));
@@ -141,8 +151,12 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   card.className = 'weather-widget weather-widget-adaptive';
   card.dataset.weatherState = state;
   card.dataset.position = config.position;
+  card.dataset.weatherDraggable = 'true';
   card.style.setProperty('--weather-width', `${config.width_px}px`);
   card.style.setProperty('--weather-opacity', String(config.opacity));
+  card.style.setProperty('--weather-x', String(config.x));
+  card.style.setProperty('--weather-y', String(config.y));
+  card.style.setProperty('--weather-scale', String(config.scale));
   card.append(createAtmosphere(state));
 
   const content = document.createElement('div');
