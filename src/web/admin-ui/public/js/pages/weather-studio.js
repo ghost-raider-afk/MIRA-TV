@@ -5,6 +5,8 @@ import { normaliseWeatherWidget, renderWeatherWidget, WEATHER_SAMPLE } from '../
 const ENDPOINTS = Object.freeze({
   settings: '/api/weather/settings',
   apply: '/api/weather/apply',
+  screens: '/api/screens',
+  screen: (screenId) => `/api/weather/screens/${screenId}`,
   locations: '/api/weather/locations',
   preview: '/api/weather/preview'
 });
@@ -27,6 +29,8 @@ let disposed = false;
 let observer = null;
 let previewTimer = null;
 let dragging = null;
+let weatherScreens = [];
+const weatherTargetScreenIds = new Set();
 
 function node(id) { return document.getElementById(id); }
 function checked(id) { return node(id)?.checked === true; }
@@ -107,20 +111,116 @@ function sync(settings = current) {
   ensureLayer();
 }
 
+function currentPreviewScreenId() {
+  const id = Number(new URL(window.location.href).searchParams.get('screen'));
+  if (Number.isSafeInteger(id) && id > 0 && weatherScreens.some((screen) => Number(screen.id) === id)) return id;
+  return Number(weatherScreens[0]?.id) || null;
+}
+
 function selectedScreenIds() {
-  return [...document.querySelectorAll('#animation-target-list input[type="checkbox"]:checked')]
-    .map((input) => Number(input.value)).filter((id) => Number.isSafeInteger(id) && id > 0);
+  return [...weatherTargetScreenIds].filter((id) => weatherScreens.some((screen) => Number(screen.id) === id));
+}
+
+function screenLabel(screen) {
+  return `${screen.location_name || 'Без точки'} — ${screen.name}`;
+}
+
+function targetCountLabel(count) {
+  if (count === 1) return '1 монитор';
+  if (count > 1 && count < 5) return `${count} монитора`;
+  return `${count} мониторов`;
+}
+
+function updateWeatherTargetSummary() {
+  const ids = selectedScreenIds();
+  const summary = node('weather-target-summary');
+  if (summary) summary.textContent = ids.length ? `Выбрано: ${targetCountLabel(ids.length)}` : 'Мониторы не выбраны';
+  const apply = node('weather-apply');
+  if (apply instanceof HTMLButtonElement && !apply.disabled) {
+    const label = ids.length ? `Применить к ${targetCountLabel(ids.length)}` : 'Выберите монитор';
+    apply.textContent = label;
+    apply.dataset.label = label;
+  }
+  if (apply instanceof HTMLButtonElement) apply.disabled = ids.length === 0;
+  const load = node('weather-load-target');
+  if (load instanceof HTMLButtonElement) load.disabled = ids.length !== 1;
+}
+
+function renderWeatherTargets() {
+  const list = node('weather-target-list');
+  if (!(list instanceof HTMLElement)) return;
+  list.replaceChildren();
+  for (const screen of weatherScreens) {
+    const id = Number(screen.id);
+    const label = document.createElement('label');
+    label.className = 'animation-target-item weather-target-item';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = String(id);
+    checkbox.checked = weatherTargetScreenIds.has(id);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) weatherTargetScreenIds.add(id); else weatherTargetScreenIds.delete(id);
+      updateWeatherTargetSummary();
+    });
+    const text = document.createElement('span');
+    const name = document.createElement('strong');
+    name.textContent = screen.name;
+    const location = document.createElement('small');
+    location.textContent = screen.location_name || 'Без точки';
+    text.append(name, location);
+    label.append(checkbox, text);
+    list.append(label);
+  }
+  updateWeatherTargetSummary();
+}
+
+function selectOnlyCurrentWeatherScreen() {
+  weatherTargetScreenIds.clear();
+  const id = currentPreviewScreenId();
+  if (id) weatherTargetScreenIds.add(id);
+  renderWeatherTargets();
+}
+
+async function loadWeatherTargets() {
+  const screens = await api.get(ENDPOINTS.screens);
+  weatherScreens = Array.isArray(screens) ? screens : [];
+  weatherTargetScreenIds.clear();
+  const currentId = currentPreviewScreenId();
+  if (currentId) weatherTargetScreenIds.add(currentId);
+  renderWeatherTargets();
+}
+
+async function loadSelectedScreenWeather() {
+  const ids = selectedScreenIds();
+  if (ids.length !== 1) return;
+  const button = node('weather-load-target');
+  setPending(button, true, 'Загружаем…');
+  try {
+    current = normaliseWeatherWidget(await api.get(ENDPOINTS.screen(ids[0])));
+    sync(current);
+    const screen = weatherScreens.find((item) => Number(item.id) === ids[0]);
+    const status = node('weather-location-status');
+    if (status) status.textContent = current.location_name || `Погода на «${screen?.name || 'мониторе'}» не настроена.`;
+    if (Number.isFinite(current.latitude) && Number.isFinite(current.longitude)) await previewWeather();
+    setMessage('animation-message', `Загружены настройки погоды: ${screenLabel(screen || { name: ids[0] })}.`, 'info');
+  } catch (error) { setMessage('animation-message', error.message); }
+  finally { setPending(button, false, 'Загружаем…'); updateWeatherTargetSummary(); }
 }
 
 function cardMarkup() {
   return `<section class="settings-card weather-settings-card" aria-label="Виджет погоды">
-    <div class="card-heading"><div><p class="eyebrow">WEATHER</p><h2>Погода</h2><p>Прозрачный погодный слой в цветах текущей таблицы. Положение и масштаб свободно настраиваются.</p></div></div>
-    <label class="animation-entity-visible"><input id="weather-enabled" type="checkbox"><span>Показывать погоду</span></label>
+    <div class="card-heading"><div><p class="eyebrow">WEATHER</p><h2>Погода</h2><p>Погода назначается только выбранным мониторам. Для каждого монитора можно сохранить своё положение и масштаб.</p></div></div>
+    <div class="weather-monitor-targets">
+      <div class="weather-targets-head"><div><strong>Мониторы для погоды</strong><small id="weather-target-summary">Мониторы не выбраны</small></div><div><button id="weather-target-current" class="button button-secondary" type="button">Текущий</button><button id="weather-target-all" class="button button-secondary" type="button">Все</button><button id="weather-target-none" class="button button-secondary" type="button">Снять</button></div></div>
+      <div class="animation-target-list weather-target-list" id="weather-target-list"></div>
+      <button id="weather-load-target" class="button button-secondary" type="button" disabled>Загрузить настройки выбранного монитора</button>
+    </div>
+    <label class="animation-entity-visible"><input id="weather-enabled" type="checkbox"><span>Показывать погоду на выбранных мониторах</span></label>
     <div class="weather-location-search"><input id="weather-search" type="search" maxlength="120" placeholder="Город или населённый пункт"><button id="weather-search-button" class="button button-secondary" type="button">Найти</button></div>
     <div class="weather-location-results" id="weather-location-results"></div>
     <input id="weather-location-name" type="hidden"><input id="weather-latitude" type="hidden"><input id="weather-longitude" type="hidden"><input id="weather-timezone" type="hidden" value="auto"><input id="weather-position" type="hidden" value="top-right">
     <div class="weather-preview-status" id="weather-location-status">Населённый пункт не выбран.</div>
-    <div class="weather-adaptive-note">Цвет текста и акцентов автоматически берётся из текущей таблицы. Анимация меняется по фактической погоде. Виджет можно перетаскивать прямо в Live Preview.</div>
+    <div class="weather-adaptive-note">Атмосфера погоды занимает всю сцену, а информер перемещается отдельно. Цвет текста и акцентов берётся из текущей таблицы.</div>
     <div class="weather-config-grid">
       <label class="field"><span>Обновление</span><select id="weather-refresh"><option value="5">5 минут</option><option value="10">10 минут</option><option value="15">15 минут</option><option value="30">30 минут</option><option value="60">60 минут</option></select></label>
       <label class="field"><span>Часов прогноза</span><select id="weather-forecast-items"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></label>
@@ -144,7 +244,7 @@ function cardMarkup() {
       <label><input id="weather-show-wind" type="checkbox"> Ветер</label>
       <label><input id="weather-show-forecast" type="checkbox"> Краткий прогноз</label>
     </div>
-    <div class="weather-actions"><button id="weather-save" class="button button-secondary" type="button">Сохранить</button><button id="weather-apply" class="button button-primary" type="button">Применить к выбранным</button></div>
+    <div class="weather-actions"><button id="weather-save" class="button button-secondary" type="button">Сохранить как шаблон</button><button id="weather-apply" class="button button-primary" type="button" disabled>Выберите монитор</button></div>
   </section>`;
 }
 
@@ -221,6 +321,18 @@ function bindControls() {
   }));
   bindPositionDragging();
 
+  node('weather-target-current')?.addEventListener('click', selectOnlyCurrentWeatherScreen);
+  node('weather-target-all')?.addEventListener('click', () => {
+    weatherTargetScreenIds.clear();
+    for (const screen of weatherScreens) weatherTargetScreenIds.add(Number(screen.id));
+    renderWeatherTargets();
+  });
+  node('weather-target-none')?.addEventListener('click', () => {
+    weatherTargetScreenIds.clear();
+    renderWeatherTargets();
+  });
+  node('weather-load-target')?.addEventListener('click', () => { void loadSelectedScreenWeather(); });
+
   node('weather-search-button')?.addEventListener('click', async () => {
     const query = String(value('weather-search')).trim();
     if (query.length < 2) return;
@@ -249,21 +361,21 @@ function bindControls() {
 
   node('weather-save')?.addEventListener('click', async () => {
     const button = node('weather-save'); setPending(button, true, 'Сохраняем…');
-    try { current = normaliseWeatherWidget(await api.put(ENDPOINTS.settings, formSettings())); sync(current); setMessage('animation-message', 'Настройки погоды сохранены.', 'success'); }
+    try { current = normaliseWeatherWidget(await api.put(ENDPOINTS.settings, formSettings())); sync(current); setMessage('animation-message', 'Шаблон погоды сохранён. Мониторы не изменены.', 'success'); }
     catch (error) { setMessage('animation-message', error.message); }
     finally { setPending(button, false, 'Сохраняем…'); }
   });
 
   node('weather-apply')?.addEventListener('click', async () => {
     const screenIds = selectedScreenIds();
-    if (!screenIds.length) { setMessage('animation-message', 'Выберите хотя бы один монитор.', 'error'); return; }
+    if (!screenIds.length) { setMessage('animation-message', 'Выберите хотя бы один монитор для погоды.', 'error'); return; }
     const button = node('weather-apply'); setPending(button, true, 'Применяем…');
     try {
       const result = await api.put(ENDPOINTS.apply, { screen_ids: screenIds, settings: formSettings() });
       current = normaliseWeatherWidget(result.settings); sync(current);
-      setMessage('animation-message', `Погода применена к мониторам: ${result.applied_screen_ids.length}.`, 'success');
+      setMessage('animation-message', `Погода применена только к выбранным мониторам: ${result.applied_screen_ids.length}.`, 'success');
     } catch (error) { setMessage('animation-message', error.message); }
-    finally { setPending(button, false, 'Применяем…'); }
+    finally { setPending(button, false, 'Применяем…'); updateWeatherTargetSummary(); }
   });
 }
 
@@ -278,11 +390,23 @@ export async function initialiseWeatherStudio() {
     observer.observe(stage, { childList: true });
   }
   try {
-    current = normaliseWeatherWidget(await api.get(ENDPOINTS.settings));
+    const [saved] = await Promise.all([api.get(ENDPOINTS.settings), loadWeatherTargets()]);
+    current = normaliseWeatherWidget(saved);
     sync(current);
     const status = node('weather-location-status');
     if (status && current.location_name) status.textContent = current.location_name;
     if (Number.isFinite(current.latitude) && Number.isFinite(current.longitude)) await previewWeather();
   } catch (error) { setMessage('animation-message', error.message); }
-  return { dispose() { disposed = true; observer?.disconnect(); observer = null; if (previewTimer) clearTimeout(previewTimer); previewTimer = null; dragging = null; } };
+  return {
+    dispose() {
+      disposed = true;
+      observer?.disconnect();
+      observer = null;
+      if (previewTimer) clearTimeout(previewTimer);
+      previewTimer = null;
+      dragging = null;
+      weatherScreens = [];
+      weatherTargetScreenIds.clear();
+    }
+  };
 }
