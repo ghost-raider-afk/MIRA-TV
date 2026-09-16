@@ -34,19 +34,18 @@ export function createWeatherRouter({ store, config, realtime }) {
       action: 'weather.settings.updated',
       entity_type: 'weather_settings',
       entity_id: 1,
-      message: 'Сохранены настройки виджета погоды.'
+      message: 'Сохранён шаблон виджета погоды.'
     });
     response.json(saved);
   });
 
   router.put('/apply', async (request, response) => {
     const screenIds = weatherTargetScreenIds(request.body?.screen_ids);
+    const settings = weatherWidgetInput(request.body?.settings);
     const result = await store.transaction(async (tx) => {
-      const input = weatherWidgetInput(request.body?.settings);
-      const settings = await tx.updateWeatherSettings(input, request.session.sub);
       const applied = await tx.applyWeatherSettingsToScreens(screenIds, settings, request.session.sub);
       const revisions = await tx.markScreenRenderChanged(applied, ['weather'], 'weather.applied', request.session.sub);
-      return { settings, applied_screen_ids: applied, revisions };
+      return { applied_screen_ids: applied, revisions };
     });
     notifyRevisions(realtime, result.revisions);
     await activity(store, request, {
@@ -55,7 +54,7 @@ export function createWeatherRouter({ store, config, realtime }) {
       entity_id: result.applied_screen_ids.join(','),
       message: `Погода применена к мониторам: ${result.applied_screen_ids.join(', ')}.`
     });
-    response.json({ settings: result.settings, applied_screen_ids: result.applied_screen_ids });
+    response.json({ settings, applied_screen_ids: result.applied_screen_ids });
   });
 
   router.get('/locations', async (request, response) => {
