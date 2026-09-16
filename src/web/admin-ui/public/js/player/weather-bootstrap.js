@@ -1,14 +1,26 @@
 import { normaliseWeatherWidget, renderWeatherWidget } from '../motion/weather-widget.js';
+import { loadLastKnownGood } from './player-store.js';
 
-const CACHE_KEY = 'mira-tv.weather.last.v1';
+const LEGACY_CACHE_KEY = 'mira-tv.weather.last.v1';
+const CACHE_PREFIX = 'mira-tv.weather.last.v2.';
 const stage = document.querySelector('[data-player-stage]');
 let layer = null;
 let settings = normaliseWeatherWidget();
 let snapshot = null;
 let timer = null;
 let generation = 0;
+let screenId = null;
 let active = true;
 let visible = document.visibilityState !== 'hidden';
+
+function validScreenId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function cacheKey() {
+  return screenId ? `${CACHE_PREFIX}${screenId}` : '';
+}
 
 function ensureLayer() {
   if (!(stage instanceof HTMLElement)) return null;
@@ -41,20 +53,71 @@ function renderCurrentWeather() {
   else target?.replaceChildren();
 }
 
-function loadCachedWeather() {
+function cachedRecord(key) {
   try {
-    const record = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-    if (!record || typeof record !== 'object') return;
-    settings = normaliseWeatherWidget(record.settings);
-    snapshot = record.snapshot && typeof record.snapshot === 'object' ? record.snapshot : null;
-    renderCurrentWeather();
-  } catch {}
+    const record = JSON.parse(localStorage.getItem(key) || 'null');
+    return record && typeof record === 'object' ? record : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadCachedWeather() {
+  const key = cacheKey();
+  if (!key) return;
+  let record = cachedRecord(key);
+
+  if (!record) {
+    const legacy = cachedRecord(LEGACY_CACHE_KEY);
+    const legacyScreenId = validScreenId(legacy?.settings?.screen_id);
+    if (legacy && legacyScreenId === screenId) {
+      record = legacy;
+      try { localStorage.setItem(key, JSON.stringify(legacy)); } catch {}
+    }
+    try { localStorage.removeItem(LEGACY_CACHE_KEY); } catch {}
+  }
+
+  if (!record) return;
+  settings = normaliseWeatherWidget(record.settings);
+  snapshot = record.snapshot && typeof record.snapshot === 'object' ? record.snapshot : null;
 }
 
 function saveCachedWeather() {
+  const key = cacheKey();
+  if (!key) return;
   try {
-    if (!settings.enabled || !snapshot) localStorage.removeItem(CACHE_KEY);
-    else localStorage.setItem(CACHE_KEY, JSON.stringify({ settings, snapshot, saved_at: new Date().toISOString() }));
+    if (!settings.enabled || !snapshot) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify({
+      screen_id: screenId,
+      settings: { ...settings, screen_id: screenId },
+      snapshot,
+      saved_at: new Date().toISOString()
+    }));
+  } catch {}
+}
+
+function switchScreen(value) {
+  const next = validScreenId(value);
+  if (!next || next === screenId) return;
+  screenId = next;
+  settings = normaliseWeatherWidget();
+  snapshot = null;
+  loadCachedWeather();
+  renderCurrentWeather();
+}
+
+async function restoreScreenWeather() {
+  try {
+    const record = await loadLastKnownGood();
+    const context = record?.context && typeof record.context === 'object' ? record.context : null;
+    const id = validScreenId(record?.screen_id ?? context?.screen?.id);
+    if (!id) return;
+    switchScreen(id);
+    if (context?.weather && typeof context.weather === 'object') {
+      settings = normaliseWeatherWidget(context.weather);
+      if (!settings.enabled) snapshot = null;
+      renderCurrentWeather();
+    }
   } catch {}
 }
 
@@ -87,6 +150,7 @@ async function refresh({ configurationChanged = false } = {}) {
     if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
     const body = await response.json();
     if (currentGeneration !== generation) return;
+    switchScreen(body?.settings?.screen_id);
     settings = normaliseWeatherWidget(body?.settings);
     snapshot = body?.snapshot || snapshot;
     renderCurrentWeather();
@@ -99,7 +163,9 @@ async function refresh({ configurationChanged = false } = {}) {
 }
 
 if (stage instanceof HTMLElement) {
-  loadCachedWeather();
+  void restoreScreenWeather().finally(() => {
+    if (navigator.onLine) void refresh({ configurationChanged: true });
+  });
   stage.addEventListener('mira:player-active', (event) => {
     active = event?.detail?.active !== false;
     if (active) schedule(1000); else clearTimer();
@@ -114,8 +180,7 @@ if (stage instanceof HTMLElement) {
   window.addEventListener('mira:player-realtime-change', () => {
     syncMenuPalette();
     renderCurrentWeather();
-    schedule(500);
+    void restoreScreenWeather().finally(() => schedule(500));
   });
   window.addEventListener('mira:player-realtime-connected', () => schedule(1000));
-  if (navigator.onLine) void refresh({ configurationChanged: true });
 }
