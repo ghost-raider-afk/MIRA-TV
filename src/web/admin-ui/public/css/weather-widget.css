@@ -217,7 +217,7 @@
 
 .weather-stars i {
   left: var(--p);
-  top: calc(((var(--i) * 29) % 83) * 1%);
+  top: calc(var(--i) * 2.1%);
   width: 3px;
   height: 3px;
   border-radius: 50%;
