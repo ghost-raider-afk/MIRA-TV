@@ -101,13 +101,14 @@ export function weatherVisualState(snapshot = WEATHER_SAMPLE) {
   return isDay ? 'cloudy' : 'partly-cloudy-night';
 }
 
-function effectNode(className, count = 1) {
+function particleGroup(className, count) {
   const container = document.createElement('div');
   container.className = className;
   container.setAttribute('aria-hidden', 'true');
   for (let index = 0; index < count; index += 1) {
     const item = document.createElement('i');
     item.style.setProperty('--i', String(index));
+    item.style.setProperty('--p', `${((index * 37) % 101)}%`);
     container.append(item);
   }
   return container;
@@ -116,48 +117,46 @@ function effectNode(className, count = 1) {
 function createAtmosphere(state) {
   const atmosphere = document.createElement('div');
   atmosphere.className = `weather-atmosphere weather-atmosphere-${state}`;
+  atmosphere.dataset.weatherAtmosphere = 'true';
   atmosphere.setAttribute('aria-hidden', 'true');
+  atmosphere.append(particleGroup('weather-scene-tint', 1));
+
   if (state === 'rain' || state === 'drizzle' || state === 'storm') {
-    atmosphere.append(effectNode('weather-rain', state === 'drizzle' ? 14 : 24));
-    atmosphere.append(effectNode('weather-clouds', 3));
-    if (state === 'storm') atmosphere.append(effectNode('weather-lightning', 2));
+    atmosphere.append(particleGroup('weather-rain', state === 'drizzle' ? 34 : 52));
+    atmosphere.append(particleGroup('weather-clouds', state === 'storm' ? 7 : 5));
+    atmosphere.append(particleGroup('weather-mist', 3));
+    if (state === 'storm') atmosphere.append(particleGroup('weather-lightning', 2));
   } else if (state === 'snow') {
-    atmosphere.append(effectNode('weather-snow', 28), effectNode('weather-clouds', 3));
+    atmosphere.append(particleGroup('weather-snow', 54));
+    atmosphere.append(particleGroup('weather-clouds', 5));
+    atmosphere.append(particleGroup('weather-mist', 2));
   } else if (state === 'fog') {
-    atmosphere.append(effectNode('weather-fog', 4));
+    atmosphere.append(particleGroup('weather-fog', 6));
   } else if (state === 'cloudy' || state.startsWith('partly-cloudy')) {
-    atmosphere.append(effectNode('weather-clouds', state === 'cloudy' ? 4 : 3));
-    if (state.endsWith('night')) atmosphere.append(effectNode('weather-stars', 14));
-    else atmosphere.append(effectNode('weather-sun-rays', 8));
+    atmosphere.append(particleGroup('weather-clouds', state === 'cloudy' ? 7 : 4));
+    if (state.endsWith('night')) atmosphere.append(particleGroup('weather-stars', 28));
+    else atmosphere.append(particleGroup('weather-sun-rays', 12));
   } else if (state === 'clear-night') {
-    atmosphere.append(effectNode('weather-stars', 20), effectNode('weather-moon-glow', 1));
+    atmosphere.append(particleGroup('weather-stars', 40));
+    atmosphere.append(particleGroup('weather-moon-glow', 1));
   } else {
-    atmosphere.append(effectNode('weather-sun-rays', 12), effectNode('weather-sun-glow', 1));
+    atmosphere.append(particleGroup('weather-sun-rays', 18));
+    atmosphere.append(particleGroup('weather-sun-glow', 1));
   }
   return atmosphere;
 }
 
-export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) {
-  if (!(layer instanceof HTMLElement)) return;
-  const config = normaliseWeatherWidget(settings);
-  layer.replaceChildren();
-  layer.className = 'weather-widget-layer';
-  layer.dataset.weatherEnabled = config.enabled ? 'true' : 'false';
-  if (!config.enabled) return;
-
-  const data = snapshot && typeof snapshot === 'object' ? snapshot : WEATHER_SAMPLE;
-  const state = weatherVisualState(data);
+function createContent(config, data) {
   const card = document.createElement('section');
   card.className = 'weather-widget weather-widget-adaptive';
-  card.dataset.weatherState = state;
-  card.dataset.position = config.position;
   card.dataset.weatherDraggable = 'true';
   card.style.setProperty('--weather-width', `${config.width_px}px`);
   card.style.setProperty('--weather-opacity', String(config.opacity));
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
-  card.append(createAtmosphere(state));
+  card.style.left = `${(config.x / 1920) * 100}%`;
+  card.style.top = `${(config.y / 1080) * 100}%`;
 
   const content = document.createElement('div');
   content.className = 'weather-widget-content';
@@ -197,5 +196,22 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   }
 
   card.append(content);
-  layer.append(card);
+  return card;
+}
+
+export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) {
+  if (!(layer instanceof HTMLElement)) return;
+  const config = normaliseWeatherWidget(settings);
+  layer.replaceChildren();
+  layer.className = 'weather-widget-layer';
+  layer.dataset.weatherEnabled = config.enabled ? 'true' : 'false';
+  if (!config.enabled) return;
+
+  const data = snapshot && typeof snapshot === 'object' ? snapshot : WEATHER_SAMPLE;
+  const state = weatherVisualState(data);
+  layer.dataset.weatherState = state;
+  const atmosphere = createAtmosphere(state);
+  const widget = createContent(config, data);
+  widget.dataset.weatherState = state;
+  layer.append(atmosphere, widget);
 }
