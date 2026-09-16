@@ -145,6 +145,31 @@ create_temporary_backup() {
   persist_env; info 'Временная резервная копия создана.'
 }
 
+capture_update_failure_diagnostics() {
+  local stage="${1:-unknown}" output="${PERSIST_DIR}/last-update-failure.log" revision='unknown'
+  install -d -m 0700 "$PERSIST_DIR" || return 0
+  revision="$(git -C "$INSTALL_DIR" rev-parse HEAD 2>/dev/null || printf 'unknown')"
+  if ! {
+    printf 'MIRA-TV update failure diagnostics\n'
+    printf 'captured_at=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    printf 'stage=%s\n' "$stage"
+    printf 'revision=%s\n' "$revision"
+    printf '\n[compose ps -a]\n'
+    compose ps -a || true
+    printf '\n[app state]\n'
+    docker inspect mira-tv --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}' || true
+    printf '\n[app health]\n'
+    docker inspect mira-tv --format '{{json .State.Health}}' || true
+    printf '\n[app logs]\n'
+    docker logs --tail 200 mira-tv 2>&1 || true
+  } > "$output" 2>&1; then
+    warn 'Не удалось сохранить диагностику неудачного обновления.'
+    return 0
+  fi
+  chmod 600 "$output" || true
+  warn "Диагностика неудачного обновления сохранена: $output"
+}
+
 restore_database_exact() {
   local dump_file="$1"
   compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" dropdb --if-exists --force -U "$POSTGRES_USER" "$POSTGRES_DB" && PGPASSWORD="$POSTGRES_PASSWORD" createdb -U "$POSTGRES_USER" -O "$POSTGRES_USER" "$POSTGRES_DB"' || return 1
@@ -171,11 +196,13 @@ restore_temporary_backup() {
 }
 
 recover_failed_update() {
+  local stage="${1:-unknown}"
+  capture_update_failure_diagnostics "$stage"
   if restore_temporary_backup; then
     warn 'Загруженные файлы также восстановлены из временной копии.'
-    die 'Обновление отменено: предыдущая версия, настройки и база данных автоматически восстановлены.'
+    die "Обновление отменено: предыдущая версия, настройки и база данных автоматически восстановлены. Диагностика: ${PERSIST_DIR}/last-update-failure.log"
   fi
-  KEEP_TEMP_BACKUP=true; die "Автоматическое восстановление не завершилось. Временная копия сохранена: ${TEMP_BACKUP_DIR:-не создана}"
+  KEEP_TEMP_BACKUP=true; die "Автоматическое восстановление не завершилось. Временная копия сохранена: ${TEMP_BACKUP_DIR:-не создана}. Диагностика: ${PERSIST_DIR}/last-update-failure.log"
 }
 
 install_app() {
@@ -205,15 +232,15 @@ update_app() {
   log "Обновление MIRA-TV ${installed} -> ${version}"; cd "$INSTALL_DIR"
   git fetch --tags --force origin || die 'Не удалось получить теги GitHub.'; git rev-parse "${tag}^{commit}" >/dev/null 2>&1 || die "Не найден релизный тег ${tag}."
   create_temporary_backup
-  git checkout -f "$tag" || recover_failed_update
-  merge_env_defaults || recover_failed_update
-  sed -i "s|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=${version}|" .env || recover_failed_update
-  chmod 600 .env || recover_failed_update; persist_env || recover_failed_update
-  docker compose config --quiet || recover_failed_update
-  docker compose up -d --build --wait || recover_failed_update
-  wait_ready || recover_failed_update
-  install -m 0755 mira-tv.sh "$LAUNCHER_PATH" || recover_failed_update
-  persist_env || recover_failed_update
+  git checkout -f "$tag" || recover_failed_update 'git checkout release tag'
+  merge_env_defaults || recover_failed_update 'merge env defaults'
+  sed -i "s|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=${version}|" .env || recover_failed_update 'update MIRA_TV_VERSION'
+  chmod 600 .env || recover_failed_update 'chmod .env'; persist_env || recover_failed_update 'persist merged .env'
+  docker compose config --quiet || recover_failed_update 'docker compose config'
+  docker compose up -d --build --wait || recover_failed_update 'docker compose up --build --wait'
+  wait_ready || recover_failed_update 'wait /readyz'
+  install -m 0755 mira-tv.sh "$LAUNCHER_PATH" || recover_failed_update 'install launcher'
+  persist_env || recover_failed_update 'persist final .env'
   rm -rf -- "$TEMP_BACKUP_DIR"; TEMP_BACKUP_DIR=""; info "MIRA-TV обновлён до версии ${version}."
 }
 
@@ -222,7 +249,7 @@ restart_app() { require_root restart; compose restart; }
 logs_app() { require_root logs; compose logs -f --tail=200; }
 
 reset_admin_password() {
-  require_root reset-admin-password; [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
+  require_root reset-admin-password; [[ -d "$INSTALL_DIR/.git" ]] || die 'MIRA-TV не установлен.'
   local username; read -r -p 'Логин администратора (Enter, если администратор один): ' username
   if [[ -n "$username" ]]; then compose exec -T app node src/cli/reset-admin-password.js "$username"; else compose exec -T app node src/cli/reset-admin-password.js; fi
 }

@@ -91,3 +91,23 @@ test('installer update is one guarded flow with temporary backup and automatic r
   assert.match(source, /Удалить приложение и ВСЕ данные\?'; then/);
   assert.match(source, /\[YES\/NO\]/);
 });
+
+test('failed update diagnostics are captured before rollback removes the unhealthy app container', async () => {
+  const source = await readFile('mira-tv.sh', 'utf8');
+  const diagnostics = source.match(/capture_update_failure_diagnostics\(\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+  const recovery = source.match(/recover_failed_update\(\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+
+  assert.match(diagnostics, /last-update-failure\.log/);
+  assert.match(diagnostics, /compose ps -a/);
+  assert.match(diagnostics, /docker inspect mira-tv --format/);
+  assert.match(diagnostics, /docker logs --tail 200 mira-tv/);
+  assert.doesNotMatch(diagnostics, /cat .*\.env|printenv|docker inspect mira-tv\s*$/m);
+
+  assert.match(recovery, /capture_update_failure_diagnostics "\$stage"/);
+  assert.ok(
+    recovery.indexOf('capture_update_failure_diagnostics') < recovery.indexOf('restore_temporary_backup'),
+    'diagnostics must be captured before rollback removes the failed container'
+  );
+  assert.match(source, /docker compose up -d --build --wait \|\| recover_failed_update 'docker compose up --build --wait'/);
+  assert.match(source, /wait_ready \|\| recover_failed_update 'wait \/readyz'/);
+});
