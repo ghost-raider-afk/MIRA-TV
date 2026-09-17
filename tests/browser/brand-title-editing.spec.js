@@ -61,9 +61,10 @@ test('Brand Entity is user-owned inside Playlist Studio and persists independent
   const original = await getSettings(page);
   try {
     await page.goto(`/playlist.html?screen=${fixture.screenId}`);
-    const textTab = page.locator('[data-animation-inspector-tab="text"]');
-    await textTab.click();
-    await expect(textTab).toHaveClass(/active/);
+    const brandTab = page.locator('[data-animation-object-tab="brand"]');
+    await expect(brandTab).toBeVisible();
+    await brandTab.click();
+    await expect(brandTab).toHaveClass(/active/);
     const input = page.locator('#animation-brand-text');
     await expect(input).toBeVisible();
     await expect(input).toHaveJSProperty('tagName', 'TEXTAREA');
