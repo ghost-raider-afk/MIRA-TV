@@ -36,13 +36,15 @@ async function initialisePage(name) {
     }
     case 'playlist':
     case 'animation': {
-      const [{ initialisePlaylistStudio }, { initialiseWeatherStudio }] = await Promise.all([
+      const [{ initialisePlaylistStudio }, { initialiseWeatherStudio }, { initialiseAnimationApplication }] = await Promise.all([
         import('./pages/playlist.js'),
-        import('./pages/weather-studio.js')
+        import('./pages/weather-studio.js'),
+        import('./pages/animation-application.js')
       ]);
       const playlist = initialisePlaylistStudio();
       const weather = await initialiseWeatherStudio();
-      return composeLifecycle(playlist, weather);
+      const application = initialiseAnimationApplication();
+      return composeLifecycle(playlist, weather, application);
     }
     case 'events': {
       const { initialiseEvents } = await import('./pages/events.js');
