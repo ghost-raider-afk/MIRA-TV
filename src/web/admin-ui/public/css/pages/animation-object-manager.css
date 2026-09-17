@@ -197,6 +197,27 @@
   [data-animation-object-panel="weather"] .weather-toggle-grid label{gap:2px;font-size:7px;white-space:nowrap}
   [data-animation-object-panel="weather"] .weather-actions{grid-area:actions;grid-template-columns:1fr;align-self:center;margin:0}
   [data-animation-object-panel="weather"] .weather-actions .button{min-height:28px;padding:3px 6px}
+
+  [data-animation-object-panel="announcement"] .animation-announcement-card{
+    grid-template-columns:minmax(0,.6fr) minmax(0,1.4fr);
+    grid-template-areas:
+      "heading heading"
+      "enabled text"
+      "controls controls";
+    align-content:start;
+    gap:4px 7px;
+  }
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.card-heading{grid-area:heading;margin:0}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.animation-entity-visible{grid-area:enabled;min-height:28px;font-size:9px}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.field-full{grid-area:text;gap:2px}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.field-full textarea{min-height:42px;height:42px;resize:none}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid{grid-area:controls;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:4px!important}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid .field,
+  [data-animation-object-panel="announcement"] .animation-announcement-grid .animation-entity-visible{gap:2px;min-width:0;min-height:28px;font-size:8px}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid input:not([type="range"]):not([type="checkbox"]),
+  [data-animation-object-panel="announcement"] .animation-announcement-grid select{min-height:28px;height:28px;padding-top:2px;padding-bottom:2px}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid input[type="color"]{min-height:28px;height:28px}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid output{min-width:48px;min-height:24px;padding:0 4px;font-size:8px}
 }
 
 @media(min-width:1181px) and (max-height:900px){
@@ -224,6 +245,15 @@
   [data-animation-object-panel="weather"] .field input:not([type="range"]):not([type="checkbox"]),
   [data-animation-object-panel="weather"] .field select{min-height:24px;height:24px;padding-top:1px;padding-bottom:1px}
   [data-animation-object-panel="weather"] .weather-location-results{max-height:36px}
+
+  [data-animation-object-panel="announcement"] .animation-announcement-card{padding:7px!important;gap:2px 6px!important}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.card-heading .eyebrow,
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.card-heading p:not(.eyebrow){display:none}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.card-heading h2{margin:0;font-size:14px!important;line-height:1.05}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.animation-entity-visible{min-height:24px}
+  [data-animation-object-panel="announcement"] .animation-announcement-card>.field-full textarea{min-height:34px;height:34px}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid{gap:2px 3px!important}
+  [data-animation-object-panel="announcement"] .animation-announcement-grid .field>span{font-size:8px;line-height:1.05}
 }
 
 @media (max-width: 1180px) {
