@@ -159,6 +159,8 @@
 @media(min-width:1181px){
   .animation-object-manager-head p:not(.eyebrow){display:none}
   .animation-object-copy small{display:none}
+  [data-animation-object-panel="menu"] .animation-motion-card .animation-control-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  [data-animation-object-panel="menu"] .animation-motion-card .animation-slider-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 }
 
 @media (max-width: 1180px) {
