@@ -1,0 +1,83 @@
+name: finalize-1.0.9
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-1.0.9.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Finalize release metadata
+        run: |
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+
+          version = '1.0.9'
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          lock = json.loads(Path('package-lock.json').read_text(encoding='utf-8'))
+          env = Path('.env.example').read_text(encoding='utf-8')
+          assert package['version'] == version
+          assert package['miraVersion'] == version
+          assert lock['version'] == version
+          assert lock['packages']['']['version'] == version
+          assert f'MIRA_TV_VERSION={version}' in env.splitlines()
+
+          installer_path = Path('mira-tv.sh')
+          installer = installer_path.read_text(encoding='utf-8')
+          installer = installer.replace('SCRIPT_VERSION="1.0.8"', 'SCRIPT_VERSION="1.0.9"', 1)
+          assert 'SCRIPT_VERSION="1.0.9"' in installer.splitlines()
+          installer_path.write_text(installer, encoding='utf-8')
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          if '## 1.0.9 — 17 сентября 2026' not in changelog:
+              section = '''## 1.0.9 — 17 сентября 2026
+
+Обновление управления анимациями, соответствия Preview реальному телевизору и компоновки Motion Studio.
+
+### Анимации и объекты
+
+- исправлена анимация «Акции» на реальном TV Player: плашка и подсветка строки теперь воспроизводятся на телевизоре, а не только в Preview;
+- TV-анимация акции переведена на compositor-safe `transform + opacity`, без тяжёлого runtime-фильтра;
+- добавлен единый список анимаций и объектов с понятным состоянием включения и отдельными вкладками настройки;
+- список показывает состояние текущего черновика и состояние выбранного телевизора, чтобы было видно, что реально применено;
+- управление сгруппировано по вкладкам «Меню», «Акция», «Погода», «Объявление», «Бренд», «Аквариум», «Объект» и «Плейлист».
+
+### Motion Studio
+
+- Preview уменьшен, а рабочая область уплотнена для размещения основных настроек в одном desktop-окне;
+- убрана общая вертикальная прокрутка правой панели; при необходимости прокручивается только содержимое конкретной вкладки;
+- матрица состояний уплотнена и удерживает элементы управления одной строки без лишних переносов;
+- добавлена browser regression-проверка размещения студии в одном desktop viewport.
+
+### Таблица меню
+
+- заголовки `1 л` и `1,5 л` выровнены по центру соответствующих ценовых столбцов вместо привязки к их правому краю;
+- Preview и TV Player используют один общий SVG-рендерер, поэтому новое выравнивание одинаково на обоих экранах;
+- добавлен regression-тест точных координат и `text-anchor="middle"` для обоих ценовых заголовков.
+
+'''
+              marker = '## 1.0.8 — 17 сентября 2026'
+              assert marker in changelog
+              changelog = changelog.replace(marker, section + marker, 1)
+              changelog_path.write_text(changelog, encoding='utf-8')
+          PY
+      - name: Remove one-shot helper and create release commit
+        run: |
+          rm -f .github/workflows/finalize-1.0.9.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mira-tv.sh CHANGELOG.md .github/workflows/finalize-1.0.9.yml
+          git commit -m 'release: 1.0.9'
+          git push origin HEAD:main
