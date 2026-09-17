@@ -87,8 +87,8 @@ test('canonical SVG mirrors MIRA-TV 1 structure without vertical price separator
   assert.match(svg, /x1="65"[^>]*x2="1430"[^>]*class="separator"/);
   assert.doesNotMatch(svg, /<line[^>]*x1="1258"[^>]*y2=/);
   assert.doesNotMatch(svg, /<line[^>]*x1="1405"[^>]*y2=/);
-  assert.match(svg, />1 л<\/text>/);
-  assert.match(svg, />1,5 л<\/text>/);
+  assert.match(svg, /<text x="1209"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1 л<\/text>/);
+  assert.match(svg, /<text x="1356"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1,5 л<\/text>/);
   assert.match(svg, /class="table-section">\s*<rect[^>]*x="56"[^>]*width="1374"[^>]*rx="5"/);
   assert.match(svg, /class="item-name"[^>]*>БАВАРИЯ ПШЕНИЧНОЕ<\/text>/);
   assert.doesNotMatch(svg, /class="item-name"[^>]*4,6%/);
