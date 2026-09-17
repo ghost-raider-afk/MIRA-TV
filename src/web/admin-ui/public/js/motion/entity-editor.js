@@ -1,14 +1,27 @@
 export const ENTITY_SCENE = Object.freeze({ width: 1920, height: 1080 });
+export const ENTITY_ANIMATION_MODES = Object.freeze(['none', 'cinematic', 'float', 'breathe', 'sway', 'drift', 'pulse', 'toast']);
+
+const ENTITY_ANIMATION_LABELS = Object.freeze({
+  none: 'Без анимации',
+  cinematic: 'Кинематографичная',
+  float: 'Плавное парение',
+  breathe: 'Дыхание',
+  sway: 'Покачивание',
+  drift: 'Медленный дрейф',
+  pulse: 'Мягкий пульс',
+  toast: 'Акцент / тост'
+});
 
 const DEFAULT_ENTITY = Object.freeze({
   version: 2, id: 'beer-glass', name: 'Бокал пива', asset_url: '', asset_type: 'image', media_type: 'image/png',
   width: 0, height: 0, asset_width: 0, asset_height: 0, has_alpha: false,
-  loop: true, muted: true, playsinline: true, playback_rate: 1, poster_url: '', visible: false,
+  loop: true, muted: true, playsinline: true, playback_rate: 1, poster_url: '', visible: false, animation_mode: 'cinematic',
   transform: Object.freeze({ x: 1580, y: 420, width: 280, scale: 1, rotation: 0, depth: 10, opacity: 1 })
 });
 
 function finite(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
 function inferredAssetType(value) { return value?.asset_type === 'video' || /\.(?:mp4|webm)(?:$|\?)/i.test(value?.asset_url || '') ? 'video' : 'image'; }
+function animationMode(value) { return ENTITY_ANIMATION_MODES.includes(value) ? value : DEFAULT_ENTITY.animation_mode; }
 
 export function normaliseSceneEntity(value = {}) {
   value = value && typeof value === 'object' ? value : {};
@@ -31,6 +44,7 @@ export function normaliseSceneEntity(value = {}) {
     playback_rate: Math.min(4, Math.max(0.25, finite(value.playback_rate, 1))),
     poster_url: typeof value.poster_url === 'string' ? value.poster_url : '',
     visible: value.visible === true,
+    animation_mode: animationMode(value.animation_mode),
     transform: {
       x: finite(transform.x, DEFAULT_ENTITY.transform.x), y: finite(transform.y, DEFAULT_ENTITY.transform.y),
       width: Math.max(24, finite(transform.width, DEFAULT_ENTITY.transform.width)),
@@ -79,6 +93,7 @@ export function renderSceneEntity(stage, source, { editable = true } = {}) {
   layer.replaceChildren();
   layer.dataset.entitySceneWidth = String(ENTITY_SCENE.width);
   layer.dataset.entitySceneHeight = String(ENTITY_SCENE.height);
+  layer.style.pointerEvents = editable && entity.asset_url && entity.visible ? 'auto' : 'none';
   if (!entity.asset_url || !entity.visible) return;
 
   const object = document.createElement('div');
@@ -91,12 +106,16 @@ export function renderSceneEntity(stage, source, { editable = true } = {}) {
   object.style.opacity = String(entity.transform.opacity);
   object.style.zIndex = String(entity.transform.depth + 100);
   object.style.transform = `scale(${entity.transform.scale}) rotate(${entity.transform.rotation}deg)`;
+  object.style.touchAction = editable ? 'none' : '';
+  object.style.cursor = editable ? 'grab' : '';
 
   const motion = document.createElement('div');
   motion.className = 'animation-scene-entity-motion';
   motion.dataset.entityMotion = entity.id;
+  motion.dataset.entityAnimationMode = entity.animation_mode;
   const media = createEntityMedia(entity);
   media.classList.add('animation-scene-entity-media');
+  media.style.pointerEvents = 'none';
   motion.append(media);
   object.append(motion);
 
@@ -110,6 +129,24 @@ export function renderSceneEntity(stage, source, { editable = true } = {}) {
   layer.append(object);
 }
 
+function ensureAnimationModeControl() {
+  let select = document.getElementById('animation-entity-animation-mode');
+  if (select instanceof HTMLSelectElement) return select;
+  const fields = document.querySelector('.animation-entity-main-fields');
+  if (!(fields instanceof HTMLElement)) return null;
+  const label = document.createElement('label');
+  label.className = 'field animation-entity-animation-mode-field';
+  const caption = document.createElement('span');
+  caption.textContent = 'Анимация объекта';
+  select = document.createElement('select');
+  select.id = 'animation-entity-animation-mode';
+  select.setAttribute('aria-label', 'Анимация объекта сцены');
+  for (const mode of ENTITY_ANIMATION_MODES) select.add(new Option(ENTITY_ANIMATION_LABELS[mode], mode));
+  label.append(caption, select);
+  fields.append(label);
+  return select;
+}
+
 export class SceneEntityEditor {
   constructor({ stage, onChange, onCommit }) {
     this.stage = stage;
@@ -118,22 +155,35 @@ export class SceneEntityEditor {
     this.entity = normaliseSceneEntity();
     this.pointer = null;
     this.disposed = false;
+    this.animationModeControl = ensureAnimationModeControl();
+    this.handleAnimationModeChange = () => {
+      if (this.disposed || !(this.animationModeControl instanceof HTMLSelectElement)) return;
+      this.update({ animation_mode: this.animationModeControl.value });
+      this.onCommit?.(this.getEntity());
+    };
+    this.animationModeControl?.addEventListener('change', this.handleAnimationModeChange);
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handlePointerUp = this.handlePointerUp.bind(this);
     this.handleRouteDispose = () => this.destroy();
     stage?.addEventListener('pointerdown', this.handlePointerDown);
     window.addEventListener('mira:route-dispose', this.handleRouteDispose);
+    this.syncAnimationModeControl();
   }
-  setEntity(value) { if (this.disposed) return; this.entity = normaliseSceneEntity(value); this.render(); }
+  syncAnimationModeControl() {
+    if (this.animationModeControl instanceof HTMLSelectElement) this.animationModeControl.value = this.entity.animation_mode;
+  }
+  setEntity(value) { if (this.disposed) return; this.entity = normaliseSceneEntity(value); this.syncAnimationModeControl(); this.render(); }
   getEntity() { return normaliseSceneEntity(this.entity); }
-  update(patch) { if (this.disposed) return; this.entity = normaliseSceneEntity({ ...this.entity, ...patch, transform: { ...this.entity.transform, ...(patch.transform || {}) } }); this.render(); this.onChange?.(this.getEntity()); }
+  update(patch) { if (this.disposed) return; this.entity = normaliseSceneEntity({ ...this.entity, ...patch, transform: { ...this.entity.transform, ...(patch.transform || {}) } }); this.syncAnimationModeControl(); this.render(); this.onChange?.(this.getEntity()); }
   render() { if (!this.disposed) renderSceneEntity(this.stage, this.entity, { editable: true }); }
   handlePointerDown(event) {
     if (this.disposed) return;
     const resize = event.target.closest?.('[data-entity-resize="true"]'); const drag = event.target.closest?.('[data-entity-drag="true"]');
     if (!resize && !drag) return; const rect = this.stage.getBoundingClientRect(); if (!rect.width || !rect.height) return;
-    event.preventDefault(); const target = resize || drag; target.setPointerCapture?.(event.pointerId);
+    event.preventDefault(); event.stopPropagation();
+    const target = resize || drag; target.setPointerCapture?.(event.pointerId);
+    if (drag instanceof HTMLElement) drag.style.cursor = 'grabbing';
     this.pointer = { pointerId: event.pointerId, mode: resize ? 'resize' : 'drag', startX: event.clientX, startY: event.clientY, scenePerPixelX: ENTITY_SCENE.width / rect.width, scenePerPixelY: ENTITY_SCENE.height / rect.height, entity: this.getEntity() };
     window.addEventListener('pointermove', this.handlePointerMove); window.addEventListener('pointerup', this.handlePointerUp, { once: true }); window.addEventListener('pointercancel', this.handlePointerUp, { once: true });
   }
@@ -146,17 +196,19 @@ export class SceneEntityEditor {
   }
   handlePointerUp(event) {
     if (!this.pointer || event.pointerId !== this.pointer.pointerId) return; this.pointer = null;
-    window.removeEventListener('pointermove', this.handlePointerMove); window.removeEventListener('pointerup', this.handlePointerUp); window.removeEventListener('pointercancel', this.handlePointerUp); this.onCommit?.(this.getEntity());
+    window.removeEventListener('pointermove', this.handlePointerMove); window.removeEventListener('pointerup', this.handlePointerUp); window.removeEventListener('pointercancel', this.handlePointerUp); this.render(); this.onCommit?.(this.getEntity());
   }
   destroy() {
     if (this.disposed) return;
     this.disposed = true;
     window.removeEventListener('mira:route-dispose', this.handleRouteDispose);
+    this.animationModeControl?.removeEventListener('change', this.handleAnimationModeChange);
     this.stage?.removeEventListener('pointerdown', this.handlePointerDown);
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerup', this.handlePointerUp);
     window.removeEventListener('pointercancel', this.handlePointerUp);
     this.pointer = null;
+    this.animationModeControl = null;
     this.stage = null;
     this.onChange = null;
     this.onCommit = null;
