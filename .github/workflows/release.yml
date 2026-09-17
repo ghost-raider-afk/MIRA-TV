@@ -44,6 +44,9 @@ jobs:
             capture && /^## / {exit}
             capture {print}
           ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md && -s "docs/releases/${VERSION}.md" ]]; then
+            cp "docs/releases/${VERSION}.md" release-notes.md
+          fi
           test -s release-notes.md
 
       - name: Publish GitHub Release
