@@ -2,7 +2,7 @@ const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v18';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v19';
 const SHELL_CACHE = 'mira-tv-player-shell-v20';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: promotion motion runtime refresh. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: scene entity animation modes and runtime refresh. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
@@ -78,90 +78,75 @@ async function ensureActiveAssets(values) {
   const cache = await caches.open(DATA_CACHE);
   let complete = true;
   for (const href of active) {
-    const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
-    if (await cache.match(request)) continue;
+    if (await cache.match(href)) continue;
     try {
-      const response = await fetch(request, { cache: 'force-cache' });
-      if (response.status !== 200) { complete = false; continue; }
-      await cache.put(request, response.clone());
-    } catch { complete = false; }
+      const response = await fetch(href, { cache: 'no-store' });
+      if (!response.ok) { complete = false; continue; }
+      await cache.put(href, response.clone());
+    } catch {
+      complete = false;
+    }
   }
-  return { active, complete, cache };
+  return { complete, active };
 }
 
 async function syncActiveAssets(values) {
-  const { active, complete, cache } = await ensureActiveAssets(values);
+  const { complete, active } = await ensureActiveAssets(values);
   if (!complete) return;
+  const cache = await caches.open(DATA_CACHE);
   const requests = await cache.keys();
   await Promise.all(requests.map((request) => {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/site-assets/') || active.has(url.href)) return false;
+    if (!url.pathname.startsWith('/site-assets/')) return Promise.resolve(false);
+    if (active.has(request.url)) return Promise.resolve(false);
     return cache.delete(request);
   }));
 }
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
-  event.waitUntil(syncActiveAssets(event.data.assets));
+  const message = event.data || {};
+  if (message.type === 'MIRA_PLAYER_ACTIVE_ASSETS') {
+    event.waitUntil(syncActiveAssets(message.assets));
+  }
 });
 
-async function networkWithTimeout(request, timeoutMs = 5000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(request, { signal: controller.signal, cache: 'no-cache' }); }
-  finally { clearTimeout(timer); }
-}
-
-async function cachedShell(request, fallbackPath = null) {
+async function shellRequest(request) {
   const cache = await caches.open(SHELL_CACHE);
-  const cached = await cache.match(request) || (fallbackPath ? await cache.match(fallbackPath) : null);
+  const cached = await cache.match(request);
   if (cached) return cached;
-  try {
-    const response = await networkWithTimeout(request, 4000);
-    if (response.ok) await cache.put(request, response.clone());
-    return response;
-  } catch { return Response.error(); }
+  const response = await fetch(request);
+  if (response.ok) await cache.put(request, response.clone());
+  return response;
 }
 
-async function cachedAsset(request) {
+async function dataRequest(request) {
   const cache = await caches.open(DATA_CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
-  try {
-    const response = await networkWithTimeout(request, 8000);
-    if (response.ok) await cache.put(request, response.clone());
-    return response;
-  } catch { return Response.error(); }
+  const response = await fetch(request);
+  if (response.ok) await cache.put(request, response.clone());
+  return response;
 }
 
 async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
-  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
+  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials, mode: request.mode, cache: 'default' });
   const cached = await cache.match(fullRequest);
   if (cached) return cached;
-  if (!request.headers.has('range')) return cachedAsset(request);
-  try { return await networkWithTimeout(request, 8000); }
-  catch { return Response.error(); }
+  return fetch(request);
 }
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
-  if (event.request.mode === 'navigate' && url.pathname === '/player.html') {
-    event.respondWith(Response.redirect(new URL('/player', self.location.origin).href, 308));
-    return;
-  }
-  if (event.request.mode === 'navigate' && url.pathname === '/player') {
-    event.respondWith(cachedShell(event.request, '/player.html'));
-    return;
-  }
-  if (SHELL_ASSETS.includes(url.pathname)) {
-    event.respondWith(cachedShell(event.request));
-    return;
-  }
-  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
+  if (url.origin !== self.location.origin) return;
+  if (event.request.headers.has('range') && url.pathname.startsWith('/site-assets/')) {
     event.respondWith(videoRequest(event.request));
     return;
   }
-  if (url.pathname.startsWith('/site-assets/')) event.respondWith(cachedAsset(event.request));
+  if (SHELL_ASSETS.includes(url.pathname)) {
+    event.respondWith(shellRequest(event.request));
+    return;
+  }
+  if (url.pathname.startsWith('/site-assets/')) event.respondWith(dataRequest(event.request));
 });
