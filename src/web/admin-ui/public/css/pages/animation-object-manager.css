@@ -3,9 +3,9 @@
   gap: 14px;
   margin: 0 0 18px;
   padding: 16px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--ui-border);
   border-radius: 16px;
-  background: var(--surface-primary);
+  background: var(--ui-panel);
 }
 
 .animation-object-manager-head {
@@ -22,7 +22,7 @@
 
 .animation-object-manager-head p:not(.eyebrow) {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--ui-text-muted);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -30,7 +30,7 @@
 .animation-object-manager-head > small {
   max-width: 260px;
   text-align: right;
-  color: var(--text-secondary);
+  color: var(--ui-text-muted);
   line-height: 1.4;
 }
 
@@ -45,16 +45,16 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--ui-border);
   border-radius: 12px;
-  background: var(--surface-secondary);
+  background: var(--ui-panel-raised);
 }
 
 .animation-object-toggle {
   width: 20px;
   height: 20px;
   margin: 0;
-  accent-color: var(--brand-primary);
+  accent-color: var(--ui-accent);
 }
 
 .animation-object-copy {
@@ -68,7 +68,7 @@
 }
 
 .animation-object-copy small {
-  color: var(--text-secondary);
+  color: var(--ui-text-muted);
   line-height: 1.35;
 }
 
@@ -78,26 +78,26 @@
   min-height: 28px;
   padding: 4px 8px;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--ui-border);
   white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
 }
 
 .animation-object-state.is-on {
-  border-color: color-mix(in srgb, var(--success-color) 42%, var(--border-color));
-  background: color-mix(in srgb, var(--success-color) 10%, transparent);
-  color: var(--success-color);
+  border-color: color-mix(in srgb, var(--ui-success) 42%, var(--ui-border));
+  background: color-mix(in srgb, var(--ui-success) 10%, transparent);
+  color: var(--ui-success);
 }
 
 .animation-object-state.is-off {
-  color: var(--text-secondary);
-  background: var(--surface-primary);
+  color: var(--ui-text-muted);
+  background: var(--ui-panel);
 }
 
 .animation-object-state.is-unknown {
-  color: var(--warning-color);
-  background: color-mix(in srgb, var(--warning-color) 8%, transparent);
+  color: var(--ui-warning);
+  background: color-mix(in srgb, var(--ui-warning) 8%, transparent);
 }
 
 .animation-object-configure {
@@ -135,7 +135,7 @@
 .animation-object-panel-empty {
   margin: 0;
   padding: 18px;
-  color: var(--text-secondary);
+  color: var(--ui-text-muted);
 }
 
 #animation-inspector-master:empty,
