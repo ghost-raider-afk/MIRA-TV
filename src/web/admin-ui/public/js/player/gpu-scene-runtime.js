@@ -107,6 +107,35 @@ export function gpuSceneEffectPlan(profile = {}) {
   });
 }
 
+export function gpuPromotionEffectPlan(profile = {}) {
+  if (String(profile.promotion_effect || 'cinematic') === 'none') return null;
+  const gain = clamp(number(profile.promotion_intensity, 96), 0, 100) / 100;
+  if (gain <= 0) return null;
+  const duration = Math.max(2000, number(profile.promotion_cycle_seconds, 4.8) * 1000);
+  const activeFraction = clamp(number(profile.promotion_event_duration_ms, 1800) / duration, 0.18, 0.72);
+  const peakOffset = activeFraction / 2;
+  const scaleAmount = clamp(number(profile.promotion_scale_amount, 0.06) * gain * 0.44, 0.01, 0.06);
+  const brightness = clamp(number(profile.promotion_brightness_amount, 0.35) * gain, 0, 0.34);
+  const glowRadius = clamp(number(profile.promotion_glow_radius, 28) * gain, 0, 36);
+  const glowOpacity = clamp(0.18 + gain * 0.52, 0.18, 0.70);
+  const glowColor = 'rgba(255,48,72,.78)';
+  return Object.freeze({
+    duration,
+    badgeKeyframes: Object.freeze([
+      Object.freeze({ offset: 0, transform: 'scale(1)', filter: 'brightness(1)' }),
+      Object.freeze({ offset: peakOffset, transform: `scale(${(1 + scaleAmount).toFixed(5)})`, filter: `brightness(${(1 + brightness).toFixed(4)}) drop-shadow(0 0 ${glowRadius.toFixed(2)}px ${glowColor})` }),
+      Object.freeze({ offset: activeFraction, transform: 'scale(1)', filter: 'brightness(1)' }),
+      Object.freeze({ offset: 1, transform: 'scale(1)', filter: 'brightness(1)' })
+    ]),
+    glowKeyframes: Object.freeze([
+      Object.freeze({ offset: 0, opacity: 0 }),
+      Object.freeze({ offset: peakOffset, opacity: glowOpacity }),
+      Object.freeze({ offset: activeFraction, opacity: 0 }),
+      Object.freeze({ offset: 1, opacity: 0 })
+    ])
+  });
+}
+
 export class GpuSceneRuntime {
   constructor(stage, { composer = null } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('GPU scene runtime requires an HTMLElement stage.');
@@ -114,6 +143,7 @@ export class GpuSceneRuntime {
     this.composer = composer || new PlayerSceneLayerComposer(stage);
     this.animations = [];
     this.signature = '';
+    this.menuRoot = null;
     this.fullscreenSuppressed = stage.dataset.scenePlaylistFullscreen === 'true';
     const playerHost = stage.closest('[data-tv-player]');
     this.playerActive = playerHost instanceof HTMLElement && !playerHost.classList.contains('is-hidden');
@@ -153,23 +183,53 @@ export class GpuSceneRuntime {
   destroy() {
     this.stopAnimations();
     this.signature = '';
+    this.menuRoot = null;
     const layer = this.composer.get('fx');
     const host = layer?.querySelector(':scope > [data-gpu-menu-fx-host]');
     host?.replaceChildren();
     if (host instanceof HTMLElement) host.hidden = true;
   }
 
+  startPromotionAnimations(profile) {
+    const menuLayer = this.composer.get('menu');
+    if (!(menuLayer instanceof HTMLElement)) return;
+    const plan = gpuPromotionEffectPlan(profile);
+    if (!plan) return;
+    const badges = [...menuLayer.querySelectorAll('g.promotion-badge')];
+    const glows = [...menuLayer.querySelectorAll('g.promotion-row-glow')];
+    for (const badge of badges) {
+      badge.style.transformBox = 'fill-box';
+      badge.style.transformOrigin = 'center';
+      this.animations.push(badge.animate(plan.badgeKeyframes, {
+        duration: plan.duration,
+        easing: 'linear',
+        iterations: Infinity
+      }));
+    }
+    for (const glow of glows) {
+      this.animations.push(glow.animate(plan.glowKeyframes, {
+        duration: plan.duration,
+        easing: 'linear',
+        iterations: Infinity
+      }));
+    }
+  }
+
   render({ enabled = false, profile = null, viewport = {}, settings = {} } = {}) {
     const layer = this.composer.ensure('fx', { ariaHidden: true });
     const host = ensureGpuHost(layer);
+    const menuLayer = this.composer.get('menu');
+    const currentMenuRoot = menuLayer?.querySelector('svg.menu-table-svg') || null;
     const signature = JSON.stringify({
       enabled: enabled === true && Boolean(profile),
       profile: enabled ? profile : null,
       viewport: [number(viewport.width), number(viewport.height)],
-      bounds: [settings.table_x, settings.table_y, settings.table_width_px, settings.table_height_px]
+      bounds: [settings.table_x, settings.table_y, settings.table_width_px, settings.table_height_px],
+      promotions: menuLayer?.querySelectorAll('g.promotion-badge').length || 0
     });
-    if (signature === this.signature) return false;
+    if (signature === this.signature && currentMenuRoot === this.menuRoot) return false;
     this.signature = signature;
+    this.menuRoot = currentMenuRoot;
     this.stopAnimations();
     host.replaceChildren();
 
@@ -191,12 +251,12 @@ export class GpuSceneRuntime {
     host.replaceChildren(container);
     host.hidden = false;
 
-    const animation = effect.animate(plan.keyframes, {
+    this.animations.push(effect.animate(plan.keyframes, {
       duration: plan.duration,
       easing: plan.kind === 'pulse' ? 'ease-in-out' : 'linear',
       iterations: Infinity
-    });
-    this.animations.push(animation);
+    }));
+    this.startPromotionAnimations(profile);
     this.syncPlayback();
     return true;
   }
