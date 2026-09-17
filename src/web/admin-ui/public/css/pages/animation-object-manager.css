@@ -163,34 +163,40 @@
   [data-animation-object-panel="menu"] .animation-motion-card .animation-slider-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 
   [data-animation-object-panel="weather"] .weather-settings-card{
-    grid-template-columns:repeat(2,minmax(0,1fr));
+    position:relative;
+    grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);
     grid-template-areas:
       "heading heading"
-      "search status"
-      "results results"
+      "enabled search"
       "motion config"
       "coords position"
       "toggles actions";
     align-content:start;
     align-items:start;
-    gap:5px 8px;
+    gap:3px 7px;
   }
-  [data-animation-object-panel="weather"] .weather-settings-card>.card-heading{grid-area:heading;margin-bottom:0}
-  [data-animation-object-panel="weather"] .weather-location-search{grid-area:search;gap:5px}
-  [data-animation-object-panel="weather"] .weather-location-results{grid-area:results;max-height:56px;overflow:auto;gap:3px}
-  [data-animation-object-panel="weather"] .weather-preview-status{grid-area:status;align-self:center;min-height:28px;display:flex;align-items:center;padding:0 7px;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel-raised)}
+  [data-animation-object-panel="weather"] .weather-settings-card>.card-heading{grid-area:heading;margin-bottom:0;padding-right:160px}
+  [data-animation-object-panel="weather"] .weather-settings-card>.animation-entity-visible{grid-area:enabled;min-height:28px;padding:0 3px;font-size:9px;align-self:center}
+  [data-animation-object-panel="weather"] .weather-location-search{grid-area:search;gap:4px}
+  [data-animation-object-panel="weather"] .weather-location-search input,
+  [data-animation-object-panel="weather"] .weather-location-search .button{min-height:28px}
+  [data-animation-object-panel="weather"] .weather-location-results{grid-column:1/-1;max-height:48px;overflow:auto;gap:2px}
+  [data-animation-object-panel="weather"] .weather-location-results:empty{display:none}
+  [data-animation-object-panel="weather"] .weather-preview-status{position:absolute;top:7px;right:7px;max-width:150px;min-height:22px;display:flex;align-items:center;padding:0 6px;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel-raised);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   [data-animation-object-panel="weather"] .weather-adaptive-note{display:none}
-  [data-animation-object-panel="weather"] .weather-motion-settings{grid-area:motion;padding:6px;gap:4px}
-  [data-animation-object-panel="weather"] .weather-motion-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  [data-animation-object-panel="weather"] .weather-motion-settings{grid-area:motion;padding:5px;gap:3px}
+  [data-animation-object-panel="weather"] .weather-motion-toggle,
+  [data-animation-object-panel="weather"] .weather-widget-motion-toggle{font-size:9px;gap:4px}
+  [data-animation-object-panel="weather"] .weather-motion-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
   [data-animation-object-panel="weather"] .weather-motion-help{display:none}
-  [data-animation-object-panel="weather"] .weather-config-grid{grid-area:config;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
-  [data-animation-object-panel="weather"] .weather-position-coordinates{grid-area:coords;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
-  [data-animation-object-panel="weather"] .weather-position-grid{grid-area:position;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;align-self:end}
-  [data-animation-object-panel="weather"] .weather-position-grid .button{min-height:28px;padding:3px}
-  [data-animation-object-panel="weather"] .weather-toggle-grid{grid-area:toggles;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;align-self:center}
-  [data-animation-object-panel="weather"] .weather-toggle-grid label{gap:3px;font-size:8px;white-space:nowrap}
+  [data-animation-object-panel="weather"] .weather-config-grid{grid-area:config;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  [data-animation-object-panel="weather"] .weather-position-coordinates{grid-area:coords;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+  [data-animation-object-panel="weather"] .weather-position-grid{grid-area:position;grid-template-columns:repeat(9,minmax(0,1fr));gap:2px;align-self:end}
+  [data-animation-object-panel="weather"] .weather-position-grid .button{min-height:26px;padding:2px}
+  [data-animation-object-panel="weather"] .weather-toggle-grid{grid-area:toggles;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;align-self:center}
+  [data-animation-object-panel="weather"] .weather-toggle-grid label{gap:2px;font-size:7px;white-space:nowrap}
   [data-animation-object-panel="weather"] .weather-actions{grid-area:actions;grid-template-columns:1fr;align-self:center;margin:0}
-  [data-animation-object-panel="weather"] .weather-actions .button{min-height:30px}
+  [data-animation-object-panel="weather"] .weather-actions .button{min-height:28px;padding:3px 6px}
 }
 
 @media (max-width: 1180px) {
