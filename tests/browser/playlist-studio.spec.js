@@ -86,7 +86,7 @@ async function removePreviewFixture(page, fixture) {
   }, fixture);
 }
 
-test('Playlist Studio keeps MenuScene stable and edits temporary scenes through one workspace', async ({ page }) => {
+test('Playlist Studio keeps MenuScene stable and edits each animation through its own tab', async ({ page }) => {
   await login(page);
   const fixture = await createPreviewFixture(page);
   const original = await animationSettings(page);
@@ -98,21 +98,28 @@ test('Playlist Studio keeps MenuScene stable and edits temporary scenes through 
     expect(previewBox).not.toBeNull();
     expect(inspectorBox).not.toBeNull();
     expect(previewBox.x).toBeLessThan(inspectorBox.x);
-    await expect(inspector.locator('.animation-inspector-tabs')).toContainText('Меню');
-    await expect(inspector.locator('.animation-inspector-tabs')).toContainText('Текст');
-    await expect(inspector.locator('.animation-inspector-tabs')).toContainText('Сцена');
-    await expect(inspector.locator('.animation-inspector-tabs')).toContainText('Плейлист');
+
+    const tabs = inspector.locator('.animation-object-tabs');
+    for (const label of ['Меню', 'Акция', 'Погода', 'Объявление', 'Бренд', 'Аквариум', 'Объект', 'Плейлист']) {
+      await expect(tabs).toContainText(label);
+    }
+    await expect(inspector.locator('.animation-object-manager')).toBeVisible();
+    await expect(inspector.locator('.animation-object-row')).toHaveCount(10);
+    await expect(inspector.locator('[data-animation-object="promotion"]')).toContainText('Анимация акции');
+    await expect(inspector.locator('[data-animation-object="weather-motion"]')).toContainText('Анимация погоды');
+    await expect(inspector.locator('#animation-object-tv-name')).toContainText('ТВ:');
     await expect(inspector.locator('.animation-inspector-actions #animation-save')).toBeVisible();
     await expect(inspector.locator('.animation-inspector-actions #animation-apply-screens')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Плейлист', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '«Акция»' })).toBeVisible();
     await expect(page.getByText('ФОН · БЕЗ ИЗМЕНЕНИЙ')).toBeVisible();
     await expect(page.locator('#animation-stage')).toHaveAttribute('data-screen-id', String(fixture.screenId));
     await expect(page.locator('#animation-stage .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
 
-    if (!(await page.locator('#animation-enabled').isChecked())) await page.locator('#animation-enabled').check();
+    const engineToggle = inspector.locator('[data-animation-object-toggle="engine"]');
+    if (!(await engineToggle.isChecked())) await engineToggle.check();
+    const promotionToggle = inspector.locator('[data-animation-object-toggle="promotion"]');
+    if (!(await promotionToggle.isChecked())) await promotionToggle.check();
     await page.locator('#animation-item-effect').selectOption('cinematic');
-    await page.locator('#animation-promotion-effect').selectOption('cinematic');
     await page.locator('#animation-intensity').fill('82');
     await expect(page.locator('#animation-intensity-output')).toHaveText('82%');
     await expect(page.locator('#animation-stage')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
@@ -143,10 +150,16 @@ test('Playlist Studio keeps MenuScene stable and edits temporary scenes through 
     expect(Math.abs((after?.x || 0) - (before?.x || 0))).toBeLessThan(0.1);
     expect(Math.abs((after?.y || 0) - (before?.y || 0))).toBeLessThan(0.1);
 
-    const textTab = inspector.locator('[data-animation-inspector-tab="text"]');
-    await textTab.click();
-    await expect(textTab).toHaveClass(/active/);
-    await page.locator('#animation-announcement-enabled').check();
+    const promotionTab = inspector.locator('[data-animation-object-tab="promotion"]');
+    await promotionTab.click();
+    await expect(promotionTab).toHaveClass(/active/);
+    await expect(page.getByRole('heading', { name: '«Акция»' })).toBeVisible();
+
+    const announcementTab = inspector.locator('[data-animation-object-tab="announcement"]');
+    await announcementTab.click();
+    await expect(announcementTab).toHaveClass(/active/);
+    const announcementToggle = inspector.locator('[data-animation-object-toggle="announcement"]');
+    if (!(await announcementToggle.isChecked())) await announcementToggle.check();
     await page.locator('#animation-announcement-text').fill('Сегодня специальное предложение до 22:00');
     await page.locator('#animation-announcement-font-family').selectOption('oswald');
     await page.locator('#animation-announcement-vertical-scale').fill('1.35');
@@ -154,7 +167,11 @@ test('Playlist Studio keeps MenuScene stable and edits temporary scenes through 
     await expect(page.locator('#animation-stage .scene-announcement-text')).toHaveText('Сегодня специальное предложение до 22:00');
     await expect(page.locator('#animation-stage .scene-announcement')).toHaveClass(/has-glow/);
 
-    await page.locator('#animation-brand-enabled').check();
+    const brandTab = inspector.locator('[data-animation-object-tab="brand"]');
+    await brandTab.click();
+    await expect(brandTab).toHaveClass(/active/);
+    const brandToggle = inspector.locator('[data-animation-object-toggle="brand"]');
+    if (!(await brandToggle.isChecked())) await brandToggle.check();
     await page.locator('#animation-brand-text').fill('БАР\nМАЯК');
     await page.locator('#animation-brand-x').fill('300');
     await page.locator('#animation-brand-y').fill('120');
@@ -163,10 +180,11 @@ test('Playlist Studio keeps MenuScene stable and edits temporary scenes through 
     await expect(page.locator('#animation-stage .scene-brand-title-line')).toHaveCount(2);
     await expect(page.locator('#animation-brand-line-spacing-output')).toHaveText('-18 px');
 
-    const sceneTab = inspector.locator('[data-animation-inspector-tab="scene"]');
-    await sceneTab.click();
-    await expect(sceneTab).toHaveClass(/active/);
-    await page.locator('#animation-aquarium-enabled').check();
+    const aquariumTab = inspector.locator('[data-animation-object-tab="aquarium"]');
+    await aquariumTab.click();
+    await expect(aquariumTab).toHaveClass(/active/);
+    const aquariumToggle = inspector.locator('[data-animation-object-toggle="aquarium"]');
+    if (!(await aquariumToggle.isChecked())) await aquariumToggle.check();
     await page.locator('#animation-aquarium-style').selectOption('neon');
     await page.locator('#animation-aquarium-fish-count').fill('4');
     const environmentLayer = page.locator('#animation-stage [data-environment-layer]');
@@ -175,10 +193,10 @@ test('Playlist Studio keeps MenuScene stable and edits temporary scenes through 
     await expect(page.locator('#animation-stage .aquarium-fish')).toHaveCount(4);
     await expect(page.locator('#animation-stage .animation-screen-background')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
 
-    const playlistTab = inspector.locator('[data-animation-inspector-tab="playlist"]');
+    const playlistTab = inspector.locator('[data-animation-object-tab="playlist"]');
     await playlistTab.click();
     await expect(playlistTab).toHaveClass(/active/);
-    const playlistPanel = inspector.locator('[data-animation-inspector-panel="playlist"]');
+    const playlistPanel = inspector.locator('[data-animation-object-panel="playlist"]');
     await expect(page.locator('.playlist-scene-strip')).toBeVisible();
     await expect(page.locator('.playlist-scene-card-menu')).toContainText('MenuScene');
     await playlistPanel.getByRole('button', { name: '+ PromoScene', exact: true }).click();
