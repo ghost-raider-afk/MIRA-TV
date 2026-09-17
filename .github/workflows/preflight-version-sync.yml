@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Synchronize release metadata
+      - name: Synchronize lockfile metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -31,18 +31,16 @@ jobs:
           grep -qx 'MIRA_TV_VERSION=1.9.0' .env.example
           grep -qx 'SCRIPT_VERSION="1.9.0"' mira-tv.sh
           npm install --package-lock-only --ignore-scripts
-          sed -i "s/MIRA_TV_VERSION: '1\.0\.9'/MIRA_TV_VERSION: '1.9.0'/" .github/workflows/check.yml
-          grep -qx "      MIRA_TV_VERSION: '1.9.0'" .github/workflows/check.yml
 
-      - name: Commit synchronized metadata
+      - name: Commit synchronized lockfile
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- package-lock.json .github/workflows/check.yml; then
+          if git diff --quiet -- package-lock.json; then
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json .github/workflows/check.yml
-          git commit -m 'release: sync 1.9.0 version sources'
+          git add package-lock.json
+          git commit -m 'release: sync 1.9.0 lockfile'
           git push origin HEAD:release-1.9.0-preflight
