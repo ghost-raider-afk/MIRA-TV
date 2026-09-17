@@ -78,75 +78,90 @@ async function ensureActiveAssets(values) {
   const cache = await caches.open(DATA_CACHE);
   let complete = true;
   for (const href of active) {
-    if (await cache.match(href)) continue;
+    const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
+    if (await cache.match(request)) continue;
     try {
-      const response = await fetch(href, { cache: 'no-store' });
-      if (!response.ok) { complete = false; continue; }
-      await cache.put(href, response.clone());
-    } catch {
-      complete = false;
-    }
+      const response = await fetch(request, { cache: 'force-cache' });
+      if (response.status !== 200) { complete = false; continue; }
+      await cache.put(request, response.clone());
+    } catch { complete = false; }
   }
-  return { complete, active };
+  return { active, complete, cache };
 }
 
 async function syncActiveAssets(values) {
-  const { complete, active } = await ensureActiveAssets(values);
+  const { active, complete, cache } = await ensureActiveAssets(values);
   if (!complete) return;
-  const cache = await caches.open(DATA_CACHE);
   const requests = await cache.keys();
   await Promise.all(requests.map((request) => {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/site-assets/')) return Promise.resolve(false);
-    if (active.has(request.url)) return Promise.resolve(false);
+    if (!url.pathname.startsWith('/site-assets/') || active.has(url.href)) return false;
     return cache.delete(request);
   }));
 }
 
 self.addEventListener('message', (event) => {
-  const message = event.data || {};
-  if (message.type === 'MIRA_PLAYER_ACTIVE_ASSETS') {
-    event.waitUntil(syncActiveAssets(message.assets));
-  }
+  if (event.data?.type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
+  event.waitUntil(syncActiveAssets(event.data.assets));
 });
 
-async function shellRequest(request) {
-  const cache = await caches.open(SHELL_CACHE);
-  const cached = await cache.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) await cache.put(request, response.clone());
-  return response;
+async function networkWithTimeout(request, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetch(request, { signal: controller.signal, cache: 'no-cache' }); }
+  finally { clearTimeout(timer); }
 }
 
-async function dataRequest(request) {
+async function cachedShell(request, fallbackPath = null) {
+  const cache = await caches.open(SHELL_CACHE);
+  const cached = await cache.match(request) || (fallbackPath ? await cache.match(fallbackPath) : null);
+  if (cached) return cached;
+  try {
+    const response = await networkWithTimeout(request, 4000);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch { return Response.error(); }
+}
+
+async function cachedAsset(request) {
   const cache = await caches.open(DATA_CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) await cache.put(request, response.clone());
-  return response;
+  try {
+    const response = await networkWithTimeout(request, 8000);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch { return Response.error(); }
 }
 
 async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
-  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials, mode: request.mode, cache: 'default' });
+  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
   const cached = await cache.match(fullRequest);
   if (cached) return cached;
-  return fetch(request);
+  if (!request.headers.has('range')) return cachedAsset(request);
+  try { return await networkWithTimeout(request, 8000); }
+  catch { return Response.error(); }
 }
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
-  if (event.request.headers.has('range') && url.pathname.startsWith('/site-assets/')) {
-    event.respondWith(videoRequest(event.request));
+  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+  if (event.request.mode === 'navigate' && url.pathname === '/player.html') {
+    event.respondWith(Response.redirect(new URL('/player', self.location.origin).href, 308));
+    return;
+  }
+  if (event.request.mode === 'navigate' && url.pathname === '/player') {
+    event.respondWith(cachedShell(event.request, '/player.html'));
     return;
   }
   if (SHELL_ASSETS.includes(url.pathname)) {
-    event.respondWith(shellRequest(event.request));
+    event.respondWith(cachedShell(event.request));
     return;
   }
-  if (url.pathname.startsWith('/site-assets/')) event.respondWith(dataRequest(event.request));
+  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
+    event.respondWith(videoRequest(event.request));
+    return;
+  }
+  if (url.pathname.startsWith('/site-assets/')) event.respondWith(cachedAsset(event.request));
 });
