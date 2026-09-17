@@ -10,7 +10,7 @@ async function login(page) {
   ]);
 }
 
-test('weather studio keeps atmosphere full-scene while widget remains movable and transparent', async ({ page }) => {
+test('weather studio controls atmosphere motion while keeping the informer visible', async ({ page }) => {
   await login(page);
   await page.goto('/playlist');
 
@@ -19,12 +19,17 @@ test('weather studio keeps atmosphere full-scene while widget remains movable an
   await sceneTab.click();
 
   await expect(page.getByRole('heading', { name: 'Погода', exact: true })).toBeVisible();
-  await expect(page.locator('#weather-scale')).toBeVisible();
-  await expect(page.locator('#weather-x')).toBeVisible();
-  await expect(page.locator('#weather-y')).toBeVisible();
+  await expect(page.locator('#weather-animation-enabled')).toBeVisible();
+  await expect(page.locator('#weather-animation-speed')).toBeVisible();
+  await expect(page.locator('#weather-animation-intensity')).toBeVisible();
+  await expect(page.locator('#weather-widget-motion-enabled')).toBeVisible();
+  await expect(page.locator('#weather-target-list')).toHaveCount(0);
+  await expect(page.locator('#weather-apply')).toHaveCount(0);
 
   const enabled = page.locator('#weather-enabled');
   if (!(await enabled.isChecked())) await enabled.check();
+  const animationEnabled = page.locator('#weather-animation-enabled');
+  if (!(await animationEnabled.isChecked())) await animationEnabled.check();
 
   const stage = page.locator('#animation-stage');
   const layer = stage.locator('[data-weather-layer]');
@@ -33,36 +38,29 @@ test('weather studio keeps atmosphere full-scene while widget remains movable an
 
   await expect(atmosphere).toBeVisible();
   await expect(widget).toBeVisible();
-  await expect(widget.locator('.weather-atmosphere')).toHaveCount(0);
-  await expect(layer).toHaveAttribute('data-weather-state', /rain|drizzle|storm|snow|fog|cloudy|partly-cloudy|clear/);
+  await expect(layer).toHaveAttribute('data-weather-animation', 'on');
 
-  const [stageClient, atmosphereBox] = await Promise.all([
-    stage.evaluate((node) => ({ width: node.clientWidth, height: node.clientHeight })),
-    atmosphere.boundingBox()
-  ]);
-  expect(atmosphereBox).not.toBeNull();
-  expect(Math.abs(atmosphereBox.width - stageClient.width)).toBeLessThan(1);
-  expect(Math.abs(atmosphereBox.height - stageClient.height)).toBeLessThan(1);
+  await page.locator('#weather-animation-speed').fill('1.60');
+  await page.locator('#weather-animation-intensity').fill('1.40');
+  await expect(page.locator('#weather-animation-speed-output')).toHaveText('1.60×');
+  await expect(page.locator('#weather-animation-intensity-output')).toHaveText('140%');
+  await expect(layer).toHaveAttribute('data-weather-animation-speed', '1.6');
+  await expect(layer).toHaveAttribute('data-weather-animation-intensity', '1.4');
 
-  await page.locator('#weather-scale').fill('1.65');
-  await page.locator('#weather-x').fill('640');
-  await page.locator('#weather-y').fill('300');
-  await expect(page.locator('#weather-scale-output')).toHaveText('1.65×');
-  await expect(widget).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-
-  const transform = await widget.evaluate((node) => getComputedStyle(node).transform);
-  expect(transform).not.toBe('none');
-  expect(await atmosphere.evaluate((node) => node.getAnimations().length)).toBeGreaterThanOrEqual(0);
+  await animationEnabled.uncheck();
+  await expect(layer).toHaveAttribute('data-weather-animation', 'off');
+  await expect(widget).toBeVisible();
+  await expect(atmosphere.locator('.weather-rain, .weather-snow, .weather-clouds, .weather-fog, .weather-stars')).toHaveCount(0);
 });
 
-test('weather assignment changes only the selected monitor', async ({ page }) => {
+test('one apply action publishes weather and other animations only to selected monitors', async ({ page }) => {
   await login(page);
   const stamp = Date.now();
   let locationId = null;
 
   try {
     const locationResponse = await page.request.post('/api/locations', {
-      data: { name: `Weather target ${stamp}`, address: '', active: true }
+      data: { name: `Unified animation ${stamp}`, address: '', active: true }
     });
     expect(locationResponse.ok()).toBeTruthy();
     const location = await locationResponse.json();
@@ -75,55 +73,69 @@ test('weather assignment changes only the selected monitor', async ({ page }) =>
     const first = await firstResponse.json();
     const second = await secondResponse.json();
 
-    const applyResponse = await page.request.put('/api/weather/apply', {
-      data: {
-        screen_ids: [first.id],
-        settings: {
-          enabled: true,
-          location_name: 'Test City',
-          latitude: 0,
-          longitude: 0,
-          timezone: 'UTC',
-          x: 640,
-          y: 310,
-          scale: 1.35
-        }
-      }
-    });
-    expect(applyResponse.ok()).toBeTruthy();
-
-    const firstStored = await (await page.request.get(`/api/weather/screens/${first.id}`)).json();
-    const secondStored = await (await page.request.get(`/api/weather/screens/${second.id}`)).json();
-    expect(firstStored.enabled).toBe(true);
-    expect(firstStored.x).toBe(640);
-    expect(secondStored.enabled).toBe(false);
-
     await page.goto(`/playlist?screen=${first.id}`);
-    const sceneTab = page.locator('[data-animation-inspector-tab="scene"]');
-    await expect(sceneTab).toBeVisible();
-    await sceneTab.click();
-
-    const firstTarget = page.locator(`#weather-target-list input[value="${first.id}"]`);
-    const secondTarget = page.locator(`#weather-target-list input[value="${second.id}"]`);
+    const firstTarget = page.locator(`#animation-target-list input[value="${first.id}"]`);
+    const secondTarget = page.locator(`#animation-target-list input[value="${second.id}"]`);
     await expect(firstTarget).toBeChecked();
     await expect(secondTarget).not.toBeChecked();
+    await expect(page.locator('#animation-apply-screens')).toHaveText('Применить все анимации');
+    await expect(page.locator('#animation-apply-status')).toBeVisible();
 
-    await page.locator('#weather-load-target').click();
-    await expect(page.locator('#weather-enabled')).toBeChecked();
-    await expect(page.locator('#weather-x')).toHaveValue('640');
-    await expect(page.locator('#weather-y')).toHaveValue('310');
-    await expect(page.locator('#weather-scale')).toHaveValue('1.35');
-
+    const sceneTab = page.locator('[data-animation-inspector-tab="scene"]');
+    await sceneTab.click();
+    await expect(page.locator('#weather-enabled')).toBeVisible();
+    await page.evaluate(() => {
+      const values = {
+        'weather-location-name': 'Test City',
+        'weather-latitude': '60.17',
+        'weather-longitude': '24.94',
+        'weather-timezone': 'UTC'
+      };
+      for (const [id, value] of Object.entries(values)) {
+        const input = document.getElementById(id);
+        if (input instanceof HTMLInputElement) input.value = value;
+      }
+    });
+    const weatherEnabled = page.locator('#weather-enabled');
+    if (!(await weatherEnabled.isChecked())) await weatherEnabled.check();
+    const weatherAnimation = page.locator('#weather-animation-enabled');
+    if (!(await weatherAnimation.isChecked())) await weatherAnimation.check();
+    await page.locator('#weather-animation-speed').fill('1.55');
+    await page.locator('#weather-animation-intensity').fill('1.25');
     await page.locator('#weather-x').fill('700');
-    await page.locator('#weather-apply').click();
+    await page.locator('#weather-y').fill('315');
 
-    await expect.poll(async () => {
-      const response = await page.request.get(`/api/weather/screens/${first.id}`);
-      return (await response.json()).x;
-    }).toBe(700);
-    const untouched = await (await page.request.get(`/api/weather/screens/${second.id}`)).json();
-    expect(untouched.enabled).toBe(false);
-    expect(untouched.x).not.toBe(700);
+    const textTab = page.locator('[data-animation-inspector-tab="text"]');
+    await textTab.click();
+    const brandEnabled = page.locator('#animation-brand-enabled');
+    if (!(await brandEnabled.isChecked())) await brandEnabled.check();
+    const brandText = `ЕДИНЫЙ-${stamp}`;
+    await page.locator('#animation-brand-text').fill(brandText);
+
+    await expect(page.locator('#animation-apply-status')).toContainText('неприменённые изменения');
+    await page.locator('#animation-apply-screens').click();
+    await expect(page.locator('#animation-message')).toContainText('Все анимации, включая погоду, применены');
+    await expect(page.locator('#animation-apply-status')).toContainText('Применено на сервере: 1/1');
+
+    const firstWeather = await (await page.request.get(`/api/weather/screens/${first.id}`)).json();
+    const secondWeather = await (await page.request.get(`/api/weather/screens/${second.id}`)).json();
+    expect(firstWeather.enabled).toBe(true);
+    expect(firstWeather.x).toBe(700);
+    expect(firstWeather.y).toBe(315);
+    expect(firstWeather.animation_enabled).toBe(true);
+    expect(firstWeather.animation_speed).toBe(1.55);
+    expect(firstWeather.animation_intensity).toBe(1.25);
+    expect(secondWeather.enabled).toBe(false);
+
+    const firstAnimationResponse = await page.request.get(`/api/settings/animation/screens/${first.id}`);
+    const secondAnimationResponse = await page.request.get(`/api/settings/animation/screens/${second.id}`);
+    expect(firstAnimationResponse.ok()).toBeTruthy();
+    expect(secondAnimationResponse.ok()).toBeTruthy();
+    const firstAnimation = await firstAnimationResponse.json();
+    const secondAnimation = await secondAnimationResponse.json();
+    expect(firstAnimation.brand.enabled).toBe(true);
+    expect(firstAnimation.brand.text).toBe(brandText);
+    expect(secondAnimation.brand.text).not.toBe(brandText);
   } finally {
     if (locationId) await page.request.delete(`/api/locations/${locationId}`);
   }
