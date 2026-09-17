@@ -19,17 +19,20 @@ test('weather studio controls atmosphere motion while keeping the informer visib
   await weatherTab.click();
 
   await expect(page.getByRole('heading', { name: 'Погода', exact: true })).toBeVisible();
-  await expect(page.locator('#weather-animation-enabled')).toBeVisible();
   await expect(page.locator('#weather-animation-speed')).toBeVisible();
   await expect(page.locator('#weather-animation-intensity')).toBeVisible();
   await expect(page.locator('#weather-widget-motion-enabled')).toBeVisible();
   await expect(page.locator('#weather-target-list')).toHaveCount(0);
   await expect(page.locator('#weather-apply')).toHaveCount(0);
 
-  const enabled = page.locator('#weather-enabled');
-  if (!(await enabled.isChecked())) await enabled.check();
-  const animationEnabled = page.locator('#weather-animation-enabled');
-  if (!(await animationEnabled.isChecked())) await animationEnabled.check();
+  const weatherToggle = page.locator('[data-animation-object-toggle="weather"]');
+  const motionToggle = page.locator('[data-animation-object-toggle="weather-motion"]');
+  await expect(weatherToggle).toBeVisible();
+  await expect(motionToggle).toBeVisible();
+  if (!(await weatherToggle.isChecked())) await weatherToggle.check();
+  if (!(await motionToggle.isChecked())) await motionToggle.check();
+  await expect(page.locator('#weather-enabled')).toBeChecked();
+  await expect(page.locator('#weather-animation-enabled')).toBeChecked();
 
   const stage = page.locator('#animation-stage');
   const layer = stage.locator('[data-weather-layer]');
@@ -47,7 +50,8 @@ test('weather studio controls atmosphere motion while keeping the informer visib
   await expect(layer).toHaveAttribute('data-weather-animation-speed', '1.6');
   await expect(layer).toHaveAttribute('data-weather-animation-intensity', '1.4');
 
-  await animationEnabled.uncheck();
+  await motionToggle.uncheck();
+  await expect(page.locator('#weather-animation-enabled')).not.toBeChecked();
   await expect(layer).toHaveAttribute('data-weather-animation', 'off');
   await expect(widget).toBeVisible();
   await expect(atmosphere.locator('.weather-rain, .weather-snow, .weather-clouds, .weather-fog, .weather-stars')).toHaveCount(0);
@@ -84,7 +88,7 @@ test('one apply action publishes weather and other animations only to selected m
     const weatherTab = page.locator('[data-animation-object-tab="weather"]');
     await expect(weatherTab).toBeVisible();
     await weatherTab.click();
-    await expect(page.locator('#weather-enabled')).toBeVisible();
+    await expect(page.locator('#weather-animation-speed')).toBeVisible();
     await page.evaluate(() => {
       const values = {
         'weather-location-name': 'Test City',
@@ -97,10 +101,12 @@ test('one apply action publishes weather and other animations only to selected m
         if (input instanceof HTMLInputElement) input.value = value;
       }
     });
-    const weatherEnabled = page.locator('#weather-enabled');
-    if (!(await weatherEnabled.isChecked())) await weatherEnabled.check();
-    const weatherAnimation = page.locator('#weather-animation-enabled');
-    if (!(await weatherAnimation.isChecked())) await weatherAnimation.check();
+    const weatherToggle = page.locator('[data-animation-object-toggle="weather"]');
+    const weatherMotionToggle = page.locator('[data-animation-object-toggle="weather-motion"]');
+    if (!(await weatherToggle.isChecked())) await weatherToggle.check();
+    if (!(await weatherMotionToggle.isChecked())) await weatherMotionToggle.check();
+    await expect(page.locator('#weather-enabled')).toBeChecked();
+    await expect(page.locator('#weather-animation-enabled')).toBeChecked();
     await page.locator('#weather-animation-speed').fill('1.55');
     await page.locator('#weather-animation-intensity').fill('1.25');
     await page.locator('#weather-x').fill('700');
@@ -109,8 +115,9 @@ test('one apply action publishes weather and other animations only to selected m
     const brandTab = page.locator('[data-animation-object-tab="brand"]');
     await expect(brandTab).toBeVisible();
     await brandTab.click();
-    const brandEnabled = page.locator('#animation-brand-enabled');
-    if (!(await brandEnabled.isChecked())) await brandEnabled.check();
+    const brandToggle = page.locator('[data-animation-object-toggle="brand"]');
+    if (!(await brandToggle.isChecked())) await brandToggle.check();
+    await expect(page.locator('#animation-brand-enabled')).toBeChecked();
     const brandText = `ЕДИНЫЙ-${stamp}`;
     await page.locator('#animation-brand-text').fill(brandText);
 
