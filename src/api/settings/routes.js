@@ -20,6 +20,11 @@ function notifyRevisions(realtime, revisions) {
   for (const item of revisions || []) realtime?.notifyScreen(item.screen_id, item.revision);
 }
 
+function screenId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
 export function createSettingsRouter({ store, config, realtime }) {
   const router = express.Router();
   router.get('/user', async (request, response) => response.json(await store.getUserPreferences(request.session.sub)));
@@ -43,6 +48,13 @@ export function createSettingsRouter({ store, config, realtime }) {
     response.json(siteSettingsResponse(settings, config));
   });
   router.get('/animation', async (_request, response) => { response.json(await store.getAnimationSettings()); });
+  router.get('/animation/screens/:screenId', async (request, response) => {
+    const id = screenId(request.params.screenId);
+    if (!id) return response.status(400).json({ error: 'Некорректный идентификатор монитора.' });
+    const screen = await store.getScreen(id);
+    if (!screen) return response.status(404).json({ error: 'Монитор не найден.' });
+    return response.json(await store.getScreenAnimationSettings(id));
+  });
   router.put('/animation', async (request, response) => {
     const input = await animationInputPreservingPlaylist(store, request.body);
     const settings = await store.updateAnimationSettings({ ...input, updated_by: request.session.sub });
