@@ -74,7 +74,10 @@ test('Brand Entity is user-owned inside Playlist Studio and persists independent
     await expect(input).toHaveValue('');
     await input.fill('БАР\nСЕВЕР');
     await expect(input).toHaveValue('БАР\nСЕВЕР');
-    if (!(await page.locator('#animation-brand-enabled').isChecked())) await page.locator('#animation-brand-enabled').check();
+    const brandToggle = page.locator('[data-animation-object-toggle="brand"]');
+    await expect(brandToggle).toBeVisible();
+    if (!(await brandToggle.isChecked())) await brandToggle.check();
+    await expect(page.locator('#animation-brand-enabled')).toBeChecked();
     const lines = page.locator('#animation-stage .scene-brand-title-line');
     await expect(lines).toHaveCount(2);
     await expect(lines.nth(0)).toHaveText('БАР');
