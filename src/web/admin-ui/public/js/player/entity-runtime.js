@@ -54,7 +54,7 @@ function baseEntityLayer() {
 
 function bindEntityRuntime() {
   const layer = baseEntityLayer();
-  const nextTarget = layer?.querySelector('[data-entity-motion="beer-glass"]');
+  const nextTarget = layer?.querySelector('[data-entity-motion]');
   const nextMedia = layer?.querySelector('.animation-scene-entity-media');
 
   if (!(nextTarget instanceof Element)) {
@@ -70,12 +70,17 @@ function bindEntityRuntime() {
 
   destroyRuntime();
   const scene = buildDomMotionScene(layer);
+  const entity = {
+    visible: true,
+    id: nextTarget.dataset.entityMotion || 'scene-entity',
+    animation_mode: nextTarget.dataset.entityAnimationMode || 'cinematic'
+  };
   runtime = new SceneRuntime({
     root: layer,
     driver: new WaapiMotionDriver(),
     compilers: [compileEntityBehaviorProgram]
   });
-  runtime.load({ scene, context: { entity: { visible: true, id: 'beer-glass' } } });
+  runtime.load({ scene, context: { entity } });
   target = nextTarget;
   media = nextMedia instanceof HTMLVideoElement ? nextMedia : null;
   syncPlayback();
