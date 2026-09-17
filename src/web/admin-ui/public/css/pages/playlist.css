@@ -2,8 +2,10 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 .animation-inspector-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
 
 @media(min-width:1181px){
-  body[data-page="animation"]{overflow-y:hidden}
-  body[data-page="animation"] .animation-content{height:100dvh;min-height:0;overflow:hidden;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:6px;padding-top:8px;padding-bottom:8px}
+  body[data-page="animation"]{overflow:hidden}
+  body[data-page="animation"] .app-shell,
+  body[data-page="animation"] .app-content{height:100dvh;min-height:0;overflow:hidden}
+  body[data-page="animation"] .animation-content{height:100%;max-height:100dvh;min-height:0;overflow:hidden;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:6px;padding-top:8px;padding-bottom:8px;box-sizing:border-box}
   body[data-page="animation"] .animation-heading{margin:0;align-items:center;gap:12px}
   body[data-page="animation"] .animation-heading>div:first-child>p:last-child{display:none}
   body[data-page="animation"] .animation-heading h1{font-size:24px;margin:0}
