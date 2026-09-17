@@ -1,0 +1,176 @@
+.animation-object-manager {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--surface-primary);
+}
+
+.animation-object-manager-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.animation-object-manager-head h3 {
+  margin: 2px 0 4px;
+  font-size: 18px;
+}
+
+.animation-object-manager-head p:not(.eyebrow) {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.animation-object-manager-head > small {
+  max-width: 260px;
+  text-align: right;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.animation-object-list {
+  display: grid;
+  gap: 8px;
+}
+
+.animation-object-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+}
+
+.animation-object-toggle {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--brand-primary);
+}
+
+.animation-object-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.animation-object-copy strong {
+  font-size: 14px;
+}
+
+.animation-object-copy small {
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.animation-object-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.animation-object-state.is-on {
+  border-color: color-mix(in srgb, var(--success-color) 42%, var(--border-color));
+  background: color-mix(in srgb, var(--success-color) 10%, transparent);
+  color: var(--success-color);
+}
+
+.animation-object-state.is-off {
+  color: var(--text-secondary);
+  background: var(--surface-primary);
+}
+
+.animation-object-state.is-unknown {
+  color: var(--warning-color);
+  background: color-mix(in srgb, var(--warning-color) 8%, transparent);
+}
+
+.animation-object-configure {
+  min-width: 94px;
+}
+
+.animation-object-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.animation-object-tabs button {
+  white-space: nowrap;
+}
+
+.animation-object-panels > [data-animation-object-panel] {
+  min-width: 0;
+}
+
+.animation-object-panels .settings-card,
+.animation-object-panels .animation-motion-card,
+.animation-object-panels .animation-promotion-card,
+.animation-object-panels .animation-announcement-card,
+.animation-object-panels .animation-brand-card,
+.animation-object-panels .animation-aquarium-card,
+.animation-object-panels .animation-entity-card,
+.animation-object-panels .weather-settings-card {
+  margin: 0;
+}
+
+.animation-manager-source-hidden {
+  display: none !important;
+}
+
+.animation-object-panel-empty {
+  margin: 0;
+  padding: 18px;
+  color: var(--text-secondary);
+}
+
+#animation-inspector-master:empty,
+#animation-inspector-master:has(.animation-manager-source-hidden:only-child) {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .animation-object-row {
+    grid-template-columns: auto minmax(160px, 1fr) auto auto;
+  }
+
+  .animation-object-configure {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .animation-object-manager-head {
+    display: grid;
+  }
+
+  .animation-object-manager-head > small {
+    max-width: none;
+    text-align: left;
+  }
+
+  .animation-object-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .animation-object-state,
+  .animation-object-configure {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
