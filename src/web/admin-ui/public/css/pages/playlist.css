@@ -106,3 +106,28 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 }
 
 @media(max-width:760px){.animation-inspector-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+@media(min-width:1181px) and (max-height:900px){
+  .animation-inspector [data-animation-object-panel="brand"] .animation-brand-card{padding:6px!important}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-brand-card>.card-heading{margin:0 0 2px!important;min-height:16px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-brand-card>.card-heading .eyebrow,
+  .animation-inspector [data-animation-object-panel="brand"] .animation-brand-card>.card-heading p:not(.eyebrow){display:none}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-brand-card>.card-heading h2{margin:0;font-size:14px!important;line-height:1}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-control-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:2px 4px!important;margin-top:2px!important}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-control-grid .field{gap:1px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-control-grid .field>span{font-size:7px;line-height:1}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-control-grid textarea,
+  .animation-inspector [data-animation-object-panel="brand"] .animation-control-grid select{min-height:24px!important;max-height:24px!important;height:24px;padding:1px 4px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-control-grid small{display:none}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:2px 4px!important;margin-top:3px!important}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid .field{display:grid;grid-template-columns:minmax(48px,.72fr) minmax(0,1.28fr);align-items:center;gap:2px;min-height:24px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid .field>span{font-size:7px;line-height:1.05}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid .field>input{min-width:0;min-height:22px!important;height:22px;padding:1px 3px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid .field>input[type="color"]{min-height:22px!important;height:22px;padding:1px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid .animation-range-field>div{display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:2px;align-items:center;min-width:0}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-slider-grid .animation-range-field output{min-width:38px!important;min-height:20px!important;height:20px;padding:0 2px;font-size:7px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-entity-positioning{margin-top:3px!important;padding-top:3px!important;gap:2px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-entity-positioning>span{font-size:7px;line-height:1}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-entity-position-buttons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px}
+  .animation-inspector [data-animation-object-panel="brand"] .animation-entity-position-buttons .button{min-height:22px!important;height:22px;padding:1px 3px;font-size:7px}
+}
