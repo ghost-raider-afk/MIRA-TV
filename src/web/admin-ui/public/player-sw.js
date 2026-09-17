@@ -1,5 +1,5 @@
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v18';
-const SHELL_CACHE = 'mira-tv-player-shell-v19';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v19';
+const SHELL_CACHE = 'mira-tv-player-shell-v20';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_ASSETS = [
   '/player.html',
