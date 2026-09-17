@@ -25,7 +25,7 @@ test('GPU scene direction is compiled once into compositor keyframes', () => {
   assert.match(vertical.keyframes[0].transform, /0,-145%/);
 });
 
-test('TV promotion plan animates badge and full-row glow with the saved promotion profile', () => {
+test('TV promotion plan animates badge and full-row glow with compositor-safe keyframes', () => {
   const plan = gpuPromotionEffectPlan({
     promotion_effect: 'cinematic',
     promotion_intensity: 96,
@@ -40,7 +40,13 @@ test('TV promotion plan animates badge and full-row glow with the saved promotio
   assert.equal(plan.badgeKeyframes.length, 4);
   assert.equal(plan.glowKeyframes.length, 4);
   assert.match(plan.badgeKeyframes[1].transform, /^scale\(1\./);
-  assert.match(plan.badgeKeyframes[1].filter, /drop-shadow/);
+  for (const frame of plan.badgeKeyframes) {
+    assert.deepEqual(Object.keys(frame).sort(), ['offset', 'opacity', 'transform']);
+    assert.ok(!Object.hasOwn(frame, 'filter'));
+  }
+  for (const frame of plan.glowKeyframes) {
+    assert.deepEqual(Object.keys(frame).sort(), ['offset', 'opacity']);
+  }
   assert.ok(plan.glowKeyframes[1].opacity > 0);
   assert.equal(gpuPromotionEffectPlan({ promotion_effect: 'none' }), null);
   assert.equal(gpuPromotionEffectPlan({ promotion_effect: 'cinematic', promotion_intensity: 0 }), null);
