@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { gpuSceneEffectPlan } from '../src/web/admin-ui/public/js/player/gpu-scene-runtime.js';
+import { gpuPromotionEffectPlan, gpuSceneEffectPlan } from '../src/web/admin-ui/public/js/player/gpu-scene-runtime.js';
 
 test('GPU scene plan uses only transform and opacity keyframes', () => {
   for (const pattern of ['cinematic', 'ambient', 'wave', 'focus', 'pulse', 'spark', 'parallax']) {
@@ -23,4 +23,25 @@ test('GPU scene direction is compiled once into compositor keyframes', () => {
   assert.match(left.keyframes[0].transform, /-145%/);
   assert.match(right.keyframes[0].transform, /145%/);
   assert.match(vertical.keyframes[0].transform, /0,-145%/);
+});
+
+test('TV promotion plan animates badge and full-row glow with the saved promotion profile', () => {
+  const plan = gpuPromotionEffectPlan({
+    promotion_effect: 'cinematic',
+    promotion_intensity: 96,
+    promotion_cycle_seconds: 4.8,
+    promotion_event_duration_ms: 1800,
+    promotion_scale_amount: 0.06,
+    promotion_brightness_amount: 0.35,
+    promotion_glow_radius: 28
+  });
+  assert.ok(plan);
+  assert.equal(plan.duration, 4800);
+  assert.equal(plan.badgeKeyframes.length, 4);
+  assert.equal(plan.glowKeyframes.length, 4);
+  assert.match(plan.badgeKeyframes[1].transform, /^scale\(1\./);
+  assert.match(plan.badgeKeyframes[1].filter, /drop-shadow/);
+  assert.ok(plan.glowKeyframes[1].opacity > 0);
+  assert.equal(gpuPromotionEffectPlan({ promotion_effect: 'none' }), null);
+  assert.equal(gpuPromotionEffectPlan({ promotion_effect: 'cinematic', promotion_intensity: 0 }), null);
 });
