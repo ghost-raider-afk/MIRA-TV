@@ -176,6 +176,17 @@ export class SceneEntityEditor {
   setEntity(value) { if (this.disposed) return; this.entity = normaliseSceneEntity(value); this.syncAnimationModeControl(); this.render(); }
   getEntity() { return normaliseSceneEntity(this.entity); }
   update(patch) { if (this.disposed) return; this.entity = normaliseSceneEntity({ ...this.entity, ...patch, transform: { ...this.entity.transform, ...(patch.transform || {}) } }); this.syncAnimationModeControl(); this.render(); this.onChange?.(this.getEntity()); }
+  updatePointerTransform(transform) {
+    if (this.disposed) return;
+    this.entity = normaliseSceneEntity({ ...this.entity, transform: { ...this.entity.transform, ...transform } });
+    const object = this.stage?.querySelector('[data-entity-drag="true"]');
+    if (object instanceof HTMLElement) {
+      object.style.left = `${(this.entity.transform.x / ENTITY_SCENE.width) * 100}%`;
+      object.style.top = `${(this.entity.transform.y / ENTITY_SCENE.height) * 100}%`;
+      object.style.width = `${(this.entity.transform.width / ENTITY_SCENE.width) * 100}%`;
+    }
+    this.onChange?.(this.getEntity());
+  }
   render() { if (!this.disposed) renderSceneEntity(this.stage, this.entity, { editable: true }); }
   handlePointerDown(event) {
     if (this.disposed) return;
@@ -190,9 +201,9 @@ export class SceneEntityEditor {
   handlePointerMove(event) {
     if (!this.pointer || event.pointerId !== this.pointer.pointerId) return;
     const dx = (event.clientX - this.pointer.startX) * this.pointer.scenePerPixelX; const dy = (event.clientY - this.pointer.startY) * this.pointer.scenePerPixelY;
-    if (this.pointer.mode === 'resize') { this.update({ transform: { width: Math.max(24, this.pointer.entity.transform.width + dx) } }); return; }
+    if (this.pointer.mode === 'resize') { this.updatePointerTransform({ width: Math.max(24, this.pointer.entity.transform.width + dx) }); return; }
     const height = entityHeight(this.pointer.entity) * this.pointer.entity.transform.scale; const width = this.pointer.entity.transform.width * this.pointer.entity.transform.scale;
-    this.update({ transform: { x: Math.min(ENTITY_SCENE.width - Math.min(width, ENTITY_SCENE.width), Math.max(0, this.pointer.entity.transform.x + dx)), y: Math.min(ENTITY_SCENE.height - Math.min(height, ENTITY_SCENE.height), Math.max(0, this.pointer.entity.transform.y + dy)) } });
+    this.updatePointerTransform({ x: Math.min(ENTITY_SCENE.width - Math.min(width, ENTITY_SCENE.width), Math.max(0, this.pointer.entity.transform.x + dx)), y: Math.min(ENTITY_SCENE.height - Math.min(height, ENTITY_SCENE.height), Math.max(0, this.pointer.entity.transform.y + dy)) });
   }
   handlePointerUp(event) {
     if (!this.pointer || event.pointerId !== this.pointer.pointerId) return; this.pointer = null;
