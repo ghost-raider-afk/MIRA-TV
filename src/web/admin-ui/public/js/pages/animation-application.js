@@ -1,6 +1,6 @@
 import { api } from '../core/api.js';
 import { setMessage, setPending } from '../core/dom.js';
-import { applyWeatherStudioSettings, weatherStudioSettings } from './weather-studio.js';
+import { applyWeatherStudioSettings, loadWeatherForScreen, weatherStudioSettings } from './weather-studio.js';
 
 const WEATHER_SETTINGS_ENDPOINT = '/api/weather/settings';
 
@@ -57,6 +57,7 @@ export function initialiseAnimationApplication() {
   const button = node('animation-apply-screens');
   const inspector = document.querySelector('.animation-inspector');
   const message = node('animation-message');
+  const screenSelect = node('animation-screen-select');
   if (!(button instanceof HTMLButtonElement) || !(inspector instanceof HTMLElement)) return;
 
   rebrandApplicationControls();
@@ -64,6 +65,14 @@ export function initialiseAnimationApplication() {
   let bypassPreflight = false;
   let preflightRunning = false;
   let pendingTargets = [];
+  let loadedWeatherScreenId = null;
+
+  const syncPreviewWeather = () => {
+    const id = Number(screenSelect?.value);
+    if (!Number.isSafeInteger(id) || id < 1 || id === loadedWeatherScreenId || disposed) return;
+    loadedWeatherScreenId = id;
+    void loadWeatherForScreen(id);
+  };
 
   const onDirtyEvent = () => markDirty();
   const onInspectorChange = (event) => {
@@ -108,7 +117,7 @@ export function initialiseAnimationApplication() {
     }
   };
 
-  const observer = message instanceof HTMLElement ? new MutationObserver(() => {
+  const messageObserver = message instanceof HTMLElement ? new MutationObserver(() => {
     if (disposed) return;
     const text = message.textContent?.trim() || '';
     const match = text.match(/^Плейлист применён к мониторам:\s*(\d+)\.?$/);
@@ -126,7 +135,11 @@ export function initialiseAnimationApplication() {
     }
   }) : null;
 
-  observer?.observe(message, { childList: true, characterData: true, subtree: true });
+  const screenObserver = screenSelect instanceof HTMLSelectElement ? new MutationObserver(() => queueMicrotask(syncPreviewWeather)) : null;
+  messageObserver?.observe(message, { childList: true, characterData: true, subtree: true });
+  screenObserver?.observe(screenSelect, { childList: true, subtree: true });
+  screenSelect?.addEventListener('change', syncPreviewWeather);
+  queueMicrotask(syncPreviewWeather);
   button.addEventListener('click', onApplyCapture, true);
   inspector.addEventListener('input', onInspectorChange);
   inspector.addEventListener('change', onInspectorChange);
@@ -135,7 +148,9 @@ export function initialiseAnimationApplication() {
   return {
     dispose() {
       disposed = true;
-      observer?.disconnect();
+      messageObserver?.disconnect();
+      screenObserver?.disconnect();
+      screenSelect?.removeEventListener('change', syncPreviewWeather);
       button.removeEventListener('click', onApplyCapture, true);
       inspector.removeEventListener('input', onInspectorChange);
       inspector.removeEventListener('change', onInspectorChange);
