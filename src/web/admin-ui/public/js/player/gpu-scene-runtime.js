@@ -115,17 +115,17 @@ export function gpuPromotionEffectPlan(profile = {}) {
   const activeFraction = clamp(number(profile.promotion_event_duration_ms, 1800) / duration, 0.18, 0.72);
   const peakOffset = activeFraction / 2;
   const scaleAmount = clamp(number(profile.promotion_scale_amount, 0.06) * gain * 0.44, 0.01, 0.06);
-  const brightness = clamp(number(profile.promotion_brightness_amount, 0.35) * gain, 0, 0.34);
-  const glowRadius = clamp(number(profile.promotion_glow_radius, 28) * gain, 0, 36);
-  const glowOpacity = clamp(0.18 + gain * 0.52, 0.18, 0.70);
-  const glowColor = 'rgba(255,48,72,.78)';
+  const brightnessGain = clamp(number(profile.promotion_brightness_amount, 0.35), 0, 0.8);
+  const glowGain = clamp(number(profile.promotion_glow_radius, 28) / 48, 0, 1);
+  const glowOpacity = clamp(0.14 + gain * 0.42 + brightnessGain * 0.12 + glowGain * 0.12, 0.14, 0.76);
+  const badgePeakOpacity = clamp(0.94 + brightnessGain * 0.075, 0.94, 1);
   return Object.freeze({
     duration,
     badgeKeyframes: Object.freeze([
-      Object.freeze({ offset: 0, transform: 'scale(1)', filter: 'brightness(1)' }),
-      Object.freeze({ offset: peakOffset, transform: `scale(${(1 + scaleAmount).toFixed(5)})`, filter: `brightness(${(1 + brightness).toFixed(4)}) drop-shadow(0 0 ${glowRadius.toFixed(2)}px ${glowColor})` }),
-      Object.freeze({ offset: activeFraction, transform: 'scale(1)', filter: 'brightness(1)' }),
-      Object.freeze({ offset: 1, transform: 'scale(1)', filter: 'brightness(1)' })
+      Object.freeze({ offset: 0, transform: 'scale(1)', opacity: 1 }),
+      Object.freeze({ offset: peakOffset, transform: `scale(${(1 + scaleAmount).toFixed(5)})`, opacity: badgePeakOpacity }),
+      Object.freeze({ offset: activeFraction, transform: 'scale(1)', opacity: 1 }),
+      Object.freeze({ offset: 1, transform: 'scale(1)', opacity: 1 })
     ]),
     glowKeyframes: Object.freeze([
       Object.freeze({ offset: 0, opacity: 0 }),
