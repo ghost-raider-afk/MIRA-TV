@@ -14,9 +14,9 @@ test('weather studio controls atmosphere motion while keeping the informer visib
   await login(page);
   await page.goto('/playlist');
 
-  const sceneTab = page.locator('[data-animation-inspector-tab="scene"]');
-  await expect(sceneTab).toBeVisible();
-  await sceneTab.click();
+  const weatherTab = page.locator('[data-animation-object-tab="weather"]');
+  await expect(weatherTab).toBeVisible();
+  await weatherTab.click();
 
   await expect(page.getByRole('heading', { name: 'Погода', exact: true })).toBeVisible();
   await expect(page.locator('#weather-animation-enabled')).toBeVisible();
@@ -81,8 +81,9 @@ test('one apply action publishes weather and other animations only to selected m
     await expect(page.locator('#animation-apply-screens')).toHaveText('Применить все анимации');
     await expect(page.locator('#animation-apply-status')).toBeVisible();
 
-    const sceneTab = page.locator('[data-animation-inspector-tab="scene"]');
-    await sceneTab.click();
+    const weatherTab = page.locator('[data-animation-object-tab="weather"]');
+    await expect(weatherTab).toBeVisible();
+    await weatherTab.click();
     await expect(page.locator('#weather-enabled')).toBeVisible();
     await page.evaluate(() => {
       const values = {
@@ -105,8 +106,9 @@ test('one apply action publishes weather and other animations only to selected m
     await page.locator('#weather-x').fill('700');
     await page.locator('#weather-y').fill('315');
 
-    const textTab = page.locator('[data-animation-inspector-tab="text"]');
-    await textTab.click();
+    const brandTab = page.locator('[data-animation-object-tab="brand"]');
+    await expect(brandTab).toBeVisible();
+    await brandTab.click();
     const brandEnabled = page.locator('#animation-brand-enabled');
     if (!(await brandEnabled.isChecked())) await brandEnabled.check();
     const brandText = `ЕДИНЫЙ-${stamp}`;
