@@ -3,6 +3,7 @@ import { ValidationError } from '../shared/errors.js';
 export const ENTITY_SCENE_WIDTH = 1920;
 export const ENTITY_SCENE_HEIGHT = 1080;
 export const SCENE_ENTITY_VERSION = 2;
+export const SCENE_ENTITY_ANIMATION_MODES = Object.freeze(['none', 'cinematic', 'float', 'breathe', 'sway', 'drift', 'pulse', 'toast']);
 
 const ENTITY_ASSET_URL = /^\/site-assets\/entities\/entity-[0-9a-f-]{36}\.(?:png|webp|mp4|webm)$/i;
 const ENTITY_POSTER_URL = /^\/site-assets\/entities\/entity-[0-9a-f-]{36}\.(?:png|webp)$/i;
@@ -28,6 +29,7 @@ export const DEFAULT_SCENE_ENTITY = Object.freeze({
   playback_rate: 1,
   poster_url: '',
   visible: false,
+  animation_mode: 'cinematic',
   transform: Object.freeze({ x: 1580, y: 420, width: 280, scale: 1, rotation: 0, depth: 10, opacity: 1 })
 });
 
@@ -115,6 +117,7 @@ export function sceneEntityInput(value) {
     playback_rate: finiteNumber(source.playback_rate, 'playback_rate', { min: 0.25, max: 4, fallback: 1 }),
     poster_url: safeUrl(source.poster_url, ENTITY_POSTER_URL, 'Poster объекта имеет недопустимый адрес.'),
     visible: bool(source.visible, 'visible', DEFAULT_SCENE_ENTITY.visible),
+    animation_mode: oneOf(source.animation_mode, 'animation_mode', SCENE_ENTITY_ANIMATION_MODES, DEFAULT_SCENE_ENTITY.animation_mode),
     transform: Object.freeze({
       x: finiteNumber(transform.x, 'X', { min: -ENTITY_SCENE_WIDTH, max: ENTITY_SCENE_WIDTH * 2, fallback: DEFAULT_SCENE_ENTITY.transform.x }),
       y: finiteNumber(transform.y, 'Y', { min: -ENTITY_SCENE_HEIGHT, max: ENTITY_SCENE_HEIGHT * 2, fallback: DEFAULT_SCENE_ENTITY.transform.y }),
