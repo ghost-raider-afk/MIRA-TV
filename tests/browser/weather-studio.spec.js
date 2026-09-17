@@ -40,8 +40,8 @@ test('weather studio controls atmosphere motion while keeping the informer visib
   await expect(widget).toBeVisible();
   await expect(layer).toHaveAttribute('data-weather-animation', 'on');
 
-  await page.locator('#weather-animation-speed').fill('1.60');
-  await page.locator('#weather-animation-intensity').fill('1.40');
+  await page.locator('#weather-animation-speed').fill('1.6');
+  await page.locator('#weather-animation-intensity').fill('1.4');
   await expect(page.locator('#weather-animation-speed-output')).toHaveText('1.60×');
   await expect(page.locator('#weather-animation-intensity-output')).toHaveText('140%');
   await expect(layer).toHaveAttribute('data-weather-animation-speed', '1.6');
