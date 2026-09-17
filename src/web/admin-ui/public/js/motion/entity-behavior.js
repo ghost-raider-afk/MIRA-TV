@@ -7,7 +7,7 @@ export const BEER_GLASS_BEHAVIOR = Object.freeze({
 });
 
 const MODE_DURATIONS = Object.freeze({
-  none: 0,
+  none: 1,
   cinematic: 24000,
   float: 8200,
   breathe: 6800,
@@ -125,10 +125,11 @@ export function compileEntityBehaviorProgram(scene, context = {}) {
     keyframes: entityAnimationFrames(mode),
     timing: Object.freeze({ duration, delay: 0, easing: 'smooth', loop: true })
   })] : [];
-  const entityId = node?.target?.dataset?.entityMotion || entity?.id || 'scene-entity';
+  const entityId = node?.target?.dataset?.entityMotion || entity?.id || String(node?.id || '').replace(/^entity\./, '') || 'scene-entity';
+  const programId = mode === 'cinematic' && entityId === 'beer-glass' ? BEER_GLASS_BEHAVIOR.id : `scene-entity-${entityId}-${mode}`;
   return createSceneProgram({
-    id: `scene-entity-${entityId}-${mode}`,
-    duration: enabled ? duration : 0,
+    id: programId,
+    duration,
     tracks,
     metadata: { layer: 'entity', entityId, animationMode: mode, states: mode === 'cinematic' ? BEER_GLASS_BEHAVIOR.states : Object.freeze([mode.toUpperCase()]) }
   });
