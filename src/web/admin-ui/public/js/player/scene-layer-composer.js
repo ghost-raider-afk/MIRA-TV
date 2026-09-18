@@ -4,6 +4,7 @@ const LAYERS = Object.freeze([
   Object.freeze({ id: 'fx', className: 'tv-player-fx-layer', attribute: 'data-player-fx-layer' }),
   Object.freeze({ id: 'content', className: 'tv-player-content-layer', attribute: 'data-player-content-layer' }),
   Object.freeze({ id: 'entity', className: 'tv-player-entity-layer', attribute: 'data-motion-entity-layer' }),
+  Object.freeze({ id: 'weather', className: 'tv-player-weather-layer', attribute: 'data-weather-layer' }),
   Object.freeze({ id: 'brand', className: 'tv-player-brand-layer', attribute: 'data-brand-layer' }),
   Object.freeze({ id: 'announcement', className: 'tv-player-announcement-layer', attribute: 'data-announcement-layer' })
 ]);
@@ -82,6 +83,7 @@ export class PlayerSceneLayerComposer {
       fx: this.ensure('fx', { ariaHidden: true }),
       content: this.ensure('content', { ariaHidden: true }),
       entity: this.ensure('entity', { ariaHidden: true }),
+      weather: this.ensure('weather', { ariaLabel: 'Погода' }),
       brand: this.ensure('brand', { ariaLabel: 'Название бренда' }),
       announcement: this.ensure('announcement', { ariaLabel: 'Объявление' })
     });
