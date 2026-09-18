@@ -116,6 +116,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(page.getByText('ФОН · БЕЗ ИЗМЕНЕНИЙ')).toBeVisible();
     await expect(page.locator('#animation-stage')).toHaveAttribute('data-screen-id', String(fixture.screenId));
     await expect(page.locator('#animation-stage .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
+    console.log('MIRA_PLAYLIST_STEP loaded');
 
     const backgroundBeforeMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
       color: getComputedStyle(node).backgroundColor,
@@ -154,6 +155,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
       image: getComputedStyle(node).backgroundImage
     }));
     expect(backgroundAfterMotion).toEqual(backgroundBeforeMotion);
+    console.log('MIRA_PLAYLIST_STEP motion');
 
     const before = await content.boundingBox();
     await page.waitForTimeout(450);
@@ -164,6 +166,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await inspector.locator('[data-animation-object="promotion"] .animation-object-configure').click();
     await expect(inspector.locator('[data-animation-object-panel="promotion"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: '«Акция»' })).toBeVisible();
+    console.log('MIRA_PLAYLIST_STEP promotion');
 
     await inspector.locator('[data-animation-object="announcement"] .animation-object-configure').click();
     await expect(inspector.locator('[data-animation-object-panel="announcement"]')).toBeVisible();
@@ -175,6 +178,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await page.locator('#animation-announcement-glow-enabled').check();
     await expect(page.locator('#animation-stage .scene-announcement-text')).toHaveText('Сегодня специальное предложение до 22:00');
     await expect(page.locator('#animation-stage .scene-announcement')).toHaveClass(/has-glow/);
+    console.log('MIRA_PLAYLIST_STEP announcement');
 
     await inspector.locator('[data-animation-object="brand"] .animation-object-configure').click();
     await expect(inspector.locator('[data-animation-object-panel="brand"]')).toBeVisible();
@@ -187,6 +191,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await page.locator('#animation-brand-effect').selectOption('neon-pulse');
     await expect(page.locator('#animation-stage .scene-brand-title-line')).toHaveCount(2);
     await expect(page.locator('#animation-brand-line-spacing-output')).toHaveText('-18 px');
+    console.log('MIRA_PLAYLIST_STEP brand');
 
     await inspector.locator('[data-animation-object="aquarium"] .animation-object-configure').click();
     await expect(inspector.locator('[data-animation-object-panel="aquarium"]')).toBeVisible();
@@ -199,6 +204,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(environmentLayer).toHaveClass(/environment-effect-aquarium/);
     await expect(page.locator('#animation-stage .aquarium-fish')).toHaveCount(4);
     await expect(page.locator('#animation-stage .animation-screen-background')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
+    console.log('MIRA_PLAYLIST_STEP aquarium');
 
     await inspector.locator('[data-animation-object="playlist"] .animation-object-configure').click();
     await expect(inspector.locator('[data-animation-object-panel="playlist"]')).toBeVisible();
@@ -214,6 +220,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(page.locator('#animation-stage [data-scene-menu-layer]')).toHaveClass(/scene-menu-suppressed/);
     await page.locator('.playlist-scene-card-menu').click();
     await expect(page.locator('#animation-stage [data-scene-menu-layer]')).not.toHaveClass(/scene-menu-suppressed/);
+    console.log('MIRA_PLAYLIST_STEP playlist');
 
     const responsePromise = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation') && response.request().method() === 'PUT');
     await page.locator('#animation-save').click();
@@ -239,9 +246,12 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     expect(saved.environment.parameters.fish_count).toBe(4);
     expect(saved.scene_playlist.enabled).toBe(true);
     expect(saved.scene_playlist.scenes.some((scene) => scene.type === 'promo' && scene.title === 'Пятничная акция' && scene.mode === 'fullscreen')).toBe(true);
+    console.log('MIRA_PLAYLIST_STEP saved');
   } finally {
-    await restoreAnimationSettings(page, original);
-    await removePreviewFixture(page, fixture);
+    if (!page.isClosed()) {
+      await restoreAnimationSettings(page, original).catch(() => undefined);
+      await removePreviewFixture(page, fixture).catch(() => undefined);
+    }
   }
 });
 
