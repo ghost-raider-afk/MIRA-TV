@@ -9,6 +9,7 @@ import { renderAnnouncementLayer } from '../motion/announcement.js';
 import { renderBrandTitleLayer } from '../motion/brand-title.js';
 import { renderEnvironmentLayer } from '../motion/environment.js';
 import { ScenePlaylistRuntime } from '../motion/scene-playlist-runtime.js';
+import { applySceneVisibility } from '../motion/scene-visibility.js';
 import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js';
 import { GpuSceneRuntime } from './gpu-scene-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
@@ -442,6 +443,8 @@ async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS
   } else if (dirty.has('animation')) {
     menuLayer.dataset.renderMode = renderMode;
   }
+
+  if (menuDirty || dirty.has('animation')) applySceneVisibility(playerStage, context.animation?.profile);
 
   if (dirty.has('environment')) {
     renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
