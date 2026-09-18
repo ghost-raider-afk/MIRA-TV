@@ -29,13 +29,19 @@ function editorScreenId() {
 
 function bindExclusiveToolMenus(form) {
   const menus = [...form.querySelectorAll('.editor-tool-menu')].filter((node) => node instanceof HTMLDetailsElement);
+  const listeners = [];
+
   menus.forEach((menu) => {
-    menu.addEventListener('toggle', () => {
-      if (!menu.open) return;
-      menus.forEach((other) => {
-        if (other !== menu) other.open = false;
-      });
-    });
+    const summary = menu.querySelector(':scope > summary');
+    if (!(summary instanceof HTMLElement)) return;
+    const onClick = (event) => {
+      event.preventDefault();
+      const shouldOpen = !menu.open;
+      menus.forEach((other) => { other.open = false; });
+      menu.open = shouldOpen;
+    };
+    summary.addEventListener('click', onClick);
+    listeners.push([summary, onClick]);
   });
 
   const onKeydown = (event) => {
@@ -43,7 +49,10 @@ function bindExclusiveToolMenus(form) {
     menus.forEach((menu) => { menu.open = false; });
   };
   document.addEventListener('keydown', onKeydown);
-  return () => document.removeEventListener('keydown', onKeydown);
+  return () => {
+    listeners.forEach(([summary, onClick]) => summary.removeEventListener('click', onClick));
+    document.removeEventListener('keydown', onKeydown);
+  };
 }
 
 function setEditorMessage(message, kind = 'error') {
