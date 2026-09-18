@@ -11,6 +11,7 @@ export const DEFAULT_AQUARIUM_PARAMETERS = Object.freeze({
 
 export const DEFAULT_ENVIRONMENT = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   effect: 'none',
   parameters: DEFAULT_AQUARIUM_PARAMETERS
 });
@@ -47,6 +48,7 @@ export function normaliseEnvironment(value = {}) {
   const effect = ['none', 'aquarium'].includes(source.effect) ? source.effect : 'none';
   return {
     enabled: source.enabled === true && effect !== 'none',
+    animation_enabled: source.animation_enabled !== false,
     effect,
     parameters: normaliseAquariumParameters(source.parameters)
   };
@@ -56,6 +58,7 @@ export function aquariumEnvironment(value = {}) {
   const source = sourceObject(value);
   return normaliseEnvironment({
     enabled: source.enabled === true,
+    animation_enabled: source.animation_enabled !== false,
     effect: source.enabled === true ? 'aquarium' : 'none',
     parameters: source
   });
@@ -163,6 +166,7 @@ export function renderEnvironmentLayer(layer, value, options = {}) {
   layer.replaceChildren();
   resetHostState(layer);
   layer.classList.toggle('is-enabled', environment.enabled);
+  layer.classList.toggle('is-motion-paused', environment.enabled && !environment.animation_enabled);
   if (!environment.enabled) return environment;
 
   if (environment.effect === 'aquarium') renderAquariumEffect(layer, environment.parameters, options);
