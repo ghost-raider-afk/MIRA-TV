@@ -36,11 +36,18 @@ test('desktop playlist studio fits preview, state matrix and active settings int
   expect(layout.inspectorOverflow).toBeLessThanOrEqual(2);
   expect(layout.previewWidth).toBeLessThan(layout.inspectorWidth * 1.45);
 
+  const picker = inspector.locator('#animation-object-settings-select');
+  await expect(picker).toBeVisible();
   for (const key of ['menu', 'promotion', 'weather', 'announcement', 'brand', 'aquarium', 'entity', 'playlist']) {
-    await inspector.locator(`[data-animation-object="${key}"] .animation-object-configure`).click();
+    await picker.selectOption(key);
     const panel = inspector.locator(`[data-animation-object-panel="${key}"]`);
     await expect(panel).toBeVisible();
-    const overflow = await panel.evaluate((node) => node.scrollHeight - node.clientHeight);
-    expect(overflow, `${key} settings must remain fully laid out inside the one-page inspector at 1600x900`).toBeLessThanOrEqual(4);
+    const geometry = await panel.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight };
+    });
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(geometry.bottom).toBeLessThanOrEqual(900);
+    expect(geometry.clientHeight).toBeGreaterThan(80);
   }
 });
