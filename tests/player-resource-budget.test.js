@@ -17,33 +17,33 @@ test('cached TV video never copies the full asset into JavaScript memory for Ran
   assert.match(implementation, /request\.headers\.has\('range'\)/, 'uncached Range requests must stay on the native HTTP path');
 });
 
-test('TV Entity runtime is event-driven and pauses hidden motion plus video', async () => {
-  const source = await read('js/player/entity-runtime.js');
+test('Unified TV scene runtime is event-driven and pauses hidden motion plus video', async () => {
+  const source = await read('js/motion/scene-motion-runtime.js');
   assert.doesNotMatch(source, /MutationObserver|requestAnimationFrame|cancelAnimationFrame/, 'Entity runtime must not watch the whole Player DOM or schedule frame loops');
-  assert.match(source, /mira:entity-rendered/);
   assert.match(source, /mira:scene-playlist-mode/);
   assert.match(source, /mira:player-active/);
   assert.match(source, /visibilitychange/);
-  assert.match(source, /runtime\.pause\(\)/);
-  assert.match(source, /media\.pause\(\)/);
-  assert.doesNotMatch(source, /dataset\.playerActive|dataset\.playerPageVisible/, 'Entity owner must not own global Player visibility state');
+  assert.match(source, /this\.runtime\.pause\(\)/);
+  assert.match(source, /this\.entityMedia\.pause\(\)/);
+  assert.match(source, /activityControlled/);
+  assert.doesNotMatch(source, /setInterval|MutationObserver/, 'Scene runtime must stay event-driven');
 });
 
-test('Player owner publishes visibility while GPU and CSS animations suspend invisible pixels', async () => {
-  const [player, gpu, css] = await Promise.all([
+test('Player owner publishes visibility while unified motion and CSS animations suspend invisible pixels', async () => {
+  const [player, motion, css] = await Promise.all([
     read('js/player/player.js'),
-    read('js/player/gpu-scene-runtime.js'),
+    read('js/motion/scene-motion-runtime.js'),
     read('css/motion-overlays.css')
   ]);
   assert.match(player, /playerStage\.dataset\.playerActive/);
   assert.match(player, /playerStage\.dataset\.playerPageVisible/);
   assert.match(player, /dispatchPlayerActivity\(false\)/);
   assert.match(player, /dispatchPlayerActivity\(true\)/);
-  assert.doesNotMatch(gpu, /requestAnimationFrame/);
-  assert.match(gpu, /mira:player-active/);
-  assert.match(gpu, /mira:scene-playlist-mode/);
-  assert.match(gpu, /visibilitychange/);
-  assert.match(gpu, /animation\.pause\(\)/);
+  assert.doesNotMatch(motion, /requestAnimationFrame/);
+  assert.match(motion, /mira:player-active/);
+  assert.match(motion, /mira:scene-playlist-mode/);
+  assert.match(motion, /visibilitychange/);
+  assert.match(motion, /this\.runtime\.pause\(\)/);
   assert.match(css, /data-player-active="false"/);
   assert.match(css, /data-player-page-visible="false"/);
   assert.match(css, /data-scene-playlist-fullscreen="true"/);
