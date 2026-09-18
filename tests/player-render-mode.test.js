@@ -8,6 +8,6 @@ test('Player uses Flat Menu Renderer when motion is disabled', () => {
   assert.equal(playerMenuRenderMode({ animation: { enabled: true, profile: null } }), 'flat');
 });
 
-test('Player keeps the menu flat and enables coarse GPU scene motion for animated profiles', () => {
-  assert.equal(playerMenuRenderMode({ animation: { enabled: true, profile: { pattern: 'cinematic' } } }), 'flat-gpu');
+test('Player keeps the menu flat and enables the unified scene motion runtime for animated profiles', () => {
+  assert.equal(playerMenuRenderMode({ animation: { enabled: true, profile: { pattern: 'cinematic' } } }), 'flat-motion');
 });
