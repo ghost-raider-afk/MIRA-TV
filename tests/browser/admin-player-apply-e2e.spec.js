@@ -105,6 +105,9 @@ test('admin apply reaches screen_animation_settings, live Player delta and open 
     const storedResponse = await adminPage.request.get(`/api/settings/animation/screens/${screenId}`);
     expect(storedResponse.ok()).toBeTruthy();
     const stored = await storedResponse.json();
+    expect(stored.enabled).toBe(true);
+    expect(stored.profile.menu_visible).toBe(true);
+    expect(stored.profile.item_effect).not.toBe('none');
     expect(stored.brand.enabled).toBe(true);
     expect(stored.brand.text).toBe(brandText);
 
@@ -113,6 +116,7 @@ test('admin apply reaches screen_animation_settings, live Player delta and open 
     expect(delta.changed.brand.enabled).toBe(true);
     expect(delta.changed.brand.text).toBe(brandText);
 
+    await expect(tvPage.locator('[data-player-menu-layer]')).toHaveAttribute('data-render-mode', 'flat-motion', { timeout: 5000 });
     const playerBrand = tvPage.locator('[data-brand-layer] .scene-brand-title');
     await expect(playerBrand).toHaveAttribute('aria-label', brandText, { timeout: 5000 });
     await expect(playerBrand).toBeVisible();
