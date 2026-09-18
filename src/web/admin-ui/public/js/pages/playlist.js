@@ -29,6 +29,8 @@ let previewFrame = null;
 let screenLoadSequence = 0;
 let studioGeneration = 0;
 let availableScreens = [];
+let activePreviewScreenId = null;
+let liveApplyTimer = null;
 const selectedTargetScreenIds = new Set();
 
 function number(id) { return Number(element(id)?.value ?? 0); }
@@ -468,6 +470,7 @@ function screenFromUrl(screens) { const candidate = Number(new URL(window.locati
 function rememberSelectedScreen(screenId) { const url = new URL(window.location.href); url.searchParams.set('screen', String(screenId)); history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`); }
 
 async function loadScreenPreview(screenId, generation = studioGeneration) {
+  activePreviewScreenId = Number(screenId) || null;
   const stage = element('animation-stage');
   const select = element('animation-screen-select');
   if (!stage || !screenId || !studioIsActive(generation)) return;
@@ -523,6 +526,10 @@ async function loadScreenOptions(generation) {
     const id = Number(select.value);
     if (!id) return;
     rememberSelectedScreen(id);
+    activePreviewScreenId = id;
+    selectedTargetScreenIds.clear();
+    selectedTargetScreenIds.add(id);
+    renderTargetScreens();
     window.dispatchEvent(new CustomEvent('mira:animation-screen-selected', { detail: { screenId: id } }));
     void loadScreenPreview(id, generation);
   });
@@ -601,10 +608,11 @@ function buildStudioWorkspace() {
       <div data-animation-inspector-panel="scene" hidden></div>
       <div data-animation-inspector-panel="playlist" hidden></div>
     </div>
-    <div class="animation-targets">
-      <div class="animation-targets-head"><div><strong>Применить к мониторам</strong><small id="animation-target-summary">Мониторы не выбраны</small></div><div><button class="button button-secondary" id="animation-target-all" type="button">Все</button><button class="button button-secondary" id="animation-target-none" type="button">Снять</button></div></div>
+    <details class="animation-targets">
+      <summary><strong>Другие мониторы</strong><small id="animation-target-summary">Мониторы не выбраны</small></summary>
+      <div class="animation-targets-tools"><button class="button button-secondary" id="animation-target-all" type="button">Все</button><button class="button button-secondary" id="animation-target-none" type="button">Снять</button></div>
       <div class="animation-target-list" id="animation-target-list"></div>
-    </div>
+    </details>
     <div class="animation-inspector-actions" id="animation-inspector-actions"></div>`;
 
   previewPane.append(previewCard);
@@ -627,12 +635,12 @@ function buildStudioWorkspace() {
   const master = content.querySelector('.animation-master-toggle');
   if (master) inspector.querySelector('#animation-inspector-master')?.append(master);
   const save = element('animation-save');
-  if (save) { save.textContent = 'Сохранить плейлист'; inspector.querySelector('#animation-inspector-actions')?.append(save); }
+  if (save) { save.textContent = 'Сохранить черновик'; save.classList.remove('button-primary'); save.classList.add('button-secondary'); inspector.querySelector('#animation-inspector-actions')?.append(save); }
   const apply = document.createElement('button');
   apply.className = 'button button-primary';
   apply.id = 'animation-apply-screens';
   apply.type = 'button';
-  apply.textContent = 'Применить к выбранным';
+  apply.textContent = 'Применить на ТВ';
   inspector.querySelector('#animation-inspector-actions')?.append(apply);
 
   workspace.append(previewPane, inspector);
@@ -672,21 +680,48 @@ function applySavedSettings(saved) {
   renderAquariumPreview(false);
 }
 
-async function applySettingsToScreens(generation) {
+async function applySettingsToScreens(generation, { screenIds = null, silent = false } = {}) {
   const button = element('animation-apply-screens');
-  const screenIds = targetScreenIds();
-  if (!screenIds.length) { setMessage('animation-message', 'Выберите хотя бы один монитор.', 'error'); return; }
-  setPending(button, true, 'Применяем…');
-  try {
-    const result = await api.put(API.animationApply, { screen_ids: screenIds, settings: playlistPayload(), weather: weatherStudioSettings() });
-    if (!studioIsActive(generation)) return;
-    applySavedSettings(result.settings);
-    setMessage('animation-message', `Плейлист применён к мониторам: ${result.applied_screen_ids.length}.`, 'success');
-  } catch (error) {
-    if (studioIsActive(generation)) setMessage('animation-message', error.message);
-  } finally {
-    if (studioIsActive(generation)) { setPending(button, false, 'Применяем…'); updateTargetSummary(); }
+  const ids = Array.isArray(screenIds) && screenIds.length
+    ? [...new Set(screenIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
+    : activePreviewScreenId
+      ? [activePreviewScreenId]
+      : targetScreenIds();
+  if (!ids.length) {
+    if (!silent) setMessage('animation-message', 'Выберите монитор в Preview.', 'error');
+    return null;
   }
+  if (!silent) setPending(button, true, 'Применяем…');
+  try {
+    const desired = playlistPayload();
+    const result = await api.put(API.animationApply, { screen_ids: ids, settings: desired, weather: weatherStudioSettings() });
+    if (!studioIsActive(generation)) return null;
+
+    const primaryId = activePreviewScreenId && ids.includes(activePreviewScreenId) ? activePreviewScreenId : ids[0];
+    const applied = await api.get(`${API.animationSettings}/screens/${primaryId}`);
+    if (!studioIsActive(generation)) return null;
+    applySavedSettings(applied || result.settings);
+
+    const revision = result.applied_screens?.find((item) => Number(item.screen_id) === Number(primaryId))?.revision;
+    const suffix = revision ? ` · revision ${revision}` : '';
+    setMessage('animation-message', `Применено на ТВ: ${ids.length}${suffix}.`, 'success');
+    window.dispatchEvent(new CustomEvent('mira:animation-applied-to-tv', { detail: { screenIds: ids, revision } }));
+    return result;
+  } catch (error) {
+    if (studioIsActive(generation) && !silent) setMessage('animation-message', error.message);
+    return null;
+  } finally {
+    if (!silent && studioIsActive(generation)) { setPending(button, false, 'Применяем…'); updateTargetSummary(); }
+  }
+}
+
+function scheduleLiveApply(generation) {
+  clearTimeout(liveApplyTimer);
+  if (!activePreviewScreenId || !studioIsActive(generation)) return;
+  liveApplyTimer = setTimeout(() => {
+    liveApplyTimer = null;
+    void applySettingsToScreens(generation, { screenIds: [activePreviewScreenId], silent: true });
+  }, 320);
 }
 
 async function loadSettings(generation) {
@@ -729,6 +764,9 @@ function disposePlaylistStudio(generation) {
   studioGeneration += 1;
   screenLoadSequence += 1;
   cancelAnimationFrame(previewFrame);
+  clearTimeout(liveApplyTimer);
+  liveApplyTimer = null;
+  activePreviewScreenId = null;
   previewFrame = null;
   player?.destroy();
   entityEditor?.destroy();
@@ -770,7 +808,10 @@ export function initialisePlaylistStudio() {
   syncBrandControls();
   syncAquariumControls();
   element('animation-save')?.addEventListener('click', () => { void saveSettings(generation); });
-  element('animation-apply-screens')?.addEventListener('click', () => { void applySettingsToScreens(generation); });
+  element('animation-apply-screens')?.addEventListener('click', () => { void applySettingsToScreens(generation, { screenIds: activePreviewScreenId ? [activePreviewScreenId] : targetScreenIds() }); });
+  const onObjectSwitchChanged = () => scheduleLiveApply(generation);
+  window.addEventListener('mira:animation-object-switch-changed', onObjectSwitchChanged);
+  window.addEventListener('mira:route-dispose', () => window.removeEventListener('mira:animation-object-switch-changed', onObjectSwitchChanged), { once: true });
   void loadScreenOptions(generation).catch((error) => {
     if (studioIsActive(generation)) setMessage('animation-message', error.message);
   });
