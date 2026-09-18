@@ -35,6 +35,9 @@ function number(id) { return Number(element(id)?.value ?? 0); }
 function checked(id) { return element(id)?.checked === true; }
 function value(id) { return element(id)?.value || ''; }
 function setValue(id, next) { const node = element(id); if (node) node.value = String(next); }
+function menuMotionEnabled(profile = readMotionProfile()) {
+  return profile.section_effect !== 'none' || profile.item_effect !== 'none' || profile.promotion_effect !== 'none';
+}
 function studioIsActive(generation) { return generation === studioGeneration && document.body.dataset.page !== 'signin'; }
 
 function rebrandPlaylistPage() {
@@ -87,7 +90,8 @@ function restartPreview() {
     renderAnnouncementPreview();
     renderBrandPreview();
     renderAquariumPreview(false);
-    player?.restart(readMotionProfile(), currentEntity, checked('animation-enabled'));
+    const profile = readMotionProfile();
+    player?.restart(profile, currentEntity, menuMotionEnabled(profile));
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) player?.pause();
   });
 }
@@ -627,8 +631,9 @@ function playlistPayload() {
   currentAnnouncement = announcementFromControls();
   currentBrand = brandFromControls();
   currentAquarium = aquariumFromControls();
+  const profile = readMotionProfile();
   return {
-    enabled: checked('animation-enabled'), preset_id: PROFILE_ID, profile: readMotionProfile(),
+    enabled: menuMotionEnabled(profile), preset_id: PROFILE_ID, profile,
     entity: currentEntity, announcement: currentAnnouncement, brand: currentBrand,
     environment: aquariumEnvironment(currentAquarium),
     scene_playlist: scenePlaylistEditor?.value() || { enabled: false, menu_duration_seconds: 40, scenes: [] }
@@ -743,7 +748,6 @@ export function initialisePlaylistStudio() {
   bindBrandControls();
   bindAquariumControls();
   bindEntityControls(generation);
-  element('animation-enabled')?.addEventListener('change', () => restartPreview());
   syncEntityControls();
   syncAnnouncementControls();
   syncBrandControls();
