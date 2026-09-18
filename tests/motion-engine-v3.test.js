@@ -94,6 +94,8 @@ test('Motion Engine compiles continuous WASM light surfaces and independent prom
   assert.equal(promotion.programId, 'promotion-motion');
   assert.equal(item.procedural.kind, 'row');
   assert.equal(item.procedural.surfaceOnly, true);
+  assert.ok(Math.abs(item.procedural.xAmplitude) >= profile.travel_px * 0.5, 'cinematic row light must visibly travel');
+  assert.ok(item.procedural.surfaceOpacity >= 0.18, 'row light surface must remain visible on a TV');
   assert.equal(promotion.procedural.kind, 'promo-badge');
   assert.equal(glow.procedural.kind, 'promo-glow');
   assert.deepEqual(item.claims, ['transform', 'appearance', 'opacity']);

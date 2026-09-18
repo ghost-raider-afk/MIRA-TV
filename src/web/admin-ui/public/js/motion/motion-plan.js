@@ -3,7 +3,7 @@ import { composeScenePrograms, createSceneProgram } from './scene-composer.js';
 const MAIN_KINDS = new Set(['section', 'item']);
 
 const PATTERN_TUNING = Object.freeze({
-  cinematic: Object.freeze({ travel: 0.32, scale: 0.18, light: 0.76, phase: 1 }),
+  cinematic: Object.freeze({ travel: 0.72, scale: 0.22, light: 0.92, phase: 1 }),
   ambient: Object.freeze({ travel: 0, scale: 0, light: 0.46, phase: 0.6 }),
   wave: Object.freeze({ travel: 0.78, scale: 0, light: 0.62, phase: 1.25 }),
   focus: Object.freeze({ travel: 0, scale: 0.34, light: 0.82, phase: 1.45 }),
@@ -57,7 +57,7 @@ function rowTrack(node, profile, duration) {
       yAmplitude: travel * vector.y,
       scaleAmount: (Number(profile.scale_amount) || 0) * gain * tuning.scale * kindFactor,
       brightnessAmount: (Number(profile.brightness_amount) || 0) * gain * tuning.light,
-      surfaceOpacity: clamp((0.035 + gain * 0.11) * kindFactor, 0, 0.16)
+      surfaceOpacity: clamp((0.08 + gain * 0.18) * kindFactor, 0, 0.26)
     }),
     timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
   });
