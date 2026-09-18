@@ -29,6 +29,7 @@ export const DEFAULT_SCENE_ENTITY = Object.freeze({
   playback_rate: 1,
   poster_url: '',
   visible: false,
+  animation_enabled: true,
   animation_mode: 'cinematic',
   transform: Object.freeze({ x: 1580, y: 420, width: 280, scale: 1, rotation: 0, depth: 10, opacity: 1 })
 });
@@ -117,6 +118,7 @@ export function sceneEntityInput(value) {
     playback_rate: finiteNumber(source.playback_rate, 'playback_rate', { min: 0.25, max: 4, fallback: 1 }),
     poster_url: safeUrl(source.poster_url, ENTITY_POSTER_URL, 'Poster объекта имеет недопустимый адрес.'),
     visible: bool(source.visible, 'visible', DEFAULT_SCENE_ENTITY.visible),
+    animation_enabled: bool(source.animation_enabled, 'animation_enabled', true),
     animation_mode: oneOf(source.animation_mode, 'animation_mode', SCENE_ENTITY_ANIMATION_MODES, DEFAULT_SCENE_ENTITY.animation_mode),
     transform: Object.freeze({
       x: finiteNumber(transform.x, 'X', { min: -ENTITY_SCENE_WIDTH, max: ENTITY_SCENE_WIDTH * 2, fallback: DEFAULT_SCENE_ENTITY.transform.x }),
