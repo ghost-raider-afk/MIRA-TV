@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v18';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v19';
-const SHELL_CACHE = 'mira-tv-player-shell-v20';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v19';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v20';
+const SHELL_CACHE = 'mira-tv-player-shell-v21';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: scene entity animation modes and runtime refresh. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: unified Scene Motion Runtime, canonical weather layer and scene visibility. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
@@ -21,11 +21,9 @@ const SHELL_ASSETS = [
   '/js/player/player-store.js',
   '/js/player/player-realtime-client.js',
   '/js/player/player-state-sync.js',
-  '/js/player/entity-runtime.js',
   '/js/player/weather-bootstrap.js',
   '/js/player/flat-menu-renderer.js',
   '/js/player/scene-layer-composer.js',
-  '/js/player/gpu-scene-runtime.js',
   '/js/editor/renderer.js',
   '/js/editor/renderer-model.js',
   '/js/editor/renderer-svg.js',
@@ -36,12 +34,18 @@ const SHELL_ASSETS = [
   '/js/motion/brand-title.js',
   '/js/motion/environment.js',
   '/js/motion/scene-playlist-runtime.js',
+  '/js/motion/scene-motion-runtime.js',
+  '/js/motion/scene-visibility.js',
+  '/js/motion/motion-plan.js',
   '/js/motion/dom-scene-adapter.js',
   '/js/motion/scene-graph.js',
   '/js/motion/scene-composer.js',
   '/js/motion/scene-runtime.js',
   '/js/motion/timeline.js',
-  '/js/motion/drivers/waapi-driver.js'
+  '/js/motion/drivers/waapi-driver.js',
+  '/js/motion/drivers/wasm-motion-driver.js',
+  '/js/motion/wasm-motion-kernel.js',
+  '/wasm/mira-motion-kernel.wasm'
 ];
 
 self.addEventListener('install', (event) => {
