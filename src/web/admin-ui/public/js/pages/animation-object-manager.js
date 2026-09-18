@@ -111,27 +111,16 @@ function rebuildTabs(inspector){
     if(content instanceof HTMLElement) captured.set(tab.key,content);
   }
 
-  const tabs=document.createElement('div');
-  tabs.className='animation-inspector-tabs animation-object-tabs';
-  tabs.setAttribute('role','tablist');
   const panels=document.createElement('div');
   panels.className='animation-inspector-panels animation-object-panels';
 
   const openTab=(key)=>{
-    tabs.querySelectorAll('[data-animation-object-tab]').forEach(button=>{
-      const active=button.dataset.animationObjectTab===key;
-      button.classList.toggle('active',active);
-      button.setAttribute('aria-selected',active?'true':'false');
-    });
     panels.querySelectorAll('[data-animation-object-panel]').forEach(panel=>{
       panel.hidden=panel.dataset.animationObjectPanel!==key;
     });
   };
 
   TABS.forEach((tab,index)=>{
-    const button=document.createElement('button');
-    button.type='button'; button.textContent=tab.label; button.dataset.animationObjectTab=tab.key;
-    button.setAttribute('role','tab'); button.addEventListener('click',()=>openTab(tab.key)); tabs.append(button);
     const panel=document.createElement('div');
     panel.dataset.animationObjectPanel=tab.key; panel.setAttribute('role','tabpanel'); panel.hidden=index!==0;
     const content=captured.get(tab.key);
@@ -139,7 +128,7 @@ function rebuildTabs(inspector){
     panels.append(panel);
   });
 
-  oldTabs.replaceWith(tabs);
+  oldTabs.remove();
   oldPanels.replaceWith(panels);
   document.querySelector('.animation-motion-grid')?.remove();
   document.querySelector('.animation-overlay-grid')?.remove();
@@ -151,7 +140,7 @@ function makeSwitch(labelText,kind,key,onChange){
   const label=document.createElement('label');
   label.className='animation-object-switch';
   const input=document.createElement('input');
-  input.type='checkbox'; input.dataset.animationObjectSwitch=kind; input.dataset.animationObject=key;
+  input.type='checkbox'; input.className='animation-object-toggle'; input.dataset.animationObjectToggle=kind; input.dataset.animationObject=key;
   input.setAttribute('aria-label',`${labelText}: ${kind==='visible'?'показывать':'анимация'}`);
   input.addEventListener('change',()=>onChange(input.checked));
   const text=document.createElement('span');
@@ -199,7 +188,7 @@ function createOverview(inspector,openTab){
     row.append(copy,switches,tv,configure); list.append(row);
   }
 
-  inspector.querySelector('.animation-object-tabs')?.before(section);
+  inspector.querySelector('.animation-object-panels')?.before(section);
   return section;
 }
 
@@ -218,8 +207,8 @@ export function initialiseAnimationObjectManager(){
   const syncDraft=()=>{
     if(disposed) return;
     for(const definition of OBJECTS){
-      const visible=overview.querySelector(`[data-animation-object="${definition.key}"][data-animation-object-switch="visible"]`);
-      const motion=overview.querySelector(`[data-animation-object="${definition.key}"][data-animation-object-switch="motion"]`);
+      const visible=overview.querySelector(`[data-animation-object="${definition.key}"][data-animation-object-toggle="visible"]`);
+      const motion=overview.querySelector(`[data-animation-object="${definition.key}"][data-animation-object-toggle="motion"]`);
       const isVisible=readSource(definition.visible);
       const isAnimated=readSource(definition.motion);
       if(visible instanceof HTMLInputElement) visible.checked=isVisible;
