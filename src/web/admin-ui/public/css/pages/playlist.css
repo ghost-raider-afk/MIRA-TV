@@ -160,6 +160,15 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 
   .animation-targets-head strong{font-size:12px}
   .animation-targets-head small{font-size:10px}
+  .animation-apply-status{
+    display:block;
+    margin-top:2px;
+    color:var(--ui-text-muted);
+    font-size:10px;
+    line-height:1.2;
+  }
+  .animation-apply-status[data-state="applied"]{color:var(--ui-success)}
+  .animation-apply-status[data-state="error"]{color:var(--ui-danger)}
   .animation-target-list{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
