@@ -209,3 +209,22 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
   }
   .animation-inspector-actions{grid-template-columns:1fr}
 }
+
+@media(min-width:1181px){
+  .animation-inspector{grid-template-rows:auto auto minmax(150px,1fr) auto auto;gap:7px;padding:8px}
+  .animation-object-panels{min-height:0;max-height:none}
+  .animation-targets{padding:0;border-radius:8px;overflow:hidden}
+  .animation-targets>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:5px 8px;cursor:pointer;list-style:none}
+  .animation-targets>summary::-webkit-details-marker{display:none}
+  .animation-targets>summary:after{content:'▾';color:var(--ui-text-muted)}
+  .animation-targets[open]>summary:after{content:'▴'}
+  .animation-targets>summary strong{font-size:11px}
+  .animation-targets>summary small{font-size:10px;color:var(--ui-text-muted)}
+  .animation-targets-tools{display:flex;justify-content:flex-end;gap:5px;padding:0 7px 5px}
+  .animation-targets-tools .button{min-height:26px;padding:3px 7px;font-size:10px}
+  .animation-targets:not([open]) .animation-target-list,
+  .animation-targets:not([open]) .animation-targets-tools{display:none}
+  .animation-target-list{max-height:72px;margin:0 7px 7px}
+  .animation-inspector-actions{grid-template-columns:.8fr 1.2fr;position:sticky;bottom:0;z-index:4;padding-top:2px;background:linear-gradient(to top,var(--ui-panel) 78%,transparent)}
+  .animation-inspector-actions .button{min-height:36px}
+}
