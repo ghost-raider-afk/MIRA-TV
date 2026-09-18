@@ -44,8 +44,7 @@ const SHELL_ASSETS = [
   '/js/motion/timeline.js',
   '/js/motion/drivers/waapi-driver.js',
   '/js/motion/drivers/wasm-motion-driver.js',
-  '/js/motion/wasm-motion-kernel.js',
-  '/wasm/mira-motion-kernel.wasm'
+  '/js/motion/wasm-motion-kernel.js'
 ];
 
 self.addEventListener('install', (event) => {
