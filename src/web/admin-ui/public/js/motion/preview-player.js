@@ -22,6 +22,7 @@ export class AnimationPreviewPlayer {
     this.raf = null;
     this.profile = null;
     this.entity = null;
+    this.scene = null;
     this.plan = null;
     this.disposed = false;
     this.handleRouteDispose = () => this.destroy();
@@ -57,6 +58,7 @@ export class AnimationPreviewPlayer {
     cancelAnimationFrame(this.raf);
     this.raf = null;
     this.runtime.destroy();
+    this.scene = null;
     this.plan = null;
     this.total = 0;
     if (this.stage) delete this.stage.dataset.motionMode;
@@ -79,6 +81,7 @@ export class AnimationPreviewPlayer {
     this.runtime.reset();
     this.plan = null;
     this.plan = this.runtime.render({ profile: this.profile, entity: this.entity, menuEnabled: enabled });
+    this.scene = this.runtime.scene;
     this.total = this.plan.duration;
     this.runtime.play();
     this.updateProgress();
