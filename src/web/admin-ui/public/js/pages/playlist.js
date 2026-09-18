@@ -719,8 +719,12 @@ async function applySettingsToScreens(generation, { screenIds = null, silent = f
   }
 }
 
+function cancelLiveApply() {
+  cancelLiveApply();
+}
+
 function scheduleLiveApply(generation) {
-  clearTimeout(liveApplyTimer);
+  cancelLiveApply();
   if (!activePreviewScreenId || !studioIsActive(generation)) return;
   const screenId = activePreviewScreenId;
   const settingsSnapshot = playlistPayload();
@@ -835,7 +839,10 @@ export function initialisePlaylistStudio() {
   syncBrandControls();
   syncAquariumControls();
   element('animation-save')?.addEventListener('click', () => { void saveSettings(generation); });
-  element('animation-apply-screens')?.addEventListener('click', () => { void applySettingsToScreens(generation, { screenIds: activePreviewScreenId ? [activePreviewScreenId] : targetScreenIds() }); });
+  element('animation-apply-screens')?.addEventListener('click', () => {
+    cancelLiveApply();
+    void applySettingsToScreens(generation, { screenIds: activePreviewScreenId ? [activePreviewScreenId] : targetScreenIds() });
+  });
   const onObjectSwitchChanged = () => scheduleLiveApply(generation);
   window.addEventListener('mira:animation-object-switch-changed', onObjectSwitchChanged);
   window.addEventListener('mira:route-dispose', () => window.removeEventListener('mira:animation-object-switch-changed', onObjectSwitchChanged), { once: true });
