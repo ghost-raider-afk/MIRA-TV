@@ -45,13 +45,17 @@ function markApplicationDirty() {
 
 function weatherSceneMetrics(stage) {
   const rect = stage.getBoundingClientRect();
-  const scale = Math.min(rect.width / WEATHER_SCENE_WIDTH, rect.height / WEATHER_SCENE_HEIGHT);
+  const width = stage.clientWidth;
+  const height = stage.clientHeight;
+  const scale = Math.min(width / WEATHER_SCENE_WIDTH, height / WEATHER_SCENE_HEIGHT);
   const sceneScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
   return {
     rect,
+    originX: rect.left + stage.clientLeft,
+    originY: rect.top + stage.clientTop,
     scale: sceneScale,
-    offsetX: Math.max(0, (rect.width - (WEATHER_SCENE_WIDTH * sceneScale)) / 2),
-    offsetY: Math.max(0, (rect.height - (WEATHER_SCENE_HEIGHT * sceneScale)) / 2)
+    offsetX: Math.max(0, (width - (WEATHER_SCENE_WIDTH * sceneScale)) / 2),
+    offsetY: Math.max(0, (height - (WEATHER_SCENE_HEIGHT * sceneScale)) / 2)
   };
 }
 
@@ -279,8 +283,8 @@ function bindPositionDragging() {
     if (!dragging || dragging.pointerId !== event.pointerId) return;
     const metrics = weatherSceneMetrics(stage);
     if (!metrics.rect.width || !metrics.rect.height || !metrics.scale) return;
-    const x = clamp((event.clientX - metrics.rect.left - metrics.offsetX) / metrics.scale, 0, WEATHER_SCENE_WIDTH);
-    const y = clamp((event.clientY - metrics.rect.top - metrics.offsetY) / metrics.scale, 0, WEATHER_SCENE_HEIGHT);
+    const x = clamp((event.clientX - metrics.originX - metrics.offsetX) / metrics.scale, 0, WEATHER_SCENE_WIDTH);
+    const y = clamp((event.clientY - metrics.originY - metrics.offsetY) / metrics.scale, 0, WEATHER_SCENE_HEIGHT);
     current = normaliseWeatherWidget({ ...current, x, y });
     setValue('weather-x', Math.round(current.x));
     setValue('weather-y', Math.round(current.y));

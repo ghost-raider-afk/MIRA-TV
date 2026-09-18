@@ -74,9 +74,11 @@ test('weather editor controls atmosphere motion without separating monitor targe
   assert.match(widget, /export const WEATHER_SCENE_HEIGHT = 1080/);
   assert.match(widget, /card\.style\.left = `\$\{\(config\.x \/ WEATHER_SCENE_WIDTH\) \* 100\}%`/);
   assert.match(widget, /card\.style\.top = `\$\{\(config\.y \/ WEATHER_SCENE_HEIGHT\) \* 100\}%`/);
-  assert.match(studio, /Math\.min\(rect\.width \/ WEATHER_SCENE_WIDTH, rect\.height \/ WEATHER_SCENE_HEIGHT\)/);
-  assert.match(studio, /\(event\.clientX - metrics\.rect\.left - metrics\.offsetX\) \/ metrics\.scale/);
-  assert.match(studio, /\(event\.clientY - metrics\.rect\.top - metrics\.offsetY\) \/ metrics\.scale/);
+  assert.match(studio, /Math\.min\(width \/ WEATHER_SCENE_WIDTH, height \/ WEATHER_SCENE_HEIGHT\)/);
+  assert.match(studio, /originX:\s*rect\.left \+ stage\.clientLeft/);
+  assert.match(studio, /originY:\s*rect\.top \+ stage\.clientTop/);
+  assert.match(studio, /\(event\.clientX - metrics\.originX - metrics\.offsetX\) \/ metrics\.scale/);
+  assert.match(studio, /\(event\.clientY - metrics\.originY - metrics\.offsetY\) \/ metrics\.scale/);
 
   assert.match(css, /data-weather-widget-motion="off"/);
   assert.match(css, /--weather-rain-duration/);
