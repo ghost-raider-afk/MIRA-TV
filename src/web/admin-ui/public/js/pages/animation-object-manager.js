@@ -155,7 +155,8 @@ function createOverview(inspector,openTab){
   section.setAttribute('aria-label','Анимации и объекты');
   section.innerHTML=`
     <div class="animation-object-manager-head">
-      <div><p class="eyebrow">АНИМАЦИИ И ОБЪЕКТЫ</p><h3>Объекты сцены</h3><p>Для каждого объекта отдельно задаются отображение и движение. Motion Runtime включается автоматически только когда он нужен.</p></div>
+      <div><p class="eyebrow">АНИМАЦИИ И ОБЪЕКТЫ</p><h3>Объекты сцены</h3></div>
+      <label class="animation-object-settings-picker"><span>Настройки</span><select id="animation-object-settings-select" aria-label="Настройки объекта"></select></label>
       <small id="animation-object-tv-name">Состояние ТВ загружается…</small>
     </div>
     <div class="animation-object-list" id="animation-object-list"></div>`;
@@ -174,20 +175,28 @@ function createOverview(inspector,openTab){
     const switches=document.createElement('div');
     switches.className='animation-object-switches';
     switches.append(
-      makeSwitch(definition.label,'visible',definition.key,(value)=>writeSource(definition.visible,value)),
-      makeSwitch(definition.label,'motion',definition.key,(value)=>writeSource(definition.motion,value))
+      makeSwitch(definition.label,'visible',definition.key,(value)=>{
+        writeSource(definition.visible,value);
+        window.dispatchEvent(new CustomEvent('mira:animation-object-switch-changed',{detail:{key:definition.key,kind:'visible',value}}));
+      }),
+      makeSwitch(definition.label,'motion',definition.key,(value)=>{
+        writeSource(definition.motion,value);
+        window.dispatchEvent(new CustomEvent('mira:animation-object-switch-changed',{detail:{key:definition.key,kind:'motion',value}}));
+      })
     );
 
     const tv=document.createElement('span');
     tv.className='animation-object-tv-state is-unknown'; tv.dataset.animationObjectTv=definition.key; tv.textContent='ТВ: …';
 
-    const configure=document.createElement('button');
-    configure.type='button'; configure.className='button button-secondary animation-object-configure';
-    configure.textContent='Настроить'; configure.addEventListener('click',()=>openTab(definition.tab));
-
-    row.append(copy,switches,tv,configure); list.append(row);
+    row.append(copy,switches,tv); list.append(row);
   }
 
+  const picker=section.querySelector('#animation-object-settings-select');
+  if (picker instanceof HTMLSelectElement) {
+    for (const definition of OBJECTS) picker.add(new Option(definition.label, definition.tab));
+    picker.addEventListener('change',()=>openTab(picker.value));
+    picker.value='menu';
+  }
   inspector.querySelector('.animation-object-panels')?.before(section);
   return section;
 }

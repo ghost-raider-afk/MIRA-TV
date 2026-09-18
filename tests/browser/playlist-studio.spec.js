@@ -116,6 +116,27 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(page.getByText('ФОН · БЕЗ ИЗМЕНЕНИЙ')).toBeVisible();
     await expect(page.locator('#animation-stage')).toHaveAttribute('data-screen-id', String(fixture.screenId));
     await expect(page.locator('#animation-stage .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
+    await expect(inspector.locator('#animation-object-settings-select')).toBeVisible();
+    const menuVisibility = inspector.locator('[data-animation-object="menu"] [data-animation-object-toggle="visible"]');
+    if (!(await menuVisibility.isChecked())) await menuVisibility.check();
+    const liveApplyResponse = page.waitForResponse((response) =>
+      response.url().endsWith('/api/settings/animation/apply') && response.request().method() === 'PUT'
+    );
+    await menuVisibility.uncheck();
+    const liveApply = await liveApplyResponse;
+    expect(liveApply.ok()).toBeTruthy();
+    const liveApplyBody = liveApply.request().postDataJSON();
+    expect(liveApplyBody.screen_ids).toEqual([fixture.screenId]);
+    await expect.poll(async () => page.evaluate(async (screenId) => {
+      const response = await fetch(`/api/settings/animation/screens/${screenId}`, { credentials: 'same-origin', cache: 'no-store' });
+      const settings = await response.json();
+      return settings.profile.menu_visible;
+    }, fixture.screenId)).toBe(false);
+    const restoreLiveResponse = page.waitForResponse((response) =>
+      response.url().endsWith('/api/settings/animation/apply') && response.request().method() === 'PUT'
+    );
+    await menuVisibility.check();
+    expect((await restoreLiveResponse).ok()).toBeTruthy();
 
     const backgroundBeforeMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
       color: getComputedStyle(node).backgroundColor,
@@ -161,11 +182,11 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     expect(Math.abs((after?.x || 0) - (before?.x || 0))).toBeLessThan(0.1);
     expect(Math.abs((after?.y || 0) - (before?.y || 0))).toBeLessThan(0.1);
 
-    await inspector.locator('[data-animation-object="promotion"] .animation-object-configure').click();
+    await inspector.locator('#animation-object-settings-select').selectOption('promotion');
     await expect(inspector.locator('[data-animation-object-panel="promotion"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: '«Акция»' })).toBeVisible();
 
-    await inspector.locator('[data-animation-object="announcement"] .animation-object-configure').click();
+    await inspector.locator('#animation-object-settings-select').selectOption('announcement');
     await expect(inspector.locator('[data-animation-object-panel="announcement"]')).toBeVisible();
     const announcementToggle = inspector.locator('[data-animation-object="announcement"] [data-animation-object-toggle="visible"]');
     if (!(await announcementToggle.isChecked())) await announcementToggle.check();
@@ -176,7 +197,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(page.locator('#animation-stage .scene-announcement-text')).toHaveText('Сегодня специальное предложение до 22:00');
     await expect(page.locator('#animation-stage .scene-announcement')).toHaveClass(/has-glow/);
 
-    await inspector.locator('[data-animation-object="brand"] .animation-object-configure').click();
+    await inspector.locator('#animation-object-settings-select').selectOption('brand');
     await expect(inspector.locator('[data-animation-object-panel="brand"]')).toBeVisible();
     const brandToggle = inspector.locator('[data-animation-object="brand"] [data-animation-object-toggle="visible"]');
     if (!(await brandToggle.isChecked())) await brandToggle.check();
@@ -188,7 +209,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(page.locator('#animation-stage .scene-brand-title-line')).toHaveCount(2);
     await expect(page.locator('#animation-brand-line-spacing-output')).toHaveText('-18 px');
 
-    await inspector.locator('[data-animation-object="aquarium"] .animation-object-configure').click();
+    await inspector.locator('#animation-object-settings-select').selectOption('aquarium');
     await expect(inspector.locator('[data-animation-object-panel="aquarium"]')).toBeVisible();
     const aquariumToggle = inspector.locator('[data-animation-object="aquarium"] [data-animation-object-toggle="visible"]');
     if (!(await aquariumToggle.isChecked())) await aquariumToggle.check();
@@ -200,7 +221,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect(page.locator('#animation-stage .aquarium-fish')).toHaveCount(4);
     await expect(page.locator('#animation-stage .animation-screen-background')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
 
-    await inspector.locator('[data-animation-object="playlist"] .animation-object-configure').click();
+    await inspector.locator('#animation-object-settings-select').selectOption('playlist');
     await expect(inspector.locator('[data-animation-object-panel="playlist"]')).toBeVisible();
     const playlistPanel = inspector.locator('[data-animation-object-panel="playlist"]');
     await expect(page.locator('.playlist-scene-strip')).toBeVisible();

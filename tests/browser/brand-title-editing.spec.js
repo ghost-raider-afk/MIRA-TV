@@ -63,7 +63,7 @@ test('Brand Entity is user-owned inside Playlist Studio and persists independent
     await page.goto(`/playlist.html?screen=${fixture.screenId}`);
     const brandObject = page.locator('.animation-object-row[data-animation-object="brand"]');
     await expect(brandObject).toBeVisible();
-    await brandObject.locator('.animation-object-configure').click();
+    await page.locator('#animation-object-settings-select').selectOption('brand');
     await expect(page.locator('[data-animation-object-panel="brand"]')).toBeVisible();
     const input = page.locator('#animation-brand-text');
     await expect(input).toBeVisible();
