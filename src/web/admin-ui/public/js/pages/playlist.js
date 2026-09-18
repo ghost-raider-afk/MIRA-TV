@@ -8,6 +8,7 @@ import { normaliseBrandTitle, renderBrandTitleLayer } from '../motion/brand-titl
 import { aquariumEnvironment, aquariumParameters, renderEnvironmentLayer, resetEnvironmentIntro } from '../motion/environment.js';
 import { renderAnimationScreenEmpty, renderAnimationScreenPreview } from '../motion/screen-preview.js';
 import { ScenePlaylistEditor } from '../motion/scene-playlist-editor.js';
+import { weatherStudioSettings } from './weather-studio.js';
 import {
   DEFAULT_LIVE_PROFILE,
   bindMotionProfileControls,
@@ -655,7 +656,7 @@ async function applySettingsToScreens(generation) {
   if (!screenIds.length) { setMessage('animation-message', 'Выберите хотя бы один монитор.', 'error'); return; }
   setPending(button, true, 'Применяем…');
   try {
-    const result = await api.put(API.animationApply, { screen_ids: screenIds, settings: playlistPayload() });
+    const result = await api.put(API.animationApply, { screen_ids: screenIds, settings: playlistPayload(), weather: weatherStudioSettings() });
     if (!studioIsActive(generation)) return;
     applySavedSettings(result.settings);
     setMessage('animation-message', `Плейлист применён к мониторам: ${result.applied_screen_ids.length}.`, 'success');
