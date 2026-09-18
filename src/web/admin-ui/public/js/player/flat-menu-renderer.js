@@ -39,7 +39,7 @@ function fitStage(stage, width, height) {
 
 export function playerMenuRenderMode(context = {}) {
   const animation = context?.animation;
-  return animation?.enabled === true && animation?.profile ? 'flat-gpu' : 'flat';
+  return animation?.enabled === true && animation?.profile ? 'flat-motion' : 'flat';
 }
 
 export class FlatMenuRenderer {
