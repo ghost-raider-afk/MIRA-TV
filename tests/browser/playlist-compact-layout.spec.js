@@ -33,13 +33,16 @@ for (const viewport of [
     await expect(actions).toBeVisible();
 
     const layout = await page.evaluate(() => {
+      const appContentNode = document.querySelector('.app-content');
+      const headerNode = document.querySelector('.app-header');
       const workspaceNode = document.querySelector('.animation-studio-workspace');
       const inspectorNode = document.querySelector('.animation-inspector');
       const previewNode = document.querySelector('.animation-preview-pane');
       const panelsNode = document.querySelector('.animation-object-panels');
       const actionsNode = document.querySelector('#animation-inspector-actions');
       const statusNode = document.querySelector('#animation-apply-status');
-      if (!(workspaceNode instanceof HTMLElement) || !(inspectorNode instanceof HTMLElement) || !(previewNode instanceof HTMLElement) ||
+      if (!(appContentNode instanceof HTMLElement) || !(headerNode instanceof HTMLElement) ||
+          !(workspaceNode instanceof HTMLElement) || !(inspectorNode instanceof HTMLElement) || !(previewNode instanceof HTMLElement) ||
           !(panelsNode instanceof HTMLElement) || !(actionsNode instanceof HTMLElement) ||
           !(statusNode instanceof HTMLElement)) return null;
       const direct = [...inspectorNode.children].filter((node) => node instanceof HTMLElement);
@@ -54,6 +57,8 @@ for (const viewport of [
         inspectorOverflow: inspectorNode.scrollHeight - inspectorNode.clientHeight,
         previewOverflow: previewNode.scrollHeight - previewNode.clientHeight,
         directClasses: direct.map((node) => node.id || node.className),
+        appContent: rect(appContentNode),
+        header: rect(headerNode),
         workspace: rect(workspaceNode),
         actions: rect(actionsNode),
         status: rect(statusNode),
@@ -71,6 +76,8 @@ for (const viewport of [
     expect(layout.inspectorOverflow).toBeLessThanOrEqual(2);
     expect(layout.previewOverflow).toBeLessThanOrEqual(2);
     expect(layout.directClasses).toHaveLength(6);
+    expect(layout.appContent.bottom).toBeLessThanOrEqual(viewport.height);
+    expect(layout.header.bottom).toBeLessThanOrEqual(layout.workspace.top + 1);
     expect(layout.workspace.bottom).toBeLessThanOrEqual(viewport.height);
     expect(layout.actions.bottom).toBeLessThanOrEqual(layout.workspace.bottom + 1);
     expect(layout.actions.bottom).toBeLessThanOrEqual(viewport.height);
