@@ -166,3 +166,58 @@ test('failed critical background never replaces the previous Last Known Good sta
   expect(lkg?.context?.draft?.settings?.background_color).toBe('#123456');
   expect(lkg?.context?.draft?.settings?.background_image_url || '').toBe('');
 });
+
+
+test('runtime app_version mismatch updates Service Worker and reloads only once per target version', async ({ page }) => {
+  await page.addInitScript(() => {
+    const activeWorker = new EventTarget();
+    activeWorker.state = 'activated';
+    activeWorker.postMessage = () => undefined;
+
+    const registration = {
+      active: activeWorker,
+      installing: null,
+      waiting: null,
+      async update() {
+        const count = Number(sessionStorage.getItem('__miraTestSwUpdates') || 0) + 1;
+        sessionStorage.setItem('__miraTestSwUpdates', String(count));
+        const worker = new EventTarget();
+        worker.state = 'installing';
+        worker.postMessage = () => undefined;
+        this.installing = worker;
+        setTimeout(() => {
+          worker.state = 'activated';
+          this.active = worker;
+          this.installing = null;
+          worker.dispatchEvent(new Event('statechange'));
+        }, 20);
+        return this;
+      }
+    };
+
+    const serviceWorker = new EventTarget();
+    serviceWorker.controller = activeWorker;
+    serviceWorker.ready = Promise.resolve(registration);
+    serviceWorker.register = async () => registration;
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: serviceWorker });
+  });
+  await installFailingWebSocket(page);
+  await mockAuthorizedSession(page);
+
+  const context = playerContext();
+  context.app_version = '1.10.3';
+  context.hashes.runtime = 'runtime-next-version-012345678901234567890123456789';
+
+  await page.route('**/api/device/player-delta', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ full_snapshot_required: true, context })
+  }));
+
+  await page.goto('/player').catch(() => undefined);
+  await expect.poll(() => page.evaluate(() => Number(sessionStorage.getItem('__miraTestSwUpdates') || 0)), { timeout: 5000 }).toBe(1);
+  await expect(menuVector(page)).toHaveCount(1, { timeout: 5000 });
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mira-tv.player-reload-version.v1'))).toBe('1.10.3');
+  await page.waitForTimeout(250);
+  expect(await page.evaluate(() => Number(sessionStorage.getItem('__miraTestSwUpdates') || 0))).toBe(1);
+});

@@ -32,6 +32,7 @@ function screenComponent(screen) {
 
 export function playerRuntimeComponent(config, renderRevision = 1) {
   return {
+    app_version: config.appVersion,
     fallback_poll_interval_ms: config.playerFallbackPollSeconds * 1000,
     log_batch_size: config.playerLogBatchSize,
     log_local_max_entries: config.playerLogLocalMaxEntries,
