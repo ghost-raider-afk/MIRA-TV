@@ -91,7 +91,7 @@
 
           <section class="settings-card animation-announcement-card" aria-label="Бегущая строка">
             <div class="card-heading"><div><p class="eyebrow">ОБЪЯВЛЕНИЕ</p><h2>Бегущая строка</h2><p>Независимый слой поверх меню: собственный шрифт, вертикальные пропорции и опциональная подсветка всей строки.</p></div></div>
-            <label class="animation-entity-visible"><input id="animation-announcement-enabled" type="checkbox" /><span>Показывать объявление</span></label>
+            <div class="animation-layer-switches"><label class="animation-entity-visible"><input id="animation-announcement-enabled" type="checkbox" /><span>Показывать объявление</span></label><label class="animation-entity-visible"><input id="animation-announcement-animation-enabled" type="checkbox" checked /><span>Анимация объявления</span></label></div>
             <label class="field field-full"><span>Текст объявления</span><textarea id="animation-announcement-text" rows="3" maxlength="500" placeholder="Например: Сегодня до 22:00 — скидка 10% на розлив"></textarea></label>
             <div class="animation-announcement-grid">
               <label class="field"><span>Положение</span><select id="animation-announcement-position"><option value="bottom">Снизу</option><option value="top">Сверху</option></select></label>
@@ -111,7 +111,7 @@
           <section class="animation-overlay-grid" aria-label="Дополнительные слои">
             <div class="settings-card animation-brand-card">
               <div class="card-heading"><div><p class="eyebrow">BRAND ENTITY</p><h2>Название бренда</h2><p>Отдельная текстовая сущность. Не связана с таблицей: имеет собственную анимацию, неон и позицию на экране.</p></div></div>
-              <label class="animation-entity-visible"><input id="animation-brand-enabled" type="checkbox" /><span>Показывать название бренда</span></label>
+              <div class="animation-layer-switches"><label class="animation-entity-visible"><input id="animation-brand-enabled" type="checkbox" /><span>Показывать название бренда</span></label><label class="animation-entity-visible"><input id="animation-brand-animation-enabled" type="checkbox" checked /><span>Анимация бренда</span></label></div>
               <div class="animation-control-grid">
                 <label class="field"><span>Название</span><textarea id="animation-brand-text" rows="2" maxlength="80" placeholder="Например: БАР МАЯК"></textarea><small>Enter — новая строка.</small></label>
                 <label class="field"><span>Шрифт</span><select id="animation-brand-font-family"><option value="inter">Inter / System</option><option value="arial">Arial</option><option value="montserrat">Montserrat</option><option value="oswald">Oswald / Narrow</option><option value="georgia">Georgia</option></select></label>
@@ -150,7 +150,7 @@
 
             <div class="settings-card animation-aquarium-card">
               <div class="card-heading"><div><p class="eyebrow">ENVIRONMENT · AQUARIUM</p><h2>Аквариум</h2><p>Одна из реализаций анимации слоя environment: вода, каустики, рыбы, пузырьки и водоросли. Отдельного архитектурного слоя Aquarium нет.</p></div></div>
-              <label class="animation-entity-visible"><input id="animation-aquarium-enabled" type="checkbox" /><span>Включить аквариум</span></label>
+              <div class="animation-layer-switches"><label class="animation-entity-visible"><input id="animation-aquarium-enabled" type="checkbox" /><span>Включить аквариум</span></label><label class="animation-entity-visible"><input id="animation-aquarium-animation-enabled" type="checkbox" checked /><span>Анимация аквариума</span></label></div>
               <label class="animation-entity-visible"><input id="animation-aquarium-intro" type="checkbox" checked /><span>Интро «налив воды»</span></label>
               <div class="animation-control-grid">
                 <label class="field"><span>Стиль</span><select id="animation-aquarium-style"><option value="premium">Premium Aquarium</option><option value="neon">Neon Aquarium</option><option value="reef">Luxury Reef</option></select></label>
@@ -185,6 +185,7 @@
                 <div class="form-grid animation-entity-main-fields">
                   <label class="field"><span>Название</span><input id="animation-entity-name" type="text" maxlength="80" value="Бокал пива" /></label>
                   <label class="animation-entity-visible"><input id="animation-entity-visible" type="checkbox" /><span>Показывать объект</span></label>
+                  <label class="animation-entity-visible"><input id="animation-entity-animation-enabled" type="checkbox" checked /><span>Анимация объекта</span></label>
                   <label class="animation-entity-visible"><input id="animation-entity-loop" type="checkbox" checked /><span>Loop video</span></label>
                   <label class="animation-entity-visible"><input id="animation-entity-muted" type="checkbox" checked /><span>Muted</span></label>
                   <label class="field"><span>Playback rate</span><input id="animation-entity-playback-rate" type="number" min="0.25" max="4" step="0.05" value="1" /></label>
