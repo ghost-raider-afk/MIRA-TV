@@ -2,28 +2,28 @@
   .animation-object-manager{padding:8px;gap:7px}
   .animation-object-manager-head p:not(.eyebrow){display:none}
   .animation-object-row{min-height:48px;padding:6px 7px}
-  .animation-object-copy strong{font-size:12px}
-  .animation-object-copy small{font-size:10px}
-  .animation-object-switch{font-size:10px}
-  .animation-object-tv-state{font-size:9px}
-  .animation-object-configure{min-height:28px;font-size:10px}
+  .animation-object-copy strong{font-size:13px}
+  .animation-object-copy small{font-size:11px}
+  .animation-object-switch{font-size:12px}
+  .animation-object-tv-state{font-size:10px}
+  .animation-object-configure{min-height:30px;font-size:11px}
 
   .animation-inspector .settings-card{padding:8px}
   .animation-inspector .card-heading{margin-bottom:6px}
   .animation-inspector .card-heading p:not(.eyebrow){display:none}
   .animation-inspector .card-heading h2,
   .animation-inspector .playlist-scene-editor-head h3{font-size:16px}
-  .animation-inspector .field>span{font-size:10px}
+  .animation-inspector .field>span{font-size:12px}
   .animation-inspector input,
   .animation-inspector select,
-  .animation-inspector textarea{font-size:11px}
+  .animation-inspector textarea{font-size:12px}
 
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor{gap:7px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head{align-items:center;gap:8px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head p:not(.eyebrow){display:none}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-global{grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:8px;padding:7px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add .button{min-height:30px;padding:4px 7px;font-size:10px}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add .button{min-height:32px;padding:5px 8px;font-size:11px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid textarea{min-height:46px;max-height:60px}
 }
