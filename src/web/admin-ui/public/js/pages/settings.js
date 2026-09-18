@@ -41,6 +41,111 @@ function uploadSiteAsset(kind) {
     .finally(() => setPending(button, false, 'Загружаем…'));
 }
 
+function managerEndpoint(username, action = '') {
+  const base = `${API.managers}/${encodeURIComponent(username)}`;
+  return action ? `${base}/${action}` : base;
+}
+
+function managerRow(manager) {
+  const row = document.createElement('div');
+  row.className = 'manager-admin-row';
+  row.dataset.managerUsername = manager.username;
+
+  const identity = document.createElement('strong');
+  identity.textContent = manager.username;
+
+  const status = document.createElement('span');
+  status.className = `manager-admin-status${manager.active ? ' is-active' : ''}`;
+  status.textContent = manager.active ? 'Активен' : 'Отключён';
+
+  const password = document.createElement('input');
+  password.type = 'password';
+  password.autocomplete = 'new-password';
+  password.placeholder = 'Новый пароль';
+  password.setAttribute('aria-label', `Новый пароль менеджера ${manager.username}`);
+
+  const passwordButton = document.createElement('button');
+  passwordButton.type = 'button';
+  passwordButton.className = 'button button-secondary';
+  passwordButton.textContent = 'Сменить пароль';
+  passwordButton.addEventListener('click', async () => {
+    try {
+      await api.put(managerEndpoint(manager.username, 'password'), { password: password.value });
+      password.value = '';
+      setMessage('manager-settings-message', `Пароль менеджера «${manager.username}» изменён. Активные сессии завершены.`, 'success');
+      await loadManagers();
+    } catch (error) {
+      setMessage('manager-settings-message', error.message);
+    }
+  });
+
+  const activeButton = document.createElement('button');
+  activeButton.type = 'button';
+  activeButton.className = 'button button-secondary';
+  activeButton.textContent = manager.active ? 'Отключить' : 'Включить';
+  activeButton.addEventListener('click', async () => {
+    try {
+      await api.put(managerEndpoint(manager.username, 'active'), { active: !manager.active });
+      setMessage('manager-settings-message', `Менеджер «${manager.username}» ${manager.active ? 'отключён' : 'включён'}.`, 'success');
+      await loadManagers();
+    } catch (error) {
+      setMessage('manager-settings-message', error.message);
+    }
+  });
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'button button-danger';
+  remove.textContent = 'Удалить';
+  remove.addEventListener('click', async () => {
+    if (!window.confirm(`Удалить менеджера «${manager.username}»?`)) return;
+    try {
+      await api.delete(managerEndpoint(manager.username));
+      setMessage('manager-settings-message', `Менеджер «${manager.username}» удалён.`, 'success');
+      await loadManagers();
+    } catch (error) {
+      setMessage('manager-settings-message', error.message);
+    }
+  });
+
+  row.append(identity, status, password, passwordButton, activeButton, remove);
+  return row;
+}
+
+async function loadManagers() {
+  const root = element('manager-admin-list');
+  const empty = element('manager-admin-empty');
+  if (!root || !empty) return;
+  const managers = await api.get(API.managers);
+  root.replaceChildren(...managers.map(managerRow));
+  empty.classList.toggle('is-hidden', managers.length !== 0);
+}
+
+function initialiseManagers() {
+  const form = element('manager-create-form');
+  if (!(form instanceof HTMLFormElement)) return;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = element('manager-create-submit');
+    setPending(button, true, 'Создаём…');
+    try {
+      await api.post(API.managers, {
+        username: element('manager-create-username').value.trim(),
+        password: element('manager-create-password').value
+      });
+      const username = element('manager-create-username').value.trim();
+      form.reset();
+      setMessage('manager-settings-message', `Менеджер «${username}» создан.`, 'success');
+      await loadManagers();
+    } catch (error) {
+      setMessage('manager-settings-message', error.message);
+    } finally {
+      setPending(button, false, 'Создаём…');
+    }
+  });
+  void loadManagers().catch((error) => setMessage('manager-settings-message', error.message));
+}
+
 export function initialiseSettings() {
   const siteForm = element('site-settings-form');
   if (!(siteForm instanceof HTMLFormElement)) return;
@@ -75,4 +180,5 @@ export function initialiseSettings() {
     if (control.id !== 'site-domain') control.disabled = false;
   });
   siteForm.dataset.hydrated = 'true';
+  initialiseManagers();
 }

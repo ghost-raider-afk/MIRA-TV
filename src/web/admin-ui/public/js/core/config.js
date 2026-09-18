@@ -23,6 +23,9 @@ export const API = Object.freeze({
   productsImportPreview: '/api/catalog/products/import/preview',
   productsExport: '/api/catalog/products/export.csv',
   packaging: '/api/catalog/packaging',
+  managers: '/api/admin/managers',
+  managerBase: '/api/manager',
+  managerOverview: '/api/manager/overview',
 });
 
 export function pageName() {

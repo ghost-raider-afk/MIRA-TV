@@ -88,9 +88,22 @@ async function initialiseApplication() {
     initialiseSignIn();
     return;
   }
+  if (current === 'manager') {
+    try {
+      await loadAuthenticatedContext();
+      if (state.session?.role !== 'manager') return window.location.replace('/');
+      const { initialiseManagerView } = await import('./pages/manager.js');
+      initialiseManagerView();
+    } catch (error) {
+      console.error('Manager view initialization failed', error);
+      window.location.replace('/signin');
+    }
+    return;
+  }
   installFrontendDiagnostics();
   try {
     await loadAuthenticatedContext();
+    if (state.session?.role !== 'administrator') return window.location.replace('/manager');
     initialiseShell();
     initialiseNotifications();
     const router = createAppRouter({ mountPage: initialisePage, syncShell: refreshShellRoute });

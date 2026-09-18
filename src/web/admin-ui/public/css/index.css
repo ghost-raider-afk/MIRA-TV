@@ -23,6 +23,7 @@
 @import url('./pages/playlist.css');
 @import url('./pages/playlist-compact.css');
 @import url('./pages/events.css');
+@import url('./pages/manager.css');
 @import url('./connect-tv.css');
 @import url('./editor/editor.css');
 @import url('./auth/signin.css');

@@ -18,11 +18,12 @@ function cachedRecord(key) {
 }
 
 export class PlayerWeatherRuntime {
-  constructor(stage, { layer = null } = {}) {
+  constructor(stage, { layer = null, endpoint = '/api/device/weather' } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Weather runtime requires an HTMLElement stage.');
     this.stage = stage;
     this.layer = layer instanceof HTMLElement ? layer : stage.querySelector('[data-weather-layer]');
     this.settings = normaliseWeatherWidget();
+    this.endpoint = String(endpoint || '/api/device/weather');
     this.snapshot = null;
     this.timer = null;
     this.generation = 0;
@@ -142,7 +143,7 @@ export class PlayerWeatherRuntime {
     if (this.destroyed || !this.active || !this.visible || !navigator.onLine || !this.settings.enabled) return;
     const currentGeneration = ++this.generation;
     try {
-      const response = await fetch('/api/device/weather', { cache: 'no-store', credentials: 'same-origin' });
+      const response = await fetch(this.endpoint, { cache: 'no-store', credentials: 'same-origin' });
       if (response.status === 204) {
         this.snapshot = null;
         this.render();

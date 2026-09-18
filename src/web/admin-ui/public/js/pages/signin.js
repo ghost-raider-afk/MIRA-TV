@@ -7,6 +7,10 @@ function revealPresentation() {
   document.documentElement.dataset.signinPresentation = 'ready';
 }
 
+function homeForSession(session) {
+  return session?.role === 'manager' ? '/manager' : '/';
+}
+
 export function initialiseSignIn() {
   const form = element('signin-form');
   if (!(form instanceof HTMLFormElement)) return;
@@ -16,7 +20,7 @@ export function initialiseSignIn() {
     .catch(() => undefined)
     .finally(revealPresentation);
 
-  void api.get(API.session).then(() => window.location.replace('/')).catch(() => undefined);
+  void api.get(API.session).then((session) => window.location.replace(homeForSession(session))).catch(() => undefined);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = element('signin-submit');
@@ -26,7 +30,8 @@ export function initialiseSignIn() {
         username: element('username').value.trim(),
         password: element('password').value
       });
-      window.location.replace('/');
+      const session = await api.get(API.session);
+      window.location.replace(homeForSession(session));
     } catch (error) {
       setMessage('signin-message', error.message);
     } finally {
