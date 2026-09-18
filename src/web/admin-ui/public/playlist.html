@@ -19,7 +19,9 @@
               <p>Контент таблицы остаётся на фиксированных координатах. Движутся световые поверхности и независимые слои, поэтому буквы и цены не должны дрожать.</p>
             </div>
             <div class="animation-heading-actions">
-              <label class="animation-master-toggle"><input id="animation-enabled" type="checkbox" /><span><strong>Анимация включена</strong><small>Одинаково в Preview и на телевизоре.</small></span></label>
+              <input class="is-hidden" id="animation-enabled" type="checkbox" aria-hidden="true" tabindex="-1" />
+              <input class="is-hidden" id="animation-menu-visible" type="checkbox" checked aria-hidden="true" tabindex="-1" />
+              <input class="is-hidden" id="animation-promotion-visible" type="checkbox" checked aria-hidden="true" tabindex="-1" />
               <button class="button button-primary" id="animation-save" type="button">Сохранить</button>
             </div>
           </div>
