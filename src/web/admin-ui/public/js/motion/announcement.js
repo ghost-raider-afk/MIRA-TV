@@ -8,6 +8,7 @@ export const ANNOUNCEMENT_FONT_STACKS = Object.freeze({
 
 export const DEFAULT_ANNOUNCEMENT = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   text: '',
   position: 'bottom',
   speed_px_per_second: 90,
@@ -33,6 +34,7 @@ export function normaliseAnnouncement(value = {}) {
   const glowColor = /^#[0-9a-f]{6}$/i.test(String(source.glow_color || '')) ? String(source.glow_color) : DEFAULT_ANNOUNCEMENT.glow_color;
   return {
     enabled: source.enabled === true,
+    animation_enabled: source.animation_enabled !== false,
     text: String(source.text || '').trim().slice(0, 500),
     position: source.position === 'top' ? 'top' : 'bottom',
     speed_px_per_second: clamp(Number(source.speed_px_per_second) || DEFAULT_ANNOUNCEMENT.speed_px_per_second, 30, 240),
@@ -84,6 +86,11 @@ export function renderAnnouncementLayer(layer, value) {
 
   const mover = document.createElement('span');
   mover.className = 'scene-announcement-text';
+  if (!announcement.animation_enabled) {
+    mover.classList.add('is-static');
+    mover.style.animation = 'none';
+    mover.style.paddingLeft = '0';
+  }
   const glyphs = document.createElement('span');
   glyphs.className = 'scene-announcement-glyphs';
   glyphs.textContent = announcement.text;
