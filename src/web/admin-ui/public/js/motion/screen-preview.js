@@ -60,6 +60,7 @@ export function renderAnimationScreenPreview(stage, bundle) {
     <div class="animation-screen-fx-layer" data-scene-fx-layer aria-hidden="true"></div>
     <div class="animation-screen-content-layer" data-scene-content-layer aria-label="Scene Playlist"></div>
     <div class="animation-screen-entity-layer" data-motion-entity-layer aria-label="Объекты сцены"></div>
+    <div class="animation-screen-weather-layer tv-player-weather-layer" data-weather-layer aria-label="Погода"></div>
     <div class="animation-screen-brand-layer" data-brand-layer aria-label="Название бренда"></div>
     <div class="animation-screen-announcement-layer" data-announcement-layer aria-label="Бегущая строка"></div>`;
 
