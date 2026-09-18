@@ -55,7 +55,7 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
     display:grid;
     grid-template-columns:minmax(560px,.92fr) minmax(620px,1.08fr);
     gap:14px;
-    height:100%;
+    height:auto;
     min-height:0;
     margin:0;
     overflow:hidden;

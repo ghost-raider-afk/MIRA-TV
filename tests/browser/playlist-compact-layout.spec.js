@@ -33,12 +33,13 @@ for (const viewport of [
     await expect(actions).toBeVisible();
 
     const layout = await page.evaluate(() => {
+      const workspaceNode = document.querySelector('.animation-studio-workspace');
       const inspectorNode = document.querySelector('.animation-inspector');
       const previewNode = document.querySelector('.animation-preview-pane');
       const panelsNode = document.querySelector('.animation-object-panels');
       const actionsNode = document.querySelector('#animation-inspector-actions');
       const statusNode = document.querySelector('#animation-apply-status');
-      if (!(inspectorNode instanceof HTMLElement) || !(previewNode instanceof HTMLElement) ||
+      if (!(workspaceNode instanceof HTMLElement) || !(inspectorNode instanceof HTMLElement) || !(previewNode instanceof HTMLElement) ||
           !(panelsNode instanceof HTMLElement) || !(actionsNode instanceof HTMLElement) ||
           !(statusNode instanceof HTMLElement)) return null;
       const direct = [...inspectorNode.children].filter((node) => node instanceof HTMLElement);
@@ -53,6 +54,7 @@ for (const viewport of [
         inspectorOverflow: inspectorNode.scrollHeight - inspectorNode.clientHeight,
         previewOverflow: previewNode.scrollHeight - previewNode.clientHeight,
         directClasses: direct.map((node) => node.id || node.className),
+        workspace: rect(workspaceNode),
         actions: rect(actionsNode),
         status: rect(statusNode),
         panels: rect(panelsNode),
@@ -69,6 +71,8 @@ for (const viewport of [
     expect(layout.inspectorOverflow).toBeLessThanOrEqual(2);
     expect(layout.previewOverflow).toBeLessThanOrEqual(2);
     expect(layout.directClasses).toHaveLength(6);
+    expect(layout.workspace.bottom).toBeLessThanOrEqual(viewport.height);
+    expect(layout.actions.bottom).toBeLessThanOrEqual(layout.workspace.bottom + 1);
     expect(layout.actions.bottom).toBeLessThanOrEqual(viewport.height);
     expect(layout.actions.height).toBeGreaterThan(30);
     expect(layout.status.bottom).toBeLessThanOrEqual(layout.actions.top + 1);
