@@ -67,7 +67,7 @@ export function compileMenuMotionProgram(scene, context = {}) {
   if (!scene || !Array.isArray(scene.nodes)) throw new TypeError('Menu motion compiler requires a scene graph.');
   const profile = context.profile || context || {};
   const duration = Math.max(4000, Number(profile.cycle_seconds) * 1000 || 8500);
-  const tracks = profile.menu_visible === false ? [] : scene.nodes.map((node) => rowTrack(node, profile, duration)).filter(Boolean);
+  const tracks = context.menuEnabled === false || profile.menu_visible === false ? [] : scene.nodes.map((node) => rowTrack(node, profile, duration)).filter(Boolean);
   return createSceneProgram({ id: 'menu-motion', duration, tracks, metadata: { engine: 'mira-wasm', continuous: true, menuTextStatic: true } });
 }
 
@@ -75,7 +75,7 @@ export function compilePromotionMotionProgram(scene, context = {}) {
   if (!scene || !Array.isArray(scene.nodes)) throw new TypeError('Promotion motion compiler requires a scene graph.');
   const profile = context.profile || context || {};
   const duration = Math.max(2000, Number(profile.promotion_cycle_seconds) * 1000 || 4800);
-  const effect = profile.promotion_visible === false ? 'none' : (profile.promotion_effect || 'cinematic');
+  const effect = context.menuEnabled === false || profile.promotion_visible === false ? 'none' : (profile.promotion_effect || 'cinematic');
   const gain = clamp(Number(profile.promotion_intensity) || 0, 0, 100) / 100;
   const activeFraction = clamp((Number(profile.promotion_event_duration_ms) || 1800) / duration, 0.18, 0.72);
   const requestedScale = Math.max(0, Number(profile.promotion_scale_amount) || 0.06);
