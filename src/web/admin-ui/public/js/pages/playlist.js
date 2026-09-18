@@ -475,14 +475,16 @@ async function loadScreenPreview(screenId, generation = studioGeneration) {
   if (select) select.disabled = true;
   setScreenStatus('Загружаем сохранённый экран…');
   try {
-    const bundle = await api.get(`${API.screens}/${screenId}/editor`);
+    const [bundle, appliedSettings] = await Promise.all([
+      api.get(`${API.screens}/${screenId}/editor`),
+      api.get(`${API.animationSettings}/screens/${screenId}`)
+    ]);
     if (!studioIsActive(generation) || sequence !== screenLoadSequence) return;
     renderAnimationScreenPreview(stage, bundle);
-    entityEditor?.render();
-    renderAnnouncementPreview();
-    renderBrandPreview();
-    renderAquariumPreview(false);
-    setScreenStatus(`${bundle.screen.location_name || 'Без точки'} · ${bundle.screen.name} · ${bundle.screen.resolution}`);
+    if (appliedSettings) applySavedSettings(appliedSettings);
+    else await loadSettings(generation);
+    if (!studioIsActive(generation) || sequence !== screenLoadSequence) return;
+    setScreenStatus(`${bundle.screen.location_name || 'Без точки'} · ${bundle.screen.name} · ${bundle.screen.resolution} · состояние ТВ`);
     restartPreview();
     scenePlaylistEditor?.rebindPreview();
   } catch (error) {
@@ -507,8 +509,9 @@ async function loadScreenOptions(generation) {
     select.disabled = true;
     renderAnimationScreenEmpty(stage, 'Создайте монитор, чтобы просматривать его плейлист.');
     setScreenStatus('В проекте пока нет мониторов.');
-    player?.destroy();
+    player?.runtime?.reset?.();
     scenePlaylistEditor?.runtime?.destroy();
+    await loadSettings(generation);
     return;
   }
   for (const screen of screens) select.add(new Option(screenLabel(screen), String(screen.id)));
@@ -766,7 +769,7 @@ export function initialisePlaylistStudio() {
   syncAquariumControls();
   element('animation-save')?.addEventListener('click', () => { void saveSettings(generation); });
   element('animation-apply-screens')?.addEventListener('click', () => { void applySettingsToScreens(generation); });
-  void Promise.all([loadSettings(generation), loadScreenOptions(generation)]).catch((error) => {
+  void loadScreenOptions(generation).catch((error) => {
     if (studioIsActive(generation)) setMessage('animation-message', error.message);
   });
   return { dispose: () => disposePlaylistStudio(generation) };
