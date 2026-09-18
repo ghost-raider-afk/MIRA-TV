@@ -11,7 +11,7 @@ import {
 
 const ALL_COMPONENTS = Object.freeze([
   'screen', 'menu', 'animation', 'environment', 'scene_playlist',
-  'entity', 'brand', 'announcement', 'runtime'
+  'entity', 'weather', 'brand', 'announcement', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
