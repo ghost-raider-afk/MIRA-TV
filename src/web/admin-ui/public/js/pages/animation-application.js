@@ -63,19 +63,23 @@ export function initialiseAnimationApplication() {
     if (target.closest('#animation-inspector-actions')) return;
     markDirty();
   };
+  const onApplyStarted = (event) => {
+    const version = Number(event?.detail?.editVersion);
+    if (Number.isFinite(version)) inspector.dataset.applyEditVersion = String(version);
+  };
+  const onApplied = (event) => {
+    const appliedVersion = Number(event?.detail?.editVersion);
+    const currentVersion = Number(inspector.dataset.editVersion || 0);
+    if (!Number.isFinite(appliedVersion) || appliedVersion !== currentVersion) return;
+    const revision = event?.detail?.revision ? ` · revision ${event.detail.revision}` : '';
+    setStatus('applied', `Применено: ${activeScreenLabel()} · 1 ТВ${revision}. Realtime-сигнал отправлен Player.`);
+  };
 
   const messageObserver = message instanceof HTMLElement ? new MutationObserver(() => {
     if (disposed) return;
     const text = message.textContent?.trim() || '';
     if (/^ТВ обновлён.*более новые изменения/i.test(text)) {
       setStatus('dirty', `${text} Нажмите «Применить на ТВ» для текущего Preview.`);
-      return;
-    }
-    const match = text.match(/^Применено на ТВ:\s*(\d+)(?:\s*·\s*revision\s*(\d+))?\.?$/i);
-    if (match) {
-      const count = Number(match[1]);
-      const revision = match[2] ? ` · revision ${match[2]}` : '';
-      setStatus('applied', `Применено: ${activeScreenLabel()} · ${count} ТВ${revision}. Realtime-сигнал отправлен Player.`);
       return;
     }
     if (text && /ошиб|не удалось|некоррект|не существуют/i.test(text)) setStatus('error', `Не применено: ${text}`);
@@ -92,6 +96,8 @@ export function initialiseAnimationApplication() {
   inspector.addEventListener('input', onInspectorChange);
   inspector.addEventListener('change', onInspectorChange);
   window.addEventListener('mira:animation-studio-dirty', markDirty);
+  window.addEventListener('mira:animation-apply-started', onApplyStarted);
+  window.addEventListener('mira:animation-applied-to-tv', onApplied);
 
   return {
     dispose() {
@@ -102,6 +108,8 @@ export function initialiseAnimationApplication() {
       inspector.removeEventListener('input', onInspectorChange);
       inspector.removeEventListener('change', onInspectorChange);
       window.removeEventListener('mira:animation-studio-dirty', markDirty);
+      window.removeEventListener('mira:animation-apply-started', onApplyStarted);
+      window.removeEventListener('mira:animation-applied-to-tv', onApplied);
     }
   };
 }
