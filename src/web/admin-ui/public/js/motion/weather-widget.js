@@ -174,7 +174,13 @@ function createAtmosphere(state, config) {
   return atmosphere;
 }
 
-function createContent(config, data) {
+function sceneScale(layer) {
+  const explicit = Number(layer?.dataset?.weatherSceneScale);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  return 1;
+}
+
+function createContent(config, data, layer) {
   const card = document.createElement('section');
   card.className = 'weather-widget weather-widget-adaptive';
   card.dataset.weatherDraggable = 'true';
@@ -183,6 +189,7 @@ function createContent(config, data) {
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
+  card.style.setProperty('--weather-scene-scale', String(sceneScale(layer)));
   card.style.left = `${(config.x / 1920) * 100}%`;
   card.style.top = `${(config.y / 1080) * 100}%`;
 
@@ -255,7 +262,7 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   const state = weatherVisualState(data);
   layer.dataset.weatherState = state;
   const atmosphere = createAtmosphere(state, config);
-  const widget = createContent(config, data);
+  const widget = createContent(config, data, layer);
   widget.dataset.weatherState = state;
   layer.append(atmosphere, widget);
 }
