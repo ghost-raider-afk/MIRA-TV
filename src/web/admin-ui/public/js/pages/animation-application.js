@@ -2,30 +2,23 @@ import { loadWeatherForScreen } from './weather-studio.js';
 
 function node(id) { return document.getElementById(id); }
 
-function selectedTargets() {
-  const screens = [];
-  document.querySelectorAll('#animation-target-list .animation-target-item').forEach((label) => {
-    const input = label.querySelector('input[type="checkbox"]');
-    if (!(input instanceof HTMLInputElement) || !input.checked) return;
-    const name = label.querySelector('strong')?.textContent?.trim() || `Монитор ${input.value}`;
-    const location = label.querySelector('small')?.textContent?.trim();
-    screens.push({ id: Number(input.value), label: location ? `${location} — ${name}` : name });
-  });
-  return screens.filter((screen) => Number.isSafeInteger(screen.id) && screen.id > 0);
+function activeScreenLabel() {
+  const select = node('animation-screen-select');
+  if (!(select instanceof HTMLSelectElement)) return 'текущий ТВ';
+  return select.selectedOptions?.[0]?.textContent?.trim() || 'текущий ТВ';
 }
 
 function installStatus() {
   let status = node('animation-apply-status');
   if (status) return status;
-  const targets = document.querySelector('.animation-targets');
-  if (!(targets instanceof HTMLElement)) return null;
+  const actions = node('animation-inspector-actions');
+  if (!(actions instanceof HTMLElement)) return null;
   status = document.createElement('div');
   status.id = 'animation-apply-status';
   status.className = 'animation-apply-status';
   status.dataset.state = 'idle';
-  status.textContent = 'Изменения ещё не опубликованы на телевизоры.';
-  const copy = targets.querySelector('.animation-targets-head > div:first-child');
-  (copy instanceof HTMLElement ? copy : targets).append(status);
+  status.textContent = 'Preview загружен из состояния выбранного ТВ.';
+  actions.before(status);
   return status;
 }
 
@@ -36,18 +29,10 @@ function setStatus(state, text) {
   status.textContent = text;
 }
 
-function rebrandApplicationControls() {
-  const heading = document.querySelector('.animation-targets-head strong');
-  if (heading) heading.textContent = 'Мониторы для применения';
-  const summary = node('animation-target-summary');
-  if (summary && !summary.textContent?.trim()) summary.textContent = 'Мониторы не выбраны';
+function configureControls() {
   const button = node('animation-apply-screens');
-  if (button) button.textContent = 'Применить сцену';
+  if (button) button.textContent = 'Применить на ТВ';
   installStatus();
-}
-
-function markDirty() {
-  setStatus('dirty', 'Есть неприменённые изменения. «Применить сцену» отправит один атомарный снимок настроек на выбранные телевизоры.');
 }
 
 export function initialiseAnimationApplication() {
@@ -56,7 +41,7 @@ export function initialiseAnimationApplication() {
   const screenSelect = node('animation-screen-select');
   if (!(inspector instanceof HTMLElement)) return;
 
-  rebrandApplicationControls();
+  configureControls();
   let disposed = false;
   let loadedWeatherScreenId = null;
 
@@ -64,10 +49,14 @@ export function initialiseAnimationApplication() {
     const id = Number(screenSelect?.value);
     if (!Number.isSafeInteger(id) || id < 1 || id === loadedWeatherScreenId || disposed) return;
     loadedWeatherScreenId = id;
+    setStatus('idle', `Загружено состояние ТВ: ${activeScreenLabel()}.`);
     void loadWeatherForScreen(id);
   };
 
-  const onDirtyEvent = () => markDirty();
+  const markDirty = () => {
+    setStatus('dirty', `Есть изменения Preview для ${activeScreenLabel()}. Нажмите «Применить на ТВ»; переключатели объектов применяются автоматически.`);
+  };
+
   const onInspectorChange = (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -78,15 +67,11 @@ export function initialiseAnimationApplication() {
   const messageObserver = message instanceof HTMLElement ? new MutationObserver(() => {
     if (disposed) return;
     const text = message.textContent?.trim() || '';
-    const match = text.match(/^Плейлист применён к мониторам:\s*(\d+)\.?$/);
+    const match = text.match(/^Применено на ТВ:\s*(\d+)(?:\s*·\s*revision\s*(\d+))?\.?$/i);
     if (match) {
       const count = Number(match[1]);
-      const targets = selectedTargets();
-      const labels = targets.slice(0, count).map((target) => target.label);
-      setStatus(
-        'applied',
-        `Сцена атомарно применена: ${count}${labels.length ? ` — ${labels.join('; ')}` : ''}. Realtime revision отправлена телевизорам.`
-      );
+      const revision = match[2] ? ` · revision ${match[2]}` : '';
+      setStatus('applied', `Применено: ${activeScreenLabel()} · ${count} ТВ${revision}. Realtime-сигнал отправлен Player.`);
       return;
     }
     if (text && /ошиб|не удалось|некоррект|не существуют/i.test(text)) setStatus('error', `Не применено: ${text}`);
@@ -102,7 +87,7 @@ export function initialiseAnimationApplication() {
   queueMicrotask(syncPreviewWeather);
   inspector.addEventListener('input', onInspectorChange);
   inspector.addEventListener('change', onInspectorChange);
-  window.addEventListener('mira:animation-studio-dirty', onDirtyEvent);
+  window.addEventListener('mira:animation-studio-dirty', markDirty);
 
   return {
     dispose() {
@@ -112,7 +97,7 @@ export function initialiseAnimationApplication() {
       screenSelect?.removeEventListener('change', syncPreviewWeather);
       inspector.removeEventListener('input', onInspectorChange);
       inspector.removeEventListener('change', onInspectorChange);
-      window.removeEventListener('mira:animation-studio-dirty', onDirtyEvent);
+      window.removeEventListener('mira:animation-studio-dirty', markDirty);
     }
   };
 }
