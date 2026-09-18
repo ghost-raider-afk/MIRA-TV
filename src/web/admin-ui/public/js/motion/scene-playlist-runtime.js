@@ -3,7 +3,7 @@ import { createEntityMedia, normaliseSceneEntity } from './entity-editor.js';
 const SCENE_TYPES = Object.freeze(['promo', 'content', 'object-story']);
 const SCENE_MODES = Object.freeze(['overlay', 'split', 'fullscreen']);
 
-export const DEFAULT_SCENE_PLAYLIST = Object.freeze({ enabled: false, menu_duration_seconds: 40, scenes: Object.freeze([]) });
+export const DEFAULT_SCENE_PLAYLIST = Object.freeze({ enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: Object.freeze([]) });
 
 function sourceObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -35,6 +35,7 @@ export function normaliseScenePlaylist(value = {}) {
   const scenes = Array.isArray(source.scenes) ? source.scenes.slice(0, 20) : [];
   return {
     enabled: source.enabled === true && scenes.length > 0,
+    animation_enabled: source.animation_enabled !== false,
     menu_duration_seconds: clamp(source.menu_duration_seconds, 40, 5, 300),
     scenes: scenes.map((item, index) => {
       const scene = sourceObject(item);
@@ -246,10 +247,12 @@ export class ScenePlaylistRuntime {
   async returnToMenu(scene, generation) {
     const { contentLayer, fxLayer } = this.layers || {};
     const fxHost = fxLayer instanceof Element ? fxLayer.querySelector(':scope > [data-scene-playlist-fx-host]') : null;
-    await Promise.all([
-      animateExit(contentLayer?.firstElementChild, scene.mode),
-      animateExit(fxHost?.firstElementChild, scene.mode)
-    ]);
+    if (this.playlist.animation_enabled) {
+      await Promise.all([
+        animateExit(contentLayer?.firstElementChild, scene.mode),
+        animateExit(fxHost?.firstElementChild, scene.mode)
+      ]);
+    }
     if (generation !== this.generation) return;
     this.sceneIndex += 1;
     this.showMenu();
@@ -267,8 +270,10 @@ export class ScenePlaylistRuntime {
       fxHost.dataset.scenePlaylistMode = scene.mode;
       if (menuLayer instanceof HTMLElement) menuLayer.classList.toggle('scene-menu-suppressed', scene.mode === 'fullscreen');
       this.setFullscreen(scene.mode === 'fullscreen');
-      animateEntrance(contentLayer.firstElementChild, scene.mode);
-      animateEntrance(fxHost.firstElementChild, scene.mode);
+      if (this.playlist.animation_enabled) {
+        animateEntrance(contentLayer.firstElementChild, scene.mode);
+        animateEntrance(fxHost.firstElementChild, scene.mode);
+      }
       if (!scheduleReturn) return;
       const generation = this.generation;
       this.timer = setTimeout(() => void this.returnToMenu(scene, generation), scene.duration_seconds * 1000);

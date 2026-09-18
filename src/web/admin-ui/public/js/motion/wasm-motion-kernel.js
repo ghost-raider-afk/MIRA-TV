@@ -1,4 +1,4 @@
-const DEFAULT_WASM_URL = '/wasm/mira-motion-kernel.wasm';
+const DEFAULT_WASM_URL = '';
 let sharedPromise = null;
 
 const FUNCTIONS = Object.freeze([
@@ -70,10 +70,12 @@ async function instantiate(url) {
 
 export function loadMotionKernel(url = DEFAULT_WASM_URL) {
   if (!sharedPromise) {
-    sharedPromise = instantiate(url).catch((error) => {
-      console.warn('MIRA motion WASM kernel unavailable; using deterministic JavaScript fallback.', error);
-      return javascriptKernel();
-    });
+    sharedPromise = url
+      ? instantiate(url).catch((error) => {
+          console.warn('MIRA motion WASM kernel unavailable; using deterministic JavaScript fallback.', error);
+          return javascriptKernel();
+        })
+      : Promise.resolve(javascriptKernel());
   }
   return sharedPromise;
 }

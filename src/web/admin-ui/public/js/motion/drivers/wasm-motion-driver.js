@@ -2,7 +2,7 @@ import { WaapiMotionDriver } from './waapi-driver.js';
 import { loadMotionKernel } from '../wasm-motion-kernel.js';
 
 const RED_GLOW = 'rgba(255,48,72,.78)';
-const ROW_GLOW = 'rgba(255,255,255,.28)';
+const ROW_GLOW = 'rgba(244,201,21,.24)';
 
 function number(value, fallback = 0) {
   const parsed = Number(value);

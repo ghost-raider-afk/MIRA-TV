@@ -84,19 +84,19 @@ test('weather editor controls atmosphere motion without separating monitor targe
   assert.match(preview, /--mira-menu-text/);
 });
 
-test('one application mechanism publishes all animation layers and weather to the same monitors', async () => {
-  const [coordinator, settingsRoutes, weatherStudio, application] = await Promise.all([
-    read('src/web/admin-ui/public/js/pages/animation-application.js'),
+test('one atomic application publishes all animation layers and weather to the same monitors', async () => {
+  const [playlist, settingsRoutes, weatherStudio, application] = await Promise.all([
+    read('src/web/admin-ui/public/js/pages/playlist.js'),
     read('src/api/settings/routes.js'),
     read('src/web/admin-ui/public/js/pages/weather-studio.js'),
-    read('src/web/admin-ui/public/js/application.js')
+    read('src/web/admin-ui/public/js/pages/animation-application.js')
   ]);
 
-  assert.match(coordinator, /Применить все анимации/);
-  assert.match(coordinator, /#animation-target-list/);
-  assert.match(coordinator, /weatherStudioSettings\(\)/);
-  assert.match(coordinator, /WEATHER_SETTINGS_ENDPOINT/);
-  assert.match(coordinator, /Применено на сервере/);
+  assert.match(playlist, /API\.animationApply/);
+  assert.match(playlist, /screen_ids:\s*screenIds/);
+  assert.match(playlist, /weather:\s*weatherStudioSettings\(\)/);
+  assert.doesNotMatch(application, /\/api\/weather\/settings/);
+  assert.doesNotMatch(application, /\.click\(\)/);
   assert.doesNotMatch(weatherStudio, /weatherTargetScreenIds/);
   assert.doesNotMatch(weatherStudio, /\/api\/weather\/apply/);
 
@@ -109,25 +109,31 @@ test('one application mechanism publishes all animation layers and weather to th
   assert.match(applyRoute, /'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather'/);
   assert.match(applyRoute, /markScreenRenderChanged/);
   assert.match(applyRoute, /applied_screens/);
-
-  assert.match(application, /initialiseAnimationApplication/);
 });
 
-test('offline weather cache is isolated by monitor and restores through Player Last Known Good state', async () => {
-  const bootstrap = await read('src/web/admin-ui/public/js/player/weather-bootstrap.js');
-  assert.match(bootstrap, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
-  assert.match(bootstrap, /loadLastKnownGood/);
-  assert.match(bootstrap, /record\?\.screen_id \?\? context\?\.screen\?\.id/);
-  assert.match(bootstrap, /return screenId \? `\$\{CACHE_PREFIX\}\$\{screenId\}` : ''/);
-  assert.match(bootstrap, /settings:\s*\{ \.\.\.settings, screen_id: screenId \}/);
-  assert.match(bootstrap, /legacyScreenId === screenId/);
-  assert.doesNotMatch(bootstrap, /localStorage\.setItem\(LEGACY_CACHE_KEY/);
+test('offline weather restores through canonical Player LKG and keeps cache isolated by monitor', async () => {
+  const [stateSync, weatherRuntime] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/player-state-sync.js'),
+    read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
+  ]);
+
+  assert.match(stateSync, /loadLastKnownGood/);
+  assert.match(stateSync, /'entity', 'weather', 'brand'/);
+  assert.match(stateSync, /await applyContext\(record\.context, \[\.\.\.ALL_COMPONENTS\]/);
+
+  assert.match(weatherRuntime, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
+  assert.match(weatherRuntime, /this\.screenId \? `\$\{CACHE_PREFIX\}\$\{this\.screenId\}` : ''/);
+  assert.match(weatherRuntime, /settings:\s*\{ \.\.\.this\.settings, screen_id: this\.screenId \}/);
+  assert.match(weatherRuntime, /legacyScreenId === this\.screenId/);
+  assert.match(weatherRuntime, /applyContext\(settings, screenId/);
+  assert.doesNotMatch(weatherRuntime, /loadLastKnownGood/);
+  assert.doesNotMatch(weatherRuntime, /localStorage\.setItem\(LEGACY_CACHE_KEY/);
 });
 
 test('weather runtime changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v20'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v21'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v19'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v20'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });

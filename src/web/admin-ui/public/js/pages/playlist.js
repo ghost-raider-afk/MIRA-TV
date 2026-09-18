@@ -8,6 +8,7 @@ import { normaliseBrandTitle, renderBrandTitleLayer } from '../motion/brand-titl
 import { aquariumEnvironment, aquariumParameters, renderEnvironmentLayer, resetEnvironmentIntro } from '../motion/environment.js';
 import { renderAnimationScreenEmpty, renderAnimationScreenPreview } from '../motion/screen-preview.js';
 import { ScenePlaylistEditor } from '../motion/scene-playlist-editor.js';
+import { weatherStudioSettings } from './weather-studio.js';
 import {
   DEFAULT_LIVE_PROFILE,
   bindMotionProfileControls,
@@ -34,6 +35,9 @@ function number(id) { return Number(element(id)?.value ?? 0); }
 function checked(id) { return element(id)?.checked === true; }
 function value(id) { return element(id)?.value || ''; }
 function setValue(id, next) { const node = element(id); if (node) node.value = String(next); }
+function menuMotionEnabled(profile = readMotionProfile()) {
+  return profile.section_effect !== 'none' || profile.item_effect !== 'none' || profile.promotion_effect !== 'none';
+}
 function studioIsActive(generation) { return generation === studioGeneration && document.body.dataset.page !== 'signin'; }
 
 function rebrandPlaylistPage() {
@@ -86,7 +90,8 @@ function restartPreview() {
     renderAnnouncementPreview();
     renderBrandPreview();
     renderAquariumPreview(false);
-    player?.restart(readMotionProfile(), currentEntity, checked('animation-enabled'));
+    const profile = readMotionProfile();
+    player?.restart(profile, currentEntity, menuMotionEnabled(profile));
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) player?.pause();
   });
 }
@@ -94,6 +99,7 @@ function restartPreview() {
 function announcementFromControls() {
   return normaliseAnnouncement({
     enabled: checked('animation-announcement-enabled'),
+    animation_enabled: checked('animation-announcement-animation-enabled'),
     text: value('animation-announcement-text'),
     position: value('animation-announcement-position'),
     speed_px_per_second: number('animation-announcement-speed'),
@@ -114,6 +120,8 @@ function syncAnnouncementControls(announcement = currentAnnouncement) {
   const enabled = element('animation-announcement-enabled');
   const glowEnabled = element('animation-announcement-glow-enabled');
   if (enabled) enabled.checked = current.enabled;
+  const animationEnabled = element('animation-announcement-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   if (glowEnabled) glowEnabled.checked = current.glow_enabled;
   setValue('animation-announcement-text', current.text);
   setValue('animation-announcement-position', current.position);
@@ -138,7 +146,7 @@ function syncAnnouncementControls(announcement = currentAnnouncement) {
 
 function bindAnnouncementControls() {
   const ids = [
-    'animation-announcement-enabled', 'animation-announcement-text', 'animation-announcement-position',
+    'animation-announcement-enabled', 'animation-announcement-animation-enabled', 'animation-announcement-text', 'animation-announcement-position',
     'animation-announcement-speed', 'animation-announcement-font-size', 'animation-announcement-font-family',
     'animation-announcement-vertical-scale', 'animation-announcement-text-color',
     'animation-announcement-background-color', 'animation-announcement-opacity',
@@ -159,6 +167,7 @@ function bindAnnouncementControls() {
 function brandFromControls() {
   return normaliseBrandTitle({
     enabled: checked('animation-brand-enabled'),
+    animation_enabled: checked('animation-brand-animation-enabled'),
     text: value('animation-brand-text'),
     x: number('animation-brand-x'),
     y: number('animation-brand-y'),
@@ -187,6 +196,8 @@ function syncBrandControls(brand = currentBrand) {
   const current = normaliseBrandTitle(brand);
   const enabled = element('animation-brand-enabled');
   if (enabled) enabled.checked = current.enabled;
+  const animationEnabled = element('animation-brand-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   setValue('animation-brand-text', current.text);
   setValue('animation-brand-x', Math.round(current.x));
   setValue('animation-brand-y', Math.round(current.y));
@@ -242,7 +253,7 @@ function alignBrand(mode) {
 
 function bindBrandControls() {
   const ids = [
-    'animation-brand-enabled', 'animation-brand-text', 'animation-brand-x', 'animation-brand-y',
+    'animation-brand-enabled', 'animation-brand-animation-enabled', 'animation-brand-text', 'animation-brand-x', 'animation-brand-y',
     'animation-brand-font-family', 'animation-brand-font-size', 'animation-brand-vertical-scale',
     'animation-brand-letter-spacing', 'animation-brand-line-spacing', 'animation-brand-text-color', 'animation-brand-glow-color',
     'animation-brand-glow-strength', 'animation-brand-entrance-effect', 'animation-brand-effect', 'animation-brand-exit-effect',
@@ -265,6 +276,7 @@ function bindBrandControls() {
 function aquariumFromControls() {
   return aquariumParameters(aquariumEnvironment({
     enabled: checked('animation-aquarium-enabled'),
+    animation_enabled: checked('animation-aquarium-animation-enabled'),
     style: value('animation-aquarium-style'),
     intro_fill: checked('animation-aquarium-intro'),
     intensity: number('animation-aquarium-intensity'),
@@ -281,6 +293,8 @@ function syncAquariumControls(aquarium = currentAquarium) {
   const enabled = element('animation-aquarium-enabled');
   const intro = element('animation-aquarium-intro');
   if (enabled) enabled.checked = current.enabled;
+  const animationEnabled = element('animation-aquarium-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   if (intro) intro.checked = current.intro_fill;
   setValue('animation-aquarium-style', current.style);
   setValue('animation-aquarium-intensity', current.intensity);
@@ -302,7 +316,7 @@ function syncAquariumControls(aquarium = currentAquarium) {
 
 function bindAquariumControls() {
   const ids = [
-    'animation-aquarium-enabled', 'animation-aquarium-style', 'animation-aquarium-intro',
+    'animation-aquarium-enabled', 'animation-aquarium-animation-enabled', 'animation-aquarium-style', 'animation-aquarium-intro',
     'animation-aquarium-intensity', 'animation-aquarium-fish-count', 'animation-aquarium-bubbles',
     'animation-aquarium-plants', 'animation-aquarium-caustics', 'animation-aquarium-speed'
   ];
@@ -333,6 +347,8 @@ function syncEntityControls(entity = currentEntity) {
   setValue('animation-entity-name', current.name);
   const visible = element('animation-entity-visible');
   if (visible) visible.checked = current.visible;
+  const animationEnabled = element('animation-entity-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   setValue('animation-entity-x', Math.round(current.transform.x));
   setValue('animation-entity-y', Math.round(current.transform.y));
   setValue('animation-entity-width', Math.round(current.transform.width));
@@ -432,6 +448,7 @@ function bindEntityControls(generation) {
   });
   element('animation-entity-name')?.addEventListener('input', () => patchEntity({ name: value('animation-entity-name') || 'Бокал пива' }));
   element('animation-entity-visible')?.addEventListener('change', () => patchEntity({ visible: checked('animation-entity-visible') }));
+  element('animation-entity-animation-enabled')?.addEventListener('change', () => patchEntity({ animation_enabled: checked('animation-entity-animation-enabled') }));
   element('animation-entity-loop')?.addEventListener('change', () => patchEntity({ loop: checked('animation-entity-loop') }));
   element('animation-entity-muted')?.addEventListener('change', () => patchEntity({ muted: checked('animation-entity-muted') }));
   element('animation-entity-playback-rate')?.addEventListener('input', () => patchEntity({ playback_rate: number('animation-entity-playback-rate') }));
@@ -458,14 +475,16 @@ async function loadScreenPreview(screenId, generation = studioGeneration) {
   if (select) select.disabled = true;
   setScreenStatus('Загружаем сохранённый экран…');
   try {
-    const bundle = await api.get(`${API.screens}/${screenId}/editor`);
+    const [bundle, appliedSettings] = await Promise.all([
+      api.get(`${API.screens}/${screenId}/editor`),
+      api.get(`${API.animationSettings}/screens/${screenId}`)
+    ]);
     if (!studioIsActive(generation) || sequence !== screenLoadSequence) return;
     renderAnimationScreenPreview(stage, bundle);
-    entityEditor?.render();
-    renderAnnouncementPreview();
-    renderBrandPreview();
-    renderAquariumPreview(false);
-    setScreenStatus(`${bundle.screen.location_name || 'Без точки'} · ${bundle.screen.name} · ${bundle.screen.resolution}`);
+    if (appliedSettings) applySavedSettings(appliedSettings);
+    else await loadSettings(generation);
+    if (!studioIsActive(generation) || sequence !== screenLoadSequence) return;
+    setScreenStatus(`${bundle.screen.location_name || 'Без точки'} · ${bundle.screen.name} · ${bundle.screen.resolution} · состояние ТВ`);
     restartPreview();
     scenePlaylistEditor?.rebindPreview();
   } catch (error) {
@@ -490,8 +509,9 @@ async function loadScreenOptions(generation) {
     select.disabled = true;
     renderAnimationScreenEmpty(stage, 'Создайте монитор, чтобы просматривать его плейлист.');
     setScreenStatus('В проекте пока нет мониторов.');
-    player?.destroy();
+    player?.runtime?.reset?.();
     scenePlaylistEditor?.runtime?.destroy();
+    await loadSettings(generation);
     return;
   }
   for (const screen of screens) select.add(new Option(screenLabel(screen), String(screen.id)));
@@ -503,8 +523,10 @@ async function loadScreenOptions(generation) {
     const id = Number(select.value);
     if (!id) return;
     rememberSelectedScreen(id);
+    window.dispatchEvent(new CustomEvent('mira:animation-screen-selected', { detail: { screenId: id } }));
     void loadScreenPreview(id, generation);
   });
+  window.dispatchEvent(new CustomEvent('mira:animation-screen-selected', { detail: { screenId: Number(selected.id) } }));
   await loadScreenPreview(selected.id, generation);
 }
 
@@ -626,8 +648,9 @@ function playlistPayload() {
   currentAnnouncement = announcementFromControls();
   currentBrand = brandFromControls();
   currentAquarium = aquariumFromControls();
+  const profile = readMotionProfile();
   return {
-    enabled: checked('animation-enabled'), preset_id: PROFILE_ID, profile: readMotionProfile(),
+    enabled: menuMotionEnabled(profile), preset_id: PROFILE_ID, profile,
     entity: currentEntity, announcement: currentAnnouncement, brand: currentBrand,
     environment: aquariumEnvironment(currentAquarium),
     scene_playlist: scenePlaylistEditor?.value() || { enabled: false, menu_duration_seconds: 40, scenes: [] }
@@ -655,7 +678,7 @@ async function applySettingsToScreens(generation) {
   if (!screenIds.length) { setMessage('animation-message', 'Выберите хотя бы один монитор.', 'error'); return; }
   setPending(button, true, 'Применяем…');
   try {
-    const result = await api.put(API.animationApply, { screen_ids: screenIds, settings: playlistPayload() });
+    const result = await api.put(API.animationApply, { screen_ids: screenIds, settings: playlistPayload(), weather: weatherStudioSettings() });
     if (!studioIsActive(generation)) return;
     applySavedSettings(result.settings);
     setMessage('animation-message', `Плейлист применён к мониторам: ${result.applied_screen_ids.length}.`, 'success');
@@ -742,14 +765,13 @@ export function initialisePlaylistStudio() {
   bindBrandControls();
   bindAquariumControls();
   bindEntityControls(generation);
-  element('animation-enabled')?.addEventListener('change', () => restartPreview());
   syncEntityControls();
   syncAnnouncementControls();
   syncBrandControls();
   syncAquariumControls();
   element('animation-save')?.addEventListener('click', () => { void saveSettings(generation); });
   element('animation-apply-screens')?.addEventListener('click', () => { void applySettingsToScreens(generation); });
-  void Promise.all([loadSettings(generation), loadScreenOptions(generation)]).catch((error) => {
+  void loadScreenOptions(generation).catch((error) => {
     if (studioIsActive(generation)) setMessage('animation-message', error.message);
   });
   return { dispose: () => disposePlaylistStudio(generation) };

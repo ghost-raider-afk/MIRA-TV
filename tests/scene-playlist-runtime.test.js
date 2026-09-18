@@ -20,9 +20,9 @@ test('Scene Playlist runtime preserves an active timeline when Player Context is
 });
 
 test('Scene Playlist owns only content and its FX subhost while MenuScene remains an external base layer', async () => {
-  const [runtime, gpuRuntime, preview] = await Promise.all([
+  const [runtime, sceneMotion, preview] = await Promise.all([
     read('js/motion/scene-playlist-runtime.js'),
-    read('js/player/gpu-scene-runtime.js'),
+    read('js/motion/scene-motion-runtime.js'),
     read('js/motion/screen-preview.js')
   ]);
 
@@ -30,7 +30,8 @@ test('Scene Playlist owns only content and its FX subhost while MenuScene remain
   assert.match(runtime, /contentLayer\.replaceChildren/);
   assert.match(runtime, /classList\.toggle\('scene-menu-suppressed', scene\.mode === 'fullscreen'\)/);
   assert.doesNotMatch(runtime, /menuLayer\.replaceChildren/);
-  assert.match(gpuRuntime, /data-gpu-menu-fx-host/);
+  assert.match(sceneMotion, /buildDomMotionScene/);
+  assert.match(sceneMotion, /DEFAULT_SCENE_COMPILERS/);
   assert.match(preview, /data-scene-menu-layer/);
   assert.match(preview, /data-scene-fx-layer/);
   assert.match(preview, /data-scene-content-layer/);

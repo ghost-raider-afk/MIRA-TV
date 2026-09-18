@@ -176,3 +176,102 @@ test('TV Player updates Brand and environment from WebSocket invalidation withou
     await context.close();
   }
 });
+
+
+test('TV Player renders weather from the canonical weather component and layer', async ({ browser }) => {
+  const context = await browser.newContext({ baseURL, serviceWorkers: 'block' });
+  await context.addInitScript(() => {
+    class FakeWebSocket extends EventTarget {
+      static CONNECTING = 0; static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = FakeWebSocket.CONNECTING;
+        setTimeout(() => {
+          this.readyState = FakeWebSocket.OPEN;
+          this.dispatchEvent(new Event('open'));
+        }, 10);
+      }
+      close() { this.readyState = FakeWebSocket.CLOSED; this.dispatchEvent(new Event('close')); }
+      send() {}
+    }
+    window.WebSocket = FakeWebSocket;
+  });
+
+  const page = await context.newPage();
+  const weather = {
+    enabled: true,
+    screen_id: 1,
+    location_name: 'Берлин',
+    latitude: 52.52,
+    longitude: 13.405,
+    timezone: 'Europe/Berlin',
+    position: 'top-right',
+    refresh_minutes: 15,
+    animation_enabled: false
+  };
+  const snapshot = {
+    location_name: 'Берлин',
+    temperature: 18,
+    apparent_temperature: 17,
+    humidity: 61,
+    wind_speed: 9,
+    weather_code: 2,
+    is_day: true,
+    condition: 'Переменная облачность',
+    icon: 'partly-cloudy',
+    updated_at: new Date().toISOString(),
+    forecast: []
+  };
+  const state = playerContext(1);
+  state.weather = weather;
+  state.hashes.weather = 'weather-enabled-v1';
+
+  let deltaRequests = 0;
+  try {
+    await page.route('**/api/device/session', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authorized: true,
+        device_id: 1,
+        device_key: 'device-key-weather-parity-123456',
+        session_expires_at: new Date(Date.now() + 86400000).toISOString(),
+        screen: state.screen
+      })
+    }));
+    await page.route('**/api/device/player-logs', (route) => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ accepted_through: 100000 })
+    }));
+    await page.route('**/api/device/player-delta', (route) => {
+      deltaRequests += 1;
+      if (deltaRequests === 1) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ full_snapshot_required: true, context: state }) });
+      }
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ unchanged: true, schema_version: 2, revision: state.revision, hashes: state.hashes })
+      });
+    });
+    await page.route('**/api/device/weather', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ settings: weather, snapshot })
+    }));
+
+    await page.goto('/player');
+
+    const layer = page.locator('[data-player-stage] [data-weather-layer]');
+    await expect(layer.locator('.weather-widget')).toBeVisible({ timeout: 5000 });
+    await expect(layer.locator('.weather-widget-location')).toHaveText('Берлин');
+    await expect(layer).toHaveAttribute('data-weather-animation', 'off');
+
+    const order = await page.locator('[data-player-stage]').evaluate((stage) =>
+      [...stage.children].map((node) => node instanceof HTMLElement ? node.dataset.sceneLayer || '' : '')
+    );
+    expect(order.indexOf('weather')).toBeGreaterThan(order.indexOf('entity'));
+    expect(order.indexOf('weather')).toBeLessThan(order.indexOf('brand'));
+  } finally {
+    await context.close();
+  }
+});

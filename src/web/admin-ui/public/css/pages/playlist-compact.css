@@ -1,34 +1,62 @@
 @media(min-width:1181px) and (max-height:900px){
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor{gap:4px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head{align-items:center;gap:6px;min-height:20px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head .eyebrow,
+  .animation-object-manager{padding:8px;gap:7px}
+  .animation-object-manager-head p:not(.eyebrow){display:none}
+  .animation-object-row{min-height:58px;padding:5px 7px;row-gap:4px}
+  .animation-object-copy strong{font-size:13px}
+  .animation-object-copy small{font-size:11px}
+  .animation-object-switch{font-size:12px}
+  .animation-object-tv-state{font-size:10px}
+  .animation-object-configure{min-height:30px;font-size:11px}
+
+  .animation-inspector .settings-card{padding:8px}
+  .animation-inspector .card-heading{margin-bottom:6px}
+  .animation-inspector .card-heading p:not(.eyebrow){display:none}
+  .animation-inspector .card-heading h2,
+  .animation-inspector .playlist-scene-editor-head h3{font-size:16px}
+  .animation-inspector .field>span{font-size:12px}
+  .animation-inspector input,
+  .animation-inspector select,
+  .animation-inspector textarea{font-size:12px}
+
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor{gap:7px}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head{align-items:center;gap:8px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head p:not(.eyebrow){display:none}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head h3{margin:0;font-size:14px;line-height:1}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-editor-head>small{font-size:8px;line-height:1;white-space:nowrap}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-global{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px;padding:5px;border-radius:8px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-global>.field{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,1.3fr);align-items:center;gap:4px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-global>.field>span{font-size:8px;line-height:1.05}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-menu-duration-control{gap:4px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-menu-duration-control output{min-width:38px;font-size:8px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add .button{min-height:24px;height:24px;padding:2px 5px;font-size:8px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details{min-height:0;padding-top:0}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-menu-details{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px;padding:5px;border-radius:8px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-menu-details .eyebrow,
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-menu-details p:not(.eyebrow){display:none}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-menu-details h4{margin:0;font-size:12px;line-height:1}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-menu-details .button{min-height:24px;height:24px;padding:2px 6px;font-size:8px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-head{align-items:center;gap:5px;margin-bottom:4px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-head .eyebrow{display:none}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-head h4{margin:0;font-size:12px;line-height:1}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-head small{font-size:7px;line-height:1}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-actions{gap:3px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-actions .button{min-height:22px;height:22px;padding:1px 5px;font-size:7px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid .field{gap:1px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid .field>span{font-size:7px;line-height:1}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid input,
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid select,
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid textarea{min-height:24px!important;height:24px;padding:1px 4px;font-size:8px}
-  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid textarea{max-height:24px!important;resize:none}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-global{grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:8px;padding:7px}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-add .button{min-height:32px;padding:5px 8px;font-size:11px}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid textarea{min-height:46px;max-height:60px}
+}
+
+
+@media(min-width:1181px) and (max-height:800px){
+  .animation-inspector{gap:6px;padding:7px}
+  .animation-inspector-head{min-height:24px}
+  .animation-inspector-head .eyebrow{display:none}
+  .animation-object-manager{padding:6px;gap:5px}
+  .animation-object-manager-head h3{font-size:15px}
+  .animation-object-manager-head .eyebrow,
+  .animation-object-manager-head p:not(.eyebrow){display:none}
+  .animation-object-list{gap:4px}
+  .animation-object-row{
+    grid-template-columns:minmax(0,1fr) auto auto;
+    grid-template-areas:"copy switches configure";
+    min-height:38px;
+    padding:4px 6px;
+    column-gap:6px;
+    row-gap:0;
+  }
+  .animation-object-copy small{display:none}
+  .animation-object-copy strong{font-size:12px}
+  .animation-object-switches{gap:5px}
+  .animation-object-switch{grid-template-columns:16px auto;min-height:26px;gap:3px;font-size:11px}
+  .animation-object-switch input{width:16px;height:16px}
+  .animation-object-tv-state{display:none}
+  .animation-object-configure{min-width:70px;min-height:27px;padding:3px 6px;font-size:10px}
+  .animation-object-panels{min-height:105px}
+  .animation-targets{gap:4px;padding:5px 7px}
+  .animation-target-list{max-height:36px}
+  .animation-target-item{padding:3px 5px}
+  .animation-target-item small{display:none}
+  .animation-inspector-actions .button{min-height:32px}
 }

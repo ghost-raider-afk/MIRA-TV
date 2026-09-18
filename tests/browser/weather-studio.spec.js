@@ -14,9 +14,9 @@ test('weather studio controls atmosphere motion while keeping the informer visib
   await login(page);
   await page.goto('/playlist');
 
-  const weatherTab = page.locator('[data-animation-object-tab="weather"]');
-  await expect(weatherTab).toBeVisible();
-  await weatherTab.click();
+  const weatherObject = page.locator('[data-animation-object="weather"]');
+  await expect(weatherObject).toBeVisible();
+  await weatherObject.locator('.animation-object-configure').click();
 
   await expect(page.getByRole('heading', { name: 'Погода', exact: true })).toBeVisible();
   await expect(page.locator('#weather-animation-speed')).toBeVisible();
@@ -25,8 +25,8 @@ test('weather studio controls atmosphere motion while keeping the informer visib
   await expect(page.locator('#weather-target-list')).toHaveCount(0);
   await expect(page.locator('#weather-apply')).toHaveCount(0);
 
-  const weatherToggle = page.locator('[data-animation-object-toggle="weather"]');
-  const motionToggle = page.locator('[data-animation-object-toggle="weather-motion"]');
+  const weatherToggle = weatherObject.locator('[data-animation-object-toggle="visible"]');
+  const motionToggle = weatherObject.locator('[data-animation-object-toggle="motion"]');
   await expect(weatherToggle).toBeVisible();
   await expect(motionToggle).toBeVisible();
   if (!(await weatherToggle.isChecked())) await weatherToggle.check();
@@ -82,12 +82,12 @@ test('one apply action publishes weather and other animations only to selected m
     const secondTarget = page.locator(`#animation-target-list input[value="${second.id}"]`);
     await expect(firstTarget).toBeChecked();
     await expect(secondTarget).not.toBeChecked();
-    await expect(page.locator('#animation-apply-screens')).toHaveText('Применить все анимации');
+    await expect(page.locator('#animation-apply-screens')).toHaveText('Применить сцену');
     await expect(page.locator('#animation-apply-status')).toBeVisible();
 
-    const weatherTab = page.locator('[data-animation-object-tab="weather"]');
-    await expect(weatherTab).toBeVisible();
-    await weatherTab.click();
+    const weatherObject = page.locator('[data-animation-object="weather"]');
+    await expect(weatherObject).toBeVisible();
+    await weatherObject.locator('.animation-object-configure').click();
     await expect(page.locator('#weather-animation-speed')).toBeVisible();
     await page.evaluate(() => {
       const values = {
@@ -101,8 +101,8 @@ test('one apply action publishes weather and other animations only to selected m
         if (input instanceof HTMLInputElement) input.value = value;
       }
     });
-    const weatherToggle = page.locator('[data-animation-object-toggle="weather"]');
-    const weatherMotionToggle = page.locator('[data-animation-object-toggle="weather-motion"]');
+    const weatherToggle = weatherObject.locator('[data-animation-object-toggle="visible"]');
+    const weatherMotionToggle = weatherObject.locator('[data-animation-object-toggle="motion"]');
     if (!(await weatherToggle.isChecked())) await weatherToggle.check();
     if (!(await weatherMotionToggle.isChecked())) await weatherMotionToggle.check();
     await expect(page.locator('#weather-enabled')).toBeChecked();
@@ -112,19 +112,36 @@ test('one apply action publishes weather and other animations only to selected m
     await page.locator('#weather-x').fill('700');
     await page.locator('#weather-y').fill('315');
 
-    const brandTab = page.locator('[data-animation-object-tab="brand"]');
-    await expect(brandTab).toBeVisible();
-    await brandTab.click();
-    const brandToggle = page.locator('[data-animation-object-toggle="brand"]');
+    const brandObject = page.locator('[data-animation-object="brand"]');
+    await expect(brandObject).toBeVisible();
+    await brandObject.locator('.animation-object-configure').click();
+    const brandToggle = brandObject.locator('[data-animation-object-toggle="visible"]');
     if (!(await brandToggle.isChecked())) await brandToggle.check();
     await expect(page.locator('#animation-brand-enabled')).toBeChecked();
     const brandText = `ЕДИНЫЙ-${stamp}`;
     await page.locator('#animation-brand-text').fill(brandText);
 
     await expect(page.locator('#animation-apply-status')).toContainText('неприменённые изменения');
+    const applyRequests = [];
+    const captureApply = (request) => {
+      if (request.method() === 'PUT' && (request.url().endsWith('/api/settings/animation/apply') || request.url().endsWith('/api/weather/settings'))) {
+        applyRequests.push(request);
+      }
+    };
+    page.on('request', captureApply);
+    const applyRequestPromise = page.waitForRequest((request) => request.method() === 'PUT' && request.url().endsWith('/api/settings/animation/apply'));
     await page.locator('#animation-apply-screens').click();
-    await expect(page.locator('#animation-message')).toContainText('Все анимации, включая погоду, применены');
-    await expect(page.locator('#animation-apply-status')).toContainText('Применено на сервере: 1/1');
+    const applyRequest = await applyRequestPromise;
+    const applyPayload = applyRequest.postDataJSON();
+    await expect(page.locator('#animation-message')).toContainText('Плейлист применён к мониторам: 1');
+    await expect(page.locator('#animation-apply-status')).toContainText('Сцена атомарно применена: 1');
+    page.off('request', captureApply);
+    expect(applyPayload.screen_ids).toEqual([first.id]);
+    expect(applyPayload.weather.enabled).toBe(true);
+    expect(applyPayload.weather.animation_enabled).toBe(true);
+    expect(applyPayload.settings.brand.text).toBe(brandText);
+    expect(applyRequests.filter((request) => request.url().endsWith('/api/settings/animation/apply'))).toHaveLength(1);
+    expect(applyRequests.filter((request) => request.url().endsWith('/api/weather/settings'))).toHaveLength(0);
 
     const firstWeather = await (await page.request.get(`/api/weather/screens/${first.id}`)).json();
     const secondWeather = await (await page.request.get(`/api/weather/screens/${second.id}`)).json();

@@ -61,10 +61,10 @@ test('Brand Entity is user-owned inside Playlist Studio and persists independent
   const original = await getSettings(page);
   try {
     await page.goto(`/playlist.html?screen=${fixture.screenId}`);
-    const brandTab = page.locator('[data-animation-object-tab="brand"]');
-    await expect(brandTab).toBeVisible();
-    await brandTab.click();
-    await expect(brandTab).toHaveClass(/active/);
+    const brandObject = page.locator('.animation-object-row[data-animation-object="brand"]');
+    await expect(brandObject).toBeVisible();
+    await brandObject.locator('.animation-object-configure').click();
+    await expect(page.locator('[data-animation-object-panel="brand"]')).toBeVisible();
     const input = page.locator('#animation-brand-text');
     await expect(input).toBeVisible();
     await expect(input).toHaveJSProperty('tagName', 'TEXTAREA');
@@ -74,7 +74,7 @@ test('Brand Entity is user-owned inside Playlist Studio and persists independent
     await expect(input).toHaveValue('');
     await input.fill('БАР\nСЕВЕР');
     await expect(input).toHaveValue('БАР\nСЕВЕР');
-    const brandToggle = page.locator('[data-animation-object-toggle="brand"]');
+    const brandToggle = brandObject.locator('[data-animation-object-toggle="visible"]');
     await expect(brandToggle).toBeVisible();
     if (!(await brandToggle.isChecked())) await brandToggle.check();
     await expect(page.locator('#animation-brand-enabled')).toBeChecked();

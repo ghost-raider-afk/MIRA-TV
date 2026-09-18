@@ -117,7 +117,7 @@ export function compileEntityBehaviorProgram(scene, context = {}) {
   const entity = context.entity || null;
   const node = scene.nodes.find((candidate) => candidate.kind === 'entity');
   const mode = entityMode(entity, node);
-  const enabled = Boolean(node && entity?.visible !== false && mode !== 'none');
+  const enabled = Boolean(node && entity?.visible !== false && entity?.animation_enabled !== false && mode !== 'none');
   const duration = MODE_DURATIONS[mode] || BEER_GLASS_BEHAVIOR.duration;
   const tracks = enabled ? [Object.freeze({
     node,

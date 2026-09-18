@@ -44,6 +44,8 @@ export function animationProfileInput(source) {
     travel_px: numberValue(profile.travel_px, 'Амплитуда перемещения', { min: 0, max: 48 }),
     scale_amount: numberValue(profile.scale_amount, 'Амплитуда масштаба', { min: 0, max: 0.12 }),
     brightness_amount: numberValue(profile.brightness_amount, 'Световой акцент', { min: 0, max: 0.7 }),
+    menu_visible: profile.menu_visible === true,
+    promotion_visible: profile.promotion_visible === true,
     section_effect: enumValue(profile.section_effect, 'Эффект разделов', SECTION_EFFECTS),
     item_effect: enumValue(profile.item_effect, 'Эффект строк', ITEM_EFFECTS),
     price_effect: enumValue(profile.price_effect, 'Эффект цен', PRICE_EFFECTS),

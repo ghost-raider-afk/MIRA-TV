@@ -39,11 +39,11 @@ test('canonical profile keeps static menu text, static background and smooth pro
   assert.equal(parsed.brand.text, '');
   assert.equal(parsed.environment.enabled, false);
   assert.equal(parsed.environment.effect, 'none');
-  assert.deepEqual(parsed.scene_playlist, { enabled: false, menu_duration_seconds: 40, scenes: [] });
+  assert.deepEqual(parsed.scene_playlist, { enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: [] });
 });
 
 test('Scene Playlist keeps MenuScene implicit and validates temporary scene semantics before canonicalization', () => {
-  assert.deepEqual(completeScenePlaylist(), { enabled: false, menu_duration_seconds: 40, scenes: [] });
+  assert.deepEqual(completeScenePlaylist(), { enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: [] });
 
   const parsed = scenePlaylistInput({
     enabled: true,
@@ -133,6 +133,7 @@ test('legacy aquarium settings are converted to an environment effect without be
   });
   assert.deepEqual(environment, {
     enabled: true,
+    animation_enabled: true,
     effect: 'aquarium',
     parameters: {
       style: 'reef', intro_fill: false, intensity: 45, fish_count: 5,
@@ -173,11 +174,11 @@ test('stored v3 bounce/pop settings are canonicalized instead of reintroducing j
 });
 
 test('Playlist Studio owns previous motion controls and the Scene Playlist UI in one workspace', async () => {
-  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, liveMotion, previewCss, announcement, overlays, brandCss, environment] = await Promise.all([
+  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, objectManager, previewCss, announcement, overlays, brandCss, environment] = await Promise.all([
     read('playlist.html'), read('js/pages/playlist.js'), read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
-    read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/live-menu-motion.js'),
-    read('css/pages/animation-screen-preview.css'), read('js/motion/announcement.js'), read('css/motion-overlays.css'),
-    read('css/brand-motion-v2.css'), read('js/motion/environment.js')
+    read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/scene-motion-runtime.js'),
+    read('js/pages/animation-object-manager.js'), read('css/pages/animation-screen-preview.css'), read('js/motion/announcement.js'),
+    read('css/motion-overlays.css'), read('css/brand-motion-v2.css'), read('js/motion/environment.js')
   ]);
 
   for (const id of [
@@ -186,12 +187,15 @@ test('Playlist Studio owns previous motion controls and the Scene Playlist UI in
     'animation-promotion-scale','animation-promotion-glow','animation-announcement-enabled','animation-announcement-font-family',
     'animation-announcement-vertical-scale','animation-announcement-glow-enabled','animation-brand-enabled','animation-brand-x',
     'animation-brand-y','animation-brand-effect','animation-brand-line-spacing','animation-aquarium-enabled','animation-aquarium-style',
-    'animation-aquarium-replay','animation-entity-file','animation-entity-loop','animation-entity-muted','animation-entity-playback-rate'
+    'animation-aquarium-replay','animation-aquarium-animation-enabled','animation-entity-file','animation-entity-animation-enabled',
+    'animation-entity-loop','animation-entity-muted','animation-entity-playback-rate'
   ]) assert.match(html, new RegExp(`id="${id}"`));
 
   assert.doesNotMatch(html, /id="animation-price-effect"/);
   assert.match(page, /PLAYLIST STUDIO/);
-  assert.match(page, /data-animation-inspector-tab="playlist"/);
+  assert.match(page, /API\.animationSettings\}\/screens\/\$\{screenId\}/);
+  assert.match(objectManager, /key:\s*'playlist'/);
+  assert.match(objectManager, /data\.animationObjectToggle|data-animation-object-toggle/);
   assert.match(page, /new ScenePlaylistEditor/);
   assert.match(page, /scene_playlist:\s*scenePlaylistEditor/);
   assert.match(page, /scenePlaylistEditor\?\.set\(saved\.scene_playlist\)/);
@@ -209,8 +213,10 @@ test('Playlist Studio owns previous motion controls and the Scene Playlist UI in
   assert.match(page, /createEntityMedia/);
   assert.match(profileEditor, /profile\.price_effect = 'none'/);
   assert.match(profileEditor, /promotion_scale_amount = clamp/);
-  assert.match(liveMotion, /WasmMotionDriver/);
+  assert.match(sceneMotion, /WasmMotionDriver/);
+  assert.match(sceneMotion, /compileEntityBehaviorProgram/);
   assert.match(motionPlan, /menuTextStatic: true/);
+  assert.match(motionPlan, /context\.menuEnabled === false/);
   assert.match(motionPlan, /procedural:/);
   assert.doesNotMatch(motionPlan, /keyframes:/);
   assert.doesNotMatch(domAdapter, /kind: 'background'/);

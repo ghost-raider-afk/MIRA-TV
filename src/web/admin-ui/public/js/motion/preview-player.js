@@ -1,8 +1,5 @@
-import { WasmMotionDriver } from './drivers/wasm-motion-driver.js';
-import { buildDomMotionScene } from './dom-scene-adapter.js';
-import { DEFAULT_SCENE_COMPILERS } from './motion-plan.js';
-import { compileEntityBehaviorProgram } from './entity-behavior.js';
-import { SceneRuntime } from './scene-runtime.js';
+import { SceneMotionRuntime } from './scene-motion-runtime.js';
+import { applySceneVisibility } from './scene-visibility.js';
 
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -20,9 +17,7 @@ export class AnimationPreviewPlayer {
     this.playButton = playButton;
     this.pauseButton = pauseButton;
     this.replayButton = replayButton;
-    this.driver = driver || new WasmMotionDriver();
-    this.sceneCompilers = compilers || [...DEFAULT_SCENE_COMPILERS, compileEntityBehaviorProgram];
-    this.runtime = new SceneRuntime({ root: stage, driver: this.driver, compilers: this.sceneCompilers });
+    this.runtime = new SceneMotionRuntime(stage, { driver, compilers });
     this.total = 0;
     this.raf = null;
     this.profile = null;
@@ -80,23 +75,13 @@ export class AnimationPreviewPlayer {
     if (this.disposed || !this.stage) return;
     this.profile = { ...profile };
     this.entity = entity ? { ...entity, transform: { ...(entity.transform || {}) } } : null;
+    applySceneVisibility(this.stage, this.profile);
     const intensity = clamp(Number(profile.intensity) || 0, 0, 100);
     this.stage.style.setProperty('--motion-intensity', String(intensity / 100));
-    this.runtime.destroy();
+    this.runtime.reset();
     this.plan = null;
-    this.scene = null;
-    if (!enabled) {
-      delete this.stage.dataset.motionMode;
-      this.total = 0;
-      this.renderProgress(0);
-      return;
-    }
-    this.stage.dataset.motionMode = 'wasm-continuous';
-    this.scene = buildDomMotionScene(this.stage);
-    this.plan = this.runtime.load({
-      scene: this.scene,
-      context: { profile: this.profile, entity: this.entity }
-    });
+    this.plan = this.runtime.render({ profile: this.profile, entity: this.entity, menuEnabled: enabled });
+    this.scene = this.runtime.scene;
     this.total = this.plan.duration;
     this.runtime.play();
     this.updateProgress();

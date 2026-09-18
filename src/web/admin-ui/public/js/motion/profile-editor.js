@@ -2,6 +2,8 @@ const PROFILE_FIELDS = Object.freeze({
   pattern: ['animation-pattern', 'string'],
   flow_direction: ['animation-flow-direction', 'string'],
   easing: ['animation-easing', 'string'],
+  menu_visible: ['animation-menu-visible', 'boolean'],
+  promotion_visible: ['animation-promotion-visible', 'boolean'],
   section_effect: ['animation-section-effect', 'string'],
   item_effect: ['animation-item-effect', 'string'],
   price_effect: ['animation-price-effect', 'string'],
@@ -28,6 +30,8 @@ export const DEFAULT_LIVE_PROFILE = Object.freeze({
   pattern: 'cinematic',
   flow_direction: 'alternate',
   easing: 'cinematic',
+  menu_visible: true,
+  promotion_visible: true,
   cycle_seconds: 8.5,
   event_duration_ms: 6900,
   wave_stagger_ms: 180,
@@ -91,7 +95,7 @@ export function readMotionProfile() {
   for (const [key, [id, type]] of Object.entries(PROFILE_FIELDS)) {
     const control = node(id);
     if (!control) continue;
-    profile[key] = type === 'number' ? Number(control.value) : control.value;
+    profile[key] = type === 'number' ? Number(control.value) : type === 'boolean' ? control.checked === true : control.value;
   }
   return canonicalStudioProfile(profile);
 }
@@ -100,7 +104,10 @@ export function writeMotionProfile(source = {}) {
   const profile = canonicalStudioProfile(source);
   for (const [key, [id]] of Object.entries(PROFILE_FIELDS)) {
     const control = node(id);
-    if (control && profile[key] !== undefined) control.value = String(profile[key]);
+    if (control && profile[key] !== undefined) {
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') control.checked = profile[key] === true;
+      else control.value = String(profile[key]);
+    }
   }
   updateOutputs();
 }
@@ -111,7 +118,7 @@ export function bindMotionProfileControls(onChange) {
   ids.forEach((id) => {
     const control = node(id);
     if (!control) return;
-    const eventName = control instanceof HTMLSelectElement ? 'change' : 'input';
+    const eventName = control instanceof HTMLSelectElement || (control instanceof HTMLInputElement && control.type === 'checkbox') ? 'change' : 'input';
     control.addEventListener(eventName, () => { updateOutputs(); listener(readMotionProfile()); });
   });
   updateOutputs();

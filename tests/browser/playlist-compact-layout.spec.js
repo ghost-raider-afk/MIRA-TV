@@ -37,10 +37,10 @@ test('desktop playlist studio fits preview, state matrix and active settings int
   expect(layout.previewWidth).toBeLessThan(layout.inspectorWidth * 1.45);
 
   for (const key of ['menu', 'promotion', 'weather', 'announcement', 'brand', 'aquarium', 'entity', 'playlist']) {
-    await inspector.locator(`[data-animation-object-tab="${key}"]`).click();
+    await inspector.locator(`[data-animation-object="${key}"] .animation-object-configure`).click();
     const panel = inspector.locator(`[data-animation-object-panel="${key}"]`);
     await expect(panel).toBeVisible();
     const overflow = await panel.evaluate((node) => node.scrollHeight - node.clientHeight);
-    expect(overflow, `${key} settings must not be clipped or require a panel scrollbar at 1600x900`).toBeLessThanOrEqual(4);
+    expect(overflow, `${key} settings must remain fully laid out inside the one-page inspector at 1600x900`).toBeLessThanOrEqual(4);
   }
 });

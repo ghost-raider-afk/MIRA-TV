@@ -191,6 +191,7 @@ export class GpuSceneRuntime {
   }
 
   startPromotionAnimations(profile) {
+    if (profile?.promotion_visible === false) return;
     const menuLayer = this.composer.get('menu');
     if (!(menuLayer instanceof HTMLElement)) return;
     const plan = gpuPromotionEffectPlan(profile);
@@ -221,7 +222,7 @@ export class GpuSceneRuntime {
     const menuLayer = this.composer.get('menu');
     const currentMenuRoot = menuLayer?.querySelector('svg.menu-table-svg') || null;
     const signature = JSON.stringify({
-      enabled: enabled === true && Boolean(profile),
+      enabled: enabled === true && Boolean(profile) && profile?.menu_visible !== false,
       profile: enabled ? profile : null,
       viewport: [number(viewport.width), number(viewport.height)],
       bounds: [settings.table_x, settings.table_y, settings.table_width_px, settings.table_height_px],
@@ -233,7 +234,7 @@ export class GpuSceneRuntime {
     this.stopAnimations();
     host.replaceChildren();
 
-    if (!enabled || !profile || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    if (!enabled || !profile || profile.menu_visible === false || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       host.hidden = true;
       return true;
     }

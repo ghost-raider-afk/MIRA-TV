@@ -4,6 +4,7 @@ export const ANNOUNCEMENT_FONTS = Object.freeze(['inter', 'arial', 'montserrat',
 
 export const DEFAULT_ANNOUNCEMENT = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   text: '',
   position: 'bottom',
   speed_px_per_second: 90,
@@ -41,6 +42,7 @@ export function completeAnnouncement(value = {}) {
   const position = source.position === 'top' ? 'top' : 'bottom';
   return {
     enabled: source.enabled === true,
+    animation_enabled: source.animation_enabled !== false,
     text: String(source.text ?? '').trim().slice(0, 500),
     position,
     speed_px_per_second: Math.max(30, Math.min(240, Number(source.speed_px_per_second) || DEFAULT_ANNOUNCEMENT.speed_px_per_second)),
@@ -63,6 +65,8 @@ export function announcementInput(value) {
   }
   const enabled = source.enabled ?? false;
   if (typeof enabled !== 'boolean') throw new ValidationError('Поле «Показывать объявление» должно быть логическим значением.');
+  const animationEnabled = source.animation_enabled ?? true;
+  if (typeof animationEnabled !== 'boolean') throw new ValidationError('Поле «Анимация объявления» должно быть логическим значением.');
   const text = String(source.text ?? '').trim();
   if (text.length > 500) throw new ValidationError('Текст объявления не должен превышать 500 символов.');
   if (enabled && !text) throw new ValidationError('Введите текст объявления или выключите бегущую строку.');
@@ -74,6 +78,7 @@ export function announcementInput(value) {
   if (typeof glowEnabled !== 'boolean') throw new ValidationError('Поле «Подсветка строки» должно быть логическим значением.');
   return {
     enabled,
+    animation_enabled: animationEnabled,
     text,
     position,
     speed_px_per_second: numberValue(source.speed_px_per_second, DEFAULT_ANNOUNCEMENT.speed_px_per_second, 30, 240, 'Скорость бегущей строки'),

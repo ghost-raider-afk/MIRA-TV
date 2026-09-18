@@ -15,7 +15,7 @@ const ENTITY_ANIMATION_LABELS = Object.freeze({
 const DEFAULT_ENTITY = Object.freeze({
   version: 2, id: 'beer-glass', name: 'Бокал пива', asset_url: '', asset_type: 'image', media_type: 'image/png',
   width: 0, height: 0, asset_width: 0, asset_height: 0, has_alpha: false,
-  loop: true, muted: true, playsinline: true, playback_rate: 1, poster_url: '', visible: false, animation_mode: 'cinematic',
+  loop: true, muted: true, playsinline: true, playback_rate: 1, poster_url: '', visible: false, animation_enabled: true, animation_mode: 'cinematic',
   transform: Object.freeze({ x: 1580, y: 420, width: 280, scale: 1, rotation: 0, depth: 10, opacity: 1 })
 });
 
@@ -44,6 +44,7 @@ export function normaliseSceneEntity(value = {}) {
     playback_rate: Math.min(4, Math.max(0.25, finite(value.playback_rate, 1))),
     poster_url: typeof value.poster_url === 'string' ? value.poster_url : '',
     visible: value.visible === true,
+    animation_enabled: value.animation_enabled !== false,
     animation_mode: animationMode(value.animation_mode),
     transform: {
       x: finite(transform.x, DEFAULT_ENTITY.transform.x), y: finite(transform.y, DEFAULT_ENTITY.transform.y),

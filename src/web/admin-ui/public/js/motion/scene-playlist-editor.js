@@ -54,6 +54,7 @@ export class ScenePlaylistEditor {
     this.stripTrack = null;
     this.details = null;
     this.enabled = null;
+    this.animationEnabled = null;
     this.menuDuration = null;
     this.menuDurationOutput = null;
     this.summary = null;
@@ -77,6 +78,7 @@ export class ScenePlaylistEditor {
     this.stripTrack = null;
     this.details = null;
     this.enabled = null;
+    this.animationEnabled = null;
     this.menuDuration = null;
     this.menuDurationOutput = null;
     this.summary = null;
@@ -108,6 +110,12 @@ export class ScenePlaylistEditor {
     this.enabled.type = 'checkbox';
     this.enabled.id = 'animation-scene-playlist-enabled';
     enabledLabel.append(this.enabled, Object.assign(document.createElement('span'), { textContent: 'Включить временные сцены' }));
+    const animationLabel = document.createElement('label');
+    animationLabel.className = 'animation-entity-visible playlist-animation-toggle';
+    this.animationEnabled = document.createElement('input');
+    this.animationEnabled.type = 'checkbox';
+    this.animationEnabled.id = 'animation-scene-playlist-animation-enabled';
+    animationLabel.append(this.animationEnabled, Object.assign(document.createElement('span'), { textContent: 'Анимация переходов' }));
 
     this.menuDuration = document.createElement('input');
     this.menuDuration.type = 'range';
@@ -120,7 +128,7 @@ export class ScenePlaylistEditor {
     const durationWrap = document.createElement('div');
     durationWrap.className = 'playlist-menu-duration-control';
     durationWrap.append(this.menuDuration, this.menuDurationOutput);
-    global.append(enabledLabel, field('MenuScene между временными сценами', durationWrap));
+    global.append(enabledLabel, animationLabel, field('MenuScene между временными сценами', durationWrap));
 
     const add = root.querySelector('.playlist-scene-add');
     for (const type of ['promo', 'content', 'object-story']) {
@@ -133,6 +141,10 @@ export class ScenePlaylistEditor {
     this.details = root.querySelector('[data-playlist-scene-details]');
     this.enabled.addEventListener('change', () => {
       this.patchPlaylist({ enabled: this.enabled.checked });
+      this.rebindPreview();
+    });
+    this.animationEnabled.addEventListener('change', () => {
+      this.patchPlaylist({ animation_enabled: this.animationEnabled.checked });
       this.rebindPreview();
     });
     this.menuDuration.addEventListener('input', () => {
@@ -247,6 +259,7 @@ export class ScenePlaylistEditor {
 
   renderSummary() {
     if (this.enabled) this.enabled.checked = this.playlist.enabled;
+    if (this.animationEnabled) this.animationEnabled.checked = this.playlist.animation_enabled !== false;
     if (this.menuDuration) this.menuDuration.value = String(this.playlist.menu_duration_seconds);
     if (this.menuDurationOutput) this.menuDurationOutput.textContent = `${this.playlist.menu_duration_seconds} с`;
     if (this.summary) {

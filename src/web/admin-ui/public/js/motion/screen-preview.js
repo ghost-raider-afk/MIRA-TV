@@ -55,13 +55,14 @@ export function renderAnimationScreenPreview(stage, bundle) {
   stage.dataset.fontKey = layout.typography.key;
   stage.innerHTML = `
     <div class="animation-screen-background" data-motion-background></div>
-    <div class="animation-screen-environment-layer" data-environment-layer aria-label="Фоновая сцена"></div>
-    <div class="animation-screen-canvas" data-scene-menu-layer>${buildTableSvg(model, lines, layout)}</div>
-    <div class="animation-screen-fx-layer" data-scene-fx-layer aria-hidden="true"></div>
-    <div class="animation-screen-content-layer" data-scene-content-layer aria-label="Scene Playlist"></div>
-    <div class="animation-screen-entity-layer" data-motion-entity-layer aria-label="Объекты сцены"></div>
-    <div class="animation-screen-brand-layer" data-brand-layer aria-label="Название бренда"></div>
-    <div class="animation-screen-announcement-layer" data-announcement-layer aria-label="Бегущая строка"></div>`;
+    <div class="animation-screen-environment-layer tv-player-environment-layer" data-environment-layer data-player-environment-layer data-scene-layer="environment" aria-label="Фоновая сцена"></div>
+    <div class="animation-screen-canvas tv-player-menu-layer" data-scene-menu-layer data-player-menu-layer data-scene-layer="menu">${buildTableSvg(model, lines, layout)}</div>
+    <div class="animation-screen-fx-layer tv-player-fx-layer" data-scene-fx-layer data-player-fx-layer data-scene-layer="fx" aria-hidden="true"></div>
+    <div class="animation-screen-content-layer tv-player-content-layer" data-scene-content-layer data-player-content-layer data-scene-layer="content" aria-label="Scene Playlist"></div>
+    <div class="animation-screen-entity-layer tv-player-entity-layer" data-motion-entity-layer data-scene-layer="entity" aria-label="Объекты сцены"></div>
+    <div class="animation-screen-weather-layer tv-player-weather-layer" data-weather-layer data-scene-layer="weather" aria-label="Погода"></div>
+    <div class="animation-screen-brand-layer tv-player-brand-layer" data-brand-layer data-scene-layer="brand" aria-label="Название бренда"></div>
+    <div class="animation-screen-announcement-layer tv-player-announcement-layer" data-announcement-layer data-scene-layer="announcement" aria-label="Бегущая строка"></div>`;
 
   backgroundStyle(stage.querySelector('.animation-screen-background'), model, layout.palette);
   applyPalette(stage, layout.palette);

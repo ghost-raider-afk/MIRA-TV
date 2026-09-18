@@ -12,6 +12,13 @@
 
 Ключевые компоненты:
 
+- один контур управления `Admin -> Scene State -> Player Context -> TV`; Preview не имеет собственного альтернативного renderer/state source;
+- Preview выбранного телевизора стартует из его `screen_animation_settings`, а не из общего шаблона;
+- каждый объект сцены имеет независимые состояния `visible` и `animation_enabled`;
+- weather входит в тот же component/delta pipeline и тот же порядок слоёв, что остальные объекты;
+- Apply публикует одну атомарную scene revision без промежуточных сохранений отдельных подсистем.
+
+
 - `Scene Compiler` — собирает единый план отображения и анимации для текущего экрана.
 - `Animation Runtime` — один централизованный scheduler/timeline для всех активных визуальных эффектов.
 - Component-level recompilation — при изменении пересобираются только затронутые компоненты, а не вся сцена.

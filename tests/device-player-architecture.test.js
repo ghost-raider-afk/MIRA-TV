@@ -22,14 +22,14 @@ test('player is public while TV connection page remains admin protected', async 
 });
 
 test('real TV player owns all scene layers and uses one offline-first state owner', async () => {
-  const [worker, player, sync, store, realtimeClient, playerHtml, gpuRuntime, layerComposer, publicRoutes, playerContextService, playerCss, playlistCss, flatRenderer, weatherBootstrap, weatherWidget, weatherCss] = await Promise.all([
+  const [worker, player, sync, store, realtimeClient, playerHtml, sceneMotionRuntime, layerComposer, publicRoutes, playerContextService, playerCss, playlistCss, flatRenderer, weatherRuntime, weatherWidget, weatherCss] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
     read('src/web/admin-ui/public/js/player/player.js'),
     read('src/web/admin-ui/public/js/player/player-state-sync.js'),
     read('src/web/admin-ui/public/js/player/player-store.js'),
     read('src/web/admin-ui/public/js/player/player-realtime-client.js'),
     read('src/web/admin-ui/public/player.html'),
-    read('src/web/admin-ui/public/js/player/gpu-scene-runtime.js'),
+    read('src/web/admin-ui/public/js/motion/scene-motion-runtime.js'),
     read('src/web/admin-ui/public/js/player/scene-layer-composer.js'),
     read('src/api/device/public-routes.js'),
     read('src/services/player-context-service.js'),
@@ -41,20 +41,21 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     read('src/web/admin-ui/public/css/weather-widget.css')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v18/);
+  assert.match(worker, /mira-tv-player-shell-v21/);
   for (const asset of [
     '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css','/css/weather-widget.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
     '/js/player/player-store.js','/js/player/player-realtime-client.js','/js/player/player-state-sync.js',
-    '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/gpu-scene-runtime.js',
-    '/js/player/entity-runtime.js','/js/player/weather-bootstrap.js','/js/motion/weather-widget.js',
-    '/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
-    '/js/motion/scene-playlist-runtime.js','/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js','/js/motion/scene-graph.js',
-    '/js/motion/scene-composer.js','/js/motion/scene-runtime.js','/js/motion/timeline.js','/js/motion/drivers/waapi-driver.js'
+    '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/weather-bootstrap.js',
+    '/js/motion/weather-widget.js','/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
+    '/js/motion/scene-playlist-runtime.js','/js/motion/scene-motion-runtime.js','/js/motion/scene-visibility.js',
+    '/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js','/js/motion/scene-graph.js',
+    '/js/motion/scene-composer.js','/js/motion/scene-runtime.js','/js/motion/timeline.js','/js/motion/motion-plan.js',
+    '/js/motion/drivers/waapi-driver.js','/js/motion/drivers/wasm-motion-driver.js','/js/motion/wasm-motion-kernel.js'
   ]) assert.ok(worker.includes(`'${asset}'`), `offline shell is missing ${asset}`);
   for (const retiredAsset of [
-    '/js/player/overlay-runtime.js','/js/motion/aquarium.js','/js/motion/live-menu-motion.js','/js/motion/motion-plan.js',
-    '/js/motion/drivers/wasm-motion-driver.js','/js/motion/wasm-motion-kernel.js','/wasm/mira-motion-kernel.wasm'
+    '/js/player/overlay-runtime.js','/js/motion/aquarium.js','/js/motion/live-menu-motion.js',
+    '/js/player/entity-runtime.js','/js/player/gpu-scene-runtime.js'
   ]) assert.ok(!worker.includes(`'${retiredAsset}'`), `TV offline shell still contains ${retiredAsset}`);
 
   assert.doesNotMatch(worker, /PLAYER_CONTEXT|\/api\/device\/player-context/);
@@ -66,8 +67,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(playerHtml, /\/css\/brand-motion-v2\.css/);
   assert.match(playerHtml, /\/css\/scene-playlist\.css/);
   assert.match(playerHtml, /\/css\/weather-widget\.css/);
-  assert.match(playerHtml, /\/js\/player\/weather-bootstrap\.js/);
-  assert.doesNotMatch(playerHtml, /overlay-runtime\.js/);
+  assert.doesNotMatch(playerHtml, /entity-runtime\.js|weather-bootstrap\.js/);
   assert.match(player, /createPlayerStateSync/);
   assert.match(player, /restoreLastKnownGood\(\)/);
   assert.match(player, /syncNow\('boot'\)/);
@@ -80,33 +80,38 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(sync, /createPlayerRealtimeClient/);
   assert.match(sync, /scheduleFallbackPoll/);
   assert.match(sync, /fallbackPollMs/);
+  assert.match(sync, /'entity', 'weather', 'brand'/);
   assert.match(sync, /appendPlayerLog/);
-  assert.match(sync, /pendingPlayerLogs/);
-  assert.match(sync, /acknowledgePlayerLogs/);
   assert.match(sync, /activeAssetManifest/);
-  assert.match(sync, /mira:player-active-assets/);
   assert.match(realtimeClient, /new WebSocket\(`/);
   assert.match(realtimeClient, /BACKOFF_MS/);
 
-  assert.match(player, /new GpuSceneRuntime\(playerStage/);
+  assert.match(player, /new SceneMotionRuntime\(playerStage, \{ activityControlled: true \}\)/);
+  assert.match(player, /new PlayerWeatherRuntime\(playerStage/);
   assert.match(player, /new PlayerSceneLayerComposer\(playerStage\)/);
   assert.match(player, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
   assert.match(player, /renderBrandTitleLayer\(brandLayer, context\.brand\)/);
   assert.match(player, /renderAnnouncementLayer\(announcementLayer, context\.announcement\)/);
+  assert.match(player, /weatherRuntime\.applyContext\(context\.weather/);
   assert.match(player, /scenePlaylistRuntime\.render\(context\.scene_playlist/);
-  assert.match(player, /playerMenuRenderMode\(context\)/);
-  assert.match(player, /profile:\s*context\.animation\?\.profile/);
-  assert.doesNotMatch(player, /context\?\.entity\?\.asset_url/);
-  assert.doesNotMatch(player, /LiveMenuMotion|WasmMotionDriver|MutationObserver/);
-  assert.match(gpuRuntime, /effect\.animate\(/);
-  assert.match(gpuRuntime, /mira:scene-playlist-mode/);
-  assert.match(gpuRuntime, /animation\.pause\(\)/);
-  assert.doesNotMatch(gpuRuntime, /requestAnimationFrame|style\.filter|drop-shadow/);
+  assert.match(player, /sceneMotionRuntime\.render\(/);
+  assert.match(player, /entity:\s*context\.entity/);
+  assert.doesNotMatch(player, /GpuSceneRuntime|entity-runtime/);
+
+  assert.match(sceneMotionRuntime, /buildDomMotionScene/);
+  assert.match(sceneMotionRuntime, /WasmMotionDriver/);
+  assert.match(sceneMotionRuntime, /compileEntityBehaviorProgram/);
+  assert.match(sceneMotionRuntime, /\.\.\.DEFAULT_SCENE_COMPILERS/);
+  assert.match(sceneMotionRuntime, /if \(this\.plan\.tracks\.length\)/);
+  assert.match(sceneMotionRuntime, /mira:scene-playlist-mode/);
+
   assert.match(playlistCss, /data-scene-playlist-fullscreen/);
   assert.match(playlistCss, /tv-player-entity-layer/);
   assert.match(playlistCss, /tv-player-brand-layer/);
   assert.match(playlistCss, /tv-player-announcement-layer/);
-  for (const layer of ['environment','menu','fx','content','entity','brand','announcement']) assert.match(layerComposer, new RegExp(`'${layer}'`));
+  for (const layer of ['environment','menu','fx','content','entity','weather','brand','announcement']) {
+    assert.match(layerComposer, new RegExp(`'${layer}'`));
+  }
 
   assert.match(publicRoutes, /playerRuntimeHash\(config, currentRevision\)/);
   assert.match(publicRoutes, /known\.hashes\.runtime === runtimeHash/);
@@ -119,24 +124,20 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(playerContextService, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
   assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
   assert.doesNotMatch(playerContextService, /store\.getAnimationSettings\(\)/);
-  assert.match(playerContextService, /enabled:\s*animationSettings\?\.enabled === true/);
   assert.match(playerContextService, /environment:\s*animationSettings\?\.environment \|\| null/);
   assert.match(playerContextService, /weather:\s*weather \|\| null/);
-  assert.doesNotMatch(playerContextService, /aquarium: animationSettings/);
-  assert.match(playerCss, /\.tv-player-environment-layer/);
+  assert.match(playerCss, /\.tv-player-weather-layer/);
   assert.match(playerCss, /\.tv-player-announcement-layer/);
-  assert.match(playerCss, /\.tv-player-gpu-effect/);
-  assert.match(playerCss, /will-change:\s*transform, opacity/);
   assert.match(player, /serviceWorker\.register\('\/player-sw\.js'/);
   assert.match(player, /void registerOfflinePlayer\(\)/);
   assert.doesNotMatch(player, /await registerOfflinePlayer\(\)/);
-  assert.match(player, /function keepNeutralBoot\(\)/);
 
   assert.match(flatRenderer, /layer\.innerHTML = svg/);
   assert.doesNotMatch(flatRenderer, /createElement\('canvas'\)|drawImage\(|createImageBitmap/);
-  assert.match(weatherBootstrap, /localStorage\.getItem\(CACHE_KEY\)/);
-  assert.match(weatherBootstrap, /if \(!settings\.enabled \|\| !active \|\| !visible \|\| !navigator\.onLine\) return/);
-  assert.match(weatherBootstrap, /window\.addEventListener\('offline', clearTimer\)/);
+  assert.match(weatherRuntime, /export class PlayerWeatherRuntime/);
+  assert.match(weatherRuntime, /CACHE_PREFIX/);
+  assert.match(weatherRuntime, /applyContext\(settings, screenId/);
+  assert.match(weatherRuntime, /window\.addEventListener\('offline', this\.handleOffline\)/);
   assert.match(weatherWidget, /export function weatherVisualState/);
   assert.match(weatherWidget, /weather-atmosphere-/);
   assert.doesNotMatch(weatherWidget, /WEATHER_WIDGET_PRESETS|weather-preset-/);

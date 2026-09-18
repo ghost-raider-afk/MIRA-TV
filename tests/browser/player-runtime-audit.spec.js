@@ -78,7 +78,7 @@ function contextSnapshot() {
       parameters: { style: 'premium', intro_fill: false, intensity: 45, fish_count: 4, bubble_density: 12, plant_density: 8, caustics: 12, speed: 35 }
     },
     scene_playlist: { enabled: false, menu_duration_seconds: 40, scenes: [] },
-    weather: null,
+    weather: weatherResponse().settings,
     fallback_poll_interval_ms: 60000,
     log_batch_size: 100,
     log_local_max_entries: 5000,
