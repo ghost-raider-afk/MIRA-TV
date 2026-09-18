@@ -70,6 +70,7 @@ test('legacy settings PUT without scene_playlist preserves the current Scene Pla
   const original = await getSettings(page);
   const sentinel = {
     enabled: true,
+    animation_enabled: true,
     menu_duration_seconds: 17,
     scenes: [{ id: 'audit-promo', type: 'promo', enabled: true, mode: 'overlay', duration_seconds: 6, title: 'AUDIT PLAYLIST', body: '' }]
   };
