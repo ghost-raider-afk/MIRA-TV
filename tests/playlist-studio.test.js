@@ -194,8 +194,8 @@ test('Playlist Studio owns previous motion controls and the Scene Playlist UI in
   assert.doesNotMatch(html, /id="animation-price-effect"/);
   assert.match(page, /PLAYLIST STUDIO/);
   assert.match(page, /API\.animationSettings\}\/screens\/\$\{screenId\}/);
-  assert.match(objectManager, /key: 'playlist'/);
-  assert.match(objectManager, /data-animation-object-toggle/);
+  assert.match(objectManager, /key:\s*'playlist'/);
+  assert.match(objectManager, /data\.animationObjectToggle|data-animation-object-toggle/);
   assert.match(page, /new ScenePlaylistEditor/);
   assert.match(page, /scene_playlist:\s*scenePlaylistEditor/);
   assert.match(page, /scenePlaylistEditor\?\.set\(saved\.scene_playlist\)/);
