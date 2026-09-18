@@ -27,3 +27,36 @@
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
   .animation-inspector [data-animation-object-panel="playlist"] .playlist-scene-details-grid textarea{min-height:46px;max-height:60px}
 }
+
+
+@media(min-width:1181px) and (max-height:800px){
+  .animation-inspector{gap:6px;padding:7px}
+  .animation-inspector-head{min-height:24px}
+  .animation-inspector-head .eyebrow{display:none}
+  .animation-object-manager{padding:6px;gap:5px}
+  .animation-object-manager-head h3{font-size:15px}
+  .animation-object-manager-head .eyebrow,
+  .animation-object-manager-head p:not(.eyebrow){display:none}
+  .animation-object-list{gap:4px}
+  .animation-object-row{
+    grid-template-columns:minmax(0,1fr) auto auto;
+    grid-template-areas:"copy switches configure";
+    min-height:38px;
+    padding:4px 6px;
+    column-gap:6px;
+    row-gap:0;
+  }
+  .animation-object-copy small{display:none}
+  .animation-object-copy strong{font-size:12px}
+  .animation-object-switches{gap:5px}
+  .animation-object-switch{grid-template-columns:16px auto;min-height:26px;gap:3px;font-size:11px}
+  .animation-object-switch input{width:16px;height:16px}
+  .animation-object-tv-state{display:none}
+  .animation-object-configure{min-width:70px;min-height:27px;padding:3px 6px;font-size:10px}
+  .animation-object-panels{min-height:105px}
+  .animation-targets{gap:4px;padding:5px 7px}
+  .animation-target-list{max-height:36px}
+  .animation-target-item{padding:3px 5px}
+  .animation-target-item small{display:none}
+  .animation-inspector-actions .button{min-height:32px}
+}
