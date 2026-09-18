@@ -523,8 +523,10 @@ async function loadScreenOptions(generation) {
     const id = Number(select.value);
     if (!id) return;
     rememberSelectedScreen(id);
+    window.dispatchEvent(new CustomEvent('mira:animation-screen-selected', { detail: { screenId: id } }));
     void loadScreenPreview(id, generation);
   });
+  window.dispatchEvent(new CustomEvent('mira:animation-screen-selected', { detail: { screenId: Number(selected.id) } }));
   await loadScreenPreview(selected.id, generation);
 }
 
