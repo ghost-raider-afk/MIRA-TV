@@ -1,6 +1,6 @@
 import { api } from '../core/api.js';
 import { setMessage, setPending } from '../core/dom.js';
-import { normaliseWeatherWidget, renderWeatherWidget, WEATHER_SAMPLE } from '../motion/weather-widget.js';
+import { normaliseWeatherWidget, renderWeatherWidget, WEATHER_SAMPLE, WEATHER_SCENE_HEIGHT, WEATHER_SCENE_WIDTH } from '../motion/weather-widget.js';
 
 const ENDPOINTS = Object.freeze({
   settings: '/api/weather/settings',
@@ -25,6 +25,7 @@ let current = normaliseWeatherWidget();
 let snapshot = WEATHER_SAMPLE;
 let disposed = false;
 let observer = null;
+let resizeObserver = null;
 let previewTimer = null;
 let dragging = null;
 let selectedScreenId = null;
@@ -42,6 +43,31 @@ function markApplicationDirty() {
   window.dispatchEvent(new CustomEvent('mira:animation-studio-dirty', { detail: { source: 'weather' } }));
 }
 
+function weatherSceneMetrics(stage) {
+  const rect = stage.getBoundingClientRect();
+  const scale = Math.min(rect.width / WEATHER_SCENE_WIDTH, rect.height / WEATHER_SCENE_HEIGHT);
+  const sceneScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return {
+    rect,
+    scale: sceneScale,
+    offsetX: Math.max(0, (rect.width - (WEATHER_SCENE_WIDTH * sceneScale)) / 2),
+    offsetY: Math.max(0, (rect.height - (WEATHER_SCENE_HEIGHT * sceneScale)) / 2)
+  };
+}
+
+function applyWeatherSceneScale(stage, layer) {
+  const metrics = weatherSceneMetrics(stage);
+  layer.dataset.weatherSceneScale = String(metrics.scale);
+  layer.style.inset = 'auto';
+  layer.style.left = `${metrics.offsetX}px`;
+  layer.style.top = `${metrics.offsetY}px`;
+  layer.style.width = `${WEATHER_SCENE_WIDTH}px`;
+  layer.style.height = `${WEATHER_SCENE_HEIGHT}px`;
+  layer.style.transformOrigin = 'top left';
+  layer.style.transform = `scale(${metrics.scale})`;
+  return metrics;
+}
+
 function ensureLayer() {
   const stage = node('animation-stage');
   if (!(stage instanceof HTMLElement)) return null;
@@ -51,6 +77,7 @@ function ensureLayer() {
     layer.setAttribute('data-weather-layer', '');
     stage.append(layer);
   }
+  applyWeatherSceneScale(stage, layer);
   layer.dataset.weatherEditor = 'true';
   renderWeatherWidget(layer, current, snapshot);
   return layer;
@@ -250,10 +277,10 @@ function bindPositionDragging() {
   });
   stage.addEventListener('pointermove', (event) => {
     if (!dragging || dragging.pointerId !== event.pointerId) return;
-    const rect = stage.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const x = clamp(((event.clientX - rect.left) / rect.width) * 1920, 0, 1920);
-    const y = clamp(((event.clientY - rect.top) / rect.height) * 1080, 0, 1080);
+    const metrics = weatherSceneMetrics(stage);
+    if (!metrics.rect.width || !metrics.rect.height || !metrics.scale) return;
+    const x = clamp((event.clientX - metrics.rect.left - metrics.offsetX) / metrics.scale, 0, WEATHER_SCENE_WIDTH);
+    const y = clamp((event.clientY - metrics.rect.top - metrics.offsetY) / metrics.scale, 0, WEATHER_SCENE_HEIGHT);
     current = normaliseWeatherWidget({ ...current, x, y });
     setValue('weather-x', Math.round(current.x));
     setValue('weather-y', Math.round(current.y));
@@ -344,6 +371,12 @@ export async function initialiseWeatherStudio() {
   if (stage) {
     observer = new MutationObserver(() => { if (!disposed) queueMicrotask(ensureLayer); });
     observer.observe(stage, { childList: true });
+    resizeObserver = new ResizeObserver(() => {
+      if (disposed) return;
+      const layer = stage.querySelector('[data-weather-layer]');
+      if (layer instanceof HTMLElement) applyWeatherSceneScale(stage, layer);
+    });
+    resizeObserver.observe(stage);
   }
   screenSelectionListener = (event) => {
     const id = Number(event?.detail?.screenId);
@@ -364,6 +397,8 @@ export async function initialiseWeatherStudio() {
       disposed = true;
       observer?.disconnect();
       observer = null;
+      resizeObserver?.disconnect();
+      resizeObserver = null;
       if (previewTimer) clearTimeout(previewTimer);
       previewTimer = null;
       dragging = null;
