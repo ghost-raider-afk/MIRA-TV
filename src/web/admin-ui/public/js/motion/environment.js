@@ -66,7 +66,7 @@ export function aquariumEnvironment(value = {}) {
 
 export function aquariumParameters(value = {}) {
   const environment = normaliseEnvironment(value);
-  return { enabled: environment.enabled && environment.effect === 'aquarium', ...environment.parameters };
+  return { enabled: environment.enabled && environment.effect === 'aquarium', animation_enabled: environment.animation_enabled !== false, ...environment.parameters };
 }
 
 function createFish(index, speed) {
