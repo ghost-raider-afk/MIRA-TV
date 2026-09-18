@@ -6,6 +6,7 @@ export const MAX_PLAYLIST_SCENES = 20;
 
 export const DEFAULT_SCENE_PLAYLIST = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   menu_duration_seconds: 40,
   scenes: Object.freeze([])
 });
@@ -34,6 +35,7 @@ export function completeScenePlaylist(value = {}) {
   const scenes = Array.isArray(source.scenes) ? source.scenes.slice(0, MAX_PLAYLIST_SCENES) : [];
   return {
     enabled: source.enabled === true && scenes.length > 0,
+    animation_enabled: source.animation_enabled !== false,
     menu_duration_seconds: clamp(source.menu_duration_seconds, DEFAULT_SCENE_PLAYLIST.menu_duration_seconds, 5, 300),
     scenes: scenes.map((item, index) => {
       const scene = sourceObject(item);
