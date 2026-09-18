@@ -3,6 +3,7 @@ import { buildDomMotionScene } from './dom-scene-adapter.js';
 import { DEFAULT_SCENE_COMPILERS } from './motion-plan.js';
 import { compileEntityBehaviorProgram } from './entity-behavior.js';
 import { SceneRuntime } from './scene-runtime.js';
+import { applySceneVisibility } from './scene-visibility.js';
 
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -80,6 +81,7 @@ export class AnimationPreviewPlayer {
     if (this.disposed || !this.stage) return;
     this.profile = { ...profile };
     this.entity = entity ? { ...entity, transform: { ...(entity.transform || {}) } } : null;
+    applySceneVisibility(this.stage, this.profile);
     const intensity = clamp(Number(profile.intensity) || 0, 0, 100);
     this.stage.style.setProperty('--motion-intensity', String(intensity / 100));
     this.runtime.destroy();
