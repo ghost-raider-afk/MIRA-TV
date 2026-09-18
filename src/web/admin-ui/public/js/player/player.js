@@ -13,6 +13,7 @@ import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js'
 import { GpuSceneRuntime } from './gpu-scene-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
 import { createPlayerStateSync } from './player-state-sync.js';
+import { PlayerWeatherRuntime } from './weather-bootstrap.js';
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
@@ -24,6 +25,7 @@ const ALL_PLAYER_COMPONENTS = Object.freeze([
   'environment',
   'scene_playlist',
   'entity',
+  'weather',
   'brand',
   'announcement',
   'runtime'
@@ -43,6 +45,7 @@ const sceneLayers = new PlayerSceneLayerComposer(playerStage);
 const flatMenuRenderer = new FlatMenuRenderer();
 const gpuSceneRuntime = new GpuSceneRuntime(playerStage, { composer: sceneLayers });
 const scenePlaylistRuntime = new ScenePlaylistRuntime();
+const weatherRuntime = new PlayerWeatherRuntime(playerStage, { layer: sceneLayers.ensure('weather', { ariaLabel: 'Погода' }) });
 
 let pollTimer = null;
 let expiryTimer = null;
@@ -396,6 +399,7 @@ async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS
     fx: fxLayer,
     content: contentLayer,
     entity: entityLayer,
+    weather: weatherLayer,
     brand: brandLayer,
     announcement: announcementLayer
   } = sceneLayers.ensureCore();
@@ -451,6 +455,13 @@ async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS
   }
   if (dirty.has('announcement')) {
     renderAnnouncementLayer(announcementLayer, context.announcement);
+  }
+  if (dirty.has('weather') || dirty.has('screen') || menuDirty) {
+    weatherRuntime.applyContext(context.weather, context.screen?.id, {
+      configurationChanged: dirty.has('weather') || dirty.has('screen'),
+      menuChanged: menuDirty
+    });
+    weatherLayer.setAttribute('aria-hidden', context.weather?.enabled === true ? 'false' : 'true');
   }
   if (gpuDirty) {
     gpuSceneRuntime.render({
