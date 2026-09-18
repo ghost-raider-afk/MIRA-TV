@@ -9,6 +9,7 @@ export const BRAND_EFFECTS = BRAND_LOOP_EFFECTS;
 
 export const DEFAULT_BRAND_TITLE = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   text: '',
   x: 960,
   y: 96,
@@ -56,6 +57,7 @@ export function completeBrandTitle(value = {}) {
   const loopEffect = enumValue(source.loop_effect, BRAND_LOOP_EFFECTS, legacyLoop);
   return {
     enabled: source.enabled === true,
+    animation_enabled: source.animation_enabled !== false,
     text: String(source.text ?? DEFAULT_BRAND_TITLE.text).replace(/\r\n?/g, '\n').trim().slice(0, 80),
     x: clamp(source.x, DEFAULT_BRAND_TITLE.x, 0, 1920),
     y: clamp(source.y, DEFAULT_BRAND_TITLE.y, 0, 1080),
