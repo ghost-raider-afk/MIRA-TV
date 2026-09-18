@@ -720,7 +720,8 @@ async function applySettingsToScreens(generation, { screenIds = null, silent = f
 }
 
 function cancelLiveApply() {
-  cancelLiveApply();
+  clearTimeout(liveApplyTimer);
+  liveApplyTimer = null;
 }
 
 function scheduleLiveApply(generation) {
