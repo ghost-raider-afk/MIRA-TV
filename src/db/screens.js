@@ -98,7 +98,6 @@ export function createScreensRepository(pool) {
         );
         saved = result.rows[0];
       }
-      await pool.query("UPDATE screens SET status='draft', updated_at=$1 WHERE id=$2", [now, screenId]);
       return normaliseDraft(saved, screenId);
     },
     async isScreenBackgroundReferenced(url) {

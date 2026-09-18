@@ -11,6 +11,8 @@ export const AUTHENTICATED_PAGES = Object.freeze([
   Object.freeze({ path: '/connect-tv', file: 'connect-tv.html' })
 ]);
 
+export const MANAGER_PAGE = Object.freeze({ path: '/manager', file: 'manager.html' });
+
 export const LEGACY_PAGE_REDIRECTS = Object.freeze(new Map([
   ['/index.html', '/'],
   ['/locations.html', '/locations'],
@@ -24,7 +26,8 @@ export const LEGACY_PAGE_REDIRECTS = Object.freeze(new Map([
   ['/animation', '/playlist'],
   ['/events.html', '/events'],
   ['/connect-tv.html', '/connect-tv'],
-  ['/signin.html', '/signin']
+  ['/signin.html', '/signin'],
+  ['/manager.html', '/manager']
 ]));
 
 export function canonicalRedirectTarget(request, canonical) {

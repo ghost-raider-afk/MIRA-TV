@@ -46,7 +46,7 @@ export async function initialiseSchema(pool) {
     );
     CREATE TABLE IF NOT EXISTS web_users (
       username TEXT PRIMARY KEY, password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'administrator' CHECK(role IN ('administrator')),
+      role TEXT NOT NULL DEFAULT 'administrator' CHECK(role IN ('administrator', 'manager')),
       active BOOLEAN NOT NULL DEFAULT TRUE, session_version INTEGER NOT NULL DEFAULT 1,
       password_changed_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL
     );

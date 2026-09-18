@@ -1,4 +1,6 @@
 export function createSessionMiddleware(resolveSession) {
+  const roleHome = (role) => role === 'manager' ? '/manager' : '/';
+
   const requireApiSession = async (request, response, next) => {
     try {
       const session = await resolveSession(request);
@@ -21,5 +23,15 @@ export function createSessionMiddleware(resolveSession) {
     }
   };
 
-  return { requireApiSession, requirePageSession };
+  const requireApiRole = (...roles) => (request, response, next) => {
+    if (roles.includes(request.session?.user?.role)) return next();
+    return response.status(403).json({ error: 'Недостаточно прав для выполнения операции.' });
+  };
+
+  const requirePageRole = (...roles) => (request, response, next) => {
+    if (roles.includes(request.session?.user?.role)) return next();
+    return response.redirect(302, roleHome(request.session?.user?.role));
+  };
+
+  return { requireApiSession, requirePageSession, requireApiRole, requirePageRole };
 }

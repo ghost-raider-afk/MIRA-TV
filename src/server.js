@@ -13,7 +13,7 @@ import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
 import { createPlayerRealtime } from './realtime/player-realtime.js';
-import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, canonicalRedirectTarget } from './web/admin-ui/routes.js';
+import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, MANAGER_PAGE, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
 import { createSessionRouter } from './api/session/routes.js';
 import { createOverviewRouter } from './api/overview/routes.js';
@@ -26,6 +26,8 @@ import { createScreensRouter } from './api/screens/routes.js';
 import { createDevicePublicRouter } from './api/device/public-routes.js';
 import { createDeviceAdminRouter } from './api/device/admin-routes.js';
 import { createWeatherRouter } from './api/weather/routes.js';
+import { createManagerAdminRouter } from './api/managers/admin-routes.js';
+import { createManagerViewRouter } from './api/managers/view-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, 'web', 'admin-ui', 'public');
@@ -132,10 +134,16 @@ function mountPublicRoutes(app, { store, config, realtime }) {
   app.use('/api/device', createDevicePublicRouter({ store, config, realtime }));
 }
 
-function mountProtectedApi(app, dependencies, requireApiSession) {
+function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole) {
   app.use('/api', requireApiSession);
   app.use('/api', protectStateChangingRequest);
   app.use('/api', createSessionRouter(dependencies));
+
+  app.use('/api/manager', requireApiRole('manager'), createManagerViewRouter(dependencies));
+
+  const requireAdministrator = requireApiRole('administrator');
+  app.use('/api/admin/managers', requireAdministrator, createManagerAdminRouter(dependencies));
+  app.use('/api', requireAdministrator);
   app.use('/api', createOverviewRouter(dependencies));
   app.use('/api/settings', createSettingsRouter(dependencies));
   app.use('/api/notifications', createNotificationsRouter(dependencies));
@@ -156,7 +164,7 @@ function isBrowserNavigation(request) {
   return request.get('sec-fetch-mode') === 'navigate' || request.get('sec-fetch-dest') === 'document';
 }
 
-function mountFrontend(app, requirePageSession) {
+function mountFrontend(app, requirePageSession, requirePageRole) {
   for (const [legacy, canonical] of LEGACY_PAGE_REDIRECTS) app.get(legacy, (request, response) => response.redirect(308, canonicalRedirectTarget(request, canonical)));
   app.get('/player.html', (request, response, next) => {
     if (isBrowserNavigation(request)) return response.redirect(308, canonicalRedirectTarget(request, '/player'));
@@ -164,7 +172,10 @@ function mountFrontend(app, requirePageSession) {
   });
   app.get('/signin', (_request, response) => sendHtmlFile(response, 'signin.html'));
   app.get('/player', (_request, response) => sendHtmlFile(response, 'player.html'));
-  for (const page of AUTHENTICATED_PAGES) app.get(page.path, requirePageSession, (_request, response) => sendHtmlFile(response, page.file));
+  app.get(MANAGER_PAGE.path, requirePageSession, requirePageRole('manager'), (_request, response) => sendHtmlFile(response, MANAGER_PAGE.file));
+  for (const page of AUTHENTICATED_PAGES) {
+    app.get(page.path, requirePageSession, requirePageRole('administrator'), (_request, response) => sendHtmlFile(response, page.file));
+  }
   app.use('/vendor', express.static(path.join(nodeModulesDir, 'jsqr', 'dist'), { etag: true, maxAge: 0, setHeaders(response) { response.setHeader('Cache-Control', 'no-cache, must-revalidate'); } }));
   app.use(express.static(publicDir, {
     index: false, etag: true, maxAge: 0,
@@ -187,10 +198,10 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   mountPublicRoutes(app, { store, config, realtime });
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
   const resolveSession = createSessionResolver(store, config);
-  const { requireApiSession, requirePageSession } = createSessionMiddleware(resolveSession);
+  const { requireApiSession, requirePageSession, requireApiRole, requirePageRole } = createSessionMiddleware(resolveSession);
   const dependencies = { store, config, realtime };
-  mountProtectedApi(app, dependencies, requireApiSession);
-  mountFrontend(app, requirePageSession);
+  mountProtectedApi(app, dependencies, requireApiSession, requireApiRole);
+  mountFrontend(app, requirePageSession, requirePageRole);
   app.use(errorHandler);
   return { app, store, config, realtime };
 }

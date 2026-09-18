@@ -7,6 +7,7 @@ function sessionResponse(request, preferences, settings, config) {
     status: 'ok',
     app_name: settings.application_name || config.appName,
     username: request.session.sub,
+    role: request.session.user.role,
     display_name: preferences.display_name,
     theme: preferences.theme,
     notifications_enabled: preferences.notifications_enabled
