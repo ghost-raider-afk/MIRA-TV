@@ -41,7 +41,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     read('src/web/admin-ui/public/css/weather-widget.css')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v21/);
+  assert.match(worker, /mira-tv-player-shell-v22/);
   for (const asset of [
     '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css','/css/weather-widget.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
@@ -126,11 +126,21 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.doesNotMatch(playerContextService, /store\.getAnimationSettings\(\)/);
   assert.match(playerContextService, /environment:\s*animationSettings\?\.environment \|\| null/);
   assert.match(playerContextService, /weather:\s*weather \|\| null/);
+  assert.match(playerContextService, /app_version:\s*config\.appVersion/);
   assert.match(playerCss, /\.tv-player-weather-layer/);
   assert.match(playerCss, /\.tv-player-announcement-layer/);
+  assert.match(player, /const PLAYER_BUILD_VERSION = '1\.10\.2'/);
+  assert.match(player, /const PLAYER_RELOAD_VERSION_KEY = 'mira-tv\.player-reload-version\.v1'/);
   assert.match(player, /serviceWorker\.register\('\/player-sw\.js'/);
+  assert.match(player, /registration\.update\(\)/);
+  assert.match(player, /waitForServiceWorkerActivation/);
+  assert.match(player, /sessionStorage\.setItem\(PLAYER_RELOAD_VERSION_KEY/);
+  assert.match(player, /source === 'last-known-good'/);
+  assert.match(player, /changedNames\?\.includes\('runtime'\)/);
+  assert.match(player, /serverVersion === PLAYER_BUILD_VERSION/);
+  assert.match(player, /serviceWorker\.addEventListener\('controllerchange'/);
   assert.match(player, /void registerOfflinePlayer\(\)/);
-  assert.doesNotMatch(player, /await registerOfflinePlayer\(\)/);
+  assert.doesNotMatch(player, /setInterval\([^)]*(?:version|serviceWorker|registration\.update)/i);
 
   assert.match(flatRenderer, /layer\.innerHTML = svg/);
   assert.doesNotMatch(flatRenderer, /createElement\('canvas'\)|drawImage\(|createImageBitmap/);

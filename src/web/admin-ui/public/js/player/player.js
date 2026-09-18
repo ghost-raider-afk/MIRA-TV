@@ -19,6 +19,8 @@ import { PlayerWeatherRuntime } from './weather-bootstrap.js';
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
+const PLAYER_BUILD_VERSION = '1.10.2';
+const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const ALL_PLAYER_COMPONENTS = Object.freeze([
   'screen',
   'menu',
@@ -55,6 +57,15 @@ let wakeLock = null;
 let activationRequestInFlight = false;
 let bootstrapRetryTimer = null;
 let playerStateSync = null;
+let offlinePlayerRegistrationPromise = null;
+let playerBuildUpdatePromise = null;
+let serviceWorkerControllerChanged = false;
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    serviceWorkerControllerChanged = true;
+  });
+}
 
 function setHidden(element, hidden) {
   element?.classList.toggle('is-hidden', hidden);
@@ -498,6 +509,7 @@ function showConnectionMessage(message) {
 async function applySyncedContext(context, changedNames, { source } = {}) {
   clearPairingTimers();
   await renderPlayerContext(context, changedNames);
+  reconcilePlayerBuild(context, changedNames, source);
   setHidden(activationView, true);
   setHidden(player, false);
   dispatchPlayerActivity(true);
@@ -554,14 +566,88 @@ async function loadPlayer({ fallbackToActivation = true } = {}) {
   return false;
 }
 
+function storedReloadVersion() {
+  try { return sessionStorage.getItem(PLAYER_RELOAD_VERSION_KEY) || ''; }
+  catch { return ''; }
+}
+
+function rememberReloadVersion(version) {
+  try { sessionStorage.setItem(PLAYER_RELOAD_VERSION_KEY, version); }
+  catch {}
+}
+
+function clearReloadVersion() {
+  try { sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY); }
+  catch {}
+}
+
+function waitForServiceWorkerActivation(worker) {
+  if (!worker) return Promise.resolve(false);
+  if (worker.state === 'activated') return Promise.resolve(true);
+  if (worker.state === 'redundant') return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const onStateChange = () => {
+      if (worker.state !== 'activated' && worker.state !== 'redundant') return;
+      worker.removeEventListener('statechange', onStateChange);
+      resolve(worker.state === 'activated');
+    };
+    worker.addEventListener('statechange', onStateChange);
+  });
+}
+
 async function registerOfflinePlayer() {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    await navigator.serviceWorker.register('/player-sw.js', { scope: '/' });
-    await navigator.serviceWorker.ready;
-  } catch (error) {
-    console.warn('Offline TV player service worker could not start', error);
+  if (!('serviceWorker' in navigator)) return null;
+  if (!offlinePlayerRegistrationPromise) {
+    offlinePlayerRegistrationPromise = (async () => {
+      const registration = await navigator.serviceWorker.register('/player-sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+      return registration;
+    })().catch((error) => {
+      offlinePlayerRegistrationPromise = null;
+      console.warn('Offline TV player service worker could not start', error);
+      return null;
+    });
   }
+  return offlinePlayerRegistrationPromise;
+}
+
+async function updatePlayerBuild(serverVersion) {
+  if (playerBuildUpdatePromise) return playerBuildUpdatePromise;
+  playerBuildUpdatePromise = (async () => {
+    const registration = await registerOfflinePlayer();
+    if (!registration) return false;
+
+    const controllerChangedBeforeUpdate = serviceWorkerControllerChanged;
+    await registration.update();
+
+    const candidate = registration.installing || registration.waiting;
+    const activated = candidate
+      ? await waitForServiceWorkerActivation(candidate)
+      : controllerChangedBeforeUpdate || serviceWorkerControllerChanged;
+
+    if (!activated) return false;
+    rememberReloadVersion(serverVersion);
+    location.reload();
+    return true;
+  })().catch((error) => {
+    console.warn('MIRA-TV Player update could not be activated', error);
+    return false;
+  }).finally(() => {
+    playerBuildUpdatePromise = null;
+  });
+  return playerBuildUpdatePromise;
+}
+
+function reconcilePlayerBuild(context, changedNames, source) {
+  if (source === 'last-known-good' || !changedNames?.includes('runtime')) return;
+  const serverVersion = String(context?.app_version || '').trim();
+  if (!serverVersion) return;
+  if (serverVersion === PLAYER_BUILD_VERSION) {
+    clearReloadVersion();
+    return;
+  }
+  if (storedReloadVersion() === serverVersion) return;
+  void updatePlayerBuild(serverVersion);
 }
 
 async function bootstrapPlayer() {

@@ -70,8 +70,15 @@ test('weather editor controls atmosphere motion without separating monitor targe
   assert.match(widget, /layer\.dataset\.weatherAnimation/);
   assert.match(widget, /--weather-atmosphere-opacity/);
   assert.match(widget, /layer\.append\(atmosphere, widget\)/);
-  assert.match(widget, /card\.style\.left = `\$\{\(config\.x \/ 1920\) \* 100\}%`/);
-  assert.match(widget, /card\.style\.top = `\$\{\(config\.y \/ 1080\) \* 100\}%`/);
+  assert.match(widget, /export const WEATHER_SCENE_WIDTH = 1920/);
+  assert.match(widget, /export const WEATHER_SCENE_HEIGHT = 1080/);
+  assert.match(widget, /card\.style\.left = `\$\{\(config\.x \/ WEATHER_SCENE_WIDTH\) \* 100\}%`/);
+  assert.match(widget, /card\.style\.top = `\$\{\(config\.y \/ WEATHER_SCENE_HEIGHT\) \* 100\}%`/);
+  assert.match(studio, /Math\.min\(width \/ WEATHER_SCENE_WIDTH, height \/ WEATHER_SCENE_HEIGHT\)/);
+  assert.match(studio, /originX:\s*rect\.left \+ stage\.clientLeft/);
+  assert.match(studio, /originY:\s*rect\.top \+ stage\.clientTop/);
+  assert.match(studio, /\(event\.clientX - metrics\.originX - metrics\.offsetX\) \/ metrics\.scale/);
+  assert.match(studio, /\(event\.clientY - metrics\.originY - metrics\.offsetY\) \/ metrics\.scale/);
 
   assert.match(css, /data-weather-widget-motion="off"/);
   assert.match(css, /--weather-rain-duration/);
@@ -135,8 +142,9 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('weather runtime changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v21'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v22'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v20'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v20'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v21'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });

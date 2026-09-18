@@ -283,8 +283,8 @@
   --weather-scale: 1;
   position: absolute;
   z-index: 4;
-  width: min(var(--weather-width), 42%);
-  min-width: 260px;
+  width: var(--weather-width);
+  min-width: 0;
   padding: 18px;
   color: var(--mira-menu-text, #fff);
   font-family: Arial, sans-serif;
@@ -410,24 +410,24 @@
 }
 
 @keyframes weather-rain-fall {
-  from { transform: translate3d(0,-16vh,0); }
-  to { transform: translate3d(-4vw,132vh,0); }
+  from { transform: translate3d(0,-173px,0); }
+  to { transform: translate3d(-77px,1426px,0); }
 }
 
 @keyframes weather-snow-fall {
-  0% { transform: translate3d(0,-12vh,0) rotate(0); opacity: 0; }
+  0% { transform: translate3d(0,-130px,0) rotate(0); opacity: 0; }
   10% { opacity: .9; }
-  100% { transform: translate3d(8vw,126vh,0) rotate(260deg); opacity: .12; }
+  100% { transform: translate3d(154px,1361px,0) rotate(260deg); opacity: .12; }
 }
 
 @keyframes weather-cloud-drift {
-  from { transform: translate3d(-7vw,0,0) scale(.92); }
-  to { transform: translate3d(10vw,2.5vh,0) scale(1.08); }
+  from { transform: translate3d(-134px,0,0) scale(.92); }
+  to { transform: translate3d(192px,27px,0) scale(1.08); }
 }
 
 @keyframes weather-fog-drift {
-  from { transform: translate3d(-7vw,0,0); }
-  to { transform: translate3d(11vw,1vh,0); }
+  from { transform: translate3d(-134px,0,0); }
+  to { transform: translate3d(211px,11px,0); }
 }
 
 @keyframes weather-lightning-flash {

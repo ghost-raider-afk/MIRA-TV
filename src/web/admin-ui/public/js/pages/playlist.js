@@ -95,7 +95,6 @@ function restartPreview() {
     renderAquariumPreview(false);
     const profile = readMotionProfile();
     player?.restart(profile, currentEntity, menuMotionEnabled(profile));
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) player?.pause();
   });
 }
 

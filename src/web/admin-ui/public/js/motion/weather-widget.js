@@ -6,6 +6,9 @@ const LEGACY_POSITION = Object.freeze({
   'bottom-right': Object.freeze({ x: 1660, y: 890 })
 });
 
+export const WEATHER_SCENE_WIDTH = 1920;
+export const WEATHER_SCENE_HEIGHT = 1080;
+
 const MOTION_DURATIONS = Object.freeze({
   rain: 1.18,
   rainShort: 0.92,
@@ -58,8 +61,8 @@ export function normaliseWeatherWidget(source = {}) {
     timezone: String(value.timezone || 'auto'),
     preset: 'adaptive',
     position,
-    x: clamp(value.x, 0, 1920, legacy.x),
-    y: clamp(value.y, 0, 1080, legacy.y),
+    x: clamp(value.x, 0, WEATHER_SCENE_WIDTH, legacy.x),
+    y: clamp(value.y, 0, WEATHER_SCENE_HEIGHT, legacy.y),
     scale: clamp(value.scale, 0.4, 2.5, 1),
     refresh_minutes: Math.round(clamp(value.refresh_minutes, 5, 120, 15)),
     width_px: Math.round(clamp(value.width_px, 260, 760, 420)),
@@ -183,8 +186,8 @@ function createContent(config, data) {
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
-  card.style.left = `${(config.x / 1920) * 100}%`;
-  card.style.top = `${(config.y / 1080) * 100}%`;
+  card.style.left = `${(config.x / WEATHER_SCENE_WIDTH) * 100}%`;
+  card.style.top = `${(config.y / WEATHER_SCENE_HEIGHT) * 100}%`;
 
   const content = document.createElement('div');
   content.className = 'weather-widget-content';
@@ -247,6 +250,8 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   const config = normaliseWeatherWidget(settings);
   layer.replaceChildren();
   layer.className = 'weather-widget-layer';
+  const sceneScale = Number(layer.dataset.weatherSceneScale);
+  if (!Number.isFinite(sceneScale) || sceneScale <= 0) layer.dataset.weatherSceneScale = '1';
   layer.dataset.weatherEnabled = config.enabled ? 'true' : 'false';
   applyMotionSettings(layer, config);
   if (!config.enabled) return;

@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v19';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v20';
-const SHELL_CACHE = 'mira-tv-player-shell-v21';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v20';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v21';
+const SHELL_CACHE = 'mira-tv-player-shell-v22';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: unified Scene Motion Runtime, canonical weather layer and scene visibility. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: v1.10.2 Player version sync, canonical weather layer and scene visibility. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
