@@ -99,6 +99,7 @@ function restartPreview() {
 function announcementFromControls() {
   return normaliseAnnouncement({
     enabled: checked('animation-announcement-enabled'),
+    animation_enabled: checked('animation-announcement-animation-enabled'),
     text: value('animation-announcement-text'),
     position: value('animation-announcement-position'),
     speed_px_per_second: number('animation-announcement-speed'),
@@ -119,6 +120,8 @@ function syncAnnouncementControls(announcement = currentAnnouncement) {
   const enabled = element('animation-announcement-enabled');
   const glowEnabled = element('animation-announcement-glow-enabled');
   if (enabled) enabled.checked = current.enabled;
+  const animationEnabled = element('animation-announcement-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   if (glowEnabled) glowEnabled.checked = current.glow_enabled;
   setValue('animation-announcement-text', current.text);
   setValue('animation-announcement-position', current.position);
@@ -143,7 +146,7 @@ function syncAnnouncementControls(announcement = currentAnnouncement) {
 
 function bindAnnouncementControls() {
   const ids = [
-    'animation-announcement-enabled', 'animation-announcement-text', 'animation-announcement-position',
+    'animation-announcement-enabled', 'animation-announcement-animation-enabled', 'animation-announcement-text', 'animation-announcement-position',
     'animation-announcement-speed', 'animation-announcement-font-size', 'animation-announcement-font-family',
     'animation-announcement-vertical-scale', 'animation-announcement-text-color',
     'animation-announcement-background-color', 'animation-announcement-opacity',
@@ -164,6 +167,7 @@ function bindAnnouncementControls() {
 function brandFromControls() {
   return normaliseBrandTitle({
     enabled: checked('animation-brand-enabled'),
+    animation_enabled: checked('animation-brand-animation-enabled'),
     text: value('animation-brand-text'),
     x: number('animation-brand-x'),
     y: number('animation-brand-y'),
@@ -192,6 +196,8 @@ function syncBrandControls(brand = currentBrand) {
   const current = normaliseBrandTitle(brand);
   const enabled = element('animation-brand-enabled');
   if (enabled) enabled.checked = current.enabled;
+  const animationEnabled = element('animation-brand-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   setValue('animation-brand-text', current.text);
   setValue('animation-brand-x', Math.round(current.x));
   setValue('animation-brand-y', Math.round(current.y));
@@ -247,7 +253,7 @@ function alignBrand(mode) {
 
 function bindBrandControls() {
   const ids = [
-    'animation-brand-enabled', 'animation-brand-text', 'animation-brand-x', 'animation-brand-y',
+    'animation-brand-enabled', 'animation-brand-animation-enabled', 'animation-brand-text', 'animation-brand-x', 'animation-brand-y',
     'animation-brand-font-family', 'animation-brand-font-size', 'animation-brand-vertical-scale',
     'animation-brand-letter-spacing', 'animation-brand-line-spacing', 'animation-brand-text-color', 'animation-brand-glow-color',
     'animation-brand-glow-strength', 'animation-brand-entrance-effect', 'animation-brand-effect', 'animation-brand-exit-effect',
@@ -270,6 +276,7 @@ function bindBrandControls() {
 function aquariumFromControls() {
   return aquariumParameters(aquariumEnvironment({
     enabled: checked('animation-aquarium-enabled'),
+    animation_enabled: checked('animation-aquarium-animation-enabled'),
     style: value('animation-aquarium-style'),
     intro_fill: checked('animation-aquarium-intro'),
     intensity: number('animation-aquarium-intensity'),
@@ -286,6 +293,8 @@ function syncAquariumControls(aquarium = currentAquarium) {
   const enabled = element('animation-aquarium-enabled');
   const intro = element('animation-aquarium-intro');
   if (enabled) enabled.checked = current.enabled;
+  const animationEnabled = element('animation-aquarium-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   if (intro) intro.checked = current.intro_fill;
   setValue('animation-aquarium-style', current.style);
   setValue('animation-aquarium-intensity', current.intensity);
@@ -307,7 +316,7 @@ function syncAquariumControls(aquarium = currentAquarium) {
 
 function bindAquariumControls() {
   const ids = [
-    'animation-aquarium-enabled', 'animation-aquarium-style', 'animation-aquarium-intro',
+    'animation-aquarium-enabled', 'animation-aquarium-animation-enabled', 'animation-aquarium-style', 'animation-aquarium-intro',
     'animation-aquarium-intensity', 'animation-aquarium-fish-count', 'animation-aquarium-bubbles',
     'animation-aquarium-plants', 'animation-aquarium-caustics', 'animation-aquarium-speed'
   ];
@@ -338,6 +347,8 @@ function syncEntityControls(entity = currentEntity) {
   setValue('animation-entity-name', current.name);
   const visible = element('animation-entity-visible');
   if (visible) visible.checked = current.visible;
+  const animationEnabled = element('animation-entity-animation-enabled');
+  if (animationEnabled) animationEnabled.checked = current.animation_enabled !== false;
   setValue('animation-entity-x', Math.round(current.transform.x));
   setValue('animation-entity-y', Math.round(current.transform.y));
   setValue('animation-entity-width', Math.round(current.transform.width));
@@ -437,6 +448,7 @@ function bindEntityControls(generation) {
   });
   element('animation-entity-name')?.addEventListener('input', () => patchEntity({ name: value('animation-entity-name') || 'Бокал пива' }));
   element('animation-entity-visible')?.addEventListener('change', () => patchEntity({ visible: checked('animation-entity-visible') }));
+  element('animation-entity-animation-enabled')?.addEventListener('change', () => patchEntity({ animation_enabled: checked('animation-entity-animation-enabled') }));
   element('animation-entity-loop')?.addEventListener('change', () => patchEntity({ loop: checked('animation-entity-loop') }));
   element('animation-entity-muted')?.addEventListener('change', () => patchEntity({ muted: checked('animation-entity-muted') }));
   element('animation-entity-playback-rate')?.addEventListener('input', () => patchEntity({ playback_rate: number('animation-entity-playback-rate') }));
