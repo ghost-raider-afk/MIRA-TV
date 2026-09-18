@@ -211,8 +211,9 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 }
 
 @media(min-width:1181px){
-  .animation-inspector{grid-template-rows:auto auto minmax(150px,1fr) auto auto;gap:7px;padding:8px}
-  .animation-object-panels{min-height:0;max-height:none}
+  .animation-inspector{grid-template-rows:auto auto minmax(0,1fr) auto auto auto;gap:7px;padding:8px}
+  .animation-object-panels{min-height:0;max-height:none;height:100%;overflow:hidden}
+  .animation-object-panels>[data-animation-object-panel]{height:100%;min-height:0;overflow:auto;overscroll-behavior:contain}
   .animation-targets{padding:0;border-radius:8px;overflow:hidden}
   .animation-targets>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:5px 8px;cursor:pointer;list-style:none}
   .animation-targets>summary::-webkit-details-marker{display:none}
