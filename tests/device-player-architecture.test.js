@@ -22,9 +22,10 @@ test('player is public while TV connection page remains admin protected', async 
 });
 
 test('real TV player owns all scene layers and uses one offline-first state owner', async () => {
-  const [worker, player, sync, store, realtimeClient, playerHtml, sceneMotionRuntime, layerComposer, publicRoutes, playerContextService, playerCss, playlistCss, flatRenderer, weatherRuntime, weatherWidget, weatherCss] = await Promise.all([
+  const [worker, player, sceneRenderer, sync, store, realtimeClient, playerHtml, sceneMotionRuntime, layerComposer, publicRoutes, playerContextService, playerCss, playlistCss, flatRenderer, weatherRuntime, weatherWidget, weatherCss] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
     read('src/web/admin-ui/public/js/player/player.js'),
+    read('src/web/admin-ui/public/js/player/player-scene-renderer.js'),
     read('src/web/admin-ui/public/js/player/player-state-sync.js'),
     read('src/web/admin-ui/public/js/player/player-store.js'),
     read('src/web/admin-ui/public/js/player/player-realtime-client.js'),
@@ -41,11 +42,11 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     read('src/web/admin-ui/public/css/weather-widget.css')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v22/);
+  assert.match(worker, /mira-tv-player-shell-v23/);
   for (const asset of [
     '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css','/css/weather-widget.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
-    '/js/player/player-store.js','/js/player/player-realtime-client.js','/js/player/player-state-sync.js',
+    '/js/player/player-store.js','/js/player/player-realtime-client.js','/js/player/player-state-sync.js','/js/player/player-scene-renderer.js',
     '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/weather-bootstrap.js',
     '/js/motion/weather-widget.js','/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
     '/js/motion/scene-playlist-runtime.js','/js/motion/scene-motion-runtime.js','/js/motion/scene-visibility.js',
@@ -86,17 +87,19 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(realtimeClient, /new WebSocket\(`/);
   assert.match(realtimeClient, /BACKOFF_MS/);
 
-  assert.match(player, /new SceneMotionRuntime\(playerStage, \{ activityControlled: true \}\)/);
-  assert.match(player, /new PlayerWeatherRuntime\(playerStage/);
-  assert.match(player, /new PlayerSceneLayerComposer\(playerStage\)/);
-  assert.match(player, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
-  assert.match(player, /renderBrandTitleLayer\(brandLayer, context\.brand\)/);
-  assert.match(player, /renderAnnouncementLayer\(announcementLayer, context\.announcement\)/);
-  assert.match(player, /weatherRuntime\.applyContext\(context\.weather/);
-  assert.match(player, /scenePlaylistRuntime\.render\(context\.scene_playlist/);
-  assert.match(player, /sceneMotionRuntime\.render\(/);
-  assert.match(player, /entity:\s*context\.entity/);
+  assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
+  assert.match(sceneRenderer, /new SceneMotionRuntime\(stage, \{ activityControlled: true \}\)/);
+  assert.match(sceneRenderer, /new PlayerWeatherRuntime\(stage/);
+  assert.match(sceneRenderer, /new PlayerSceneLayerComposer\(stage\)/);
+  assert.match(sceneRenderer, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
+  assert.match(sceneRenderer, /renderBrandTitleLayer\(brandLayer, context\.brand\)/);
+  assert.match(sceneRenderer, /renderAnnouncementLayer\(announcementLayer, context\.announcement\)/);
+  assert.match(sceneRenderer, /this\.weatherRuntime\.applyContext\(context\.weather/);
+  assert.match(sceneRenderer, /this\.scenePlaylistRuntime\.render\(context\.scene_playlist/);
+  assert.match(sceneRenderer, /this\.sceneMotionRuntime\.render\(/);
+  assert.match(sceneRenderer, /entity:\s*context\.entity/);
   assert.doesNotMatch(player, /GpuSceneRuntime|entity-runtime/);
+  assert.doesNotMatch(sceneRenderer, /GpuSceneRuntime|entity-runtime/);
 
   assert.match(sceneMotionRuntime, /buildDomMotionScene/);
   assert.match(sceneMotionRuntime, /WasmMotionDriver/);
@@ -158,14 +161,18 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(weatherCss, /weather-lightning-flash/);
 });
 
-test('Player rerenders only dirty scene components', async () => {
-  const player = await read('src/web/admin-ui/public/js/player/player.js');
-  assert.match(player, /async function renderPlayerContext\(context, changedNames/);
-  assert.match(player, /const menuDirty = dirty\.has\('menu'\) \|\| dirty\.has\('screen'\)/);
-  assert.match(player, /if \(menuDirty\) \{[\s\S]*?flatMenuRenderer\.render/);
-  assert.match(player, /if \(dirty\.has\('entity'\)\) \{\s*renderSceneEntity/);
-  assert.match(player, /if \(dirty\.has\('brand'\)\) \{\s*renderBrandTitleLayer/);
-  assert.match(player, /if \(dirty\.has\('announcement'\)\) \{\s*renderAnnouncementLayer/);
+test('shared Player Scene Renderer rerenders only dirty scene components', async () => {
+  const [player, renderer] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/player.js'),
+    read('src/web/admin-ui/public/js/player/player-scene-renderer.js')
+  ]);
+  assert.match(player, /playerSceneRenderer\.render\(context, changedNames\)/);
+  assert.match(renderer, /async render\(context, changedNames = ALL_PLAYER_COMPONENTS\)/);
+  assert.match(renderer, /const menuDirty = dirty\.has\('menu'\) \|\| dirty\.has\('screen'\)/);
+  assert.match(renderer, /if \(menuDirty\) \{[\s\S]*?this\.flatMenuRenderer\.render/);
+  assert.match(renderer, /if \(dirty\.has\('entity'\)\) \{\s*renderSceneEntity/);
+  assert.match(renderer, /if \(dirty\.has\('brand'\)\) \{\s*renderBrandTitleLayer/);
+  assert.match(renderer, /if \(dirty\.has\('announcement'\)\) \{\s*renderAnnouncementLayer/);
   assert.doesNotMatch(player, /setInterval\([^)]*refresh|schedulePlayerRefresh|refreshPlayer\(/);
 });
 
