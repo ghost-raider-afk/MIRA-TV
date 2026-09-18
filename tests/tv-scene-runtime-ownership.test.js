@@ -37,5 +37,6 @@ test('TV Player and Preview share one SceneMotionRuntime ownership model', async
   assert.match(plan, /compilePromotionMotionProgram/);
   assert.match(plan, /context\.menuEnabled === false/);
 
-  assert.ok(worker.includes('/wasm/mira-motion-kernel.wasm'));
+  assert.ok(worker.includes('/js/motion/wasm-motion-kernel.js'));
+  assert.ok(!worker.includes('/wasm/mira-motion-kernel.wasm'));
 });
