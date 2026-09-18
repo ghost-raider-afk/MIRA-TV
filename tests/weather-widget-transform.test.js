@@ -93,7 +93,9 @@ test('one atomic application publishes all animation layers and weather to the s
   ]);
 
   assert.match(playlist, /API\.animationApply/);
-  assert.match(playlist, /screen_ids:\s*screenIds/);
+  assert.match(playlist, /screen_ids:\s*ids/);
+  assert.match(playlist, /activePreviewScreenId\s*\?\s*\[activePreviewScreenId\]/);
+  assert.match(playlist, /mira:animation-object-switch-changed/);
   assert.match(playlist, /weather:\s*weatherStudioSettings\(\)/);
   assert.doesNotMatch(application, /\/api\/weather\/settings/);
   assert.doesNotMatch(application, /\.click\(\)/);
