@@ -64,9 +64,9 @@ button { font: inherit; }
 .tv-player-content-layer { z-index: 3; overflow: hidden; pointer-events: none; }
 .tv-player-gpu-menu-fx { position: absolute; overflow: hidden; pointer-events: none; contain: paint; }
 .tv-player-gpu-effect { position: absolute; inset: -42%; opacity: 0; pointer-events: none; will-change: transform, opacity; transform: translate3d(0,0,0); }
-.tv-player-gpu-effect.is-sweep { background: linear-gradient(100deg,transparent 32%,rgba(255,255,255,.18) 47%,rgba(246,201,14,.16) 50%,rgba(255,255,255,.12) 53%,transparent 68%); }
-.tv-player-gpu-effect.is-spark { background: linear-gradient(100deg,transparent 38%,rgba(255,255,255,.28) 48%,rgba(246,201,14,.22) 50%,rgba(255,255,255,.2) 52%,transparent 62%); }
-.tv-player-gpu-effect.is-pulse,.tv-player-gpu-effect.is-focus { background: radial-gradient(ellipse at center,rgba(255,255,255,.16),rgba(246,201,14,.10) 34%,transparent 68%); }
+.tv-player-gpu-effect.is-sweep { background: linear-gradient(100deg,transparent 32%,rgba(246,201,14,.08) 47%,rgba(246,201,14,.16) 50%,rgba(246,201,14,.08) 53%,transparent 68%); }
+.tv-player-gpu-effect.is-spark { background: linear-gradient(100deg,transparent 38%,rgba(246,201,14,.12) 48%,rgba(246,201,14,.22) 50%,rgba(246,201,14,.12) 52%,transparent 62%); }
+.tv-player-gpu-effect.is-pulse,.tv-player-gpu-effect.is-focus { background: radial-gradient(ellipse at center,rgba(246,201,14,.12),rgba(246,201,14,.08) 34%,transparent 68%); }
 .tv-player-stage [data-motion] { opacity: 1; transform-box: fill-box; transform-origin: center; }
 .tv-player-entity-layer { z-index: 4; overflow: hidden; pointer-events: none; }
 .tv-player-entity-layer .animation-scene-entity { position: absolute; transform-origin: top left; pointer-events: none; }
