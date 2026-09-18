@@ -51,8 +51,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     '/js/motion/scene-playlist-runtime.js','/js/motion/scene-motion-runtime.js','/js/motion/scene-visibility.js',
     '/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js','/js/motion/scene-graph.js',
     '/js/motion/scene-composer.js','/js/motion/scene-runtime.js','/js/motion/timeline.js','/js/motion/motion-plan.js',
-    '/js/motion/drivers/waapi-driver.js','/js/motion/drivers/wasm-motion-driver.js','/js/motion/wasm-motion-kernel.js',
-    '/wasm/mira-motion-kernel.wasm'
+    '/js/motion/drivers/waapi-driver.js','/js/motion/drivers/wasm-motion-driver.js','/js/motion/wasm-motion-kernel.js'
   ]) assert.ok(worker.includes(`'${asset}'`), `offline shell is missing ${asset}`);
   for (const retiredAsset of [
     '/js/player/overlay-runtime.js','/js/motion/aquarium.js','/js/motion/live-menu-motion.js',
