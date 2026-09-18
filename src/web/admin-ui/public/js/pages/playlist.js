@@ -696,6 +696,7 @@ async function applySettingsToScreens(generation, { screenIds = null, silent = f
   try {
     const desired = settingsSnapshot || playlistPayload();
     const weather = weatherSnapshot || weatherStudioSettings();
+    window.dispatchEvent(new CustomEvent('mira:animation-apply-started', { detail: { screenIds: ids, editVersion: requestEditVersion } }));
     const result = await api.put(API.animationApply, { screen_ids: ids, settings: desired, weather });
     if (!studioIsActive(generation)) return null;
 
@@ -709,7 +710,7 @@ async function applySettingsToScreens(generation, { screenIds = null, silent = f
     const suffix = revision ? ` · revision ${revision}` : '';
     if (stillCurrent) setMessage('animation-message', `Применено на ТВ: ${ids.length}${suffix}.`, 'success');
     else setMessage('animation-message', `ТВ обновлён${suffix}, но в Preview уже есть более новые изменения.`, 'success');
-    window.dispatchEvent(new CustomEvent('mira:animation-applied-to-tv', { detail: { screenIds: ids, revision } }));
+    window.dispatchEvent(new CustomEvent('mira:animation-applied-to-tv', { detail: { screenIds: ids, revision, editVersion: requestEditVersion } }));
     return result;
   } catch (error) {
     if (studioIsActive(generation) && !silent) setMessage('animation-message', error.message);
@@ -809,7 +810,9 @@ export function initialisePlaylistStudio() {
     const target = event.target;
     if (!(target instanceof Element) || target.closest('#animation-inspector-actions')) return;
     studioEditVersion += 1;
+    if (inspector instanceof HTMLElement) inspector.dataset.editVersion = String(studioEditVersion);
   };
+  if (inspector instanceof HTMLElement) inspector.dataset.editVersion = String(studioEditVersion);
   inspector?.addEventListener('input', onStudioEditVersion);
   inspector?.addEventListener('change', onStudioEditVersion);
   window.addEventListener('mira:route-dispose', () => {
