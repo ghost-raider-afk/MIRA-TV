@@ -16,6 +16,7 @@ export const DEFAULT_AQUARIUM_PARAMETERS = Object.freeze({
 
 export const DEFAULT_ENVIRONMENT = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   effect: 'none',
   parameters: DEFAULT_AQUARIUM_PARAMETERS
 });
@@ -50,6 +51,7 @@ export function completeEnvironment(value = {}) {
   const effect = ENVIRONMENT_EFFECTS.includes(source.effect) ? source.effect : DEFAULT_ENVIRONMENT.effect;
   return {
     enabled: source.enabled === true && effect !== 'none',
+    animation_enabled: source.animation_enabled !== false,
     effect,
     parameters: completeAquariumParameters(source.parameters)
   };
@@ -66,6 +68,7 @@ export function environmentFromLegacyAquarium(value = {}) {
   const source = sourceObject(value);
   return completeEnvironment({
     enabled: source.enabled === true,
+    animation_enabled: source.animation_enabled !== false,
     effect: source.enabled === true ? 'aquarium' : 'none',
     parameters: source
   });
