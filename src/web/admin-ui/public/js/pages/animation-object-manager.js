@@ -140,7 +140,7 @@ function makeSwitch(labelText,kind,key,onChange){
   const label=document.createElement('label');
   label.className='animation-object-switch';
   const input=document.createElement('input');
-  input.type='checkbox'; input.className='animation-object-toggle'; input.dataset.animationObjectToggle=kind; input.dataset.animationObject=key;
+  input.type='checkbox'; input.className='animation-object-toggle'; input.dataset.animationObjectToggle=kind;
   input.setAttribute('aria-label',`${labelText}: ${kind==='visible'?'показывать':'анимация'}`);
   input.addEventListener('change',()=>onChange(input.checked));
   const text=document.createElement('span');
