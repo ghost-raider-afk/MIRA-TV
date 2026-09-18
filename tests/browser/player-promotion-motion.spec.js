@@ -45,7 +45,7 @@ function playerContext() {
   };
 }
 
-test('TV Player animates the same promotion badge and row glow that Preview shows', async ({ browser }) => {
+test('TV Player uses the same unified promotion motion as Preview', async ({ browser }) => {
   const context = await browser.newContext({ baseURL, serviceWorkers: 'block' });
   await context.addInitScript(() => {
     class FakeWebSocket extends EventTarget {
@@ -91,14 +91,19 @@ test('TV Player animates the same promotion badge and row glow that Preview show
     });
 
     await page.goto('/player');
-    const badge = page.locator('[data-player-menu-layer] g.promotion-badge');
-    const glow = page.locator('[data-player-menu-layer] g.promotion-row-glow');
-    await expect(badge).toHaveCount(1);
-    await expect(glow).toHaveCount(1);
-    await expect.poll(() => badge.evaluate((node) => node.getAnimations().length)).toBeGreaterThan(0);
-    await expect.poll(() => glow.evaluate((node) => node.getAnimations().length)).toBeGreaterThan(0);
+    const row = page.locator('[data-player-menu-layer] g.table-item').first();
+    const surface = row.locator(':scope > .row-motion-surface-item');
+    const badge = row.locator(':scope > g.promotion-badge');
+    const glow = row.locator(':scope > g.promotion-row-glow');
+    await expect(surface).toHaveAttribute('data-motion', 'item');
+    await expect(badge).toHaveAttribute('data-motion', 'promotion');
+    await expect(glow).toHaveAttribute('data-motion', 'promotion-glow');
+    await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
     await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     await expect.poll(() => badge.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
+    expect(await surface.evaluate((node) => node.getAnimations().length)).toBe(0);
+    expect(await badge.evaluate((node) => node.getAnimations().length)).toBe(0);
+    await expect(page.locator('[data-player-stage]')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
   } finally {
     await context.close();
   }
