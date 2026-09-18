@@ -21,10 +21,11 @@ function installStatus() {
   if (!(targets instanceof HTMLElement)) return null;
   status = document.createElement('div');
   status.id = 'animation-apply-status';
-  status.className = 'weather-adaptive-note';
+  status.className = 'animation-apply-status';
   status.dataset.state = 'idle';
   status.textContent = 'Изменения ещё не опубликованы на телевизоры.';
-  targets.after(status);
+  const copy = targets.querySelector('.animation-targets-head > div:first-child');
+  (copy instanceof HTMLElement ? copy : targets).append(status);
   return status;
 }
 
