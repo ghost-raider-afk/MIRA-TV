@@ -224,3 +224,34 @@
     justify-self: start;
   }
 }
+
+/* 1.10.1: compact scene object matrix + one contextual settings panel. */
+.animation-object-manager{gap:7px;padding:8px}
+.animation-object-manager-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,240px) auto;align-items:end;gap:10px}
+.animation-object-manager-head h3{font-size:16px}
+.animation-object-manager-head>small{align-self:center;font-size:10px;white-space:nowrap}
+.animation-object-settings-picker{display:grid;grid-template-columns:auto minmax(120px,1fr);align-items:center;gap:6px;color:var(--ui-text-muted);font-size:11px;font-weight:750}
+.animation-object-settings-picker select{min-width:0;min-height:32px;padding:4px 28px 4px 8px;font-size:12px}
+.animation-object-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.animation-object-row{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"copy switches state";min-height:40px;padding:4px 6px;column-gap:7px;row-gap:0}
+.animation-object-copy{align-self:center}
+.animation-object-copy strong{font-size:12px}
+.animation-object-copy small{display:none}
+.animation-object-switches{gap:6px}
+.animation-object-switch{grid-template-columns:16px auto;min-height:28px;gap:4px;font-size:11px}
+.animation-object-switch input{width:16px;height:16px}
+.animation-object-tv-state{min-height:22px;padding:2px 6px;font-size:9px}
+.animation-object-configure{display:none!important}
+.animation-object-panels{max-height:260px;overflow:auto;padding-right:3px}
+@media(max-width:1380px){
+  .animation-object-manager-head{grid-template-columns:minmax(0,1fr) minmax(170px,220px)}
+  .animation-object-manager-head>small{grid-column:1/-1;text-align:left}
+  .animation-object-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"copy switches";min-height:38px}
+  .animation-object-tv-state{display:none}
+}
+@media(max-width:760px){
+  .animation-object-manager-head{grid-template-columns:1fr}
+  .animation-object-settings-picker{grid-template-columns:1fr}
+  .animation-object-list{grid-template-columns:1fr}
+  .animation-object-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"copy switches"}
+}
