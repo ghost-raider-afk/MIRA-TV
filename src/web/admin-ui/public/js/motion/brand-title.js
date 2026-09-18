@@ -13,6 +13,7 @@ const exitTimers = new WeakMap();
 
 export const DEFAULT_BRAND_TITLE = Object.freeze({
   enabled: false,
+  animation_enabled: true,
   text: '',
   x: 960,
   y: 96,
@@ -53,6 +54,7 @@ export function normaliseBrandTitle(value = {}) {
   const loopEffect = enumValue(source.loop_effect, LOOP_EFFECTS, legacyLoop);
   return {
     enabled: source.enabled === true,
+    animation_enabled: source.animation_enabled !== false,
     text: String(source.text ?? DEFAULT_BRAND_TITLE.text).replace(/\r\n?/g, '\n').trim().slice(0, 80),
     x: clamp(source.x, DEFAULT_BRAND_TITLE.x, 0, 1920),
     y: clamp(source.y, DEFAULT_BRAND_TITLE.y, 0, 1080),
@@ -126,9 +128,9 @@ export function renderBrandTitleLayer(layer, value) {
   const root = document.createElement('div');
   root.className = 'scene-brand-title';
   root.dataset.brandTitle = 'true';
-  root.dataset.entranceEffect = brand.entrance_effect;
-  root.dataset.loopEffect = brand.loop_effect;
-  root.dataset.exitEffect = brand.exit_effect;
+  root.dataset.entranceEffect = brand.animation_enabled ? brand.entrance_effect : 'none';
+  root.dataset.loopEffect = brand.animation_enabled ? brand.loop_effect : 'none';
+  root.dataset.exitEffect = brand.animation_enabled ? brand.exit_effect : 'none';
   root.dataset.exitDuration = String(brand.exit_duration_ms);
   root.setAttribute('aria-label', brand.text);
   root.style.left = `${(brand.x / 19.2).toFixed(4)}cqw`;
