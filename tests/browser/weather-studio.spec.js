@@ -121,7 +121,7 @@ test('one apply action publishes weather and other animations only to selected m
     const brandText = `ЕДИНЫЙ-${stamp}`;
     await page.locator('#animation-brand-text').fill(brandText);
 
-    await expect(page.locator('#animation-apply-status')).toContainText('неприменённые изменения');
+    await expect(page.locator('#animation-apply-status')).toContainText(/Есть изменения Preview|более новые изменения/);
     const applyRequests = [];
     const captureApply = (request) => {
       if (request.method() === 'PUT' && (request.url().endsWith('/api/settings/animation/apply') || request.url().endsWith('/api/weather/settings'))) {
