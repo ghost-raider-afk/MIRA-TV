@@ -271,7 +271,9 @@ export function initialiseAnimationObjectManager(){
 
   const screenSelect=node('animation-screen-select');
   const onScreenChange=()=>void refreshRemote();
+  const onScreenSelected=()=>void refreshRemote();
   screenSelect?.addEventListener('change',onScreenChange);
+  window.addEventListener('mira:animation-screen-selected',onScreenSelected);
   const message=node('animation-message');
   const observer=message instanceof HTMLElement?new MutationObserver(()=>{
     const text=message.textContent?.trim()||'';
@@ -284,7 +286,9 @@ export function initialiseAnimationObjectManager(){
   return { dispose(){
     disposed=true; refreshSequence+=1;
     listeners.forEach(([control,handler])=>{ control.removeEventListener('change',handler); control.removeEventListener('input',handler); });
-    screenSelect?.removeEventListener('change',onScreenChange); observer?.disconnect();
+    screenSelect?.removeEventListener('change',onScreenChange);
+    window.removeEventListener('mira:animation-screen-selected',onScreenSelected);
+    observer?.disconnect();
   }};
 }
 
