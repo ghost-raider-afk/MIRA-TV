@@ -42,12 +42,13 @@ test('desktop playlist studio fits preview, state matrix and active settings int
     await picker.selectOption(key);
     const panel = inspector.locator(`[data-animation-object-panel="${key}"]`);
     await expect(panel).toBeVisible();
-    const geometry = await panel.evaluate((node) => {
+    const geometry = await inspector.locator('.animation-object-panels').evaluate((node) => {
       const rect = node.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight };
     });
     expect(geometry.top).toBeGreaterThanOrEqual(0);
     expect(geometry.bottom).toBeLessThanOrEqual(900);
     expect(geometry.clientHeight).toBeGreaterThan(80);
+    expect(geometry.scrollHeight).toBeGreaterThanOrEqual(geometry.clientHeight);
   }
 });
