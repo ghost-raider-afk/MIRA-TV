@@ -86,7 +86,7 @@ async function removePreviewFixture(page, fixture) {
   }, fixture);
 }
 
-test('Playlist Studio keeps MenuScene stable and edits each animation through its own tab', async ({ page }) => {
+test('Playlist Studio keeps Preview aligned with TV state and edits objects through the two-switch manager', async ({ page }) => {
   await login(page);
   const fixture = await createPreviewFixture(page);
   const original = await animationSettings(page);
@@ -99,14 +99,16 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     expect(inspectorBox).not.toBeNull();
     expect(previewBox.x).toBeLessThan(inspectorBox.x);
 
-    const tabs = inspector.locator('.animation-object-tabs');
-    for (const label of ['Меню', 'Акция', 'Погода', 'Объявление', 'Бренд', 'Аквариум', 'Объект', 'Плейлист']) {
-      await expect(tabs).toContainText(label);
-    }
+    await expect(inspector.locator('.animation-object-tabs')).toHaveCount(0);
     await expect(inspector.locator('.animation-object-manager')).toBeVisible();
-    await expect(inspector.locator('.animation-object-row')).toHaveCount(10);
-    await expect(inspector.locator('[data-animation-object="promotion"]')).toContainText('Анимация акции');
-    await expect(inspector.locator('[data-animation-object="weather-motion"]')).toContainText('Анимация погоды');
+    await expect(inspector.locator('.animation-object-row')).toHaveCount(8);
+    for (const key of ['menu', 'promotion', 'weather', 'announcement', 'brand', 'aquarium', 'entity', 'playlist']) {
+      const object = inspector.locator(`[data-animation-object="${key}"]`);
+      await expect(object.locator('[data-animation-object-toggle="visible"]')).toHaveCount(1);
+      await expect(object.locator('[data-animation-object-toggle="motion"]')).toHaveCount(1);
+    }
+    await expect(inspector.locator('[data-animation-object="promotion"]')).toContainText('Акция');
+    await expect(inspector.locator('[data-animation-object="weather"]')).toContainText('Погода');
     await expect(inspector.locator('#animation-object-tv-name')).toContainText('ТВ:');
     await expect(inspector.locator('.animation-inspector-actions #animation-save')).toBeVisible();
     await expect(inspector.locator('.animation-inspector-actions #animation-apply-screens')).toBeVisible();
@@ -115,9 +117,13 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     await expect(page.locator('#animation-stage')).toHaveAttribute('data-screen-id', String(fixture.screenId));
     await expect(page.locator('#animation-stage .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
 
-    const engineToggle = inspector.locator('[data-animation-object-toggle="engine"]');
-    if (!(await engineToggle.isChecked())) await engineToggle.check();
-    const promotionToggle = inspector.locator('[data-animation-object-toggle="promotion"]');
+    const backgroundBeforeMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
+      color: getComputedStyle(node).backgroundColor,
+      image: getComputedStyle(node).backgroundImage
+    }));
+    const menuMotionToggle = inspector.locator('[data-animation-object="menu"] [data-animation-object-toggle="motion"]');
+    if (!(await menuMotionToggle.isChecked())) await menuMotionToggle.check();
+    const promotionToggle = inspector.locator('[data-animation-object="promotion"] [data-animation-object-toggle="motion"]');
     if (!(await promotionToggle.isChecked())) await promotionToggle.check();
     await page.locator('#animation-item-effect').selectOption('cinematic');
     await page.locator('#animation-intensity').fill('82');
@@ -143,6 +149,11 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     expect(await surface.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await badge.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await page.locator('#animation-stage .animation-screen-background').evaluate((node) => node.getAnimations().length)).toBe(0);
+    const backgroundAfterMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
+      color: getComputedStyle(node).backgroundColor,
+      image: getComputedStyle(node).backgroundImage
+    }));
+    expect(backgroundAfterMotion).toEqual(backgroundBeforeMotion);
 
     const before = await content.boundingBox();
     await page.waitForTimeout(450);
@@ -150,15 +161,13 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     expect(Math.abs((after?.x || 0) - (before?.x || 0))).toBeLessThan(0.1);
     expect(Math.abs((after?.y || 0) - (before?.y || 0))).toBeLessThan(0.1);
 
-    const promotionTab = inspector.locator('[data-animation-object-tab="promotion"]');
-    await promotionTab.click();
-    await expect(promotionTab).toHaveClass(/active/);
+    await inspector.locator('[data-animation-object="promotion"] .animation-object-configure').click();
+    await expect(inspector.locator('[data-animation-object-panel="promotion"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: '«Акция»' })).toBeVisible();
 
-    const announcementTab = inspector.locator('[data-animation-object-tab="announcement"]');
-    await announcementTab.click();
-    await expect(announcementTab).toHaveClass(/active/);
-    const announcementToggle = inspector.locator('[data-animation-object-toggle="announcement"]');
+    await inspector.locator('[data-animation-object="announcement"] .animation-object-configure').click();
+    await expect(inspector.locator('[data-animation-object-panel="announcement"]')).toBeVisible();
+    const announcementToggle = inspector.locator('[data-animation-object="announcement"] [data-animation-object-toggle="visible"]');
     if (!(await announcementToggle.isChecked())) await announcementToggle.check();
     await page.locator('#animation-announcement-text').fill('Сегодня специальное предложение до 22:00');
     await page.locator('#animation-announcement-font-family').selectOption('oswald');
@@ -167,10 +176,9 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     await expect(page.locator('#animation-stage .scene-announcement-text')).toHaveText('Сегодня специальное предложение до 22:00');
     await expect(page.locator('#animation-stage .scene-announcement')).toHaveClass(/has-glow/);
 
-    const brandTab = inspector.locator('[data-animation-object-tab="brand"]');
-    await brandTab.click();
-    await expect(brandTab).toHaveClass(/active/);
-    const brandToggle = inspector.locator('[data-animation-object-toggle="brand"]');
+    await inspector.locator('[data-animation-object="brand"] .animation-object-configure').click();
+    await expect(inspector.locator('[data-animation-object-panel="brand"]')).toBeVisible();
+    const brandToggle = inspector.locator('[data-animation-object="brand"] [data-animation-object-toggle="visible"]');
     if (!(await brandToggle.isChecked())) await brandToggle.check();
     await page.locator('#animation-brand-text').fill('БАР\nМАЯК');
     await page.locator('#animation-brand-x').fill('300');
@@ -180,10 +188,9 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     await expect(page.locator('#animation-stage .scene-brand-title-line')).toHaveCount(2);
     await expect(page.locator('#animation-brand-line-spacing-output')).toHaveText('-18 px');
 
-    const aquariumTab = inspector.locator('[data-animation-object-tab="aquarium"]');
-    await aquariumTab.click();
-    await expect(aquariumTab).toHaveClass(/active/);
-    const aquariumToggle = inspector.locator('[data-animation-object-toggle="aquarium"]');
+    await inspector.locator('[data-animation-object="aquarium"] .animation-object-configure').click();
+    await expect(inspector.locator('[data-animation-object-panel="aquarium"]')).toBeVisible();
+    const aquariumToggle = inspector.locator('[data-animation-object="aquarium"] [data-animation-object-toggle="visible"]');
     if (!(await aquariumToggle.isChecked())) await aquariumToggle.check();
     await page.locator('#animation-aquarium-style').selectOption('neon');
     await page.locator('#animation-aquarium-fish-count').fill('4');
@@ -193,9 +200,8 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     await expect(page.locator('#animation-stage .aquarium-fish')).toHaveCount(4);
     await expect(page.locator('#animation-stage .animation-screen-background')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
 
-    const playlistTab = inspector.locator('[data-animation-object-tab="playlist"]');
-    await playlistTab.click();
-    await expect(playlistTab).toHaveClass(/active/);
+    await inspector.locator('[data-animation-object="playlist"] .animation-object-configure').click();
+    await expect(inspector.locator('[data-animation-object-panel="playlist"]')).toBeVisible();
     const playlistPanel = inspector.locator('[data-animation-object-panel="playlist"]');
     await expect(page.locator('.playlist-scene-strip')).toBeVisible();
     await expect(page.locator('.playlist-scene-card-menu')).toContainText('MenuScene');
@@ -215,12 +221,15 @@ test('Playlist Studio keeps MenuScene stable and edits each animation through it
     const saved = await animationSettings(page);
     expect(saved.preset_id).toBe('cinematic-live-menu');
     expect(saved.profile.price_effect).toBe('none');
+    expect(saved.profile.menu_visible).toBe(true);
+    expect(saved.profile.promotion_visible).toBe(true);
     expect(saved.profile.promotion_effect).toBe('cinematic');
     expect(saved.profile.promotion_easing).toBe('smooth');
     expect(saved.profile.intensity).toBe(82);
     expect(saved.announcement.font_family).toBe('oswald');
     expect(saved.announcement.vertical_scale).toBe(1.35);
     expect(saved.announcement.glow_enabled).toBe(true);
+    expect(saved.announcement.animation_enabled).toBe(true);
     expect(saved.brand.text).toBe('БАР\nМАЯК');
     expect(saved.brand.x).toBe(300);
     expect(saved.brand.line_spacing).toBe(-18);
