@@ -225,7 +225,6 @@ export function initialiseAnimationObjectManager(){
       if(visible instanceof HTMLInputElement) visible.checked=isVisible;
       if(motion instanceof HTMLInputElement){
         motion.checked=isAnimated;
-        motion.disabled=!isVisible;
       }
       const row=overview.querySelector(`.animation-object-row[data-animation-object="${definition.key}"]`);
       row?.classList.toggle('is-active',isVisible);
