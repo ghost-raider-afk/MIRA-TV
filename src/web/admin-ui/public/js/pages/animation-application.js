@@ -67,6 +67,10 @@ export function initialiseAnimationApplication() {
   const messageObserver = message instanceof HTMLElement ? new MutationObserver(() => {
     if (disposed) return;
     const text = message.textContent?.trim() || '';
+    if (/^ТВ обновлён.*более новые изменения/i.test(text)) {
+      setStatus('dirty', `${text} Нажмите «Применить на ТВ» для текущего Preview.`);
+      return;
+    }
     const match = text.match(/^Применено на ТВ:\s*(\d+)(?:\s*·\s*revision\s*(\d+))?\.?$/i);
     if (match) {
       const count = Number(match[1]);
