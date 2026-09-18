@@ -1,80 +1,92 @@
 import { api } from '../core/api.js';
 
 const DEFINITIONS = Object.freeze([
-  Object.freeze({ key: 'engine', label: 'Motion Engine', detail: 'Общий запуск анимации меню и акции.', tab: 'menu', source: { type: 'checkbox', ids: ['animation-enabled'] } }),
-  Object.freeze({ key: 'menu', label: 'Анимация меню', detail: 'Световые поверхности разделов и строк продукции.', tab: 'menu', source: { type: 'menu-effects', ids: ['animation-section-effect', 'animation-item-effect'] } }),
-  Object.freeze({ key: 'promotion', label: 'Анимация акции', detail: 'Пульс плашки «АКЦИЯ» и подсветка всей акционной строки.', tab: 'promotion', source: { type: 'select-effect', ids: ['animation-promotion-effect'] } }),
-  Object.freeze({ key: 'weather', label: 'Погода', detail: 'Показывать или скрывать погодный информер.', tab: 'weather', source: { type: 'checkbox', ids: ['weather-enabled'] } }),
-  Object.freeze({ key: 'weather-motion', label: 'Анимация погоды', detail: 'Дождь, снег, облака, туман, звёзды и свечение.', tab: 'weather', source: { type: 'checkbox', ids: ['weather-animation-enabled'] } }),
-  Object.freeze({ key: 'announcement', label: 'Бегущая строка', detail: 'Независимый слой объявления поверх меню.', tab: 'announcement', source: { type: 'checkbox', ids: ['animation-announcement-enabled'] } }),
-  Object.freeze({ key: 'brand', label: 'Название бренда', detail: 'Текстовый объект бренда с собственной анимацией.', tab: 'brand', source: { type: 'checkbox', ids: ['animation-brand-enabled'] } }),
-  Object.freeze({ key: 'aquarium', label: 'Аквариум', detail: 'Environment-слой: вода, рыбы, пузырьки и каустики.', tab: 'aquarium', source: { type: 'checkbox', ids: ['animation-aquarium-enabled'] } }),
-  Object.freeze({ key: 'entity', label: 'Объект сцены', detail: 'PNG, WebP или видео Entity поверх меню.', tab: 'entity', source: { type: 'checkbox', ids: ['animation-entity-visible'] } }),
-  Object.freeze({ key: 'playlist', label: 'Плейлист сцен', detail: 'Временные PromoScene, ContentScene и Object Story.', tab: 'playlist', source: { type: 'checkbox', ids: ['animation-scene-playlist-enabled'] } })
+  Object.freeze({
+    key: 'menu', label: 'Меню', detail: 'Базовое меню и световые поверхности строк.', tab: 'menu',
+    visible: { type: 'checkbox', ids: ['animation-menu-visible'] },
+    motion: { type: 'menu-effects', ids: ['animation-section-effect', 'animation-item-effect'] }
+  }),
+  Object.freeze({
+    key: 'promotion', label: 'Акция', detail: 'Плашка «АКЦИЯ» и подсветка акционной строки.', tab: 'promotion',
+    visible: { type: 'checkbox', ids: ['animation-promotion-visible'] },
+    motion: { type: 'select-effect', ids: ['animation-promotion-effect'] }
+  }),
+  Object.freeze({
+    key: 'weather', label: 'Погода', detail: 'Погодный информер и атмосферные эффекты.', tab: 'weather',
+    visible: { type: 'checkbox', ids: ['weather-enabled'] },
+    motion: { type: 'checkbox', ids: ['weather-animation-enabled'] }
+  }),
+  Object.freeze({
+    key: 'announcement', label: 'Объявление', detail: 'Строка объявления поверх основной сцены.', tab: 'announcement',
+    visible: { type: 'checkbox', ids: ['animation-announcement-enabled'] },
+    motion: { type: 'checkbox', ids: ['animation-announcement-animation-enabled'] }
+  }),
+  Object.freeze({
+    key: 'brand', label: 'Бренд', detail: 'Название бренда как независимый текстовый объект.', tab: 'brand',
+    visible: { type: 'checkbox', ids: ['animation-brand-enabled'] },
+    motion: { type: 'checkbox', ids: ['animation-brand-animation-enabled'] }
+  }),
+  Object.freeze({
+    key: 'aquarium', label: 'Аквариум', detail: 'Environment-слой: вода, рыбы, пузырьки и свет.', tab: 'aquarium',
+    visible: { type: 'checkbox', ids: ['animation-aquarium-enabled'] },
+    motion: { type: 'checkbox', ids: ['animation-aquarium-animation-enabled'] }
+  }),
+  Object.freeze({
+    key: 'entity', label: 'Объект сцены', detail: 'PNG, WebP или видео поверх меню.', tab: 'entity',
+    visible: { type: 'checkbox', ids: ['animation-entity-visible'] },
+    motion: { type: 'checkbox', ids: ['animation-entity-animation-enabled'] }
+  }),
+  Object.freeze({
+    key: 'playlist', label: 'Плейлист сцен', detail: 'PromoScene, ContentScene и Object Story.', tab: 'playlist',
+    visible: { type: 'checkbox', ids: ['animation-scene-playlist-enabled'] },
+    motion: { type: 'checkbox', ids: ['animation-scene-playlist-animation-enabled'] }
+  })
 ]);
 
-const TAB_DEFINITIONS = Object.freeze([
-  Object.freeze({ key: 'menu', label: 'Меню', selector: '.animation-motion-card' }),
-  Object.freeze({ key: 'promotion', label: 'Акция', selector: '.animation-promotion-card' }),
-  Object.freeze({ key: 'weather', label: 'Погода', selector: '.weather-settings-card' }),
-  Object.freeze({ key: 'announcement', label: 'Объявление', selector: '.animation-announcement-card' }),
-  Object.freeze({ key: 'brand', label: 'Бренд', selector: '.animation-brand-card' }),
-  Object.freeze({ key: 'aquarium', label: 'Аквариум', selector: '.animation-aquarium-card' }),
-  Object.freeze({ key: 'entity', label: 'Объект', selector: '.animation-entity-card' }),
-  Object.freeze({ key: 'playlist', label: 'Плейлист', selector: '.playlist-scene-editor' })
+const PANEL_DEFINITIONS = Object.freeze([
+  Object.freeze({ key: 'menu', selector: '.animation-motion-card' }),
+  Object.freeze({ key: 'promotion', selector: '.animation-promotion-card' }),
+  Object.freeze({ key: 'weather', selector: '.weather-settings-card' }),
+  Object.freeze({ key: 'announcement', selector: '.animation-announcement-card' }),
+  Object.freeze({ key: 'brand', selector: '.animation-brand-card' }),
+  Object.freeze({ key: 'aquarium', selector: '.animation-aquarium-card' }),
+  Object.freeze({ key: 'entity', selector: '.animation-entity-card' }),
+  Object.freeze({ key: 'playlist', selector: '.playlist-scene-editor' })
 ]);
 
 function node(id) { return document.getElementById(id); }
-function sourceNodes(definition) { return definition.source.ids.map((id) => node(id)).filter(Boolean); }
+function sourceNodes(source) { return source.ids.map((id) => node(id)).filter(Boolean); }
 
-function configuredState(definition) {
-  const sources = sourceNodes(definition);
+function sourceState(source) {
+  const sources = sourceNodes(source);
   if (!sources.length) return false;
-  if (definition.source.type === 'checkbox') return sources[0].checked === true;
-  if (definition.source.type === 'select-effect') return sources[0].value !== 'none';
-  if (definition.source.type === 'menu-effects') return sources.some((source) => source.value !== 'none');
+  if (source.type === 'checkbox') return sources[0].checked === true;
+  if (source.type === 'select-effect') return sources[0].value !== 'none';
+  if (source.type === 'menu-effects') return sources.some((control) => control.value !== 'none');
   return false;
-}
-
-function effectiveDraftState(definition) {
-  const configured = configuredState(definition);
-  if (!configured) return false;
-  if (definition.key === 'menu' || definition.key === 'promotion') return node('animation-enabled')?.checked === true;
-  if (definition.key === 'weather-motion') return node('weather-enabled')?.checked === true && configured;
-  return configured;
 }
 
 function dispatchSource(source, eventName = 'change') {
   source.dispatchEvent(new Event(eventName, { bubbles: true }));
 }
 
-function setCheckboxSource(source, checked) {
-  source.checked = checked;
-  dispatchSource(source, 'change');
-}
-
-function setDefinitionState(definition, enabled) {
-  const sources = sourceNodes(definition);
+function setSourceState(source, enabled) {
+  const sources = sourceNodes(source);
   if (!sources.length) return;
-  if (definition.source.type === 'checkbox') {
-    setCheckboxSource(sources[0], enabled);
+  if (source.type === 'checkbox') {
+    sources[0].checked = enabled;
+    dispatchSource(sources[0]);
     return;
   }
-  if (definition.source.type === 'select-effect') {
+  if (source.type === 'select-effect') {
     sources[0].value = enabled ? 'cinematic' : 'none';
-    dispatchSource(sources[0], 'change');
-    if (enabled && node('animation-enabled') instanceof HTMLInputElement && !node('animation-enabled').checked) {
-      setCheckboxSource(node('animation-enabled'), true);
-    }
+    dispatchSource(sources[0]);
     return;
   }
-  if (definition.source.type === 'menu-effects') {
-    for (const source of sources) {
-      source.value = enabled ? 'cinematic' : 'none';
-      dispatchSource(source, 'change');
-    }
-    if (enabled && node('animation-enabled') instanceof HTMLInputElement && !node('animation-enabled').checked) {
-      setCheckboxSource(node('animation-enabled'), true);
+  if (source.type === 'menu-effects') {
+    for (const control of sources) {
+      control.value = enabled ? 'cinematic' : 'none';
+      dispatchSource(control);
     }
   }
 }
@@ -83,158 +95,148 @@ function remoteStates(animation, weather) {
   const profile = animation?.profile || {};
   const engine = animation?.enabled === true;
   return new Map([
-    ['engine', engine],
-    ['menu', engine && (profile.section_effect !== 'none' || profile.item_effect !== 'none')],
-    ['promotion', engine && profile.promotion_effect !== 'none'],
-    ['weather', weather?.enabled === true],
-    ['weather-motion', weather?.enabled === true && weather?.animation_enabled === true],
-    ['announcement', animation?.announcement?.enabled === true],
-    ['brand', animation?.brand?.enabled === true],
-    ['aquarium', animation?.environment?.enabled === true && animation?.environment?.effect === 'aquarium'],
-    ['entity', animation?.entity?.visible === true],
-    ['playlist', animation?.scene_playlist?.enabled === true]
+    ['menu', { visible: profile.menu_visible !== false, motion: engine && (profile.section_effect !== 'none' || profile.item_effect !== 'none') }],
+    ['promotion', { visible: profile.promotion_visible !== false, motion: engine && profile.promotion_effect !== 'none' }],
+    ['weather', { visible: weather?.enabled === true, motion: weather?.animation_enabled !== false }],
+    ['announcement', { visible: animation?.announcement?.enabled === true, motion: animation?.announcement?.animation_enabled !== false }],
+    ['brand', { visible: animation?.brand?.enabled === true, motion: animation?.brand?.animation_enabled !== false }],
+    ['aquarium', { visible: animation?.environment?.enabled === true && animation?.environment?.effect === 'aquarium', motion: animation?.environment?.animation_enabled !== false }],
+    ['entity', { visible: animation?.entity?.visible === true, motion: animation?.entity?.animation_enabled !== false }],
+    ['playlist', { visible: animation?.scene_playlist?.enabled === true, motion: animation?.scene_playlist?.animation_enabled !== false }]
   ]);
 }
 
-function hideDuplicatedVisibilityControls() {
-  for (const id of [
-    'animation-enabled', 'weather-enabled', 'weather-animation-enabled', 'animation-announcement-enabled',
-    'animation-brand-enabled', 'animation-aquarium-enabled', 'animation-entity-visible', 'animation-scene-playlist-enabled'
-  ]) {
-    const source = node(id);
-    source?.closest('label')?.classList.add('animation-manager-source-hidden');
-  }
-  node('animation-promotion-effect')?.closest('label')?.classList.add('animation-manager-source-hidden');
+function hideDuplicatedSwitches() {
+  const ids = [
+    'weather-enabled', 'weather-animation-enabled',
+    'animation-announcement-enabled', 'animation-announcement-animation-enabled',
+    'animation-brand-enabled', 'animation-brand-animation-enabled',
+    'animation-aquarium-enabled', 'animation-aquarium-animation-enabled',
+    'animation-entity-visible', 'animation-entity-animation-enabled',
+    'animation-scene-playlist-enabled', 'animation-scene-playlist-animation-enabled'
+  ];
+  for (const id of ids) node(id)?.closest('label')?.classList.add('animation-manager-source-hidden');
 }
 
-function rebuildTabs(inspector) {
+function rebuildPanels(inspector) {
   const previousTabs = inspector.querySelector('.animation-inspector-tabs');
   const previousPanels = inspector.querySelector('.animation-inspector-panels');
-  if (!(previousTabs instanceof HTMLElement) || !(previousPanels instanceof HTMLElement)) return null;
+  if (!(previousPanels instanceof HTMLElement)) return null;
 
   const captured = new Map();
-  for (const tab of TAB_DEFINITIONS) {
-    const content = document.querySelector(tab.selector);
-    if (content instanceof HTMLElement) captured.set(tab.key, content);
+  for (const panel of PANEL_DEFINITIONS) {
+    const content = document.querySelector(panel.selector);
+    if (content instanceof HTMLElement) captured.set(panel.key, content);
   }
 
-  const tabs = document.createElement('div');
-  tabs.className = 'animation-inspector-tabs animation-object-tabs';
-  tabs.setAttribute('role', 'tablist');
   const panels = document.createElement('div');
   panels.className = 'animation-inspector-panels animation-object-panels';
+  panels.setAttribute('aria-live', 'polite');
 
-  const openTab = (key) => {
-    tabs.querySelectorAll('[data-animation-object-tab]').forEach((button) => {
-      const active = button.dataset.animationObjectTab === key;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-    panels.querySelectorAll('[data-animation-object-panel]').forEach((panel) => {
-      panel.hidden = panel.dataset.animationObjectPanel !== key;
-    });
-  };
-
-  TAB_DEFINITIONS.forEach((tab, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = tab.label;
-    button.dataset.animationObjectTab = tab.key;
-    button.setAttribute('role', 'tab');
-    button.addEventListener('click', () => openTab(tab.key));
-    tabs.append(button);
-
-    const panel = document.createElement('div');
-    panel.dataset.animationObjectPanel = tab.key;
-    panel.setAttribute('role', 'tabpanel');
-    panel.hidden = index !== 0;
-    const content = captured.get(tab.key);
+  for (const panelDefinition of PANEL_DEFINITIONS) {
+    const panel = document.createElement('section');
+    panel.dataset.animationObjectPanel = panelDefinition.key;
+    panel.hidden = panelDefinition.key !== 'menu';
+    const content = captured.get(panelDefinition.key);
     if (content) panel.append(content);
-    else {
-      const empty = document.createElement('p');
-      empty.className = 'animation-object-panel-empty';
-      empty.textContent = 'Настройки этого слоя пока недоступны.';
-      panel.append(empty);
-    }
     panels.append(panel);
-  });
+  }
 
-  previousTabs.replaceWith(tabs);
+  previousTabs?.remove();
   previousPanels.replaceWith(panels);
   document.querySelector('.animation-motion-grid')?.remove();
   document.querySelector('.animation-overlay-grid')?.remove();
-  openTab('menu');
-  return { tabs, panels, openTab };
+
+  const openPanel = (key) => {
+    panels.querySelectorAll('[data-animation-object-panel]').forEach((panel) => {
+      panel.hidden = panel.dataset.animationObjectPanel !== key;
+    });
+    inspector.querySelectorAll('[data-animation-object]').forEach((row) => {
+      row.classList.toggle('is-active', row.dataset.animationObject === key);
+    });
+    inspector.dataset.activeObject = key;
+  };
+
+  openPanel('menu');
+  return { panels, openPanel };
 }
 
-function createOverview(inspector, openTab) {
+function switchControl(kind, definition, onChange) {
+  const label = document.createElement('label');
+  label.className = 'animation-object-switch';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.dataset.animationObjectToggle = kind;
+  input.setAttribute('aria-label', `${definition.label}: ${kind === 'visible' ? 'показывать объект' : 'включить анимацию'}`);
+  input.addEventListener('change', () => onChange(input.checked));
+  const caption = document.createElement('span');
+  caption.textContent = kind === 'visible' ? 'Объект' : 'Анимация';
+  label.append(input, caption);
+  return label;
+}
+
+function createOverview(inspector, openPanel) {
   const section = document.createElement('section');
   section.className = 'animation-object-manager';
-  section.setAttribute('aria-label', 'Анимации и объекты');
+  section.setAttribute('aria-label', 'Объекты сцены');
   section.innerHTML = `
     <div class="animation-object-manager-head">
-      <div><p class="eyebrow">АНИМАЦИИ И ОБЪЕКТЫ</p><h3>Что включено</h3><p>Галочка меняет текущий черновик. Справа показано реальное сохранённое состояние на телевизоре предпросмотра.</p></div>
+      <div><p class="eyebrow">ОБЪЕКТЫ СЦЕНЫ</p><h3>Показывать / Анимация</h3><p>Две независимые галочки управляют объектом и его движением. Motion Runtime запускается автоматически только когда он нужен.</p></div>
       <small id="animation-object-tv-name">Состояние ТВ загружается…</small>
     </div>
     <div class="animation-object-list" id="animation-object-list"></div>`;
 
   const list = section.querySelector('#animation-object-list');
   for (const definition of DEFINITIONS) {
-    const row = document.createElement('div');
+    const row = document.createElement('article');
     row.className = 'animation-object-row';
     row.dataset.animationObject = definition.key;
-    const toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.className = 'animation-object-toggle';
-    toggle.setAttribute('aria-label', `${definition.label}: включить или выключить`);
-    toggle.dataset.animationObjectToggle = definition.key;
-    toggle.addEventListener('change', () => setDefinitionState(definition, toggle.checked));
 
-    const copy = document.createElement('div');
+    const copy = document.createElement('button');
+    copy.type = 'button';
     copy.className = 'animation-object-copy';
+    copy.addEventListener('click', () => openPanel(definition.tab));
     const title = document.createElement('strong');
     title.textContent = definition.label;
     const detail = document.createElement('small');
     detail.textContent = definition.detail;
     copy.append(title, detail);
 
-    const draft = document.createElement('span');
-    draft.className = 'animation-object-state';
-    draft.dataset.animationObjectDraft = definition.key;
+    const switches = document.createElement('div');
+    switches.className = 'animation-object-switches';
+    switches.append(
+      switchControl('visible', definition, (value) => setSourceState(definition.visible, value)),
+      switchControl('motion', definition, (value) => setSourceState(definition.motion, value))
+    );
+
     const tv = document.createElement('span');
-    tv.className = 'animation-object-state is-unknown';
+    tv.className = 'animation-object-tv-state is-unknown';
     tv.dataset.animationObjectTv = definition.key;
-    tv.textContent = 'На ТВ: …';
+    tv.textContent = 'ТВ: …';
 
     const configure = document.createElement('button');
     configure.type = 'button';
     configure.className = 'button button-secondary animation-object-configure';
     configure.textContent = 'Настроить';
-    configure.addEventListener('click', () => openTab(definition.tab));
-    row.append(toggle, copy, draft, tv, configure);
+    configure.addEventListener('click', () => openPanel(definition.tab));
+
+    row.append(copy, switches, tv, configure);
     list.append(row);
   }
 
-  const tabs = inspector.querySelector('.animation-object-tabs');
-  tabs?.before(section);
+  inspector.querySelector('.animation-object-panels')?.before(section);
   return section;
-}
-
-function draftStatusText(definition) {
-  const configured = configuredState(definition);
-  const effective = effectiveDraftState(definition);
-  if ((definition.key === 'menu' || definition.key === 'promotion') && configured && !effective) return 'Черновик: движок выкл';
-  if (definition.key === 'weather-motion' && configured && !effective) return 'Черновик: погода скрыта';
-  return `Черновик: ${effective ? 'Вкл' : 'Выкл'}`;
 }
 
 export function initialiseAnimationObjectManager() {
   const inspector = document.querySelector('.animation-inspector');
   if (!(inspector instanceof HTMLElement)) return;
-  const tabRuntime = rebuildTabs(inspector);
-  if (!tabRuntime) return;
-  hideDuplicatedVisibilityControls();
-  const overview = createOverview(inspector, tabRuntime.openTab);
+
+  const panelRuntime = rebuildPanels(inspector);
+  if (!panelRuntime) return;
+  hideDuplicatedSwitches();
+  const overview = createOverview(inspector, panelRuntime.openPanel);
+
   let disposed = false;
   let remote = new Map();
   let refreshSequence = 0;
@@ -244,15 +246,13 @@ export function initialiseAnimationObjectManager() {
   const syncDraft = () => {
     if (disposed) return;
     for (const definition of DEFINITIONS) {
-      const toggle = overview.querySelector(`[data-animation-object-toggle="${definition.key}"]`);
-      const status = overview.querySelector(`[data-animation-object-draft="${definition.key}"]`);
-      if (toggle instanceof HTMLInputElement) toggle.checked = configuredState(definition);
-      if (status instanceof HTMLElement) {
-        const effective = effectiveDraftState(definition);
-        status.textContent = draftStatusText(definition);
-        status.classList.toggle('is-on', effective);
-        status.classList.toggle('is-off', !effective);
-      }
+      const row = overview.querySelector(`[data-animation-object="${definition.key}"]`);
+      if (!(row instanceof HTMLElement)) continue;
+      const visible = row.querySelector('[data-animation-object-toggle="visible"]');
+      const motion = row.querySelector('[data-animation-object-toggle="motion"]');
+      if (visible instanceof HTMLInputElement) visible.checked = sourceState(definition.visible);
+      if (motion instanceof HTMLInputElement) motion.checked = sourceState(definition.motion);
+      row.classList.toggle('is-hidden-object', !sourceState(definition.visible));
     }
   };
 
@@ -262,13 +262,13 @@ export function initialiseAnimationObjectManager() {
       if (!(status instanceof HTMLElement)) continue;
       const state = remote.get(definition.key);
       status.classList.remove('is-on', 'is-off', 'is-unknown');
-      if (typeof state !== 'boolean') {
-        status.textContent = 'На ТВ: ?';
+      if (!state || typeof state.visible !== 'boolean' || typeof state.motion !== 'boolean') {
+        status.textContent = 'ТВ: ?';
         status.classList.add('is-unknown');
-      } else {
-        status.textContent = `На ТВ: ${state ? 'Вкл' : 'Выкл'}`;
-        status.classList.add(state ? 'is-on' : 'is-off');
+        continue;
       }
+      status.textContent = `ТВ: ${state.visible ? 'объект вкл' : 'объект выкл'} · ${state.motion ? 'анимация вкл' : 'анимация выкл'}`;
+      status.classList.add(state.visible ? 'is-on' : 'is-off');
     }
   };
 
@@ -302,24 +302,12 @@ export function initialiseAnimationObjectManager() {
   };
 
   for (const definition of DEFINITIONS) {
-    for (const source of sourceNodes(definition)) {
+    for (const source of [...sourceNodes(definition.visible), ...sourceNodes(definition.motion)]) {
       const handler = () => queueMicrotask(syncDraft);
       source.addEventListener('change', handler);
       source.addEventListener('input', handler);
       sourceListeners.push([source, handler]);
     }
-  }
-  const engine = node('animation-enabled');
-  if (engine) {
-    const handler = () => queueMicrotask(syncDraft);
-    engine.addEventListener('change', handler);
-    sourceListeners.push([engine, handler]);
-  }
-  const weatherVisible = node('weather-enabled');
-  if (weatherVisible) {
-    const handler = () => queueMicrotask(syncDraft);
-    weatherVisible.addEventListener('change', handler);
-    sourceListeners.push([weatherVisible, handler]);
   }
 
   const screenSelect = node('animation-screen-select');
@@ -335,7 +323,7 @@ export function initialiseAnimationObjectManager() {
   syncDraft();
   syncRemote();
   void refreshRemote();
-  for (const delay of [150, 400, 900, 1600]) timers.push(setTimeout(() => { syncDraft(); void refreshRemote(); }, delay));
+  for (const delay of [150, 450, 1000]) timers.push(setTimeout(() => { syncDraft(); void refreshRemote(); }, delay));
 
   return {
     dispose() {
