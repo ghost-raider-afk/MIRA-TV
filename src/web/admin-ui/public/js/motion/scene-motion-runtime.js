@@ -38,8 +38,7 @@ export class SceneMotionRuntime {
   motionShouldPlay() {
     return this.playerActive
       && !this.fullscreenSuppressed
-      && document.visibilityState !== 'hidden'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches !== true;
+      && document.visibilityState !== 'hidden';
   }
 
   mediaShouldPlay() {

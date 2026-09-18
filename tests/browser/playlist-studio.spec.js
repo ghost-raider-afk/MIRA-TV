@@ -269,6 +269,7 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
 });
 
 test('promotion badge and soft row glow are isolated from static row content', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await login(page);
   await page.goto('/playlist.html');
   const result = await page.evaluate(async (profile) => {
