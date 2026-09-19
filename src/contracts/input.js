@@ -1,4 +1,5 @@
 import { ValidationError, UnprocessableEntityError } from '../shared/errors.js';
+import { sceneInput } from './scene.js';
 
 const VALID_STATUSES = new Set(['draft', 'ready', 'published']);
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
@@ -128,8 +129,9 @@ export async function menuDraftInput(body, store, maxBytes) {
     throw new ValidationError('Тип строки меню не поддерживается.');
   });
   const settings = body.settings && typeof body.settings === 'object' && !Array.isArray(body.settings) ? body.settings : {};
-  if (Buffer.byteLength(JSON.stringify({ rows, settings }), 'utf8') > maxBytes) throw new ValidationError('Черновик меню слишком большой.');
-  return { rows, settings };
+  const scene = sceneInput(body.scene, { maxWidth: 1920, maxHeight: 1080 });
+  if (Buffer.byteLength(JSON.stringify({ rows, settings, scene }), 'utf8') > maxBytes) throw new ValidationError('Черновик меню слишком большой.');
+  return { rows, settings, scene };
 }
 
 

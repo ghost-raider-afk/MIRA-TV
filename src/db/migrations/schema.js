@@ -37,6 +37,7 @@ export async function initialiseSchema(pool) {
     CREATE TABLE IF NOT EXISTS screen_drafts (
       screen_id BIGINT PRIMARY KEY REFERENCES screens(id) ON DELETE CASCADE,
       rows_json TEXT NOT NULL DEFAULT '[]', settings_json TEXT NOT NULL DEFAULT '{}',
+      scene_json TEXT NOT NULL DEFAULT '{"version":1,"elements":[]}',
       revision BIGINT NOT NULL DEFAULT 1, updated_at TIMESTAMPTZ NOT NULL
     );
     CREATE TABLE IF NOT EXISTS user_preferences (
@@ -65,6 +66,7 @@ export async function initialiseSchema(pool) {
     );
     ALTER TABLE screens ADD COLUMN IF NOT EXISTS location_number INTEGER;
     ALTER TABLE screen_drafts ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1;
+    ALTER TABLE screen_drafts ADD COLUMN IF NOT EXISTS scene_json TEXT NOT NULL DEFAULT '{"version":1,"elements":[]}';
     ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
     ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
     ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS job_title TEXT NOT NULL DEFAULT '';
