@@ -3,16 +3,41 @@ import { test, expect } from '@playwright/test';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 
 async function login(page) {
-  await page.goto('/signin.html');
+  await page.goto('/signin');
   await page.getByLabel('Логин').fill('admin');
-  await page.getByLabel('Пароль').fill(process.env.E2E_ADMIN_PASSWORD || '');
+  await page.getByLabel('Пароль').fill(process.env.E2E_ADMIN_PASSWORD || 'Browser-CI-Password1!');
   await Promise.all([
     page.waitForURL((url) => url.pathname === '/'),
     page.getByRole('button', { name: /войти/i }).click()
   ]);
 }
 
-test('admin apply reaches screen_animation_settings, live Player delta and open Player DOM', async ({ browser }) => {
+function textScene(value) {
+  return {
+    version: 1,
+    elements: [{
+      id: 'live-e2e-text',
+      type: 'text',
+      enabled: true,
+      x: 1280, y: 80, width: 560, height: 160,
+      z_index: 10, opacity: 1, rotation_deg: 0,
+      text: {
+        runs: [{
+          value,
+          font_family: 'system-sans',
+          font_size_px: 64,
+          font_weight: 800,
+          color: '#FFFFFF',
+          text_transform: 'none'
+        }],
+        paragraph: { align: 'center', vertical_align: 'center', wrap: true },
+        effects: { fill: { enabled: true, mode: 'solid', color: '#FFFFFF', opacity: 1 } }
+      }
+    }]
+  };
+}
+
+test('admin scene save reaches live Player delta and updates keyed generic DOM', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const tvContext = await browser.newContext({ baseURL, viewport: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
   const adminPage = await adminContext.newPage();
@@ -22,24 +47,22 @@ test('admin apply reaches screen_animation_settings, live Player delta and open 
 
   await tvPage.addInitScript(() => {
     window.__miraRealtimeConnected = false;
-    window.addEventListener('mira:player-realtime-connected', () => {
-      window.__miraRealtimeConnected = true;
-    });
+    window.addEventListener('mira:player-realtime-connected', () => { window.__miraRealtimeConnected = true; });
   });
 
   try {
     await login(adminPage);
-
     const stamp = Date.now();
+
     const locationResponse = await adminPage.request.post('/api/locations', {
       data: { name: `Player E2E ${stamp}`, address: '', active: true }
     });
-    expect(locationResponse.ok()).toBeTruthy();
+    expect(locationResponse.status()).toBe(201);
     const location = await locationResponse.json();
     locationId = location.id;
 
     const screenResponse = await adminPage.request.post(`/api/locations/${locationId}/screens`, { data: {} });
-    expect(screenResponse.ok()).toBeTruthy();
+    expect(screenResponse.status()).toBe(201);
     const screen = await screenResponse.json();
     screenId = screen.id;
 
@@ -62,71 +85,75 @@ test('admin apply reaches screen_animation_settings, live Player delta and open 
 
     await tvPage.goto('/player');
     await expect(tvPage.locator('[data-tv-player]')).toBeVisible({ timeout: 5000 });
-    await expect(tvPage.locator('[data-player-menu-layer] svg.menu-table-svg')).toHaveCount(1);
-    await expect.poll(
-      () => tvPage.evaluate(() => window.__miraRealtimeConnected === true),
-      { timeout: 5000 }
-    ).toBe(true);
+    const menu = tvPage.locator('[data-player-menu-layer] svg.menu-table-svg');
+    await expect(menu).toHaveCount(1);
+    await menu.evaluate((node) => { node.dataset.identityProbe = 'stable-menu'; });
+    await expect.poll(() => tvPage.evaluate(() => window.__miraRealtimeConnected === true), { timeout: 5000 }).toBe(true);
 
-    const brandText = `LIVE-E2E-${stamp}`;
-    await expect(tvPage.locator('[data-brand-layer] .scene-brand-title').filter({ hasText: brandText })).toHaveCount(0);
+    const liveText = `LIVE-E2E-${stamp}`;
+    await expect(tvPage.locator('[data-scene-element-id="live-e2e-text"]')).toHaveCount(0);
 
-    await adminPage.goto(`/playlist?screen=${screenId}`);
-    await expect(adminPage.locator('#animation-target-list input[value="' + screenId + '"]')).toBeChecked();
-    await adminPage.locator('#animation-object-settings-select').selectOption('brand');
-
-    const brandObject = adminPage.locator('[data-animation-object="brand"]');
-    await expect(brandObject).toBeVisible();
-    const visibleToggle = brandObject.locator('[data-animation-object-toggle="visible"]');
-    if (!(await visibleToggle.isChecked())) await visibleToggle.check();
-    await expect(adminPage.locator('#animation-brand-enabled')).toBeChecked();
-    await adminPage.locator('#animation-brand-text').fill(brandText);
+    const editorResponse = await adminPage.request.get(`/api/screens/${screenId}/editor`);
+    expect(editorResponse.ok()).toBeTruthy();
+    const editor = await editorResponse.json();
 
     const deltaPromise = tvPage.waitForResponse(async (response) => {
       if (!response.url().endsWith('/api/device/player-delta') || response.request().method() !== 'POST') return false;
       try {
         const body = await response.json();
-        return body?.changed?.brand?.text === brandText;
+        return body?.changed?.scene?.elements?.some((element) =>
+          element.id === 'live-e2e-text' && element.text?.runs?.[0]?.value === liveText
+        );
       } catch {
         return false;
       }
     }, { timeout: 10000 });
 
-    const applyRequestPromise = adminPage.waitForRequest(
-      (request) => request.method() === 'PUT' && request.url().endsWith('/api/settings/animation/apply')
-    );
-
-    await adminPage.locator('#animation-apply-screens').click();
-
-    const applyRequest = await applyRequestPromise;
-    expect(applyRequest.postDataJSON().screen_ids).toEqual([screenId]);
-    await expect(adminPage.locator('#animation-message')).toContainText('Применено на ТВ: 1');
-
-    const storedResponse = await adminPage.request.get(`/api/settings/animation/screens/${screenId}`);
-    expect(storedResponse.ok()).toBeTruthy();
-    const stored = await storedResponse.json();
-    expect(stored.enabled).toBe(true);
-    expect(stored.profile.menu_visible).toBe(true);
-    expect(stored.profile.item_effect).not.toBe('none');
-    expect(stored.brand.enabled).toBe(true);
-    expect(stored.brand.text).toBe(brandText);
+    const saveResponse = await adminPage.request.put(`/api/screens/${screenId}/draft`, {
+      data: {
+        revision: editor.draft.revision,
+        rows: editor.draft.rows,
+        settings: editor.draft.settings,
+        scene: textScene(liveText)
+      }
+    });
+    expect(saveResponse.ok()).toBeTruthy();
 
     const deltaResponse = await deltaPromise;
     const delta = await deltaResponse.json();
-    expect(delta.changed.brand.enabled).toBe(true);
-    expect(delta.changed.brand.text).toBe(brandText);
+    expect(delta.schema_version).toBe(4);
+    expect(delta.changed.scene.elements[0].id).toBe('live-e2e-text');
 
-    await expect(tvPage.locator('[data-player-menu-layer]')).toHaveAttribute('data-render-mode', 'flat-motion', { timeout: 5000 });
-    const playerBrand = tvPage.locator('[data-brand-layer] .scene-brand-title');
-    await expect(playerBrand).toHaveAttribute('aria-label', brandText, { timeout: 5000 });
-    await expect(playerBrand).toBeVisible();
+    const sceneNode = tvPage.locator('[data-scene-element-id="live-e2e-text"]');
+    await expect(sceneNode.locator('[data-scene-text] span')).toHaveText(liveText, { timeout: 5000 });
+    await sceneNode.evaluate((node) => { node.dataset.identityProbe = 'stable-scene-node'; });
+
+    const updatedEditor = await (await adminPage.request.get(`/api/screens/${screenId}/editor`)).json();
+    const updatedText = `${liveText}-2`;
+    const secondDelta = tvPage.waitForResponse(async (response) => {
+      if (!response.url().endsWith('/api/device/player-delta') || response.request().method() !== 'POST') return false;
+      try {
+        const body = await response.json();
+        return body?.changed?.scene?.elements?.[0]?.text?.runs?.[0]?.value === updatedText;
+      } catch { return false; }
+    }, { timeout: 10000 });
+    const secondSave = await adminPage.request.put(`/api/screens/${screenId}/draft`, {
+      data: {
+        revision: updatedEditor.draft.revision,
+        rows: updatedEditor.draft.rows,
+        settings: updatedEditor.draft.settings,
+        scene: textScene(updatedText)
+      }
+    });
+    expect(secondSave.ok()).toBeTruthy();
+    await secondDelta;
+
+    await expect(sceneNode.locator('[data-scene-text] span')).toHaveText(updatedText, { timeout: 5000 });
+    await expect(tvPage.locator('[data-scene-element-id="live-e2e-text"][data-identity-probe="stable-scene-node"]')).toHaveCount(1);
+    await expect(tvPage.locator('[data-player-menu-layer] svg.menu-table-svg[data-identity-probe="stable-menu"]')).toHaveCount(1);
   } finally {
-    if (screenId) {
-      await adminPage.request.delete(`/api/device-admin/bindings/${screenId}`).catch(() => undefined);
-    }
-    if (locationId) {
-      await adminPage.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
-    }
+    if (screenId) await adminPage.request.delete(`/api/device-admin/bindings/${screenId}`).catch(() => undefined);
+    if (locationId) await adminPage.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
     await tvContext.close();
     await adminContext.close();
   }
