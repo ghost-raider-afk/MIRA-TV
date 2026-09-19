@@ -86,24 +86,22 @@ test('Entity media upload streams to disk and has an independent env-controlled 
   assert.doesNotMatch(service, /screenBackgroundMaxBytes/);
 });
 
-test('Entity Editor renders image or video on a layer independent from menu and background', async () => {
-  const [html, page, preview, editor, animationContract, db, migration] = await Promise.all([
-    read('web/admin-ui/public/playlist.html'), read('web/admin-ui/public/js/pages/playlist.js'),
-    read('web/admin-ui/public/js/motion/screen-preview.js'), read('web/admin-ui/public/js/motion/entity-editor.js'),
-    read('contracts/animation.js'), read('db/settings.js'), read('db/migrations/scene-entity.js')
+test('generic scene media editor replaces the old Entity UI owner', async () => {
+  const [html, elements, service, contract] = await Promise.all([
+    read('web/admin-ui/public/screen-editor.html'),
+    read('web/admin-ui/public/js/editor/elements.js'),
+    read('services/scene-assets-service.js'),
+    read('contracts/scene.js')
   ]);
-  for (const id of ['animation-entity-file','animation-entity-upload','animation-entity-name','animation-entity-visible','animation-entity-x','animation-entity-y','animation-entity-width','animation-entity-loop','animation-entity-muted','animation-entity-playback-rate']) assert.match(html, new RegExp(`id="${id}"`));
-  assert.match(html, /accept="image\/png,image\/webp,video\/mp4,video\/webm"/);
-  assert.match(preview, /data-motion-entity-layer/);
-  assert.match(editor, /document\.createElement\('video'\)/);
-  assert.match(editor, /video\.playsInline/);
-  assert.match(editor, /video\.playbackRate/);
-  assert.match(editor, /document\.createElement\('img'\)/);
-  assert.match(page, /entity:\s*currentEntity/);
-  assert.match(animationContract, /entity:\s*sceneEntityInput\(body\.entity\)/);
-  assert.match(db, /entity_json/);
-  assert.match(migration, /ADD COLUMN IF NOT EXISTS entity_json/);
-  assert.doesNotMatch(animationContract, /profile:\s*\{[^}]*entity/s);
+  assert.match(html, /id="editor-add-element"/);
+  for (const label of ['Картинка','Видео','Логотип']) assert.ok(elements.includes(label));
+  assert.match(elements, /video\/mp4,video\/webm/);
+  assert.match(elements, /image\/png,image\/jpeg,image\/webp/);
+  assert.match(elements, /playback_rate/);
+  assert.match(service, /createSceneAssetStream/);
+  assert.match(service, /SCENE_DIR = 'scene'/);
+  assert.match(contract, /MEDIA_TYPES = Object\.freeze\(\['image','video','logo'\]\)/);
+  assert.doesNotMatch(elements, /animation-entity-/);
 });
 
 test('TV player receives, renders and caches Video Entity without JavaScript byte-range copies', async () => {
