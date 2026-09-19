@@ -321,7 +321,8 @@ test('generic scene elements use universal Element N cards and persist while mon
   const third = cards.nth(2);
   await expect(third).toHaveAttribute('open', '');
   await expect(third.locator('summary')).toContainText('Элемент 3');
-  await expect(third.getByLabel('Тип элемента 3').locator('option[value="weather"]')).toBeDisabled();
+  await expect(third.getByLabel('Тип элемента 3').locator('option[value="weather"]')).toHaveCount(0);
+  await expect(third).toContainText('Погода уже добавлена в сцену.');
   await third.getByLabel('Тип элемента 3').selectOption('image');
   await expect(cards.nth(2).locator('summary')).toContainText('Картинка');
   const fileInput = cards.nth(2).locator('input[type="file"]');
