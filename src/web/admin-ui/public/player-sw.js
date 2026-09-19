@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v22';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v23';
-const SHELL_CACHE = 'mira-tv-player-shell-v24';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v23';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v24';
+const SHELL_CACHE = 'mira-tv-player-shell-v25';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: stable promotion halo, compositor-safe motion filters and authored-motion parity. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
@@ -19,6 +19,7 @@ const SHELL_ASSETS = [
   '/css/scene-playlist.css',
   '/js/player/player.js',
   '/js/player/player-scene-renderer.js',
+  '/js/player/scene-element-renderer.js',
   '/js/player/player-store.js',
   '/js/player/player-realtime-client.js',
   '/js/player/player-state-sync.js',

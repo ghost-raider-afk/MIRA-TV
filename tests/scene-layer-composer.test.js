@@ -12,7 +12,7 @@ test('Player scene layer stack reserves stable coarse layers for scenes', async 
     read('js/player/player-scene-renderer.js'),
     read('css/player.css')
   ]);
-  const expected = ['environment', 'menu', 'fx', 'content', 'entity', 'brand', 'announcement'];
+  const expected = ['environment', 'menu', 'fx', 'content', 'scene', 'entity', 'brand', 'announcement'];
   let last = -1;
   for (const id of expected) {
     const index = source.indexOf(`id: '${id}'`);

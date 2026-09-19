@@ -13,6 +13,7 @@ import { applySceneVisibility } from '../motion/scene-visibility.js';
 import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js';
 import { SceneMotionRuntime } from '../motion/scene-motion-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
+import { SceneElementRenderer } from './scene-element-renderer.js';
 import { PlayerWeatherRuntime } from './weather-bootstrap.js';
 
 export const ALL_PLAYER_COMPONENTS = Object.freeze([
@@ -50,6 +51,7 @@ export class PlayerSceneRenderer {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Player scene renderer requires an HTMLElement stage.');
     this.stage = stage;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
+    this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }));
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.sceneMotionRuntime = new SceneMotionRuntime(stage, { activityControlled: true });
     this.scenePlaylistRuntime = new ScenePlaylistRuntime();
@@ -68,6 +70,7 @@ export class PlayerSceneRenderer {
       menu: menuLayer,
       fx: fxLayer,
       content: contentLayer,
+      scene: sceneElementLayer,
       entity: entityLayer,
       weather: weatherLayer,
       brand: brandLayer,
@@ -118,6 +121,10 @@ export class PlayerSceneRenderer {
 
     if (menuDirty || dirty.has('animation')) applySceneVisibility(this.stage, context.animation?.profile);
 
+    if (dirty.has('scene')) {
+      this.sceneElementRenderer.render(context.scene);
+      sceneElementLayer.setAttribute('aria-hidden', 'true');
+    }
     if (dirty.has('environment')) {
       renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
     }
@@ -161,6 +168,7 @@ export class PlayerSceneRenderer {
     if (this.destroyed) return;
     this.scenePlaylistRuntime.destroy();
     this.sceneMotionRuntime.reset();
+    this.sceneElementRenderer.clear();
     this.flatMenuRenderer.destroy();
   }
 
@@ -169,6 +177,7 @@ export class PlayerSceneRenderer {
     this.destroyed = true;
     this.scenePlaylistRuntime.destroy();
     this.sceneMotionRuntime.destroy();
+    this.sceneElementRenderer.destroy();
     this.flatMenuRenderer.destroy();
     this.weatherRuntime.destroy();
     this.stage = null;

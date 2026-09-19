@@ -42,12 +42,12 @@ test('real TV player owns all scene layers and uses one offline-first state owne
     read('src/web/admin-ui/public/css/weather-widget.css')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v24/);
+  assert.match(worker, /mira-tv-player-shell-v25/);
   for (const asset of [
     '/css/brand-motion-v2.css','/css/motion-overlays.css','/css/scene-playlist.css','/css/weather-widget.css',
     '/js/editor/renderer.js','/js/editor/renderer-model.js','/js/editor/renderer-svg.js',
     '/js/player/player-store.js','/js/player/player-realtime-client.js','/js/player/player-state-sync.js','/js/player/player-scene-renderer.js',
-    '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/weather-bootstrap.js',
+    '/js/player/scene-element-renderer.js','/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js','/js/player/weather-bootstrap.js',
     '/js/motion/weather-widget.js','/js/motion/environment.js','/js/motion/brand-title.js','/js/motion/announcement.js',
     '/js/motion/scene-playlist-runtime.js','/js/motion/scene-motion-runtime.js','/js/motion/scene-visibility.js',
     '/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js','/js/motion/scene-graph.js',
@@ -93,6 +93,8 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(sceneRenderer, /new SceneMotionRuntime\(stage, \{ activityControlled: true \}\)/);
   assert.match(sceneRenderer, /new PlayerWeatherRuntime\(stage/);
   assert.match(sceneRenderer, /new PlayerSceneLayerComposer\(stage\)/);
+  assert.match(sceneRenderer, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);
+  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(context\.scene\)/);
   assert.match(sceneRenderer, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
   assert.match(sceneRenderer, /renderBrandTitleLayer\(brandLayer, context\.brand\)/);
   assert.match(sceneRenderer, /renderAnnouncementLayer\(announcementLayer, context\.announcement\)/);
@@ -114,7 +116,7 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(playlistCss, /tv-player-entity-layer/);
   assert.match(playlistCss, /tv-player-brand-layer/);
   assert.match(playlistCss, /tv-player-announcement-layer/);
-  for (const layer of ['environment','menu','fx','content','entity','weather','brand','announcement']) {
+  for (const layer of ['environment','menu','fx','content','scene','entity','weather','brand','announcement']) {
     assert.match(layerComposer, new RegExp(`'${layer}'`));
   }
 
@@ -172,6 +174,7 @@ test('shared Player Scene Renderer rerenders only dirty scene components', async
   assert.match(renderer, /async render\(context, changedNames = ALL_PLAYER_COMPONENTS\)/);
   assert.match(renderer, /const menuDirty = dirty\.has\('menu'\) \|\| dirty\.has\('screen'\)/);
   assert.match(renderer, /if \(menuDirty\) \{[\s\S]*?this\.flatMenuRenderer\.render/);
+  assert.match(renderer, /if \(dirty\.has\('scene'\)\) \{\s*this\.sceneElementRenderer\.render\(context\.scene\)/);
   assert.match(renderer, /if \(dirty\.has\('entity'\)\) \{\s*renderSceneEntity/);
   assert.match(renderer, /if \(dirty\.has\('brand'\)\) \{\s*renderBrandTitleLayer/);
   assert.match(renderer, /if \(dirty\.has\('announcement'\)\) \{\s*renderAnnouncementLayer/);
