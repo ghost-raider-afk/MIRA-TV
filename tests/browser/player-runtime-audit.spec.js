@@ -73,7 +73,7 @@ function contextSnapshot() {
   };
 }
 
-function weatherResponse() {function weatherResponse() {
+function weatherResponse() {
   return {
     settings: {
       enabled: true,
