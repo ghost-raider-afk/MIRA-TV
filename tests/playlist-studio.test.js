@@ -2,9 +2,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { animationSettingsInput } from '../src/contracts/animation.js';
-import { announcementInput } from '../src/contracts/announcement.js';
-import { brandTitleInput } from '../src/contracts/brand-title.js';
-import { environmentInput, environmentFromLegacyAquarium } from '../src/contracts/environment.js';
 import { completeScenePlaylist, scenePlaylistInput, MAX_PLAYLIST_SCENES } from '../src/contracts/scene-playlist.js';
 import { completeAnimationProfile, DEFAULT_ANIMATION_PROFILE } from '../src/shared/animation-profile.js';
 
@@ -51,16 +48,14 @@ test('Scene Playlist keeps MenuScene implicit and validates temporary scene sema
     menu_duration_seconds: 42,
     scenes: [
       { id: 'promo-1', type: 'promo', enabled: true, mode: 'overlay', duration_seconds: 8, title: 'Акция', body: '' },
-      { id: 'content-1', type: 'content', enabled: true, mode: 'split', duration_seconds: 12, title: '', body: 'Информация' },
-      { id: 'object-1', type: 'object-story', enabled: true, mode: 'fullscreen', duration_seconds: 10, title: '', body: '' }
+      { id: 'content-1', type: 'content', enabled: true, mode: 'split', duration_seconds: 12, title: '', body: 'Информация' }
     ]
   });
   assert.equal(parsed.enabled, true);
   assert.equal(parsed.menu_duration_seconds, 42);
   assert.deepEqual(parsed.scenes.map(({ type, mode }) => ({ type, mode })), [
     { type: 'promo', mode: 'overlay' },
-    { type: 'content', mode: 'split' },
-    { type: 'object-story', mode: 'fullscreen' }
+    { type: 'content', mode: 'split' }
   ]);
   assert.equal(parsed.scenes.some((scene) => scene.type === 'menu'), false);
 
@@ -70,77 +65,12 @@ test('Scene Playlist keeps MenuScene implicit and validates temporary scene sema
   assert.equal(completeScenePlaylist({ scenes: [{ duration_seconds: 999 }] }).scenes[0].duration_seconds, 120);
   assert.throws(() => scenePlaylistInput({ scenes: 'promo' }), /должен быть массивом/);
   assert.throws(() => scenePlaylistInput({ scenes: [{ type: 'menu' }] }), /неподдерживаемый тип/);
+  assert.throws(() => scenePlaylistInput({ scenes: [{ type: 'object-story' }] }), /неподдерживаемый тип/);
+  assert.equal(completeScenePlaylist({ enabled: true, scenes: [{ type: 'object-story' }] }).scenes.length, 0);
   assert.throws(() => scenePlaylistInput({ scenes: [{ type: 'promo', mode: 'picture-in-picture', title: 'x' }] }), /неподдерживаемый режим/);
   assert.throws(() => scenePlaylistInput({ scenes: [{ id: 'same', title: '1' }, { id: 'same', title: '2' }] }), /повторяющиеся идентификаторы/);
   assert.throws(() => scenePlaylistInput({ enabled: true, scenes: [{ type: 'content', title: '', body: '' }] }), /заголовок или текст/);
   assert.throws(() => scenePlaylistInput({ scenes: Array.from({ length: MAX_PLAYLIST_SCENES + 1 }, (_, index) => ({ id: `s-${index}`, title: 'x' })) }), /не более/);
-});
-
-test('announcement contract validates font, vertical stretch and independent row glow', () => {
-  const parsed = announcementInput({
-    enabled: true, text: 'Сегодня скидка 10%', position: 'bottom', speed_px_per_second: 90, font_size: 34,
-    font_family: 'oswald', vertical_scale: 1.35, text_color: '#FFFFFF', background_color: '#101317',
-    background_opacity: 0.8, glow_enabled: true, glow_color: '#35D9FF', glow_strength: 16
-  });
-  assert.equal(parsed.enabled, true);
-  assert.equal(parsed.text, 'Сегодня скидка 10%');
-  assert.equal(parsed.font_family, 'oswald');
-  assert.equal(parsed.vertical_scale, 1.35);
-  assert.equal(parsed.glow_enabled, true);
-  assert.throws(() => announcementInput({ enabled: true, text: '' }), /Введите текст объявления/);
-  assert.throws(() => announcementInput({ enabled: true, text: 'x', font_family: 'remote-font' }), /Шрифт бегущей строки/);
-});
-
-test('brand title and environment effect are independent validated scene layers', () => {
-  const brand = brandTitleInput({
-    enabled: true,
-    text: 'БАР\nМАЯК',
-    x: 240,
-    y: 110,
-    font_family: 'montserrat',
-    vertical_scale: 1.2,
-    line_spacing: -18,
-    effect: 'neon-pulse'
-  });
-  assert.equal(brand.text, 'БАР\nМАЯК');
-  assert.equal(brand.x, 240);
-  assert.equal(brand.vertical_scale, 1.2);
-  assert.equal(brand.line_spacing, -18);
-  assert.equal(brand.effect, 'neon-pulse');
-  assert.equal(brandTitleInput({}).text, '');
-  assert.throws(() => brandTitleInput({ enabled: true, text: '' }), /Введите название бренда/);
-
-  const environment = environmentInput({
-    enabled: true,
-    effect: 'aquarium',
-    parameters: { style: 'neon', intro_fill: true, fish_count: 4, bubble_density: 50, plant_density: 30, caustics: 60, speed: 40 }
-  });
-  assert.equal(environment.enabled, true);
-  assert.equal(environment.effect, 'aquarium');
-  assert.equal(environment.parameters.style, 'neon');
-  assert.equal(environment.parameters.fish_count, 4);
-});
-
-test('legacy aquarium settings are converted to an environment effect without becoming a layer', () => {
-  const environment = environmentFromLegacyAquarium({
-    enabled: true,
-    style: 'reef',
-    intro_fill: false,
-    fish_count: 5,
-    bubble_density: 44,
-    plant_density: 22,
-    caustics: 61,
-    speed: 37
-  });
-  assert.deepEqual(environment, {
-    enabled: true,
-    animation_enabled: true,
-    effect: 'aquarium',
-    parameters: {
-      style: 'reef', intro_fill: false, intensity: 45, fish_count: 5,
-      bubble_density: 44, plant_density: 22, caustics: 61, speed: 37
-    }
-  });
 });
 
 test('legacy animation data migrates without background or independent price motion', () => {
@@ -199,7 +129,7 @@ test('Playlist Studio owns only menu motion and Scene Playlist while visual elem
   assert.match(playlistEditor, /MenuScene/);
   assert.match(playlistEditor, /PromoScene/);
   assert.match(playlistEditor, /ContentScene/);
-  assert.match(playlistEditor, /Object Story/);
+  assert.doesNotMatch(playlistEditor, /Object Story|object-story/);
   assert.match(profileEditor, /profile\.price_effect = 'none'/);
   assert.match(profileEditor, /promotion_scale_amount = clamp/);
   assert.match(sceneMotion, /WasmMotionDriver/);

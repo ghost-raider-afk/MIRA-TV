@@ -12,10 +12,10 @@ test('Scene Playlist runtime preserves an active timeline when Player Context is
     read('js/player/player-scene-renderer.js')
   ]);
 
-  assert.match(runtime, /function playbackSignature\(playlist, entity\)/);
+  assert.match(runtime, /function playbackSignature\(playlist\)/);
   assert.match(runtime, /this\.playbackActive && sameLayers && this\.signature === nextSignature/);
   assert.match(runtime, /this\.playlist = nextPlaylist/);
-  assert.match(runtime, /this\.entity = entity/);
+  assert.doesNotMatch(runtime, /this\.entity|createEntityMedia|normaliseSceneEntity/);
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
   assert.match(sceneRenderer, /this\.scenePlaylistRuntime\.render\(context\.scene_playlist/);
   assert.doesNotMatch(runtime, /scene-graph\.js/);

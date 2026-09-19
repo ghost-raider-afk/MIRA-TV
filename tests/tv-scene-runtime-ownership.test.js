@@ -32,8 +32,8 @@ test('TV Player and Preview share one SceneMotionRuntime ownership model', async
 
   assert.match(runtime, /buildDomMotionScene/);
   assert.match(runtime, /new WasmMotionDriver/);
-  assert.match(runtime, /compileEntityBehaviorProgram/);
-  assert.match(runtime, /\.\.\.DEFAULT_SCENE_COMPILERS/);
+  assert.doesNotMatch(runtime, /compileEntityBehaviorProgram|entityMedia/);
+  assert.match(runtime, /this\.compilers = compilers \|\| DEFAULT_SCENE_COMPILERS/);
   assert.match(runtime, /if \(this\.plan\?\.tracks\?\.length\)/);
 
   assert.match(plan, /compileMenuMotionProgram/);

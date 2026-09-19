@@ -5,28 +5,27 @@ import { readFile } from 'node:fs/promises';
 const root = new URL('../src/web/admin-ui/public/', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
-test('Player scene layer stack reserves stable coarse layers for scenes', async () => {
-  const [source, player, sceneRenderer, playerCss] = await Promise.all([
+test('Player scene layer stack contains only canonical generic layers', async () => {
+  const [source, player, sceneRenderer] = await Promise.all([
     read('js/player/scene-layer-composer.js'),
     read('js/player/player.js'),
-    read('js/player/player-scene-renderer.js'),
-    read('css/player.css')
+    read('js/player/player-scene-renderer.js')
   ]);
-  const expected = ['environment', 'menu', 'fx', 'content', 'scene', 'entity', 'brand', 'announcement'];
+  const expected = ['menu', 'fx', 'content', 'scene'];
   let last = -1;
   for (const id of expected) {
     const index = source.indexOf(`id: '${id}'`);
     assert.ok(index > last, `scene layer ${id} is missing or out of order`);
     last = index;
   }
+  for (const legacy of ['environment','entity','weather','brand','announcement','aquarium']) {
+    assert.doesNotMatch(source, new RegExp(`id: '${legacy}'`));
+  }
   assert.match(source, /layer\.dataset\.sceneLayer = id/);
   assert.match(source, /ensureCore\(\)/);
-  assert.doesNotMatch(source, /id:\s*'aquarium'/);
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
-  assert.match(sceneRenderer, /renderEnvironmentLayer\(environmentLayer, context\.environment/);
-  assert.doesNotMatch(sceneRenderer, /context\.aquarium/);
-  assert.match(playerCss, /\.tv-player-environment-layer/);
-  assert.doesNotMatch(playerCss, /\.tv-player-aquarium-layer|\.scene-aquarium-layer/);
+  assert.match(sceneRenderer, /sceneElementRenderer\.render\(context\.scene\)/);
+  assert.doesNotMatch(sceneRenderer, /renderEnvironmentLayer|renderSceneEntity|renderBrandTitleLayer|renderAnnouncementLayer/);
 });
 
 test('Player scene layer positioning is idempotent once the stack order is correct', async () => {
