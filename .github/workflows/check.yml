@@ -121,6 +121,26 @@ jobs:
                       if token in text:
                           failures.append(f'project version: {path.as_posix()} -> {token}')
 
+          frontend_root = root / 'src' / 'web' / 'admin-ui' / 'public'
+          preview_forbidden = {
+              'animation-' + 'entity',
+              'animation-' + 'announcement',
+              'scene-' + 'entity',
+              'brand-' + 'title',
+              'environment-' + 'layer',
+              'aqua' + 'rium',
+          }
+          for path in frontend_root.rglob('*'):
+              if not path.is_file():
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8').lower()
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for token in preview_forbidden:
+                  if token in text:
+                      failures.append(f'retired preview object: {path.as_posix()} -> {token}')
+
           if failures:
               raise SystemExit('Forbidden legacy identifiers found:\n' + '\n'.join(sorted(set(failures))))
           PY
