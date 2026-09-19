@@ -55,7 +55,7 @@ export function createManagerViewRouter({ store, config }) {
     const id = positiveId(request.params.id, 'id');
     if (!await publishedScreen(store, id)) return response.status(404).json({ error: 'Опубликованный монитор не найден.' });
     const draft = await store.getScreenDraft(id);
-    const settings = sceneWeatherSettings(draft?.scene, id) || await store.getScreenWeatherSettings(id);
+    const settings = sceneWeatherSettings(draft?.scene, id);
     if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
     const snapshot = await getWeatherSnapshot(settings, config);
     response.json({ settings: { ...settings, screen_id: id }, snapshot });

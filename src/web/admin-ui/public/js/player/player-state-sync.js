@@ -10,8 +10,7 @@ import {
 } from './player-store.js';
 
 const ALL_COMPONENTS = Object.freeze([
-  'screen', 'menu', 'scene', 'animation', 'environment', 'scene_playlist',
-  'entity', 'weather', 'brand', 'announcement', 'runtime'
+  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
@@ -78,8 +77,6 @@ function activeAssetManifest(context) {
     : [];
   const assets = [
     context?.draft?.settings?.background_image_url,
-    context?.entity?.asset_url,
-    context?.entity?.poster_url,
     ...sceneAssets
   ].map(localAsset).filter(Boolean);
   return [...new Set(assets)];

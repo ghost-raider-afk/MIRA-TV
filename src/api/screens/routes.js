@@ -16,8 +16,8 @@ function notifyRevisions(realtime, revisions) {
 async function cloneScreen(tx, sourceId, targetLocationId, config, updatedBy) {
   const source = await tx.getScreen(sourceId);
   if (!source) throw notFound();
-  const [draft, sourceAnimation, sourceWeather] = await Promise.all([
-    tx.getScreenDraft(source.id), tx.getScreenAnimationSettings(source.id), tx.getScreenWeatherSettings(source.id)
+  const [draft, sourceAnimation] = await Promise.all([
+    tx.getScreenDraft(source.id), tx.getScreenAnimationSettings(source.id)
   ]);
   const created = await tx.createScreen({ location_id: targetLocationId, resolution: source.resolution, status: 'draft', active: source.active !== false });
   const saved = await tx.saveScreenDraft(created.id, {
@@ -30,8 +30,7 @@ async function cloneScreen(tx, sourceId, targetLocationId, config, updatedBy) {
     const applied = await tx.applyAnimationSettingsToScreens([created.id], sourceAnimation, updatedBy);
     if (applied.length !== 1) throw conflict('Не удалось создать независимую копию плейлиста монитора.');
   }
-  if (sourceWeather) await tx.applyWeatherSettingsToScreens([created.id], sourceWeather, updatedBy);
-  await tx.markScreenRenderChanged([created.id], ['screen', 'menu', 'scene', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather'], 'screen.cloned', updatedBy);
+  await tx.markScreenRenderChanged([created.id], ['screen', 'menu', 'scene', 'animation', 'scene_playlist'], 'screen.cloned', updatedBy);
   return tx.getScreen(created.id);
 }
 

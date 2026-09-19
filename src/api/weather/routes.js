@@ -1,60 +1,27 @@
 import express from 'express';
-import { weatherTargetScreenIds, weatherWidgetInput } from '../../contracts/weather.js';
+import { weatherWidgetInput } from '../../contracts/weather.js';
+import { sceneWeatherSettings } from '../../contracts/scene.js';
 import { getWeatherSnapshot, searchWeatherLocations } from '../../services/weather-service.js';
-import { activity } from '../helpers.js';
-
-function notifyRevisions(realtime, revisions) {
-  for (const item of revisions || []) realtime?.notifyScreen(item.screen_id, item.revision);
-}
 
 function screenId(value) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-export function createWeatherRouter({ store, config, realtime }) {
+export function createWeatherRouter({ store, config }) {
   const router = express.Router();
 
-  router.get('/settings', async (_request, response) => {
-    response.json(await store.getWeatherSettings());
-  });
-
-  router.get('/screens/:screenId', async (request, response) => {
+  router.get('/screens/:screenId/snapshot', async (request, response) => {
     const id = screenId(request.params.screenId);
     if (!id) return response.status(400).json({ error: 'Некорректный идентификатор монитора.' });
     const screen = await store.getScreen(id);
     if (!screen) return response.status(404).json({ error: 'Монитор не найден.' });
-    return response.json(await store.getScreenWeatherSettings(id));
-  });
-
-  router.put('/settings', async (request, response) => {
-    const input = weatherWidgetInput(request.body);
-    const saved = await store.updateWeatherSettings(input, request.session.sub);
-    await activity(store, request, {
-      action: 'weather.settings.updated',
-      entity_type: 'weather_settings',
-      entity_id: 1,
-      message: 'Сохранён шаблон виджета погоды.'
-    });
-    response.json(saved);
-  });
-
-  router.put('/apply', async (request, response) => {
-    const screenIds = weatherTargetScreenIds(request.body?.screen_ids);
-    const settings = weatherWidgetInput(request.body?.settings);
-    const result = await store.transaction(async (tx) => {
-      const applied = await tx.applyWeatherSettingsToScreens(screenIds, settings, request.session.sub);
-      const revisions = await tx.markScreenRenderChanged(applied, ['weather'], 'weather.applied', request.session.sub);
-      return { applied_screen_ids: applied, revisions };
-    });
-    notifyRevisions(realtime, result.revisions);
-    await activity(store, request, {
-      action: 'weather.applied',
-      entity_type: 'screen_weather_settings',
-      entity_id: result.applied_screen_ids.join(','),
-      message: `Погода применена к мониторам: ${result.applied_screen_ids.join(', ')}.`
-    });
-    response.json({ settings, applied_screen_ids: result.applied_screen_ids });
+    const draft = await store.getScreenDraft(id);
+    const settings = sceneWeatherSettings(draft?.scene, id);
+    if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) {
+      return response.status(204).end();
+    }
+    return response.json({ settings, snapshot: await getWeatherSnapshot(settings, config) });
   });
 
   router.get('/locations', async (request, response) => {
