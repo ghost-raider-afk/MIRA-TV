@@ -130,8 +130,7 @@ export function initialiseScreenEditor() {
 
   const previewTarget = element('editor-menu-preview');
   const inspectorTarget = element('editor-preview-row-inspector');
-  const elementsList = element('editor-elements-list');
-  const elementProperties = element('editor-element-properties');
+  const elementsContainer = element('editor-elements-stack');
 
   setEditorLoading(form, true);
 
@@ -147,11 +146,13 @@ export function initialiseScreenEditor() {
   });
 
   const refreshElements = () => renderSceneElements(editorState, {
-    list: elementsList,
-    properties: elementProperties,
+    container: elementsContainer,
     onBeforeMutate: () => history.checkpoint(),
-    onVisualChange: () => refreshEditorView({ syncRows: false, syncElements: false }),
-    onStructureChange: () => refreshEditorView({ syncRows: false, syncElements: true }),
+    onVisualChange: () => setDirtyState(editorState),
+    onStructureChange: () => {
+      refreshElements();
+      setDirtyState(editorState);
+    },
     onUpload: uploadSceneAsset
   });
 
@@ -207,7 +208,12 @@ export function initialiseScreenEditor() {
   element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshEditorView(); });
   element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshEditorView(); });
   element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshEditorView(); });
-  element('editor-add-element')?.addEventListener('click', () => { history.checkpoint(); appendSceneElement(editorState); refreshEditorView({ syncRows: false, syncElements: true }); });
+  element('editor-add-element')?.addEventListener('click', () => {
+    history.checkpoint();
+    appendSceneElement(editorState);
+    refreshElements();
+    setDirtyState(editorState);
+  });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();

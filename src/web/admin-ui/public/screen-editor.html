@@ -46,9 +46,11 @@
                 <details class="editor-settings-section editor-tool-menu">
                   <summary>Элементы</summary>
                   <div class="editor-settings-body editor-elements-panel">
-                    <div class="editor-elements-toolbar"><strong>Сцена</strong><button class="button button-secondary" id="editor-add-element" type="button" disabled>+ Элемент</button></div>
-                    <div class="editor-elements-list" id="editor-elements-list" aria-label="Элементы сцены"></div>
-                    <div class="editor-element-properties" id="editor-element-properties"></div>
+                    <div class="editor-elements-toolbar">
+                      <div><strong>Элементы сцены</strong><small>Каждый Элемент N — универсальный блок. Выберите тип внутри карточки.</small></div>
+                      <button class="button button-secondary" id="editor-add-element" type="button" disabled>+ Элемент</button>
+                    </div>
+                    <div class="editor-elements-stack" id="editor-elements-stack" aria-label="Элементы сцены"></div>
                   </div>
                 </details>
 
