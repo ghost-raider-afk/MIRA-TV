@@ -18,6 +18,10 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(renderer, /if \(node\.dataset\.sceneSource !== source\)/);
   assert.match(renderer, /video\.pause\(\)/);
   assert.match(renderer, /document\.addEventListener\('visibilitychange'/);
+  assert.match(renderer, /activityTarget\?\.addEventListener\('mira:player-active'/);
+  assert.match(renderer, /return this\.autoplay && this\.active && document\.visibilityState !== 'hidden'/);
+  assert.match(renderer, /flow\.dataset\.sceneTextFlow/);
+  assert.match(renderer, /span\.style\.display = scaleX === 1 && scaleY === 1 \? 'inline' : 'inline-block'/);
   assert.match(renderer, /element\.enabled === false \? 'none' : 'block'/);
   assert.doesNotMatch(renderer, /innerHTML/);
 
@@ -27,5 +31,7 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.doesNotMatch(preview, /target\.innerHTML\s*=/);
 
   assert.match(player, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);
+  assert.match(player, /activityTarget: stage/);
+  assert.match(player, /autoplay: this\.autoplay/);
   assert.match(player, /this\.sceneElementRenderer\.render\(context\.scene\)/);
 });

@@ -47,11 +47,15 @@ function sameOriginAsset(value) {
 }
 
 export class PlayerSceneRenderer {
-  constructor(stage, { weatherEndpoint = '/api/device/weather' } = {}) {
+  constructor(stage, { weatherEndpoint = '/api/device/weather', autoplay = true } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Player scene renderer requires an HTMLElement stage.');
     this.stage = stage;
+    this.autoplay = autoplay !== false;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
-    this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }));
+    this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }), {
+      activityTarget: stage,
+      autoplay: this.autoplay
+    });
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.sceneMotionRuntime = new SceneMotionRuntime(stage, { activityControlled: true });
     this.scenePlaylistRuntime = new ScenePlaylistRuntime();
@@ -129,7 +133,7 @@ export class PlayerSceneRenderer {
       renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
     }
     if (dirty.has('entity')) {
-      renderSceneEntity(this.stage, context.entity, { editable: false });
+      renderSceneEntity(this.stage, context.entity, { editable: false, thumbnail: !this.autoplay });
       this.stage.dispatchEvent(new CustomEvent('mira:entity-rendered'));
     }
     if (dirty.has('brand')) {
@@ -158,7 +162,7 @@ export class PlayerSceneRenderer {
         contentLayer,
         fxLayer,
         entity: context.entity,
-        autoplay: true
+        autoplay: this.autoplay
       });
     }
     entityLayer.setAttribute('aria-hidden', 'true');

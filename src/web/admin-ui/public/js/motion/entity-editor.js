@@ -86,7 +86,7 @@ export function createEntityMedia(entity, { thumbnail = false } = {}) {
   return image;
 }
 
-export function renderSceneEntity(stage, source, { editable = true } = {}) {
+export function renderSceneEntity(stage, source, { editable = true, thumbnail = false } = {}) {
   if (!stage) return;
   const layer = stage.querySelector('[data-motion-entity-layer]');
   if (!(layer instanceof HTMLElement)) return;
@@ -114,7 +114,7 @@ export function renderSceneEntity(stage, source, { editable = true } = {}) {
   motion.className = 'animation-scene-entity-motion';
   motion.dataset.entityMotion = entity.id;
   motion.dataset.entityAnimationMode = entity.animation_mode;
-  const media = createEntityMedia(entity);
+  const media = createEntityMedia(entity, { thumbnail });
   media.classList.add('animation-scene-entity-media');
   media.style.pointerEvents = 'none';
   motion.append(media);

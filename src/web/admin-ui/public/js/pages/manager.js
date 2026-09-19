@@ -2,14 +2,9 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
-import { renderAnimationScreenPreview } from '../motion/screen-preview.js';
-import { renderSceneEntity } from '../motion/entity-editor.js';
-import { renderAnnouncementLayer } from '../motion/announcement.js';
-import { renderBrandTitleLayer } from '../motion/brand-title.js';
-import { renderEnvironmentLayer } from '../motion/environment.js';
-import { applySceneVisibility } from '../motion/scene-visibility.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 
+const previewRenderers = new Set();
 let fullscreenRenderer = null;
 let fullscreenScreenId = null;
 
@@ -17,33 +12,30 @@ function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
 }
 
-function renderStaticContext(stage, context) {
-  renderAnimationScreenPreview(stage, {
-    screen: context.screen,
-    draft: context.draft,
-    products: context.products,
-    packaging: context.packaging
-  });
-  applySceneVisibility(stage, context.animation?.profile);
-  const environment = stage.querySelector('[data-environment-layer]');
-  const brand = stage.querySelector('[data-brand-layer]');
-  const announcement = stage.querySelector('[data-announcement-layer]');
-  if (environment) renderEnvironmentLayer(environment, context.environment, { allowIntro: false });
-  renderSceneEntity(stage, context.entity, { editable: false });
-  if (brand) renderBrandTitleLayer(brand, context.brand);
-  if (announcement) renderAnnouncementLayer(announcement, context.announcement);
-  stage.querySelectorAll('video').forEach((video) => {
-    video.pause();
-    video.preload = 'metadata';
-  });
+function destroyPreviewRenderers() {
+  for (const renderer of previewRenderers) renderer.destroy();
+  previewRenderers.clear();
 }
 
 async function hydratePreview(stage, screenId, loading) {
+  let renderer = null;
   try {
     const context = await api.get(`${API.managerBase}/screens/${screenId}/context`);
     if (!stage.isConnected) return;
-    renderStaticContext(stage, context);
+    stage.dataset.playerActive = 'false';
+    renderer = new PlayerSceneRenderer(stage, {
+      weatherEndpoint: `${API.managerBase}/screens/${screenId}/weather`,
+      autoplay: false
+    });
+    previewRenderers.add(renderer);
+    await renderer.render(context);
+    if (!stage.isConnected) {
+      renderer.destroy();
+      previewRenderers.delete(renderer);
+    }
   } catch (error) {
+    renderer?.destroy();
+    if (renderer) previewRenderers.delete(renderer);
     if (stage.isConnected) stage.replaceChildren(Object.assign(document.createElement('p'), { className: 'animation-screen-empty', textContent: error.message }));
   } finally {
     loading?.classList.add('is-hidden');
@@ -83,6 +75,7 @@ function renderLocations(locations) {
   const root = document.getElementById('manager-locations');
   const empty = document.getElementById('manager-empty');
   if (!root || !empty) return;
+  destroyPreviewRenderers();
   root.replaceChildren();
   for (const location of locations) {
     const group = document.createElement('article');

@@ -109,7 +109,9 @@ function textShadow(effects) {
 
 function applyTextRun(span, run, effects) {
   span.textContent = transformedText(run?.value, run?.text_transform);
-  span.style.display = 'inline-block';
+  const scaleX = Number(run?.horizontal_scale_percent ?? 100) / 100;
+  const scaleY = Number(run?.vertical_scale_percent ?? 100) / 100;
+  span.style.display = scaleX === 1 && scaleY === 1 ? 'inline' : 'inline-block';
   span.style.fontFamily = FONT_FAMILIES[run?.font_family] || FONT_FAMILIES['system-sans'];
   span.style.fontSize = sceneUnit(run?.font_size_px ?? 64);
   span.style.fontWeight = String(Number(run?.font_weight ?? 400));
@@ -120,9 +122,7 @@ function applyTextRun(span, run, effects) {
   span.style.position = 'relative';
   span.style.top = sceneUnit(-Number(run?.baseline_shift_px || 0));
   span.style.transformOrigin = 'left center';
-  span.style.transform = 'scale(' +
-    String(Number(run?.horizontal_scale_percent ?? 100) / 100) + ',' +
-    String(Number(run?.vertical_scale_percent ?? 100) / 100) + ')';
+  span.style.transform = 'scale(' + String(scaleX) + ',' + String(scaleY) + ')';
 
   const fill = effects?.fill;
   if (fill?.enabled !== false && fill?.mode === 'linear-gradient' && Array.isArray(fill?.gradient?.stops)) {
@@ -155,22 +155,26 @@ function renderText(node, text) {
   node.style.width = '100%';
   node.style.height = '100%';
   node.style.display = 'flex';
-  node.style.flexWrap = 'wrap';
-  node.style.alignContent = verticalAlignment(paragraph.vertical_align);
-  node.style.justifyContent = paragraph.align === 'center' ? 'center' : paragraph.align === 'right' ? 'flex-end' : 'flex-start';
-  node.style.textAlign = paragraph.align === 'center' || paragraph.align === 'right' ? paragraph.align : 'left';
-  node.style.whiteSpace = paragraph.wrap === false ? 'pre' : 'pre-wrap';
-  node.style.overflowWrap = paragraph.wrap === false ? 'normal' : 'anywhere';
+  node.style.alignItems = verticalAlignment(paragraph.vertical_align);
   node.style.overflow = 'hidden';
+
+  const flow = document.createElement('div');
+  flow.dataset.sceneTextFlow = '';
+  flow.style.width = '100%';
+  flow.style.minWidth = '0';
+  flow.style.textAlign = paragraph.align === 'center' || paragraph.align === 'right' ? paragraph.align : 'left';
+  flow.style.whiteSpace = paragraph.wrap === false ? 'pre' : 'pre-wrap';
+  flow.style.overflowWrap = paragraph.wrap === false ? 'normal' : 'anywhere';
 
   for (const run of Array.isArray(text?.runs) ? text.runs : []) {
     const span = document.createElement('span');
     applyTextRun(span, run, effects);
-    node.append(span);
+    flow.append(span);
   }
+  node.append(flow);
 }
 
-function syncVideo(video, element, documentVisible) {
+function syncVideo(video, element, playbackAllowed) {
   if (!(video instanceof HTMLVideoElement)) return;
   const media = element?.media || {};
   video.loop = media.loop !== false;
@@ -179,7 +183,7 @@ function syncVideo(video, element, documentVisible) {
   const playbackRate = Number(media.playback_rate || 1);
   if (Number.isFinite(playbackRate) && playbackRate >= 0.25 && playbackRate <= 4) video.playbackRate = playbackRate;
 
-  const shouldPlay = element?.enabled !== false && documentVisible && Boolean(video.dataset.sceneSource);
+  const shouldPlay = element?.enabled !== false && playbackAllowed && Boolean(video.dataset.sceneSource);
   if (!shouldPlay) {
     video.pause();
     return;
@@ -188,7 +192,7 @@ function syncVideo(video, element, documentVisible) {
   if (play && typeof play.catch === 'function') play.catch(() => {});
 }
 
-function updateMedia(node, element, documentVisible) {
+function updateMedia(node, element, playbackAllowed) {
   const media = element?.media || {};
   const source = sameOriginAsset(media.source_url);
   applyMediaLayout(node, media);
@@ -199,7 +203,7 @@ function updateMedia(node, element, documentVisible) {
     else node.removeAttribute('src');
     if (node instanceof HTMLVideoElement) node.load();
   }
-  if (node instanceof HTMLVideoElement) syncVideo(node, element, documentVisible);
+  if (node instanceof HTMLVideoElement) syncVideo(node, element, playbackAllowed);
 }
 
 function createContent(type) {
@@ -217,7 +221,7 @@ function createContent(type) {
   return mediaNode(type);
 }
 
-function updateContent(content, element, documentVisible) {
+function updateContent(content, element, playbackAllowed) {
   if (element.type === 'text') {
     renderText(content, element.text);
     return;
@@ -228,7 +232,7 @@ function updateContent(content, element, documentVisible) {
     content.dataset.showCondition = element.weather?.show_condition === false ? 'false' : 'true';
     return;
   }
-  updateMedia(content, element, documentVisible);
+  updateMedia(content, element, playbackAllowed);
 }
 
 function applyGeometry(node, element) {
@@ -247,12 +251,19 @@ function applyGeometry(node, element) {
 }
 
 export class SceneElementRenderer {
-  constructor(layer) {
+  constructor(layer, { activityTarget = null, autoplay = true } = {}) {
     if (!(layer instanceof HTMLElement)) throw new TypeError('SceneElementRenderer requires an HTMLElement layer.');
     this.layer = layer;
+    this.activityTarget = activityTarget instanceof HTMLElement ? activityTarget : null;
+    this.autoplay = autoplay !== false;
+    this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
     this.entries = new Map();
     this.destroyed = false;
     this.handleVisibilityChange = () => this.syncVideos();
+    this.handlePlayerActivity = (event) => {
+      this.active = event?.detail?.active === true;
+      this.syncVideos();
+    };
     layer.setAttribute('data-scene-elements-layer', '');
     layer.setAttribute('aria-hidden', 'true');
     layer.style.position = 'absolute';
@@ -261,6 +272,11 @@ export class SceneElementRenderer {
     layer.style.pointerEvents = 'none';
     layer.style.containerType = 'inline-size';
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    this.activityTarget?.addEventListener('mira:player-active', this.handlePlayerActivity);
+  }
+
+  playbackAllowed() {
+    return this.autoplay && this.active && document.visibilityState !== 'hidden';
   }
 
   render(scene) {
@@ -295,10 +311,10 @@ export class SceneElementRenderer {
       applyGeometry(entry.node, element);
       entry.element = element;
       if (entry.fingerprint !== fingerprint) {
-        updateContent(entry.content, element, !document.hidden);
+        updateContent(entry.content, element, this.playbackAllowed());
         entry.fingerprint = fingerprint;
       } else if (entry.content instanceof HTMLVideoElement) {
-        syncVideo(entry.content, element, !document.hidden);
+        syncVideo(entry.content, element, this.playbackAllowed());
       }
 
       this.layer.append(entry.node);
@@ -315,7 +331,7 @@ export class SceneElementRenderer {
   syncVideos() {
     if (this.destroyed) return;
     for (const entry of this.entries.values()) {
-      if (entry.content instanceof HTMLVideoElement) syncVideo(entry.content, entry.element, !document.hidden);
+      if (entry.content instanceof HTMLVideoElement) syncVideo(entry.content, entry.element, this.playbackAllowed());
     }
   }
 
@@ -331,7 +347,9 @@ export class SceneElementRenderer {
     if (this.destroyed) return;
     this.destroyed = true;
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    this.activityTarget?.removeEventListener('mira:player-active', this.handlePlayerActivity);
     this.clear();
+    this.activityTarget = null;
     this.layer = null;
   }
 }
