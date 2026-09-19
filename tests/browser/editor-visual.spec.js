@@ -99,6 +99,10 @@ for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 76
     await expect(sectionInput).toBeVisible();
     await expect(preview.locator('[data-preview-product-select]')).toHaveCount(4);
     await expect(preview.locator('[data-preview-product-select]').first()).toHaveValue(String(product.id));
+    await expect(preview.locator('svg .section-title').first()).toHaveCSS('visibility', 'hidden');
+    await expect(preview.locator('svg .item-name').first()).toHaveCSS('visibility', 'hidden');
+    await expect(preview.locator('svg .item-meta').first()).toHaveCSS('visibility', 'visible');
+    await expect(preview.locator('svg .price').first()).toHaveCSS('visibility', 'visible');
     await expect(preview.getByRole('button', { name: 'Сортировать раздел по алфавиту' })).toHaveCount(1);
     await sectionInput.fill('Разливное меню');
     await expect(preview.locator('.section-title').first()).toContainText('Разливное меню');
@@ -255,7 +259,7 @@ test('login composition follows MIRA-TV 1 and size 7 is the reference logo scale
   expect(card.width).toBeLessThanOrEqual(375);
 });
 
-test('generic scene elements edit, render and persist through the monitor Preview', async ({ page }) => {
+test('generic scene elements edit and persist while monitor Preview stays table-only', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await login(page);
   const { screen } = await createEditorFixture(page, { rows: 2 });
@@ -290,12 +294,8 @@ test('generic scene elements edit, render and persist through the monitor Previe
   await glow.getByLabel('Включено', { exact: true }).check();
   await glow.getByLabel('Размытие', { exact: true }).fill('24');
 
-  const textElement = preview.locator('[data-scene-element-type="text"]').first();
-  await expect(textElement).toBeVisible();
-  await expect(textElement.locator('[data-scene-text] span')).toHaveText('БАР МАЯК');
-  await expect(textElement).toHaveCSS('left', /.+/);
-  expect(await textElement.evaluate((node) => node.style.left)).toBe('15.625%');
-  expect(await textElement.locator('[data-scene-text] span').evaluate((node) => node.style.textShadow)).not.toBe('');
+  await expect(preview.locator('[data-scene-elements-layer]')).toHaveCount(0);
+  await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 
   await page.locator('#editor-add-element').click();
   await expect(list.locator('.editor-element-list-item')).toHaveCount(2);
@@ -305,7 +305,7 @@ test('generic scene elements edit, render and persist through the monitor Previe
   await properties.getByLabel('Населённый пункт', { exact: true }).fill('Хельсинки');
   await properties.getByLabel('Широта', { exact: true }).fill('60.1699');
   await properties.getByLabel('Долгота', { exact: true }).fill('24.9384');
-  await expect(preview.locator('[data-scene-element-type="weather"] [data-scene-weather-mount]')).toBeVisible();
+  await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 
   await page.locator('#editor-add-element').click();
   await expect(list.locator('.editor-element-list-item')).toHaveCount(3);
@@ -322,8 +322,7 @@ test('generic scene elements edit, render and persist through the monitor Previe
   );
   await properties.getByRole('button', { name: 'Загрузить файл' }).click();
   expect((await uploadResponse).status()).toBe(201);
-  const image = preview.locator('[data-scene-element-type="image"] img');
-  await expect(image).toHaveAttribute('src', /\/site-assets\/scene\/scene-.+\.png$/);
+  await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 
   await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
   const saveResponse = page.waitForResponse((response) =>
@@ -345,6 +344,6 @@ test('generic scene elements edit, render and persist through the monitor Previe
   await page.reload();
   await openSettings(page, 'Элементы');
   await expect(page.locator('#editor-elements-list .editor-element-list-item')).toHaveCount(3);
-  await expect(preview.locator('[data-scene-element-type="text"] [data-scene-text] span')).toHaveText('БАР МАЯК');
-  await expect(preview.locator('[data-scene-element-type="image"] img')).toHaveAttribute('src', /\/site-assets\/scene\/scene-.+\.png$/);
+  await expect(preview.locator('[data-scene-elements-layer]')).toHaveCount(0);
+  await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 });
