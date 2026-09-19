@@ -2,6 +2,7 @@ import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { getWeatherSnapshot } from '../../services/weather-service.js';
+import { sceneWeatherSettings } from '../../contracts/scene.js';
 
 async function publishedScreen(store, id) {
   const screen = await store.getScreen(id);
@@ -53,8 +54,9 @@ export function createManagerViewRouter({ store, config }) {
   router.get('/screens/:id/weather', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     if (!await publishedScreen(store, id)) return response.status(404).json({ error: 'Опубликованный монитор не найден.' });
-    const settings = await store.getScreenWeatherSettings(id);
-    if (!settings?.enabled) return response.status(204).end();
+    const draft = await store.getScreenDraft(id);
+    const settings = sceneWeatherSettings(draft?.scene, id) || await store.getScreenWeatherSettings(id);
+    if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
     const snapshot = await getWeatherSnapshot(settings, config);
     response.json({ settings: { ...settings, screen_id: id }, snapshot });
   });

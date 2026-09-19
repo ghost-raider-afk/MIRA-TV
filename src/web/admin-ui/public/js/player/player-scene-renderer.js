@@ -35,6 +35,27 @@ function resolutionOf(screen) {
   return { width: Number(match?.[1]) || 1920, height: Number(match?.[2]) || 1080 };
 }
 
+function sceneWeatherElement(scene) {
+  return Array.isArray(scene?.elements)
+    ? scene.elements.find((element) => element?.enabled !== false && element?.type === 'weather') || null
+    : null;
+}
+
+function weatherSettingsFromElement(element) {
+  if (!element) return null;
+  return {
+    enabled: true,
+    embedded: true,
+    ...(element.weather || {}),
+    position: 'top-left',
+    x: 0,
+    y: 0,
+    width_px: Math.max(260, Math.min(760, Number(element.width) || 420)),
+    scale: 1,
+    opacity: 1
+  };
+}
+
 function sameOriginAsset(value) {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -129,6 +150,22 @@ export class PlayerSceneRenderer {
       this.sceneElementRenderer.render(context.scene);
       sceneElementLayer.setAttribute('aria-hidden', 'true');
     }
+    if (dirty.has('scene') || dirty.has('weather') || dirty.has('screen') || menuDirty) {
+      const weatherElement = sceneWeatherElement(context.scene);
+      if (weatherElement) {
+        this.weatherRuntime.setLayer(this.sceneElementRenderer.contentFor(weatherElement.id));
+        this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
+          configurationChanged: dirty.has('scene') || dirty.has('screen'),
+          menuChanged: menuDirty
+        });
+      } else {
+        this.weatherRuntime.setLayer(weatherLayer);
+        this.weatherRuntime.applyContext(context.weather, context.screen?.id, {
+          configurationChanged: dirty.has('weather') || dirty.has('screen'),
+          menuChanged: menuDirty
+        });
+      }
+    }
     if (dirty.has('environment')) {
       renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
     }
@@ -142,13 +179,7 @@ export class PlayerSceneRenderer {
     if (dirty.has('announcement')) {
       renderAnnouncementLayer(announcementLayer, context.announcement);
     }
-    if (dirty.has('weather') || dirty.has('screen') || menuDirty) {
-      this.weatherRuntime.applyContext(context.weather, context.screen?.id, {
-        configurationChanged: dirty.has('weather') || dirty.has('screen'),
-        menuChanged: menuDirty
-      });
-      weatherLayer.setAttribute('aria-hidden', context.weather?.enabled === true ? 'false' : 'true');
-    }
+    weatherLayer.setAttribute('aria-hidden', context.weather?.enabled === true && !sceneWeatherElement(context.scene) ? 'false' : 'true');
     if (motionDirty) {
       this.sceneMotionRuntime.render({
         menuEnabled: renderMode === 'flat-motion',
