@@ -91,34 +91,26 @@ test('weather editor controls atmosphere motion without separating monitor targe
   assert.match(preview, /--mira-menu-text/);
 });
 
-test('one atomic application publishes all animation layers and weather to the same monitors', async () => {
-  const [playlist, settingsRoutes, weatherStudio, application] = await Promise.all([
+test('animation apply changes only motion and Scene Playlist; weather is owned by monitor scene', async () => {
+  const [playlist, settingsRoutes] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/playlist.js'),
-    read('src/api/settings/routes.js'),
-    read('src/web/admin-ui/public/js/pages/weather-studio.js'),
-    read('src/web/admin-ui/public/js/pages/animation-application.js')
+    read('src/api/settings/routes.js')
   ]);
 
   assert.match(playlist, /API\.animationApply/);
   assert.match(playlist, /screen_ids:\s*ids/);
-  assert.match(playlist, /activePreviewScreenId\s*\?\s*\[activePreviewScreenId\]/);
-  assert.match(playlist, /mira:animation-object-switch-changed/);
-  assert.match(playlist, /const weather = weatherSnapshot \|\| weatherStudioSettings\(\)/);
-  assert.match(playlist, /screen_ids:\s*ids, settings:\s*desired, weather/);
-  assert.doesNotMatch(application, /\/api\/weather\/settings/);
-  assert.doesNotMatch(application, /\.click\(\)/);
-  assert.doesNotMatch(weatherStudio, /weatherTargetScreenIds/);
-  assert.doesNotMatch(weatherStudio, /\/api\/weather\/apply/);
+  assert.doesNotMatch(playlist, /weatherStudioSettings|weatherSnapshot|settings:\s*desired,\s*weather/);
 
   const applyStart = settingsRoutes.indexOf("router.put('/animation/apply'");
-  const applyEnd = settingsRoutes.indexOf("router.put('/animation/entity-asset'", applyStart);
+  const applyEnd = settingsRoutes.indexOf("router.put('/site/logo'", applyStart);
   const applyRoute = settingsRoutes.slice(applyStart, applyEnd);
   assert.ok(applyStart >= 0 && applyEnd > applyStart);
   assert.match(applyRoute, /applyAnimationSettingsToScreens/);
-  assert.match(applyRoute, /applyWeatherSettingsToScreens/);
-  assert.match(applyRoute, /'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather'/);
+  assert.doesNotMatch(applyRoute, /applyWeatherSettingsToScreens|weatherWidgetInput|getWeatherSettings/);
+  assert.match(applyRoute, /\['animation', 'scene_playlist'\]/);
   assert.match(applyRoute, /markScreenRenderChanged/);
   assert.match(applyRoute, /applied_screens/);
+  assert.doesNotMatch(settingsRoutes, /animation\/entity-asset|replaceEntityAssetStream/);
 });
 
 test('offline weather restores through canonical Player LKG and keeps cache isolated by monitor', async () => {
