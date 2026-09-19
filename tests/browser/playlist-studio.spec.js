@@ -53,7 +53,28 @@ async function createPreviewFixture(page) {
       { id: 'real-preview-section', kind: 'section', name: 'НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO', enabled: true },
       { id: 'real-preview-item', kind: 'item', product_id: product.id, promotion: true, promotion_text: 'АКЦИЯ', enabled: true }
     ],
-    settings: { background_color: '#123456', accent_color: '#F4C915', text_color: '#F8FAFC' }
+    settings: { background_color: '#123456', accent_color: '#F4C915', text_color: '#F8FAFC' },
+    scene: {
+      version: 1,
+      elements: [{
+        id: 'playlist-scene-text',
+        type: 'text',
+        enabled: true,
+        x: 120,
+        y: 120,
+        width: 480,
+        height: 160,
+        z_index: 10,
+        opacity: 1,
+        rotation_deg: 0,
+        text: {
+          runs: [{ value: 'SCENE ELEMENT', font_family: 'system-sans', font_size_px: 64, font_weight: 700, italic: false, color: '#FFFFFF', opacity: 1, tracking_px: 0, leading_percent: 120, horizontal_scale_percent: 100, vertical_scale_percent: 100, baseline_shift_px: 0, text_transform: 'none' }],
+          paragraph: { align: 'left', vertical_align: 'top', wrap: true },
+          effects: { fill: { enabled: true, mode: 'solid', color: '#FFFFFF', opacity: 1 }, stroke: { enabled: false, width_px: 1, color: '#000000', opacity: 1 }, shadow: { enabled: false, offset_x_px: 0, offset_y_px: 4, blur_px: 12, color: '#000000', opacity: .5 }, glow: { enabled: false, blur_px: 18, spread_px: 0, color: '#FFFFFF', opacity: .5 } }
+        }
+      }]
+    },
+    screen: { location_id: location.id, name: screen.name, resolution: '1024×768', status: screen.status, active: screen.active }
   } });
   expect(saved.ok()).toBeTruthy();
   return { locationId: location.id, screenId: screen.id, productId: product.id };
@@ -90,6 +111,9 @@ test('Playlist Studio owns only menu motion and Scene Playlist and shares the Pl
     expect(svgBox).not.toBeNull();
     expect(Math.abs(svgBox.width - stageSize.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(svgBox.height - stageSize.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stageSize.width / stageSize.height - (1024 / 768))).toBeLessThan(0.01);
+    const sceneElement = page.locator('#animation-stage [data-scene-element-id="playlist-scene-text"]');
+    await expect(sceneElement).toBeVisible();
     await expect(inspector.locator('#animation-save')).toBeVisible();
     await expect(inspector.locator('#animation-apply-screens')).toBeVisible();
     await expect(inspector.locator('#animation-target-summary')).toContainText('1 монитор');
@@ -119,8 +143,10 @@ test('Playlist Studio owns only menu motion and Scene Playlist and shares the Pl
     const menuLayer = page.locator('#animation-stage [data-player-menu-layer]');
     await expect(menuLayer).toHaveClass(/scene-menu-suppressed/);
     await expect(page.locator('#animation-stage [data-player-content-layer] .scene-playlist-title')).toHaveText('Пятничная акция');
+    await expect(sceneElement).toBeHidden();
     await page.locator('.playlist-scene-card-menu').click();
     await expect(menuLayer).not.toHaveClass(/scene-menu-suppressed/);
+    await expect(sceneElement).toBeVisible();
 
     const saveResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation') && response.request().method() === 'PUT');
     await page.locator('#animation-save').click();
