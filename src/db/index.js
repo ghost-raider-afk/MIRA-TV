@@ -20,6 +20,7 @@ import { migrateScreenRenderJournal } from './migrations/screen-render-journal.j
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
 import { migrateSceneElementsStorage } from './migrations/scene-elements.js';
+import { migrateLegacySceneOwnership } from './migrations/scene-element-ownership.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -56,7 +57,8 @@ const MIGRATIONS = Object.freeze([
   { name: '018-screen-render-journal', run: migrateScreenRenderJournal },
   { name: '019-weather-widget', run: migrateWeatherWidget },
   { name: '020-manager-role', run: migrateManagerRole },
-  { name: '021-scene-elements', run: migrateSceneElementsStorage }
+  { name: '021-scene-elements', run: migrateSceneElementsStorage },
+  { name: '022-scene-element-ownership', run: migrateLegacySceneOwnership }
 ]);
 
 function createRepositories(queryable) {
