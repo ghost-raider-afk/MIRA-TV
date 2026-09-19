@@ -1,10 +1,17 @@
+const EMPTY_SCENE_JSON = JSON.stringify({ version: 1, elements: [] });
+
 export async function migrateSceneElementsStorage(pool) {
   await pool.query(`
     ALTER TABLE screen_drafts
     ADD COLUMN IF NOT EXISTS scene_json TEXT NOT NULL DEFAULT '{"version":1,"elements":[]}';
   `);
-  await pool.query(
-    "UPDATE screen_drafts SET scene_json = $1 WHERE scene_json IS NULL OR scene_json = ''",
-    [JSON.stringify({ version: 1, elements: [] })]
-  );
+
+  const { rows } = await pool.query('SELECT screen_id, scene_json FROM screen_drafts');
+  for (const row of rows) {
+    if (typeof row.scene_json === 'string' && row.scene_json.trim()) continue;
+    await pool.query(
+      'UPDATE screen_drafts SET scene_json = $1 WHERE screen_id = $2',
+      [EMPTY_SCENE_JSON, row.screen_id]
+    );
+  }
 }
