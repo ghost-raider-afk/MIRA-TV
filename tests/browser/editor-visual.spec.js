@@ -254,3 +254,97 @@ test('login composition follows MIRA-TV 1 and size 7 is the reference logo scale
   const card = await page.locator('.signin-card').boundingBox();
   expect(card.width).toBeLessThanOrEqual(375);
 });
+
+test('generic scene elements edit, render and persist through the monitor Preview', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await login(page);
+  const { screen } = await createEditorFixture(page, { rows: 2 });
+  await page.goto(`/screen-editor?id=${screen.id}`);
+  await openSettings(page, 'Элементы');
+
+  const list = page.locator('#editor-elements-list');
+  const properties = page.locator('#editor-element-properties');
+  const preview = page.locator('#editor-menu-preview');
+  await expect(list.locator('.editor-element-list-item')).toHaveCount(0);
+
+  await page.locator('#editor-add-element').click();
+  await expect(list.locator('.editor-element-list-item')).toHaveCount(1);
+  await expect(list.locator('.editor-element-list-item').first()).toContainText('Элемент 1');
+  await expect(list.locator('.editor-element-list-item').first()).toContainText('Текстовое поле');
+
+  const type = properties.getByLabel('Тип элемента');
+  await expect(type.locator('option')).toHaveText(['Текстовое поле', 'Погода', 'Картинка', 'Видео', 'Логотип']);
+  await properties.getByLabel('Текст', { exact: true }).fill('бар маяк');
+  await properties.getByLabel('Шрифт', { exact: true }).selectOption('arial-narrow');
+  await properties.getByLabel('Размер', { exact: true }).fill('96');
+  await properties.getByLabel('Насыщенность', { exact: true }).fill('800');
+  await properties.getByLabel('Регистр', { exact: true }).selectOption('uppercase');
+
+  const common = properties.locator('.editor-element-group').first();
+  await common.getByLabel('X', { exact: true }).fill('300');
+  await common.getByLabel('Y', { exact: true }).fill('160');
+  await common.getByLabel('Ширина', { exact: true }).fill('800');
+  await common.getByLabel('Высота', { exact: true }).fill('240');
+
+  const glow = properties.locator('fieldset').filter({ has: page.getByText('Свечение', { exact: true }) });
+  await glow.getByLabel('Включено', { exact: true }).check();
+  await glow.getByLabel('Размытие', { exact: true }).fill('24');
+
+  const textElement = preview.locator('[data-scene-element-type="text"]').first();
+  await expect(textElement).toBeVisible();
+  await expect(textElement.locator('[data-scene-text] span')).toHaveText('БАР МАЯК');
+  await expect(textElement).toHaveCSS('left', /.+/);
+  expect(await textElement.evaluate((node) => node.style.left)).toBe('15.625%');
+  expect(await textElement.locator('[data-scene-text] span').evaluate((node) => node.style.textShadow)).not.toBe('');
+
+  await page.locator('#editor-add-element').click();
+  await expect(list.locator('.editor-element-list-item')).toHaveCount(2);
+  await expect(list.locator('.editor-element-list-item').nth(1)).toContainText('Элемент 2');
+  await properties.getByLabel('Тип элемента').selectOption('weather');
+  await expect(list.locator('.editor-element-list-item').nth(1)).toContainText('Погода');
+  await properties.getByLabel('Населённый пункт', { exact: true }).fill('Хельсинки');
+  await properties.getByLabel('Широта', { exact: true }).fill('60.1699');
+  await properties.getByLabel('Долгота', { exact: true }).fill('24.9384');
+  await expect(preview.locator('[data-scene-element-type="weather"] [data-scene-weather-mount]')).toBeVisible();
+
+  await page.locator('#editor-add-element').click();
+  await expect(list.locator('.editor-element-list-item')).toHaveCount(3);
+  await properties.getByLabel('Тип элемента').selectOption('image');
+  const imageGroup = properties.locator('.editor-element-group').last();
+  const fileInput = imageGroup.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: 'scene-test.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2SikAAAAASUVORK5CYII=', 'base64')
+  });
+  const uploadResponse = page.waitForResponse((response) =>
+    response.url().endsWith(`/api/screens/${screen.id}/scene-asset`) && response.request().method() === 'PUT'
+  );
+  await properties.getByRole('button', { name: 'Загрузить файл' }).click();
+  expect((await uploadResponse).status()).toBe(201);
+  const image = preview.locator('[data-scene-element-type="image"] img');
+  await expect(image).toHaveAttribute('src', /\/site-assets\/scene\/scene-.+\.png$/);
+
+  await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
+  const saveResponse = page.waitForResponse((response) =>
+    response.url().endsWith(`/api/screens/${screen.id}/draft`) && response.request().method() === 'PUT'
+  );
+  await page.locator('#editor-save').click();
+  expect((await saveResponse).ok()).toBeTruthy();
+
+  const stored = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+  expect(stored.draft.scene.elements).toHaveLength(3);
+  expect(stored.draft.scene.elements[0].type).toBe('text');
+  expect(stored.draft.scene.elements[0].text.runs[0].value).toBe('бар маяк');
+  expect(stored.draft.scene.elements[0].text.runs[0].text_transform).toBe('uppercase');
+  expect(stored.draft.scene.elements[1].type).toBe('weather');
+  expect(stored.draft.scene.elements[1].weather.location_name).toBe('Хельсинки');
+  expect(stored.draft.scene.elements[2].type).toBe('image');
+  expect(stored.draft.scene.elements[2].media.source_url).toMatch(/^\/site-assets\/scene\/scene-.+\.png$/);
+
+  await page.reload();
+  await openSettings(page, 'Элементы');
+  await expect(page.locator('#editor-elements-list .editor-element-list-item')).toHaveCount(3);
+  await expect(preview.locator('[data-scene-element-type="text"] [data-scene-text] span')).toHaveText('БАР МАЯК');
+  await expect(preview.locator('[data-scene-element-type="image"] img')).toHaveAttribute('src', /\/site-assets\/scene\/scene-.+\.png$/);
+});
