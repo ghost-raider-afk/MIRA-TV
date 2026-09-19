@@ -116,7 +116,7 @@ test('TV player receives, renders and caches Video Entity without JavaScript byt
   assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
   assert.match(playerContextService, /entity:\s*animationSettings\?\.entity/);
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
-  assert.match(sceneRenderer, /renderSceneEntity\(this\.stage, context\.entity, \{ editable: false \}\)/);
+  assert.match(sceneRenderer, /renderSceneEntity\(this\.stage, context\.entity, \{ editable: false, thumbnail: !this\.autoplay \}\)/);
   assert.doesNotMatch(player, /context\?\.entity\?\.asset_url|warmPlayerAssetCache/);
   assert.match(sync, /context\?\.entity\?\.asset_url/);
   assert.match(sync, /mira:player-active-assets/);
