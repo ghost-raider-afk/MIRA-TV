@@ -82,6 +82,8 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(sync, /scheduleFallbackPoll/);
   assert.match(sync, /fallbackPollMs/);
   assert.match(sync, /'entity', 'weather', 'brand'/);
+  assert.match(sync, /'screen', 'menu', 'scene', 'animation'/);
+  assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
   assert.match(sync, /appendPlayerLog/);
   assert.match(sync, /activeAssetManifest/);
   assert.match(realtimeClient, /new WebSocket\(`/);

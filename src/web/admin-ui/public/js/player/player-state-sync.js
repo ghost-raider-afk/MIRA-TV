@@ -10,7 +10,7 @@ import {
 } from './player-store.js';
 
 const ALL_COMPONENTS = Object.freeze([
-  'screen', 'menu', 'animation', 'environment', 'scene_playlist',
+  'screen', 'menu', 'scene', 'animation', 'environment', 'scene_playlist',
   'entity', 'weather', 'brand', 'announcement', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
@@ -73,10 +73,14 @@ function localAsset(value) {
 }
 
 function activeAssetManifest(context) {
+  const sceneAssets = Array.isArray(context?.scene?.elements)
+    ? context.scene.elements.map((element) => element?.media?.source_url)
+    : [];
   const assets = [
     context?.draft?.settings?.background_image_url,
     context?.entity?.asset_url,
-    context?.entity?.poster_url
+    context?.entity?.poster_url,
+    ...sceneAssets
   ].map(localAsset).filter(Boolean);
   return [...new Set(assets)];
 }
