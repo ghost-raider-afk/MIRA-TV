@@ -88,11 +88,11 @@ test('shared Player Scene Renderer rerenders only canonical dirty components', a
   assert.doesNotMatch(renderer, /dirty\.has\('entity'\)|dirty\.has\('brand'\)|dirty\.has\('announcement'\)|dirty\.has\('environment'\)/);
   assert.doesNotMatch(player, /setInterval\([^)]*refresh|schedulePlayerRefresh|refreshPlayer\(/);
 });
-test('scene entity normalization accepts an absent entity from player context', async () => {
-  const source = await read('src/web/admin-ui/public/js/motion/entity-editor.js');
-  assert.ok(source.includes("value = value && typeof value === 'object' ? value : {};"));
+test('Player Context has no specialized Entity field', async () => {
+  const source = await read('src/services/player-context-service.js');
+  assert.match(source, /scene:\s*draft\.scene/);
+  assert.doesNotMatch(source, /entity:\s*animationSettings|scene-entity|entity_json/);
 });
-
 test('offline player caches generic scene media without JavaScript Range copies', async () => {
   const [worker, sync] = await Promise.all([read('src/web/admin-ui/public/player-sw.js'), read('src/web/admin-ui/public/js/player/player-state-sync.js')]);
   assert.match(sync, /activeAssetManifest/);

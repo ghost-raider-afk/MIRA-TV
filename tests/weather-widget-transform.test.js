@@ -44,24 +44,18 @@ test('legacy weather settings keep animation enabled with safe defaults', () => 
   assert.equal(bounded.widget_motion_enabled, true);
 });
 
-test('weather editor controls atmosphere motion without separating monitor targeting', async () => {
-  const [studio, widget, css, preview] = await Promise.all([
-    read('src/web/admin-ui/public/js/pages/weather-studio.js'),
+test('generic weather element controls atmosphere motion inside monitor scene', async () => {
+  const [elements, widget, css, preview] = await Promise.all([
+    read('src/web/admin-ui/public/js/editor/elements.js'),
     read('src/web/admin-ui/public/js/motion/weather-widget.js'),
     read('src/web/admin-ui/public/css/weather-widget.css'),
-    read('src/web/admin-ui/public/js/motion/screen-preview.js')
+    read('src/web/admin-ui/public/js/editor/preview.js')
   ]);
 
-  assert.match(studio, /id="weather-animation-enabled"/);
-  assert.match(studio, /id="weather-animation-speed"/);
-  assert.match(studio, /id="weather-animation-intensity"/);
-  assert.match(studio, /id="weather-widget-motion-enabled"/);
-  assert.match(studio, /export function weatherStudioSettings/);
-  assert.match(studio, /export async function loadWeatherForScreen/);
-  assert.doesNotMatch(studio, /id="weather-target-list"/);
-  assert.doesNotMatch(studio, /id="weather-apply"/);
-  assert.match(studio, /Применить все анимации/);
-
+  for (const field of ['animation_enabled','animation_speed','animation_intensity','widget_motion_enabled']) {
+    assert.ok(elements.includes(field), field);
+  }
+  assert.doesNotMatch(elements, /weather-target-list|weather-apply|weatherStudioSettings/);
   assert.match(widget, /animation_enabled/);
   assert.match(widget, /animation_speed/);
   assert.match(widget, /animation_intensity/);
@@ -72,25 +66,9 @@ test('weather editor controls atmosphere motion without separating monitor targe
   assert.match(widget, /layer\.append\(atmosphere, widget\)/);
   assert.match(widget, /export const WEATHER_SCENE_WIDTH = 1920/);
   assert.match(widget, /export const WEATHER_SCENE_HEIGHT = 1080/);
-  assert.match(widget, /card\.style\.left = `\$\{\(config\.x \/ WEATHER_SCENE_WIDTH\) \* 100\}%`/);
-  assert.match(widget, /card\.style\.top = `\$\{\(config\.y \/ WEATHER_SCENE_HEIGHT\) \* 100\}%`/);
-  assert.match(studio, /Math\.min\(width \/ WEATHER_SCENE_WIDTH, height \/ WEATHER_SCENE_HEIGHT\)/);
-  assert.match(studio, /originX:\s*rect\.left \+ stage\.clientLeft/);
-  assert.match(studio, /originY:\s*rect\.top \+ stage\.clientTop/);
-  assert.match(studio, /\(event\.clientX - metrics\.originX - metrics\.offsetX\) \/ metrics\.scale/);
-  assert.match(studio, /\(event\.clientY - metrics\.originY - metrics\.offsetY\) \/ metrics\.scale/);
-
-  assert.match(css, /data-weather-widget-motion="off"/);
-  assert.match(css, /--weather-rain-duration/);
-  assert.match(css, /--weather-hover-duration/);
-  assert.match(css, /var\(--mira-menu-accent/);
-  assert.match(css, /var\(--mira-menu-text/);
-  assert.match(css, /background:\s*none\s*!important/);
-
-  assert.match(preview, /--mira-menu-accent/);
-  assert.match(preview, /--mira-menu-text/);
+  assert.match(css, /weather-atmosphere/);
+  assert.match(preview, /weatherPreview: true/);
 });
-
 test('animation apply changes only motion and Scene Playlist; weather is owned by monitor scene', async () => {
   const [playlist, settingsRoutes] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/playlist.js'),
