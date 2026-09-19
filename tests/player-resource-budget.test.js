@@ -24,7 +24,7 @@ test('Unified TV scene runtime is event-driven and pauses hidden motion plus vid
   assert.match(source, /mira:player-active/);
   assert.match(source, /visibilitychange/);
   assert.match(source, /this\.runtime\.pause\(\)/);
-  assert.match(source, /this\.entityMedia\.pause\(\)/);
+  assert.doesNotMatch(source, /entityMedia|data-motion-entity-layer/);
   assert.match(source, /activityControlled/);
   assert.doesNotMatch(source, /setInterval|MutationObserver/, 'Scene runtime must stay event-driven');
 });

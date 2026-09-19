@@ -43,58 +43,30 @@ test('WAAPI serializer supports renderer-neutral entity rotation', () => {
   assert.match(keyframe.transform, /scale\(/);
 });
 
-test('preview and TV player share one explicit SceneMotionRuntime owner for entity behavior and cache it offline', async () => {
-  const [adapter, preview, liveMotion, sceneMotion, player, sceneRenderer, playerHtml, worker, entityEditor] = await Promise.all([
-    read('js/motion/dom-scene-adapter.js'),
-    read('js/motion/preview-player.js'),
-    read('js/motion/live-menu-motion.js'),
+test('generic scene media owns playback while SceneMotionRuntime owns only menu motion', async () => {
+  const [sceneMotion, player, sceneRenderer, elementRenderer, worker] = await Promise.all([
     read('js/motion/scene-motion-runtime.js'),
     read('js/player/player.js'),
     read('js/player/player-scene-renderer.js'),
-    read('player.html'),
-    read('player-sw.js'),
-    read('js/motion/entity-editor.js')
+    read('js/player/scene-element-renderer.js'),
+    read('player-sw.js')
   ]);
 
-  assert.match(entityEditor, /animation-scene-entity-motion/);
-  assert.match(entityEditor, /motion\.dataset\.entityMotion = entity\.id/);
-  assert.match(adapter, /\[data-entity-motion\]/);
-  assert.match(adapter, /id: `entity\.\$\{target\.dataset\.entityMotion \|\| index\}`/);
-
-  assert.match(preview, /new SceneMotionRuntime\(stage/);
-  assert.doesNotMatch(preview, /compileEntityBehaviorProgram|new SceneRuntime|new WasmMotionDriver/);
-
-  assert.match(sceneMotion, /compileEntityBehaviorProgram/);
-  assert.match(sceneMotion, /\.\.\.DEFAULT_SCENE_COMPILERS/);
   assert.match(sceneMotion, /new SceneRuntime/);
   assert.match(sceneMotion, /new WasmMotionDriver/);
   assert.match(sceneMotion, /mira:scene-playlist-mode/);
   assert.match(sceneMotion, /mira:player-active/);
   assert.match(sceneMotion, /visibilitychange/);
   assert.match(sceneMotion, /this\.runtime\.pause\(\)/);
-  assert.match(sceneMotion, /this\.entityMedia\.pause\(\)/);
-
-  assert.doesNotMatch(liveMotion, /compileEntityBehaviorProgram/);
-  assert.match(liveMotion, /compilers:\s*DEFAULT_SCENE_COMPILERS/);
+  assert.doesNotMatch(sceneMotion, /compileEntityBehaviorProgram|entityMedia|data-motion-entity-layer/);
 
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
   assert.match(sceneRenderer, /new SceneMotionRuntime\(stage/);
-  assert.doesNotMatch(player, /LiveMenuMotion|GpuSceneRuntime|new WasmMotionDriver/);
-  assert.doesNotMatch(sceneRenderer, /LiveMenuMotion|GpuSceneRuntime/);
-  assert.match(sceneRenderer, /mira:entity-rendered/);
-  assert.match(player, /mira:player-active/);
+  assert.match(sceneRenderer, /new SceneElementRenderer/);
+  assert.doesNotMatch(sceneRenderer, /mira:entity-rendered|renderSceneEntity|context\.entity/);
+  assert.match(elementRenderer, /document\.createElement\('video'\)/);
+  assert.match(elementRenderer, /syncVideo/);
+  assert.match(elementRenderer, /visibilitychange/);
 
-  assert.doesNotMatch(playerHtml, /entity-runtime\.js|gpu-scene-runtime\.js/);
-
-  for (const asset of [
-    '/js/player/player-scene-renderer.js','/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js',
-    '/js/motion/scene-motion-runtime.js','/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js',
-    '/js/motion/scene-graph.js','/js/motion/scene-composer.js','/js/motion/scene-runtime.js',
-    '/js/motion/timeline.js','/js/motion/drivers/waapi-driver.js','/js/motion/drivers/wasm-motion-driver.js',
-    '/js/motion/wasm-motion-kernel.js'
-  ]) assert.ok(worker.includes(asset), `offline shell is missing ${asset}`);
-
-  for (const retiredPlayerAsset of [
-    '/js/player/entity-runtime.js','/js/player/gpu-scene-runtime.js','/js/motion/live-menu-motion.js'
-  ]) assert.ok(!worker.includes(retiredPlayerAsset), `offline shell still carries ${retiredPlayerAsset}`);
+  assert.ok(worker.includes('/js/player/scene-element-renderer.js'));
 });
