@@ -81,8 +81,8 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(sync, /createPlayerRealtimeClient/);
   assert.match(sync, /scheduleFallbackPoll/);
   assert.match(sync, /fallbackPollMs/);
-  assert.match(sync, /'entity', 'weather', 'brand'/);
-  assert.match(sync, /'screen', 'menu', 'scene', 'animation'/);
+  assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
+  assert.doesNotMatch(sync, /'entity', 'weather', 'brand', 'announcement'/);
   assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
   assert.match(sync, /appendPlayerLog/);
   assert.match(sync, /activeAssetManifest/);
@@ -131,8 +131,9 @@ test('real TV player owns all scene layers and uses one offline-first state owne
   assert.match(playerContextService, /scene_playlist:\s*animationSettings\?\.scene_playlist \|\| null/);
   assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
   assert.doesNotMatch(playerContextService, /store\.getAnimationSettings\(\)/);
-  assert.match(playerContextService, /environment:\s*animationSettings\?\.environment \|\| null/);
-  assert.match(playerContextService, /weather:\s*weather \|\| null/);
+  assert.match(playerContextService, /scene:\s*draft\.scene \|\| \{ version: 1, elements: \[\] \}/);
+  assert.doesNotMatch(playerContextService, /environment:\s*animationSettings|entity:\s*animationSettings|brand:\s*animationSettings|announcement:\s*animationSettings|weather:\s*weather/);
+  assert.match(playerContextService, /PLAYER_STATE_SCHEMA_VERSION = 4/);
   assert.match(playerContextService, /app_version:\s*config\.appVersion/);
   assert.match(playerCss, /\.tv-player-weather-layer/);
   assert.match(playerCss, /\.tv-player-announcement-layer/);
@@ -186,10 +187,11 @@ test('scene entity normalization accepts an absent entity from player context', 
   assert.ok(source.includes("value = value && typeof value === 'object' ? value : {};"));
 });
 
-test('offline player caches Video Entity once without copying cached Range requests through JavaScript', async () => {
+test('offline player caches generic scene media without JavaScript Range copies', async () => {
   const [worker, sync] = await Promise.all([read('src/web/admin-ui/public/player-sw.js'), read('src/web/admin-ui/public/js/player/player-state-sync.js')]);
   assert.match(sync, /activeAssetManifest/);
-  assert.match(sync, /context\?\.entity\?\.asset_url/);
+  assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
+  assert.doesNotMatch(sync, /context\?\.entity/);
   assert.match(sync, /mira:player-active-assets/);
   assert.match(worker, /async function ensureActiveAssets/);
   assert.match(worker, /for \(const href of active\)/);

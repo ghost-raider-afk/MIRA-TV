@@ -71,19 +71,19 @@ test('Video Entity processing uses ffprobe and never a per-frame chroma key', as
   assert.doesNotMatch(service, /chroma|canvas|getImageData|green.?screen/i);
 });
 
-test('Entity media upload streams to disk and has an independent env-controlled size limit', async () => {
+test('generic scene media upload streams to disk with an independent env limit', async () => {
   const [service, routes, config] = await Promise.all([
-    read('services/entity-assets-service.js'), read('api/settings/routes.js'), read('config/index.js')
+    read('services/scene-assets-service.js'), read('api/screens/routes.js'), read('config/index.js')
   ]);
-  assert.match(service, /replaceEntityAssetStream/);
+  assert.match(service, /createSceneAssetStream/);
   assert.match(service, /for await \(const part of stream\)/);
-  assert.match(service, /config\.entityAssetMaxBytes/);
+  assert.match(service, /config\.sceneAssetMaxBytes/);
   assert.match(service, /PayloadTooLargeError/);
   assert.match(routes, /stream:\s*request/);
   assert.match(routes, /contentLength:\s*request\.get\('content-length'\)/);
-  assert.doesNotMatch(routes, /entity-asset',\s*express\.raw/);
-  assert.match(config, /ENTITY_ASSET_MAX_BYTES/);
-  assert.doesNotMatch(service, /screenBackgroundMaxBytes/);
+  assert.match(routes, /\/screens\/:id\/scene-asset/);
+  assert.match(config, /SCENE_ASSET_MAX_BYTES/);
+  assert.doesNotMatch(service, /entityAssetMaxBytes|screenBackgroundMaxBytes/);
 });
 
 test('generic scene media editor replaces the old Entity UI owner', async () => {
@@ -100,26 +100,28 @@ test('generic scene media editor replaces the old Entity UI owner', async () => 
   assert.match(elements, /playback_rate/);
   assert.match(service, /createSceneAssetStream/);
   assert.match(service, /SCENE_DIR = 'scene'/);
-  assert.match(contract, /MEDIA_TYPES = Object\.freeze\(\['image','video','logo'\]\)/);
+  assert.match(contract, /ELEMENT_TYPES = new Set\(\['text', 'weather', 'image', 'video', 'logo'\]\)/);
   assert.doesNotMatch(elements, /animation-entity-/);
 });
 
-test('TV player receives, renders and caches Video Entity without JavaScript byte-range copies', async () => {
-  const [routes, playerContextService, player, sceneRenderer, sync, playerCss, serviceWorker] = await Promise.all([
+test('TV player receives, renders and caches generic scene video without JavaScript byte-range copies', async () => {
+  const [routes, playerContextService, player, sceneRenderer, elementRenderer, sync, serviceWorker] = await Promise.all([
     read('api/device/public-routes.js'), read('services/player-context-service.js'), read('web/admin-ui/public/js/player/player.js'),
-    read('web/admin-ui/public/js/player/player-scene-renderer.js'), read('web/admin-ui/public/js/player/player-state-sync.js'), read('web/admin-ui/public/css/player.css'), read('web/admin-ui/public/player-sw.js')
+    read('web/admin-ui/public/js/player/player-scene-renderer.js'), read('web/admin-ui/public/js/player/scene-element-renderer.js'),
+    read('web/admin-ui/public/js/player/player-state-sync.js'), read('web/admin-ui/public/player-sw.js')
   ]);
   assert.match(routes, /buildPlayerState\(store, session, config, \{ renderRevision: currentRevision \}\)/);
   assert.match(routes, /known\.hashes\.runtime === runtimeHash/);
-  assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
-  assert.match(playerContextService, /entity:\s*animationSettings\?\.entity/);
+  assert.match(playerContextService, /scene:\s*draft\.scene/);
+  assert.doesNotMatch(playerContextService, /entity:\s*animationSettings/);
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
-  assert.match(sceneRenderer, /renderSceneEntity\(this\.stage, context\.entity, \{ editable: false, thumbnail: !this\.autoplay \}\)/);
-  assert.doesNotMatch(player, /context\?\.entity\?\.asset_url|warmPlayerAssetCache/);
-  assert.match(sync, /context\?\.entity\?\.asset_url/);
+  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(context\.scene\)/);
+  assert.match(elementRenderer, /document\.createElement\('video'\)/);
+  assert.match(elementRenderer, /video\.playsInline/);
+  assert.match(elementRenderer, /playbackRate/);
+  assert.match(sync, /element\?\.media\?\.source_url/);
+  assert.doesNotMatch(sync, /context\?\.entity/);
   assert.match(sync, /mira:player-active-assets/);
-  assert.match(playerCss, /\.tv-player-entity-layer/);
-  assert.match(serviceWorker, /\/js\/motion\/entity-editor\.js/);
   assert.match(serviceWorker, /async function ensureActiveAssets/);
   assert.match(serviceWorker, /async function syncActiveAssets/);
   assert.match(serviceWorker, /if \(!complete\) return/);

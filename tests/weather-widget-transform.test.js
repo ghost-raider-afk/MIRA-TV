@@ -120,7 +120,8 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
   ]);
 
   assert.match(stateSync, /loadLastKnownGood/);
-  assert.match(stateSync, /'entity', 'weather', 'brand'/);
+  assert.match(stateSync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
+  assert.doesNotMatch(stateSync, /'entity', 'weather', 'brand', 'announcement'/);
   assert.match(stateSync, /await applyContext\(record\.context, \[\.\.\.ALL_COMPONENTS\]/);
 
   assert.match(weatherRuntime, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
