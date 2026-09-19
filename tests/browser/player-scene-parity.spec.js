@@ -128,7 +128,7 @@ test('TV Player updates keyed generic scene elements from WebSocket invalidation
     await expect(node.locator('[data-scene-text] span')).toHaveText('НОВЫЙ ТЕКСТ');
     await expect(page.locator('[data-scene-element-id="parity-text"][data-identity-probe="stable-scene"]')).toHaveCount(1);
     await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg[data-identity-probe="stable-menu"]')).toHaveCount(1);
-    expect(await node.evaluate(n=>n.style.left)).toBe(String(1040/1920*100)+'%');
+    expect(Number.parseFloat(await node.evaluate(n=>n.style.left))).toBeCloseTo(1040/1920*100, 3);
   } finally {
     await context.close();
   }

@@ -1,6 +1,5 @@
 const PLAYER_COMPONENTS = new Set([
-  'screen', 'menu', 'animation', 'environment', 'scene_playlist',
-  'entity', 'brand', 'announcement', 'weather', 'runtime'
+  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'
 ]);
 
 function components(value) {

@@ -163,8 +163,9 @@ export class PlayerWeatherRuntime {
       if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
       const body = await response.json();
       if (currentGeneration !== this.generation || this.destroyed) return;
-      this.switchScreen(body?.settings?.screen_id);
-      this.settings = normaliseWeatherWidget(body?.settings ?? this.settings);
+      const responseScreenId = validScreenId(body?.settings?.screen_id);
+      if (responseScreenId) this.switchScreen(responseScreenId);
+      // SceneElement is the only configuration owner. The weather endpoint supplies data, not UI settings.
       this.snapshot = body?.snapshot || this.snapshot;
       this.render();
       this.saveCachedWeather();

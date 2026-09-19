@@ -43,7 +43,7 @@ export function createSceneElement(type='text', index=0) {
 export function appendSceneElement(state) {
   addSceneElement(state, createSceneElement('text', state.scene?.elements?.length||0));
 }
-function label(text,control,className='field'){const n=document.createElement('label');n.className=className;const s=document.createElement('span');s.textContent=text;n.append(s,control);return n;}
+function label(text,control,className='field'){const n=document.createElement('label');n.className=className;const s=document.createElement('span');s.textContent=text;if(control instanceof HTMLElement&&!control.hasAttribute('aria-label'))control.setAttribute('aria-label',text);n.append(s,control);return n;}
 function input(type,value,o={}){const n=document.createElement('input');n.type=type;if(value!==undefined&&value!==null)n.value=String(value);if(o.min!==undefined)n.min=String(o.min);if(o.max!==undefined)n.max=String(o.max);if(o.step!==undefined)n.step=String(o.step);if(o.placeholder)n.placeholder=o.placeholder;if(o.accept)n.accept=o.accept;return n;}
 function select(value,options){const n=document.createElement('select');for(const [v,t] of options)n.append(new Option(t,v));n.value=String(value??'');return n;}
 function check(v){const n=input('checkbox');n.checked=v===true;return n;}

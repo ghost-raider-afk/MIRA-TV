@@ -33,10 +33,6 @@ function fullPayload(settings, overrides = {}) {
     enabled: settings.enabled,
     preset_id: settings.preset_id,
     profile: settings.profile,
-    entity: settings.entity,
-    announcement: settings.announcement,
-    brand: settings.brand,
-    environment: settings.environment,
     scene_playlist: settings.scene_playlist,
     ...overrides
   };
@@ -65,7 +61,7 @@ test('legacy html URLs canonicalize to extensionless authenticated routes withou
   expect(new URL(page.url()).search).toBe('?audit=4');
 });
 
-test('legacy settings PUT without scene_playlist preserves the current Scene Playlist', async ({ page }) => {
+test('partial settings PUT without scene_playlist preserves the current Scene Playlist', async ({ page }) => {
   await login(page);
   const original = await getSettings(page);
   const sentinel = {
@@ -79,19 +75,23 @@ test('legacy settings PUT without scene_playlist preserves the current Scene Pla
     const saved = await getSettings(page);
     expect(saved.scene_playlist).toEqual(sentinel);
 
-    const legacyPayload = fullPayload(saved, { brand: { ...saved.brand, enabled: true, text: 'LEGACY CLIENT' } });
-    delete legacyPayload.scene_playlist;
-    await putSettings(page, legacyPayload);
+    const partialPayload = fullPayload(saved, {
+      profile: { ...saved.profile, intensity: 37 },
+      brand: { enabled: true, text: 'IGNORED LEGACY FIELD' }
+    });
+    delete partialPayload.scene_playlist;
+    await putSettings(page, partialPayload);
 
     const afterLegacyPut = await getSettings(page);
     expect(afterLegacyPut.scene_playlist).toEqual(sentinel);
-    expect(afterLegacyPut.brand.text).toBe('LEGACY CLIENT');
+    expect(afterLegacyPut.profile.intensity).toBe(37);
+    expect('brand' in afterLegacyPut).toBe(false);
   } finally {
     await putSettings(page, fullPayload(original));
   }
 });
 
-test('fullscreen Scene Playlist state suppresses base owners and returns cleanly to MenuScene', async ({ page }) => {
+test('fullscreen Scene Playlist suppresses MenuScene and returns cleanly without legacy layer owners', async ({ page }) => {
   await login(page);
   await page.goto('/playlist');
   const result = await page.evaluate(async () => {
@@ -100,25 +100,10 @@ test('fullscreen Scene Playlist state suppresses base owners and returns cleanly
     stage.className = 'animation-stage';
     stage.style.width = '960px';
     stage.style.height = '540px';
-    const menuLayer = document.createElement('div');
-    menuLayer.className = 'animation-screen-canvas';
-    menuLayer.dataset.sceneMenuLayer = '';
-    const fxLayer = document.createElement('div');
-    fxLayer.className = 'animation-screen-fx-layer';
-    fxLayer.dataset.sceneFxLayer = '';
-    const gpu = document.createElement('div');
-    gpu.dataset.gpuMenuFxHost = '';
-    fxLayer.append(gpu);
-    const contentLayer = document.createElement('div');
-    contentLayer.className = 'animation-screen-content-layer';
-    contentLayer.dataset.sceneContentLayer = '';
-    const entity = document.createElement('div');
-    entity.className = 'animation-screen-entity-layer';
-    const brand = document.createElement('div');
-    brand.className = 'animation-screen-brand-layer';
-    const announcement = document.createElement('div');
-    announcement.className = 'animation-screen-announcement-layer';
-    stage.append(menuLayer, fxLayer, contentLayer, entity, brand, announcement);
+    const menuLayer = document.createElement('div'); menuLayer.dataset.playerMenuLayer = '';
+    const fxLayer = document.createElement('div'); fxLayer.dataset.playerFxLayer = '';
+    const contentLayer = document.createElement('div'); contentLayer.dataset.playerContentLayer = '';
+    stage.append(menuLayer, fxLayer, contentLayer);
     document.body.append(stage);
 
     const runtime = new ScenePlaylistRuntime();
@@ -129,10 +114,8 @@ test('fullscreen Scene Playlist state suppresses base owners and returns cleanly
     const fullscreen = {
       state: stage.dataset.scenePlaylistFullscreen,
       menuSuppressed: menuLayer.classList.contains('scene-menu-suppressed'),
-      entityOpacity: getComputedStyle(entity).opacity,
-      brandOpacity: getComputedStyle(brand).opacity,
-      announcementOpacity: getComputedStyle(announcement).opacity,
-      gpuOpacity: getComputedStyle(gpu).opacity
+      contentChildren: contentLayer.childElementCount,
+      legacyOwners: stage.querySelectorAll('.animation-screen-entity-layer,.animation-screen-brand-layer,.animation-screen-announcement-layer').length
     };
     runtime.resume();
     const menu = {
@@ -147,24 +130,21 @@ test('fullscreen Scene Playlist state suppresses base owners and returns cleanly
 
   expect(result.fullscreen.state).toBe('true');
   expect(result.fullscreen.menuSuppressed).toBe(true);
-  expect(result.fullscreen.entityOpacity).toBe('0');
-  expect(result.fullscreen.brandOpacity).toBe('0');
-  expect(result.fullscreen.announcementOpacity).toBe('0');
-  expect(result.fullscreen.gpuOpacity).toBe('0');
+  expect(result.fullscreen.contentChildren).toBe(1);
+  expect(result.fullscreen.legacyOwners).toBe(0);
   expect(result.menu.state).toBe('');
   expect(result.menu.menuSuppressed).toBe(false);
   expect(result.menu.contentChildren).toBe(0);
 });
-
 test('Playlist editor destroys its timer and DOM ownership on route disposal', async ({ page }) => {
   await login(page);
   await page.goto('/playlist');
   const result = await page.evaluate(async () => {
     const { ScenePlaylistEditor } = await import('/js/motion/scene-playlist-editor.js');
     const stage = document.createElement('div');
-    const menuLayer = document.createElement('div'); menuLayer.dataset.sceneMenuLayer = '';
-    const fxLayer = document.createElement('div'); fxLayer.dataset.sceneFxLayer = '';
-    const contentLayer = document.createElement('div'); contentLayer.dataset.sceneContentLayer = '';
+    const menuLayer = document.createElement('div'); menuLayer.dataset.playerMenuLayer = '';
+    const fxLayer = document.createElement('div'); fxLayer.dataset.playerFxLayer = '';
+    const contentLayer = document.createElement('div'); contentLayer.dataset.playerContentLayer = '';
     stage.append(menuLayer, fxLayer, contentLayer);
     const previewPane = document.createElement('div');
     previewPane.className = 'playlist-preview-pane';

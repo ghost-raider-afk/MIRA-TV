@@ -38,6 +38,29 @@ function draftRevisionHeader(request) {
   return positiveId(request.get('x-draft-revision'), 'x-draft-revision');
 }
 
+function sameJson(left, right) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function screenRenderState(screen) {
+  return {
+    location_id: Number(screen?.location_id),
+    name: String(screen?.name || ''),
+    resolution: String(screen?.resolution || ''),
+    status: String(screen?.status || ''),
+    active: screen?.active !== false
+  };
+}
+
+function changedDraftComponents(currentScreen, currentDraft, nextScreen, nextDraft) {
+  const changed = [];
+  if (!sameJson(screenRenderState(currentScreen), screenRenderState(nextScreen))) changed.push('screen');
+  if (!sameJson(currentDraft?.rows || [], nextDraft?.rows || [])
+      || !sameJson(currentDraft?.settings || {}, nextDraft?.settings || {})) changed.push('menu');
+  if (!sameJson(currentDraft?.scene || { version: 1, elements: [] }, nextDraft?.scene || { version: 1, elements: [] })) changed.push('scene');
+  return changed;
+}
+
 export function createScreensRouter({ store, config, realtime }) {
   const router = express.Router();
 
@@ -86,6 +109,7 @@ export function createScreensRouter({ store, config, realtime }) {
       if (!await tx.lockScreen(id)) throw notFound();
       const current = await tx.getScreen(id);
       if (!current) throw notFound();
+      const currentDraft = await tx.getScreenDraft(id);
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
       let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: current.status, active: current.active };
@@ -98,7 +122,10 @@ export function createScreensRouter({ store, config, realtime }) {
       if (!updatedScreen) throw notFound();
       const saved = await tx.saveScreenDraft(id, draft, expectedRevision);
       if (!saved) throw conflict('Меню уже было изменено в другом окне. Обновите редактор и повторите изменения.', { expected_revision: expectedRevision });
-      const revisions = await tx.markScreenRenderChanged([id], ['screen', 'menu', 'scene'], 'screen.state.saved', request.session.sub);
+      const changedComponents = changedDraftComponents(current, currentDraft, updatedScreen, saved);
+      const revisions = changedComponents.length
+        ? await tx.markScreenRenderChanged([id], changedComponents, 'screen.state.saved', request.session.sub)
+        : [];
       return { screen: await tx.getScreen(id), draft: saved, revisions };
     });
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
