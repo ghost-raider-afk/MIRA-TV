@@ -156,11 +156,13 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     const content = row.locator(':scope > g.table-item-content');
     const prices = row.locator(':scope > g.table-item-prices');
     const badge = row.locator(':scope > g.promotion-badge');
+    const badgeGlow = row.locator(':scope > g.promotion-badge-glow');
     const glow = row.locator(':scope > g.promotion-row-glow');
     await expect(row).not.toHaveAttribute('data-motion', /.+/);
     await expect(surface).toHaveAttribute('data-motion', 'item');
     await expect(surface).toHaveAttribute('data-motion-transform-owner', 'surface');
-    await expect(badge).toHaveAttribute('data-motion', 'promotion');
+    await expect(badge).not.toHaveAttribute('data-motion', /.+/);
+    await expect(badgeGlow).toHaveAttribute('data-motion', 'promotion-badge-glow');
     await expect(glow).toHaveAttribute('data-motion', 'promotion-glow');
     await expect(content).not.toHaveAttribute('data-motion', /.+/);
     await expect(prices).not.toHaveAttribute('data-motion', /.+/);
@@ -168,7 +170,10 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
     await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     await expect(row).toHaveCSS('transform', 'none');
     expect(await surface.evaluate((node) => node.getAnimations().length)).toBe(0);
+    await expect(badge).toHaveCSS('transform', 'none');
+    await expect(badgeGlow).toHaveCSS('transform', 'none');
     expect(await badge.evaluate((node) => node.getAnimations().length)).toBe(0);
+    expect(await badgeGlow.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await page.locator('#animation-stage .animation-screen-background').evaluate((node) => node.getAnimations().length)).toBe(0);
     const backgroundAfterMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
       color: getComputedStyle(node).backgroundColor,
@@ -293,14 +298,19 @@ test('promotion badge and soft row glow are isolated from static row content', a
     const content = row?.querySelector(':scope > g.table-item-content');
     const prices = row?.querySelector(':scope > g.table-item-prices');
     const badge = row?.querySelector(':scope > g.promotion-badge');
+    const badgeGlow = row?.querySelector(':scope > g.promotion-badge-glow');
     const glow = row?.querySelector(':scope > g.promotion-row-glow');
     const snapshot = {
       rowMotion: row?.dataset.motion || '', surfaceMotion: surface?.dataset.motion || '',
       contentMotion: content?.dataset.motion || '', pricesMotion: prices?.dataset.motion || '',
-      badgeMotion: badge?.dataset.motion || '', glowMotion: glow?.dataset.motion || '',
+      badgeMotion: badge?.dataset.motion || '', badgeGlowMotion: badgeGlow?.dataset.motion || '', glowMotion: glow?.dataset.motion || '',
       rowTransform: row ? getComputedStyle(row).transform : 'none', surfaceTransform: surface ? getComputedStyle(surface).transform : 'none',
-      badgeTransform: badge ? getComputedStyle(badge).transform : 'none', glowOpacity: glow ? Number.parseFloat(getComputedStyle(glow).opacity) : 0,
-      surfaceAnimations: surface?.getAnimations().length ?? -1, badgeAnimations: badge?.getAnimations().length ?? -1
+      badgeTransform: badge ? getComputedStyle(badge).transform : 'none',
+      badgeGlowTransform: badgeGlow ? getComputedStyle(badgeGlow).transform : 'none',
+      badgeGlowOpacity: badgeGlow ? Number.parseFloat(getComputedStyle(badgeGlow).opacity) : 0,
+      glowOpacity: glow ? Number.parseFloat(getComputedStyle(glow).opacity) : 0,
+      surfaceAnimations: surface?.getAnimations().length ?? -1, badgeAnimations: badge?.getAnimations().length ?? -1,
+      badgeGlowAnimations: badgeGlow?.getAnimations().length ?? -1
     };
     player.destroy(); stage.remove(); return snapshot;
   }, PROMO_PROFILE);
@@ -308,14 +318,18 @@ test('promotion badge and soft row glow are isolated from static row content', a
   expect(result.surfaceMotion).toBe('item');
   expect(result.contentMotion).toBe('');
   expect(result.pricesMotion).toBe('');
-  expect(result.badgeMotion).toBe('promotion');
+  expect(result.badgeMotion).toBe('');
+  expect(result.badgeGlowMotion).toBe('promotion-badge-glow');
   expect(result.glowMotion).toBe('promotion-glow');
   expect(result.rowTransform).toBe('none');
   expect(result.surfaceTransform).not.toBe('none');
-  expect(result.badgeTransform).not.toBe('none');
+  expect(result.badgeTransform).toBe('none');
+  expect(result.badgeGlowTransform).toBe('none');
+  expect(result.badgeGlowOpacity).toBeGreaterThanOrEqual(0);
   expect(result.glowOpacity).toBeGreaterThanOrEqual(0);
   expect(result.surfaceAnimations).toBe(0);
   expect(result.badgeAnimations).toBe(0);
+  expect(result.badgeGlowAnimations).toBe(0);
 });
 
 test('preview player rebinds scene targets after preview DOM replacement', async ({ page }) => {
@@ -335,16 +349,16 @@ test('preview player rebinds scene targets after preview DOM replacement', async
       ], settings: { background_color: '#101828', accent_color: '#F4C915', text_color: '#F8FAFC' } }, products: [], packaging: []
     });
     renderAnimationScreenPreview(stage, bundle('ПЕРВАЯ ПОЗИЦИЯ')); player.restart(profile);
-    const firstTarget = player.scene.node('menu.promotion.0')?.target;
+    const firstTarget = player.scene.node('menu.promotion-badge-glow.0')?.target;
     renderAnimationScreenPreview(stage, bundle('ВТОРАЯ ПОЗИЦИЯ'));
-    const currentBadge = stage.querySelector('g.promotion-badge');
+    const currentGlow = stage.querySelector('g.promotion-badge-glow');
     player.restart(profile);
-    const reboundTarget = player.scene.node('menu.promotion.0')?.target;
-    const snapshot = { oldInStage: stage.contains(firstTarget), targetChanged: firstTarget !== reboundTarget, reboundIsCurrent: reboundTarget === currentBadge, reboundMotion: reboundTarget?.dataset.motion || '' };
+    const reboundTarget = player.scene.node('menu.promotion-badge-glow.0')?.target;
+    const snapshot = { oldInStage: stage.contains(firstTarget), targetChanged: firstTarget !== reboundTarget, reboundIsCurrent: reboundTarget === currentGlow, reboundMotion: reboundTarget?.dataset.motion || '' };
     player.destroy(); stage.remove(); return snapshot;
   }, PROMO_PROFILE);
   expect(result.oldInStage).toBe(false);
   expect(result.targetChanged).toBe(true);
   expect(result.reboundIsCurrent).toBe(true);
-  expect(result.reboundMotion).toBe('promotion');
+  expect(result.reboundMotion).toBe('promotion-badge-glow');
 });

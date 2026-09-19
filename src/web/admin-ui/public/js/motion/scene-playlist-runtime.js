@@ -120,12 +120,8 @@ function buildSceneFx(scene) {
   return fx;
 }
 
-function reducedMotion() {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-}
-
 function animateEntrance(node, mode) {
-  if (!(node instanceof Element) || reducedMotion()) return;
+  if (!(node instanceof Element)) return;
   const x = mode === 'split' ? '3.5%' : '0';
   node.animate(
     [{ opacity: 0, transform: `translate3d(${x},2.5%,0) scale(.985)` }, { opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }],
@@ -134,7 +130,7 @@ function animateEntrance(node, mode) {
 }
 
 function animateExit(node, mode) {
-  if (!(node instanceof Element) || reducedMotion()) return Promise.resolve();
+  if (!(node instanceof Element)) return Promise.resolve();
   const x = mode === 'split' ? '2.5%' : '0';
   const animation = node.animate(
     [{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }, { opacity: 0, transform: `translate3d(${x},-1.5%,0) scale(.99)` }],

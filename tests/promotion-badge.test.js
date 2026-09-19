@@ -30,6 +30,7 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.ok(badge, 'promotion-badge group must exist');
   assert.match(badge, /<path\b[^>]*fill="#D92D35"\/?>/);
   assert.match(badge, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
+  assert.match(svg, /class="promotion-badge-glow" opacity="0"/);
   assert.match(svg, /class="promotion-row-glow"/);
   assert.match(svg, /id="mira-promo-row-glow"/);
   assert.doesNotMatch(svg, /promotion-light-wave|data-wave-travel|mira-promo-wave/);
@@ -47,7 +48,8 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.match(adapter, /row-motion-surface-item/);
   assert.match(adapter, /transformOwner: 'surface'/);
   assert.match(adapter, /surfaceOnly: true/);
-  assert.match(adapter, /g\.promotion-badge/);
+  assert.match(adapter, /g\.promotion-badge-glow/);
+  assert.doesNotMatch(adapter, /querySelectorAll\('g\.promotion-badge'\)/);
   assert.match(adapter, /g\.promotion-row-glow/);
   assert.doesNotMatch(adapter, /querySelectorAll\('g\.table-item, g\.table-packaging'\)/);
   assert.doesNotMatch(adapter, /kind: 'price'/);
@@ -57,7 +59,10 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.doesNotMatch(plan, /keyframes:/);
   assert.match(driver, /requestAnimationFrame/);
   assert.match(driver, /spec\.surfaceOnly/);
+  assert.match(driver, /spec\.kind === 'promo-badge-glow'/);
   assert.match(driver, /spec\.kind === 'promo-glow'/);
+  assert.doesNotMatch(driver, /spec\.kind === 'promo-badge'/);
+  assert.doesNotMatch(driver, /_mira_promo_scale\(/);
   assert.doesNotMatch(driver, /_mira_promo_wave_progress/);
   assert.match(renderer, /row-motion-surface/);
   assert.match(renderer, /<g class="table-item tone-/);

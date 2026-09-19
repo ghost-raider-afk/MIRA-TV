@@ -174,17 +174,18 @@ test('stored v3 bounce/pop settings are canonicalized instead of reintroducing j
 });
 
 test('Playlist Studio owns previous motion controls and the Scene Playlist UI in one workspace', async () => {
-  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, objectManager, previewCss, announcement, overlays, brandCss, environment] = await Promise.all([
+  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, objectManager, previewCss, announcement, overlays, brandCss, environment, weatherCss, scenePlaylistRuntime, scenePlaylistCss, playerCss] = await Promise.all([
     read('playlist.html'), read('js/pages/playlist.js'), read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
     read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/scene-motion-runtime.js'),
     read('js/pages/animation-object-manager.js'), read('css/pages/animation-screen-preview.css'), read('js/motion/announcement.js'),
-    read('css/motion-overlays.css'), read('css/brand-motion-v2.css'), read('js/motion/environment.js')
+    read('css/motion-overlays.css'), read('css/brand-motion-v2.css'), read('js/motion/environment.js'),
+    read('css/weather-widget.css'), read('js/motion/scene-playlist-runtime.js'), read('css/scene-playlist.css'), read('css/player.css')
   ]);
 
   for (const id of [
     'animation-stage','animation-screen-select','animation-save','animation-intensity','animation-travel','animation-scale',
     'animation-section-effect','animation-item-effect','animation-promotion-effect','animation-promotion-intensity',
-    'animation-promotion-scale','animation-promotion-glow','animation-announcement-enabled','animation-announcement-font-family',
+    'animation-promotion-glow','animation-announcement-enabled','animation-announcement-font-family',
     'animation-announcement-vertical-scale','animation-announcement-glow-enabled','animation-brand-enabled','animation-brand-x',
     'animation-brand-y','animation-brand-effect','animation-brand-line-spacing','animation-aquarium-enabled','animation-aquarium-style',
     'animation-aquarium-replay','animation-aquarium-animation-enabled','animation-entity-file','animation-entity-animation-enabled',
@@ -213,6 +214,8 @@ test('Playlist Studio owns previous motion controls and the Scene Playlist UI in
   assert.match(page, /createEntityMedia/);
   assert.match(profileEditor, /profile\.price_effect = 'none'/);
   assert.match(profileEditor, /promotion_scale_amount = clamp/);
+  assert.doesNotMatch(html, /id="animation-promotion-scale"/);
+  assert.doesNotMatch(profileEditor, /promotion_scale_amount:\s*\['animation-promotion-scale'/);
   assert.match(sceneMotion, /WasmMotionDriver/);
   assert.match(sceneMotion, /compileEntityBehaviorProgram/);
   assert.match(motionPlan, /menuTextStatic: true/);
@@ -232,4 +235,10 @@ test('Playlist Studio owns previous motion controls and the Scene Playlist UI in
   assert.match(environment, /function renderAquariumEffect/);
   assert.match(environment, /classList\.add\('environment-effect-aquarium',/);
   assert.match(environment, /environment\.effect === 'aquarium'/);
+  assert.match(overlays, /--plant-scale-x:-1/);
+  assert.match(overlays, /scaleX\(var\(--plant-scale-x\)\) rotate\(-3deg\)/);
+  assert.match(overlays, /scaleX\(var\(--plant-scale-x\)\) rotate\(5deg\)/);
+  for (const authoredSource of [overlays, brandCss, weatherCss, scenePlaylistRuntime, scenePlaylistCss, playerCss, previewCss]) {
+    assert.doesNotMatch(authoredSource, /prefers-reduced-motion/, 'operator-authored scene motion must ignore OS reduced-motion');
+  }
 });

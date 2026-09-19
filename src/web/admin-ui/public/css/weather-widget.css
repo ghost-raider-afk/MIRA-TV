@@ -483,10 +483,6 @@
   animation-play-state: paused !important;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .weather-widget-layer * { animation: none !important; }
-}
-
 .weather-settings-card { display: grid; gap: 12px; }
 .weather-location-search { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
 .weather-location-results { display: grid; gap: 5px; }

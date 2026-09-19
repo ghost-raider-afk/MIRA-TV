@@ -94,15 +94,29 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     const row = page.locator('[data-player-menu-layer] g.table-item').first();
     const surface = row.locator(':scope > .row-motion-surface-item');
     const badge = row.locator(':scope > g.promotion-badge');
+    const badgeGlow = row.locator(':scope > g.promotion-badge-glow');
     const glow = row.locator(':scope > g.promotion-row-glow');
+    const itemText = row.locator(':scope > .table-item-content');
     await expect(surface).toHaveAttribute('data-motion', 'item');
-    await expect(badge).toHaveAttribute('data-motion', 'promotion');
+    await expect(badge).not.toHaveAttribute('data-motion', /.+/);
+    await expect(badgeGlow).toHaveAttribute('data-motion', 'promotion-badge-glow');
     await expect(glow).toHaveAttribute('data-motion', 'promotion-glow');
     await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
     await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
-    await expect.poll(() => badge.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
+    await expect.poll(() => badgeGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+    await expect(badge).toHaveCSS('transform', 'none');
+    await expect(badgeGlow).toHaveCSS('transform', 'none');
+    const before = await Promise.all([badge.boundingBox(), itemText.boundingBox()]);
+    await page.waitForTimeout(650);
+    const after = await Promise.all([badge.boundingBox(), itemText.boundingBox()]);
+    for (let index = 0; index < before.length; index += 1) {
+      expect(before[index]).not.toBeNull();
+      expect(after[index]).not.toBeNull();
+      for (const key of ['x', 'y', 'width', 'height']) expect(Math.abs(before[index][key] - after[index][key])).toBeLessThan(0.1);
+    }
     expect(await surface.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await badge.evaluate((node) => node.getAnimations().length)).toBe(0);
+    expect(await badgeGlow.evaluate((node) => node.getAnimations().length)).toBe(0);
     await expect(page.locator('[data-player-stage]')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
   } finally {
     await context.close();

@@ -94,7 +94,7 @@ function exitExistingBrand(layer, brand) {
   if (existing.classList.contains('is-exiting')) return;
   const exitEffect = existing.dataset.exitEffect || 'none';
   const duration = Number(existing.dataset.exitDuration || brand.exit_duration_ms || 0);
-  if (exitEffect === 'none' || duration <= 0 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+  if (exitEffect === 'none' || duration <= 0) {
     layer.replaceChildren();
     return;
   }

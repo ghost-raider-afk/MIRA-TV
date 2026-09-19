@@ -42,10 +42,12 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
   const height = 27 * fontScale;
   const top = box.top + 4 * scale;
   const notch = 9 * fontScale;
+  const shape = `M${x} ${top}H${x + width - notch}L${x + width} ${top + height / 2}L${x + width - notch} ${top + height}H${x}Z`;
   return {
     width,
-    markup: `<g class="promotion-badge">
-      <path d="M${x} ${top}H${x + width - notch}L${x + width} ${top + height / 2}L${x + width - notch} ${top + height}H${x}Z" fill="${MENU_TABLE_STYLE.promotion}"/>
+    markup: `<g class="promotion-badge-glow" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
+    <g class="promotion-badge">
+      <path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/>
       <text x="${x + (width - notch) / 2}" y="${top + 18.5 * fontScale}" class="promotion" ${textAttributes({ size: 12 * fontScale, weight: 800, fill: '#FFFFFF', letterSpacing: 0.2 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
     </g>`,
     glow: `<g class="promotion-row-glow" opacity="0" pointer-events="none"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g>`
