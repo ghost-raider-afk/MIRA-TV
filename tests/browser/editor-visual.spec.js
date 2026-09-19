@@ -315,7 +315,7 @@ test('generic scene elements edit, render and persist through the monitor Previe
   await fileInput.setInputFiles({
     name: 'scene-test.png',
     mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2SikAAAAASUVORK5CYII=', 'base64')
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
   });
   const uploadResponse = page.waitForResponse((response) =>
     response.url().endsWith(`/api/screens/${screen.id}/scene-asset`) && response.request().method() === 'PUT'

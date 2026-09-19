@@ -64,7 +64,7 @@ export async function buildPlayerState(store, session, config, { renderRevision 
 
   const components = {
     screen: screenComponent(screen),
-    menu: { draft: { rows: draft.rows || [], settings: draft.settings || {}, revision: draft.revision }, products, packaging },
+    menu: { draft: { rows: draft.rows || [], settings: draft.settings || {} }, products, packaging },
     scene: draft.scene || { version: 1, elements: [] },
     animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
     scene_playlist: animationSettings?.scene_playlist || null,
