@@ -206,7 +206,6 @@ export function initialiseScreenEditor() {
   element('editor-add-item')?.addEventListener('click', () => { appendRow(editorState, 'item'); refreshEditorView(); });
   element('editor-add-packaging')?.addEventListener('click', () => { appendRow(editorState, 'packaging'); refreshEditorView(); });
   element('editor-add-element')?.addEventListener('click', () => {
-    history.checkpoint();
     appendSceneElement(editorState);
     refreshElements();
     setDirtyState(editorState);
@@ -238,7 +237,7 @@ export function initialiseScreenEditor() {
       });
       screen = saved.screen;
       markEditorSaved(editorState);
-        populateEditor(screen, editorState);
+      populateEditor(screen, editorState);
       refreshEditorView();
       await loadNotifications();
       setEditorMessage('Состояние сохранено и доступно TV Player.', 'success');
@@ -270,7 +269,7 @@ export function initialiseScreenEditor() {
         revision: editorState.revision,
         draftRevision: Number(result.draft.revision || 0)
       });
-        populateEditor(screen, editorState);
+      populateEditor(screen, editorState);
       refreshEditorView();
       setEditorMessage('Фон монитора загружен.', 'success');
     } catch (error) {
@@ -298,7 +297,7 @@ export function initialiseScreenEditor() {
         revision: editorState.revision,
         draftRevision: Number(result.draft.revision || 0)
       });
-        populateEditor(screen, editorState);
+      populateEditor(screen, editorState);
       refreshEditorView();
       setEditorMessage('Фон удалён.', 'success');
     } catch (error) {
