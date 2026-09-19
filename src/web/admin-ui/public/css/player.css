@@ -54,19 +54,7 @@ button { font: inherit; }
 .activation-hint { max-width: 570px; color: #98a2b3; font-size: clamp(14px, 1.45vw, 18px); line-height: 1.45; }
 
 .tv-player { position: fixed; inset: 0; background: #101828; }
-.tv-player-stage { position: absolute; inset: 0; overflow: hidden; background-position: center; background-repeat: no-repeat; background-size: cover; isolation: isolate; container-type: inline-size; }
-.tv-player-menu-layer,.tv-player-fx-layer,.tv-player-content-layer { position: absolute; inset: 0; }
-.tv-player-menu-layer { z-index: 1; overflow: hidden; }
-.tv-player-menu-layer > svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: hidden; }
-.tv-player-menu-flat { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.tv-player-fx-layer { z-index: 2; overflow: hidden; pointer-events: none; contain: layout paint style; }
-.tv-player-content-layer { z-index: 3; overflow: hidden; pointer-events: none; }
-.tv-player-gpu-menu-fx { position: absolute; overflow: hidden; pointer-events: none; contain: paint; }
-.tv-player-gpu-effect { position: absolute; inset: -42%; opacity: 0; pointer-events: none; will-change: transform, opacity; transform: translate3d(0,0,0); }
-.tv-player-gpu-effect.is-sweep { background: linear-gradient(100deg,transparent 32%,rgba(246,201,14,.08) 47%,rgba(246,201,14,.16) 50%,rgba(246,201,14,.08) 53%,transparent 68%); }
-.tv-player-gpu-effect.is-spark { background: linear-gradient(100deg,transparent 38%,rgba(246,201,14,.12) 48%,rgba(246,201,14,.22) 50%,rgba(246,201,14,.12) 52%,transparent 62%); }
-.tv-player-gpu-effect.is-pulse,.tv-player-gpu-effect.is-focus { background: radial-gradient(ellipse at center,rgba(246,201,14,.12),rgba(246,201,14,.08) 34%,transparent 68%); }
-.tv-player-stage [data-motion] { opacity: 1; transform-box: fill-box; transform-origin: center; }
+.tv-player-stage { position: absolute; inset: 0; background-position: center; background-repeat: no-repeat; background-size: cover; }
 .player-connection-message { position: absolute; right: 24px; bottom: 24px; z-index: 10; max-width: min(560px, calc(100vw - 48px)); padding: 12px 16px; border-radius: 12px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 16px; }
 .is-hidden { display: none !important; }
 
