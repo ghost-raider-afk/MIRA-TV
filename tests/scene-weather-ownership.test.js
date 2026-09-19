@@ -11,12 +11,12 @@ test('scene weather element maps to embedded runtime settings', () => {
   assert.equal(settings.location_name, 'Хельсинки');
 });
 
-test('editor Preview renders weather through the generic element mount', async () => {
+test('monitor editor Preview excludes scene elements while Player keeps generic weather ownership', async () => {
   const [renderer, preview] = await Promise.all([
     readFile(new URL('../src/web/admin-ui/public/js/player/scene-element-renderer.js', import.meta.url), 'utf8'),
     readFile(new URL('../src/web/admin-ui/public/js/editor/preview.js', import.meta.url), 'utf8')
   ]);
   assert.match(renderer, /renderWeatherWidget/);
   assert.match(renderer, /contentFor\(elementId\)/);
-  assert.match(preview, /weatherPreview: true/);
+  assert.doesNotMatch(preview, /SceneElementRenderer|weatherPreview|data-scene-elements-layer/);
 });
