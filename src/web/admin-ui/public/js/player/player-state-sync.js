@@ -73,7 +73,9 @@ function localAsset(value) {
 
 function activeAssetManifest(context) {
   const sceneAssets = Array.isArray(context?.scene?.elements)
-    ? context.scene.elements.map((element) => element?.media?.source_url)
+    ? context.scene.elements
+        .filter((element) => element?.enabled !== false)
+        .map((element) => element?.media?.source_url)
     : [];
   const assets = [
     context?.draft?.settings?.background_image_url,
