@@ -12,7 +12,8 @@ test('Player state v4 has one visual scene owner', async()=>{
     read('src/api/screens/routes.js')
   ]);
   assert.match(context,/PLAYER_STATE_SCHEMA_VERSION = 4/);
-  assert.match(context,/menu:\s*\{ draft:\s*\{ rows: draft\.rows \|\| \[\], settings: draft\.settings \|\| \{\} \}/);
+  assert.match(context,/menuSettingsInput\(draft\.settings \|\| \{\}/);
+  assert.match(context,/settings: canonicalMenuSettings/);
   assert.doesNotMatch(context,/draft:\s*\{[^}]*revision:\s*draft\.revision/);
   assert.doesNotMatch(context,/getScreenWeatherSettings|components\.entity|components\.brand|components\.announcement|components\.environment|components\.weather/);
   assert.match(device,/\['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'\]/);

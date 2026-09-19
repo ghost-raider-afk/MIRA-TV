@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { menuSettingsInput } from '../contracts/menu-settings.js';
 
 export const PLAYER_STATE_SCHEMA_VERSION = 4;
 
@@ -62,9 +63,15 @@ export async function buildPlayerState(store, session, config, { renderRevision 
     store.listPackagingByIds(packagingIds)
   ]);
 
+  const canonicalMenuSettings = menuSettingsInput(draft.settings || {}, {
+    allowBackgroundImage: true,
+    maxWidth: config.screenMaxWidth,
+    maxHeight: config.screenMaxHeight
+  });
+
   const components = {
     screen: screenComponent(screen),
-    menu: { draft: { rows: draft.rows || [], settings: draft.settings || {} }, products, packaging },
+    menu: { draft: { rows: draft.rows || [], settings: canonicalMenuSettings }, products, packaging },
     scene: draft.scene || { version: 1, elements: [] },
     animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
     scene_playlist: animationSettings?.scene_playlist || null,
