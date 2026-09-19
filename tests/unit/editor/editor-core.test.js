@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEditorState, markEditorSaved } from '../../../src/web/admin-ui/public/js/editor/state.js';
-import { addRow, moveRow, removeRow, updateRow, updateSettings } from '../../../src/web/admin-ui/public/js/editor/commands.js';
+import { addRow, moveRow, removeRow, sortSectionItems, updateRow, updateSettings } from '../../../src/web/admin-ui/public/js/editor/commands.js';
 import { buildDisplayLines, buildRenderLayout, buildRenderModel, buildTableSvg, MENU_REFERENCE } from '../../../src/web/admin-ui/public/js/editor/renderer.js';
 import { normaliseEditorSettings } from '../../../src/web/admin-ui/public/js/editor/settings.js';
 
@@ -27,6 +27,42 @@ test('editor commands keep the first section pinned while its title stays editab
   markEditorSaved(state);
   assert.equal(state.dirty, false);
   assert.equal(Object.hasOwn(state, 'templateId'), false);
+});
+
+test('section alphabet sort is stable, Russian-aware and never crosses section boundaries', () => {
+  const state = createEditorState({
+    rows: [
+      { id: 'section-1', kind: 'section', name: 'Светлое', enabled: true },
+      { id: 'item-z', kind: 'item', product_id: 1, enabled: true },
+      { id: 'pack-1', kind: 'packaging', packaging_id: 10, enabled: true },
+      { id: 'item-a-1', kind: 'item', product_id: 2, enabled: true },
+      { id: 'item-a-2', kind: 'item', product_id: 3, enabled: true },
+      { id: 'section-2', kind: 'section', name: 'Тёмное', enabled: true },
+      { id: 'item-other', kind: 'item', product_id: 4, enabled: true }
+    ],
+    dirty: false
+  });
+  markEditorSaved(state);
+  const names = new Map([
+    [1, 'Янтарное'],
+    [2, 'альфа'],
+    [3, 'Альфа'],
+    [4, 'Борей']
+  ]);
+
+  assert.equal(sortSectionItems(state, 'section-1', (productId) => names.get(Number(productId))), true);
+  assert.deepEqual(state.rows.map((row) => row.id), [
+    'section-1',
+    'item-a-1',
+    'pack-1',
+    'item-a-2',
+    'item-z',
+    'section-2',
+    'item-other'
+  ]);
+  assert.equal(state.dirty, true);
+  assert.equal(state.rows[5].id, 'section-2');
+  assert.equal(state.rows[6].id, 'item-other');
 });
 
 test('legacy drafts get a real editable first section independent from monitor name', () => {

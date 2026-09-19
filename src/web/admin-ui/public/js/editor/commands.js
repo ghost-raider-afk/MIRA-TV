@@ -42,6 +42,36 @@ export function moveRow(state, rowId, toIndex) {
   return true;
 }
 
+export function sortSectionItems(state, sectionId, productNameById) {
+  const sectionIndex = rowIndex(state, sectionId);
+  if (sectionIndex === -1 || state.rows[sectionIndex]?.kind !== 'section') return false;
+  if (typeof productNameById !== 'function') throw new TypeError('Для сортировки раздела требуется функция получения названия продукции.');
+
+  let end = sectionIndex + 1;
+  while (end < state.rows.length && state.rows[end]?.kind !== 'section') end += 1;
+
+  const itemIndexes = [];
+  const items = [];
+  for (let index = sectionIndex + 1; index < end; index += 1) {
+    const row = state.rows[index];
+    if (row?.kind !== 'item') continue;
+    itemIndexes.push(index);
+    items.push({ row, order: items.length, name: String(productNameById(row.product_id) || '') });
+  }
+  if (items.length < 2) return true;
+
+  const collator = new Intl.Collator('ru', { usage: 'sort', sensitivity: 'base' });
+  const sorted = [...items].sort((left, right) => collator.compare(left.name, right.name) || left.order - right.order);
+  const changed = sorted.some((entry, index) => entry.row !== items[index].row);
+  if (!changed) return true;
+
+  itemIndexes.forEach((rowIndexValue, index) => {
+    state.rows[rowIndexValue] = sorted[index].row;
+  });
+  markEditorChanged(state);
+  return true;
+}
+
 export function updateRow(state, rowId, patch) {
   const index = rowIndex(state, rowId);
   if (index === -1) return false;
