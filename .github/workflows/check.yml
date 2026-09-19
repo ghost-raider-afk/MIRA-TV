@@ -204,7 +204,6 @@ jobs:
           --health-retries 10
     env:
       APP_NAME: MIRA-TV
-      MIRA_TV_VERSION: '1.10.2'
       NODE_ENV: test
       HOST: 127.0.0.1
       PORT: '8080'
@@ -261,7 +260,6 @@ jobs:
       SITE_FAVICON_MAX_BYTES: '524288'
       SCREEN_BACKGROUND_MAX_BYTES: '20971520'
       SCENE_ASSET_MAX_BYTES: '104857600'
-      ENTITY_ASSET_MAX_BYTES: '104857600'
       HEALTH_READINESS_CACHE_MS: '0'
       SEED_DEMO_DATA: 'false'
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
@@ -285,6 +283,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export MIRA_TV_VERSION="$(node -p "require('./package.json').version")"
+          echo "MIRA_TV_VERSION=$MIRA_TV_VERSION" >> "$GITHUB_ENV"
           rm -rf "$SITE_ASSETS_ROOT"
           mkdir -p "$SITE_ASSETS_ROOT"
           node src/server.js > /tmp/mira-tv-browser.log 2>&1 &
