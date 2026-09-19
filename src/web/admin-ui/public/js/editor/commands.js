@@ -100,3 +100,48 @@ export function updateScreen(state, patch) {
   state.screen = { ...(state.screen || {}), ...structuredClone(patch || {}) };
   return markEditorChanged(state);
 }
+
+
+function sceneElementIndex(state, elementId) {
+  return Array.isArray(state.scene?.elements) ? state.scene.elements.findIndex((element) => element.id === elementId) : -1;
+}
+
+export function addSceneElement(state, element) {
+  if (!element || typeof element !== 'object' || typeof element.id !== 'string' || !element.id) throw new TypeError('Элемент сцены должен иметь непустой id.');
+  if (!state.scene || typeof state.scene !== 'object') state.scene = { version: 1, elements: [] };
+  if (!Array.isArray(state.scene.elements)) state.scene.elements = [];
+  if (state.scene.elements.some((item) => item.id === element.id)) throw new Error(`Элемент с id ${element.id} уже существует.`);
+  state.scene.elements.push(structuredClone(element));
+  state.selectedElementId = element.id;
+  return markEditorChanged(state);
+}
+
+export function updateSceneElement(state, elementId, patch) {
+  const index = sceneElementIndex(state, elementId);
+  if (index === -1) return false;
+  state.scene.elements[index] = { ...state.scene.elements[index], ...structuredClone(patch || {}), id: state.scene.elements[index].id };
+  markEditorChanged(state);
+  return true;
+}
+
+export function replaceSceneElement(state, elementId, nextElement) {
+  const index = sceneElementIndex(state, elementId);
+  if (index === -1) return false;
+  state.scene.elements[index] = { ...structuredClone(nextElement), id: state.scene.elements[index].id };
+  markEditorChanged(state);
+  return true;
+}
+
+export function removeSceneElement(state, elementId) {
+  const index = sceneElementIndex(state, elementId);
+  if (index === -1) return false;
+  state.scene.elements.splice(index, 1);
+  if (state.selectedElementId === elementId) state.selectedElementId = state.scene.elements[index]?.id || state.scene.elements[index - 1]?.id || null;
+  markEditorChanged(state);
+  return true;
+}
+
+export function selectSceneElement(state, elementId) {
+  state.selectedElementId = elementId === null || sceneElementIndex(state, elementId) !== -1 ? elementId : null;
+  return state;
+}

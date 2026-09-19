@@ -8,6 +8,7 @@ import { updateSettings } from './commands.js';
 import { createEditorHistory } from './history.js';
 import { normaliseEditorSettings } from './settings.js';
 import { appendRow, renderPreviewRows } from './rows.js';
+import { appendSceneElement, renderSceneElements } from './elements.js';
 import { bindScreenProperties, bindSettingsProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
 import { renderPreview } from './preview.js';
 import { serializeDraft } from './serializer.js';
@@ -18,7 +19,7 @@ const EDITOR_LOADING_CONTROLS = Object.freeze([
   'editor-font-scale', 'editor-font-scale-number', 'editor-font-family',
   'editor-table-x', 'editor-table-y', 'editor-table-width', 'editor-table-height',
   'editor-background-file', 'editor-background-upload', 'editor-background-remove',
-  'editor-add-section', 'editor-add-item', 'editor-add-packaging',
+  'editor-add-section', 'editor-add-item', 'editor-add-packaging', 'editor-add-element',
   'editor-save'
 ]);
 
@@ -129,6 +130,8 @@ export function initialiseScreenEditor() {
 
   const previewTarget = element('editor-menu-preview');
   const inspectorTarget = element('editor-preview-row-inspector');
+  const elementsList = element('editor-elements-list');
+  const elementProperties = element('editor-element-properties');
 
   setEditorLoading(form, true);
 
@@ -139,10 +142,24 @@ export function initialiseScreenEditor() {
     target: previewTarget
   });
 
-  const refreshEditorView = ({ syncRows = true } = {}) => {
+  const uploadSceneAsset = async (file) => api.put(`${API.screens}/${screenId}/scene-asset`, file, {
+    headers: { 'Content-Type': file.type || 'application/octet-stream' }
+  });
+
+  const refreshElements = () => renderSceneElements(editorState, {
+    list: elementsList,
+    properties: elementProperties,
+    onBeforeMutate: () => history.checkpoint(),
+    onVisualChange: () => refreshEditorView({ syncRows: false, syncElements: false }),
+    onStructureChange: () => refreshEditorView({ syncRows: false, syncElements: true }),
+    onUpload: uploadSceneAsset
+  });
+
+  const refreshEditorView = ({ syncRows = true, syncElements = true } = {}) => {
     if (!isMounted()) return null;
     const activeScreen = editorState.screen || screen;
     const preview = refreshPreview(activeScreen);
+    if (syncElements) refreshElements();
     if (syncRows && preview?.editorLayer) {
       renderPreviewRows(editorState, {
         target: preview.editorLayer,
@@ -190,6 +207,7 @@ export function initialiseScreenEditor() {
   element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshEditorView(); });
   element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshEditorView(); });
   element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshEditorView(); });
+  element('editor-add-element')?.addEventListener('click', () => { history.checkpoint(); appendSceneElement(editorState); refreshEditorView({ syncRows: false, syncElements: true }); });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
