@@ -61,7 +61,7 @@ async function normalizedGeometry(page, layerSelector, nodeSelector) {
   },{nodeSelector});
 }
 
-test('generic Weather keeps canonical geometry between monitor Preview and Player', async ({ browser }) => {
+test('monitor editor hides Weather while Player keeps persisted canonical geometry', async ({ browser }) => {
   const admin=await browser.newContext({ baseURL, viewport:{width:1600,height:900} });
   const adminPage=await admin.newPage();
   let locationId=null;
@@ -86,11 +86,12 @@ test('generic Weather keeps canonical geometry between monitor Preview and Playe
     expect(save.ok()).toBeTruthy();
 
     await adminPage.goto(`/screen-editor?id=${screen.id}`);
-    const previewLayer=adminPage.locator('#editor-menu-preview [data-scene-elements-layer]');
-    const previewNode=previewLayer.locator('[data-scene-element-id="weather-parity"]');
-    await expect(previewNode.locator('[data-scene-weather-mount] .weather-widget')).toBeVisible();
-    const previewGeometry=await normalizedGeometry(adminPage,'#editor-menu-preview [data-scene-elements-layer]','[data-scene-element-id="weather-parity"]');
-    expect(previewGeometry).not.toBeNull();
+    await expect(adminPage.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(0);
+    await expect(adminPage.locator('#editor-menu-preview [data-scene-element-type]')).toHaveCount(0);
+
+    const persisted=await (await adminPage.request.get(`/api/screens/${screen.id}/editor`)).json();
+    const persistedWeather=persisted.draft.scene.elements.find((element)=>element.id==='weather-parity');
+    expect(persistedWeather).toMatchObject({ type:'weather', x:700, y:315, width:525, height:360 });
 
     const player=await browser.newContext({ baseURL, viewport:{width:1920,height:1080}, serviceWorkers:'block' });
     await player.addInitScript(()=>{
@@ -146,7 +147,7 @@ test('generic Weather keeps canonical geometry between monitor Preview and Playe
     expect(playerGeometry).not.toBeNull();
 
     for(const key of ['x','y','width','height']) {
-      expect(Math.abs(previewGeometry[key]-playerGeometry[key]),key).toBeLessThan(1.5);
+      expect(Math.abs(persistedWeather[key]-playerGeometry[key]),key).toBeLessThan(1.5);
     }
     await player.close();
   } finally {

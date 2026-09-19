@@ -67,7 +67,7 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.match(widget, /export const WEATHER_SCENE_WIDTH = 1920/);
   assert.match(widget, /export const WEATHER_SCENE_HEIGHT = 1080/);
   assert.match(css, /weather-atmosphere/);
-  assert.match(preview, /weatherPreview: true/);
+  assert.doesNotMatch(preview, /SceneElementRenderer|weatherPreview|data-scene-elements-layer/);
 });
 test('animation apply changes only motion and Scene Playlist; weather is owned by monitor scene', async () => {
   const [playlist, settingsRoutes] = await Promise.all([

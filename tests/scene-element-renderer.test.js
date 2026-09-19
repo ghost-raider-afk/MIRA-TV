@@ -25,9 +25,9 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(renderer, /element\.enabled === false \? 'none' : 'block'/);
   assert.doesNotMatch(renderer, /innerHTML/);
 
-  assert.match(preview, /new SceneElementRenderer\(sceneLayer, \{ weatherPreview: true \}\)/);
   assert.match(preview, /menuLayer\.innerHTML = buildTableSvg/);
-  assert.match(preview, /sceneRenderer\.render\(editorState\.scene\)/);
+  assert.doesNotMatch(preview, /SceneElementRenderer|sceneRenderer|data-scene-elements-layer|weatherPreview/);
+  assert.match(preview, /target\.append\(menuLayer, editorLayer\)/);
   assert.doesNotMatch(preview, /target\.innerHTML\s*=/);
 
   assert.match(player, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);

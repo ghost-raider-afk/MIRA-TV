@@ -22,6 +22,8 @@ test('monitor menu editing is owned by the canonical Preview instead of a parall
   assert.match(editor, /renderPreviewRows/);
   assert.doesNotMatch(editor, /renderRows|refreshRows|rowsTarget|rowsEmpty/);
   assert.match(preview, /editorPreviewControlsLayer/);
+  assert.doesNotMatch(preview, /SceneElementRenderer|sceneRenderer|data-scene-elements-layer|weatherPreview/);
+  assert.match(preview, /target\.append\(menuLayer, editorLayer\)/);
   assert.match(preview, /return \{ model, lines, layout, editorLayer \}/);
 
   assert.match(rows, /line\.sourceRowId/);
@@ -32,4 +34,5 @@ test('monitor menu editing is owned by the canonical Preview instead of a parall
   assert.doesNotMatch(rows, /createElement\('table'\)|<thead>|<tbody>/);
   assert.doesNotMatch(css, /editor-menu-editor-table|editor-menu-table-scroll|editor-menu-rows/);
   assert.match(css, /editor-preview-controls-layer/);
+  assert.match(css, /data-editor-preview-menu-layer[^\n]*section-title[^\n]*item-name[^\n]*packaging-name[^\n]*visibility:hidden/);
 });

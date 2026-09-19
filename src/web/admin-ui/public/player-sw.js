@@ -13,6 +13,7 @@ const SHELL_ASSETS = [
   '/fonts/DejaVuSerif.ttf',
   '/fonts/DejaVuSerif-Bold.ttf',
   '/css/player.css',
+  '/css/player-scene.css',
   '/css/weather-widget.css',
   '/css/scene-playlist.css',
   '/js/player/player.js',
