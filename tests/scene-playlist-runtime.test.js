@@ -6,16 +6,18 @@ const root = new URL('../src/web/admin-ui/public/', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('Scene Playlist runtime preserves an active timeline when Player Context is unchanged', async () => {
-  const [runtime, player] = await Promise.all([
+  const [runtime, player, sceneRenderer] = await Promise.all([
     read('js/motion/scene-playlist-runtime.js'),
-    read('js/player/player.js')
+    read('js/player/player.js'),
+    read('js/player/player-scene-renderer.js')
   ]);
 
   assert.match(runtime, /function playbackSignature\(playlist, entity\)/);
   assert.match(runtime, /this\.playbackActive && sameLayers && this\.signature === nextSignature/);
   assert.match(runtime, /this\.playlist = nextPlaylist/);
   assert.match(runtime, /this\.entity = entity/);
-  assert.match(player, /scenePlaylistRuntime\.render\(context\.scene_playlist/);
+  assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
+  assert.match(sceneRenderer, /this\.scenePlaylistRuntime\.render\(context\.scene_playlist/);
   assert.doesNotMatch(runtime, /scene-graph\.js/);
 });
 

@@ -107,15 +107,16 @@ test('Entity Editor renders image or video on a layer independent from menu and 
 });
 
 test('TV player receives, renders and caches Video Entity without JavaScript byte-range copies', async () => {
-  const [routes, playerContextService, player, sync, playerCss, serviceWorker] = await Promise.all([
+  const [routes, playerContextService, player, sceneRenderer, sync, playerCss, serviceWorker] = await Promise.all([
     read('api/device/public-routes.js'), read('services/player-context-service.js'), read('web/admin-ui/public/js/player/player.js'),
-    read('web/admin-ui/public/js/player/player-state-sync.js'), read('web/admin-ui/public/css/player.css'), read('web/admin-ui/public/player-sw.js')
+    read('web/admin-ui/public/js/player/player-scene-renderer.js'), read('web/admin-ui/public/js/player/player-state-sync.js'), read('web/admin-ui/public/css/player.css'), read('web/admin-ui/public/player-sw.js')
   ]);
   assert.match(routes, /buildPlayerState\(store, session, config, \{ renderRevision: currentRevision \}\)/);
   assert.match(routes, /known\.hashes\.runtime === runtimeHash/);
   assert.match(playerContextService, /store\.getScreenAnimationSettings\(session\.screen_id\)/);
   assert.match(playerContextService, /entity:\s*animationSettings\?\.entity/);
-  assert.match(player, /renderSceneEntity\(playerStage, context\.entity, \{ editable: false \}\)/);
+  assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
+  assert.match(sceneRenderer, /renderSceneEntity\(this\.stage, context\.entity, \{ editable: false \}\)/);
   assert.doesNotMatch(player, /context\?\.entity\?\.asset_url|warmPlayerAssetCache/);
   assert.match(sync, /context\?\.entity\?\.asset_url/);
   assert.match(sync, /mira:player-active-assets/);

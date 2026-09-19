@@ -44,12 +44,13 @@ test('WAAPI serializer supports renderer-neutral entity rotation', () => {
 });
 
 test('preview and TV player share one explicit SceneMotionRuntime owner for entity behavior and cache it offline', async () => {
-  const [adapter, preview, liveMotion, sceneMotion, player, playerHtml, worker, entityEditor] = await Promise.all([
+  const [adapter, preview, liveMotion, sceneMotion, player, sceneRenderer, playerHtml, worker, entityEditor] = await Promise.all([
     read('js/motion/dom-scene-adapter.js'),
     read('js/motion/preview-player.js'),
     read('js/motion/live-menu-motion.js'),
     read('js/motion/scene-motion-runtime.js'),
     read('js/player/player.js'),
+    read('js/player/player-scene-renderer.js'),
     read('player.html'),
     read('player-sw.js'),
     read('js/motion/entity-editor.js')
@@ -76,15 +77,17 @@ test('preview and TV player share one explicit SceneMotionRuntime owner for enti
   assert.doesNotMatch(liveMotion, /compileEntityBehaviorProgram/);
   assert.match(liveMotion, /compilers:\s*DEFAULT_SCENE_COMPILERS/);
 
-  assert.match(player, /new SceneMotionRuntime\(playerStage/);
+  assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
+  assert.match(sceneRenderer, /new SceneMotionRuntime\(stage/);
   assert.doesNotMatch(player, /LiveMenuMotion|GpuSceneRuntime|new WasmMotionDriver/);
-  assert.match(player, /mira:entity-rendered/);
+  assert.doesNotMatch(sceneRenderer, /LiveMenuMotion|GpuSceneRuntime/);
+  assert.match(sceneRenderer, /mira:entity-rendered/);
   assert.match(player, /mira:player-active/);
 
   assert.doesNotMatch(playerHtml, /entity-runtime\.js|gpu-scene-runtime\.js/);
 
   for (const asset of [
-    '/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js',
+    '/js/player/player-scene-renderer.js','/js/player/flat-menu-renderer.js','/js/player/scene-layer-composer.js',
     '/js/motion/scene-motion-runtime.js','/js/motion/entity-behavior.js','/js/motion/dom-scene-adapter.js',
     '/js/motion/scene-graph.js','/js/motion/scene-composer.js','/js/motion/scene-runtime.js',
     '/js/motion/timeline.js','/js/motion/drivers/waapi-driver.js','/js/motion/drivers/wasm-motion-driver.js',
