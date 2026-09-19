@@ -205,7 +205,7 @@ export function initialisePlaylistStudio() {
   if (!(stage instanceof HTMLElement)) return undefined;
   const token = ++generation;
   stage.dataset.playerActive = 'true';
-  scenePlaylistEditor = new ScenePlaylistEditor({ stage, getEntity: () => null });
+  scenePlaylistEditor = new ScenePlaylistEditor({ stage });
   scenePlaylistEditor.mount(element('animation-playlist-panel'));
   bindMotionProfileControls(() => { void refreshMotion(); });
   document.querySelectorAll('[data-animation-inspector-tab]').forEach((button) => button.addEventListener('click', () => setInspectorTab(button.dataset.animationInspectorTab)));

@@ -4,10 +4,6 @@ import {
   buildRenderModel,
   buildTableSvg
 } from '../editor/renderer.js';
-import { renderSceneEntity } from '../motion/entity-editor.js';
-import { renderAnnouncementLayer } from '../motion/announcement.js';
-import { renderBrandTitleLayer } from '../motion/brand-title.js';
-import { renderEnvironmentLayer } from '../motion/environment.js';
 import { ScenePlaylistRuntime } from '../motion/scene-playlist-runtime.js';
 import { applySceneVisibility } from '../motion/scene-visibility.js';
 import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js';
@@ -21,12 +17,7 @@ export const ALL_PLAYER_COMPONENTS = Object.freeze([
   'menu',
   'scene',
   'animation',
-  'environment',
   'scene_playlist',
-  'entity',
-  'weather',
-  'brand',
-  'announcement',
   'runtime'
 ]);
 
@@ -80,10 +71,7 @@ export class PlayerSceneRenderer {
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.sceneMotionRuntime = new SceneMotionRuntime(stage, { activityControlled: true });
     this.scenePlaylistRuntime = new ScenePlaylistRuntime();
-    this.weatherRuntime = new PlayerWeatherRuntime(stage, {
-      layer: this.sceneLayers.ensure('weather', { ariaLabel: 'Погода' }),
-      endpoint: weatherEndpoint
-    });
+    this.weatherRuntime = new PlayerWeatherRuntime(stage, { endpoint: weatherEndpoint });
     this.destroyed = false;
   }
 
@@ -91,20 +79,15 @@ export class PlayerSceneRenderer {
     if (this.destroyed) return;
     const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
     const {
-      environment: environmentLayer,
       menu: menuLayer,
       fx: fxLayer,
       content: contentLayer,
-      scene: sceneElementLayer,
-      entity: entityLayer,
-      weather: weatherLayer,
-      brand: brandLayer,
-      announcement: announcementLayer
+      scene: sceneElementLayer
     } = this.sceneLayers.ensureCore();
 
     const menuDirty = dirty.has('menu') || dirty.has('screen');
-    const motionDirty = menuDirty || dirty.has('animation') || dirty.has('entity');
-    const playlistDirty = dirty.has('scene_playlist') || dirty.has('entity') || dirty.has('screen');
+    const motionDirty = menuDirty || dirty.has('animation');
+    const playlistDirty = dirty.has('scene_playlist') || dirty.has('screen');
     let viewport = null;
     let model = null;
     let renderMode = null;
@@ -150,53 +133,31 @@ export class PlayerSceneRenderer {
       this.sceneElementRenderer.render(context.scene);
       sceneElementLayer.setAttribute('aria-hidden', 'true');
     }
-    if (dirty.has('scene') || dirty.has('weather') || dirty.has('screen') || menuDirty) {
+
+    if (dirty.has('scene') || dirty.has('screen') || menuDirty) {
       const weatherElement = sceneWeatherElement(context.scene);
-      if (weatherElement) {
-        this.weatherRuntime.setLayer(this.sceneElementRenderer.contentFor(weatherElement.id));
-        this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
-          configurationChanged: dirty.has('scene') || dirty.has('screen'),
-          menuChanged: menuDirty
-        });
-      } else {
-        this.weatherRuntime.setLayer(weatherLayer);
-        this.weatherRuntime.applyContext(context.weather, context.screen?.id, {
-          configurationChanged: dirty.has('weather') || dirty.has('screen'),
-          menuChanged: menuDirty
-        });
-      }
+      this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
+      this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
+        configurationChanged: dirty.has('scene') || dirty.has('screen'),
+        menuChanged: menuDirty
+      });
     }
-    if (dirty.has('environment')) {
-      renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
-    }
-    if (dirty.has('entity')) {
-      renderSceneEntity(this.stage, context.entity, { editable: false, thumbnail: !this.autoplay });
-      this.stage.dispatchEvent(new CustomEvent('mira:entity-rendered'));
-    }
-    if (dirty.has('brand')) {
-      renderBrandTitleLayer(brandLayer, context.brand);
-    }
-    if (dirty.has('announcement')) {
-      renderAnnouncementLayer(announcementLayer, context.announcement);
-    }
-    weatherLayer.setAttribute('aria-hidden', context.weather?.enabled === true && !sceneWeatherElement(context.scene) ? 'false' : 'true');
+
     if (motionDirty) {
       this.sceneMotionRuntime.render({
         menuEnabled: renderMode === 'flat-motion',
-        profile: context.animation?.profile,
-        entity: context.entity
+        profile: context.animation?.profile
       });
     }
+
     if (playlistDirty) {
       this.scenePlaylistRuntime.render(context.scene_playlist, {
         menuLayer,
         contentLayer,
         fxLayer,
-        entity: context.entity,
         autoplay: this.autoplay
       });
     }
-    entityLayer.setAttribute('aria-hidden', 'true');
   }
 
   reset() {
