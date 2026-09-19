@@ -20,7 +20,8 @@
                   <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка монитора…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
                 </div>
               </div>
-              <div class="editor-primary-actions" aria-label="Сохранение">
+              <div class="editor-primary-actions" aria-label="Действия редактора">
+                <a class="button button-secondary" id="editor-scene-link" href="/scene">Сцена</a>
                 <button class="button button-primary editor-save" id="editor-save" type="submit" disabled>Сохранить</button>
               </div>
             </section>
@@ -40,17 +41,6 @@
                       <label class="field"><span>Статус</span><select id="editor-status" disabled><option value="draft">Черновик</option><option value="ready">Готово</option><option value="published">Опубликовано</option></select></label>
                     </div>
                     <label class="toggle-row compact-toggle"><span><strong>Активен</strong><small>Доступен TV Player</small></span><input id="editor-active" type="checkbox" checked disabled /><i aria-hidden="true"></i></label>
-                  </div>
-                </details>
-
-                <details class="editor-settings-section editor-tool-menu">
-                  <summary>Элементы</summary>
-                  <div class="editor-settings-body editor-elements-panel">
-                    <div class="editor-elements-toolbar">
-                      <div><strong>Элементы сцены</strong><small>Каждый Элемент N — универсальный блок. Выберите тип внутри карточки.</small></div>
-                      <button class="button button-secondary" id="editor-add-element" type="button" disabled>+ Элемент</button>
-                    </div>
-                    <div class="editor-elements-stack" id="editor-elements-stack" aria-label="Элементы сцены"></div>
                   </div>
                 </details>
 
