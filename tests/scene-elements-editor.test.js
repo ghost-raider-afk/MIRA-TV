@@ -20,7 +20,8 @@ test('monitor editor owns one generic scene element model', async () => {
   assert.match(elements, /className = 'editor-element-card'/);
   assert.match(elements, /`Элемент \${index \+ 1}`/);
   assert.match(elements, /aria-label', `Тип элемента \${index \+ 1}`/);
-  assert.match(elements, /replaceSceneElement\(state, element\.id, replacement\)/);
+  assert.match(elements, /const current = elementById\(state, element\.id\) \|\| element/);
+  assert.match(elements, /replaceSceneElement\(state, current\.id, replacement\)/);
   for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение']) assert.ok(elements.includes(photoshopControl));
   assert.match(editor, /container: elementsContainer/);
   assert.doesNotMatch(editor, /elementsList|elementProperties/);
