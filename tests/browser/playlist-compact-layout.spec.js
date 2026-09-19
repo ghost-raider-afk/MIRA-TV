@@ -54,6 +54,8 @@ for (const viewport of [
         previewOverflow: preview.scrollHeight - preview.clientHeight,
         directClasses: direct.map((node) => node.id || node.className),
         workspace: rect(workspace),
+        preview: { ...rect(preview), width: preview.getBoundingClientRect().width },
+        inspectorBox: { ...rect(inspector), width: inspector.getBoundingClientRect().width },
         actions: rect(actions),
         panels: rect(panels),
         inspectorOverflowY: getComputedStyle(inspector).overflowY,
@@ -68,6 +70,7 @@ for (const viewport of [
     expect(layout.inspectorOverflow).toBeLessThanOrEqual(2);
     expect(layout.previewOverflow).toBeLessThanOrEqual(2);
     expect(layout.directClasses).toHaveLength(5);
+    expect(layout.preview.width).toBeGreaterThan(layout.inspectorBox.width);
     expect(layout.workspace.bottom).toBeLessThanOrEqual(viewport.height);
     expect(layout.actions.bottom).toBeLessThanOrEqual(viewport.height);
     expect(layout.actions.height).toBeGreaterThan(30);

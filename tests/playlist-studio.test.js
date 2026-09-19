@@ -105,10 +105,10 @@ test('stored v3 bounce/pop settings are canonicalized instead of reintroducing j
 });
 
 test('Playlist Studio owns only menu motion and Scene Playlist while visual elements stay in monitor editor', async () => {
-  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, scenePlaylistRuntime, scenePlaylistCss, playerCss, previewCss] = await Promise.all([
+  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, scenePlaylistRuntime, scenePlaylistCss, playerCss, playerSceneCss, previewCss, indexCss] = await Promise.all([
     read('playlist.html'), read('js/pages/playlist.js'), read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
     read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/scene-motion-runtime.js'),
-    read('js/motion/scene-playlist-runtime.js'), read('css/scene-playlist.css'), read('css/player.css'), read('css/pages/animation-screen-preview.css')
+    read('js/motion/scene-playlist-runtime.js'), read('css/scene-playlist.css'), read('css/player.css'), read('css/player-scene.css'), read('css/pages/animation-screen-preview.css'), read('css/index.css')
   ]);
 
   for (const id of [
@@ -123,6 +123,9 @@ test('Playlist Studio owns only menu motion and Scene Playlist while visual elem
   }
 
   assert.match(page, /new PlayerSceneRenderer/);
+  assert.match(indexCss, /player-scene\.css/);
+  assert.match(playerSceneCss, /\.player-scene-stage \.tv-player-menu-layer>svg\{[^}]*width:100%;height:100%/);
+  assert.match(playerSceneCss, /\.player-scene-stage \.tv-player-content-layer\{[^}]*container-type:inline-size/);
   assert.match(page, /new ScenePlaylistEditor/);
   assert.match(page, /scene_playlist:\s*scenePlaylistEditor/);
   assert.match(playlistEditor, /playlist-scene-strip/);
@@ -141,7 +144,7 @@ test('Playlist Studio owns only menu motion and Scene Playlist while visual elem
   assert.doesNotMatch(domAdapter, /kind: 'price'/);
   assert.match(domAdapter, /row-motion-surface-item/);
   assert.match(previewCss, /\.animation-screen-background\{[^}]*background-size:cover/);
-  for (const authoredSource of [scenePlaylistRuntime, scenePlaylistCss, playerCss, previewCss]) {
+  for (const authoredSource of [scenePlaylistRuntime, scenePlaylistCss, playerCss, playerSceneCss, previewCss]) {
     assert.doesNotMatch(authoredSource, /prefers-reduced-motion/, 'operator-authored scene motion must ignore OS reduced-motion');
   }
 });
