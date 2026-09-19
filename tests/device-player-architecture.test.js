@@ -45,7 +45,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
   assert.match(sync, /fetch\('\/api\/device\/player-delta'/);
   assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
-  assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
+  assert.match(sync, /context\.scene\.elements[\s\S]*?filter\(\(element\) => element\?\.enabled !== false\)[\s\S]*?map\(\(element\) => element\?\.media\?\.source_url\)/);
   assert.doesNotMatch(sync, /context\?\.entity|context\?\.brand|context\?\.announcement|context\?\.environment/);
   assert.match(realtimeClient, /new WebSocket\(/);
 
@@ -96,7 +96,7 @@ test('Player Context has no specialized Entity field', async () => {
 test('offline player caches generic scene media without JavaScript Range copies', async () => {
   const [worker, sync] = await Promise.all([read('src/web/admin-ui/public/player-sw.js'), read('src/web/admin-ui/public/js/player/player-state-sync.js')]);
   assert.match(sync, /activeAssetManifest/);
-  assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
+  assert.match(sync, /context\.scene\.elements[\s\S]*?filter\(\(element\) => element\?\.enabled !== false\)[\s\S]*?map\(\(element\) => element\?\.media\?\.source_url\)/);
   assert.doesNotMatch(sync, /context\?\.entity/);
   assert.match(sync, /mira:player-active-assets/);
   assert.match(worker, /async function ensureActiveAssets/);
