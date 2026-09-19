@@ -259,38 +259,38 @@ test('login composition follows MIRA-TV 1 and size 7 is the reference logo scale
   expect(card.width).toBeLessThanOrEqual(375);
 });
 
-test('generic scene elements edit and persist while monitor Preview stays table-only', async ({ page }) => {
+test('generic scene elements use universal Element N cards and persist while monitor Preview stays table-only', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await login(page);
   const { screen } = await createEditorFixture(page, { rows: 2 });
   await page.goto(`/screen-editor?id=${screen.id}`);
   await openSettings(page, 'Элементы');
 
-  const list = page.locator('#editor-elements-list');
-  const properties = page.locator('#editor-element-properties');
+  const stack = page.locator('#editor-elements-stack');
+  const cards = stack.locator('.editor-element-card');
   const preview = page.locator('#editor-menu-preview');
-  await expect(list.locator('.editor-element-list-item')).toHaveCount(0);
+  await expect(cards).toHaveCount(0);
 
   await page.locator('#editor-add-element').click();
-  await expect(list.locator('.editor-element-list-item')).toHaveCount(1);
-  await expect(list.locator('.editor-element-list-item').first()).toContainText('Элемент 1');
-  await expect(list.locator('.editor-element-list-item').first()).toContainText('Текстовое поле');
+  await expect(cards).toHaveCount(1);
+  const first = cards.nth(0);
+  await expect(first).toHaveAttribute('open', '');
+  await expect(first.locator('summary')).toContainText('Элемент 1');
+  await expect(first.locator('summary')).toContainText('Текстовое поле');
 
-  const type = properties.getByLabel('Тип элемента');
-  await expect(type.locator('option')).toHaveText(['Текстовое поле', 'Погода', 'Картинка', 'Видео', 'Логотип']);
-  await properties.getByLabel('Текст', { exact: true }).fill('бар маяк');
-  await properties.getByLabel('Шрифт', { exact: true }).selectOption('arial-narrow');
-  await properties.getByLabel('Размер', { exact: true }).fill('96');
-  await properties.getByLabel('Насыщенность', { exact: true }).fill('800');
-  await properties.getByLabel('Регистр', { exact: true }).selectOption('uppercase');
+  const type1 = first.getByLabel('Тип элемента 1');
+  await expect(type1.locator('option')).toHaveText(['Текстовое поле', 'Погода', 'Картинка', 'Видео', 'Логотип']);
+  await first.getByLabel('Текст', { exact: true }).fill('бар маяк');
+  await first.getByLabel('Шрифт', { exact: true }).selectOption('arial-narrow');
+  await first.getByLabel('Размер, px', { exact: true }).fill('96');
+  await first.getByLabel('Насыщенность', { exact: true }).fill('800');
+  await first.getByLabel('Регистр', { exact: true }).selectOption('uppercase');
+  await first.getByLabel('X', { exact: true }).fill('300');
+  await first.getByLabel('Y', { exact: true }).fill('160');
+  await first.getByLabel('Ширина', { exact: true }).fill('800');
+  await first.getByLabel('Высота', { exact: true }).fill('240');
 
-  const common = properties.locator('.editor-element-group').first();
-  await common.getByLabel('X', { exact: true }).fill('300');
-  await common.getByLabel('Y', { exact: true }).fill('160');
-  await common.getByLabel('Ширина', { exact: true }).fill('800');
-  await common.getByLabel('Высота', { exact: true }).fill('240');
-
-  const glow = properties.locator('fieldset').filter({ has: page.getByText('Свечение', { exact: true }) });
+  const glow = first.locator('fieldset').filter({ has: page.getByText('Свечение', { exact: true }) });
   await glow.getByLabel('Включено', { exact: true }).check();
   await glow.getByLabel('Размытие', { exact: true }).fill('24');
 
@@ -298,20 +298,32 @@ test('generic scene elements edit and persist while monitor Preview stays table-
   await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 
   await page.locator('#editor-add-element').click();
-  await expect(list.locator('.editor-element-list-item')).toHaveCount(2);
-  await expect(list.locator('.editor-element-list-item').nth(1)).toContainText('Элемент 2');
-  await properties.getByLabel('Тип элемента').selectOption('weather');
-  await expect(list.locator('.editor-element-list-item').nth(1)).toContainText('Погода');
-  await properties.getByLabel('Населённый пункт', { exact: true }).fill('Хельсинки');
-  await properties.getByLabel('Широта', { exact: true }).fill('60.1699');
-  await properties.getByLabel('Долгота', { exact: true }).fill('24.9384');
+  await expect(cards).toHaveCount(2);
+  const second = cards.nth(1);
+  await expect(first).not.toHaveAttribute('open', '');
+  await expect(second).toHaveAttribute('open', '');
+  await expect(second.locator('summary')).toContainText('Элемент 2');
+  const secondId = await second.getAttribute('data-scene-element-id');
+  await second.getByLabel('X', { exact: true }).fill('444');
+  await second.getByLabel('Тип элемента 2').selectOption('weather');
+  await expect(cards.nth(1)).toHaveAttribute('data-scene-element-id', secondId);
+  await expect(cards.nth(1).locator('summary')).toContainText('Погода');
+  await expect(cards.nth(1).getByLabel('X', { exact: true })).toHaveValue('444');
+  await cards.nth(1).getByLabel('Населённый пункт', { exact: true }).fill('Хельсинки');
+  await cards.nth(1).getByLabel('Широта', { exact: true }).fill('60.1699');
+  await cards.nth(1).getByLabel('Долгота', { exact: true }).fill('24.9384');
+  await cards.nth(1).getByLabel('Скорость', { exact: true }).fill('1.25');
+  await cards.nth(1).getByLabel('Интенсивность', { exact: true }).fill('1.35');
   await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 
   await page.locator('#editor-add-element').click();
-  await expect(list.locator('.editor-element-list-item')).toHaveCount(3);
-  await properties.getByLabel('Тип элемента').selectOption('image');
-  const imageGroup = properties.locator('.editor-element-group').last();
-  const fileInput = imageGroup.locator('input[type="file"]');
+  await expect(cards).toHaveCount(3);
+  const third = cards.nth(2);
+  await expect(third).toHaveAttribute('open', '');
+  await expect(third.locator('summary')).toContainText('Элемент 3');
+  await third.getByLabel('Тип элемента 3').selectOption('image');
+  await expect(cards.nth(2).locator('summary')).toContainText('Картинка');
+  const fileInput = cards.nth(2).locator('input[type="file"]');
   await fileInput.setInputFiles({
     name: 'scene-test.png',
     mimeType: 'image/png',
@@ -320,7 +332,7 @@ test('generic scene elements edit and persist while monitor Preview stays table-
   const uploadResponse = page.waitForResponse((response) =>
     response.url().endsWith(`/api/screens/${screen.id}/scene-asset`) && response.request().method() === 'PUT'
   );
-  await properties.getByRole('button', { name: 'Загрузить файл' }).click();
+  await cards.nth(2).getByRole('button', { name: 'Загрузить файл' }).click();
   expect((await uploadResponse).status()).toBe(201);
   await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 
@@ -336,14 +348,21 @@ test('generic scene elements edit and persist while monitor Preview stays table-
   expect(stored.draft.scene.elements[0].type).toBe('text');
   expect(stored.draft.scene.elements[0].text.runs[0].value).toBe('бар маяк');
   expect(stored.draft.scene.elements[0].text.runs[0].text_transform).toBe('uppercase');
+  expect(stored.draft.scene.elements[1].id).toBe(secondId);
   expect(stored.draft.scene.elements[1].type).toBe('weather');
+  expect(stored.draft.scene.elements[1].x).toBe(444);
   expect(stored.draft.scene.elements[1].weather.location_name).toBe('Хельсинки');
+  expect(stored.draft.scene.elements[1].weather.animation_speed).toBe(1.25);
+  expect(stored.draft.scene.elements[1].weather.animation_intensity).toBe(1.35);
   expect(stored.draft.scene.elements[2].type).toBe('image');
   expect(stored.draft.scene.elements[2].media.source_url).toMatch(/^\/site-assets\/scene\/scene-.+\.png$/);
 
   await page.reload();
   await openSettings(page, 'Элементы');
-  await expect(page.locator('#editor-elements-list .editor-element-list-item')).toHaveCount(3);
+  await expect(page.locator('#editor-elements-stack .editor-element-card')).toHaveCount(3);
+  await expect(page.locator('#editor-elements-stack .editor-element-card').nth(0).locator('summary')).toContainText('Элемент 1');
+  await expect(page.locator('#editor-elements-stack .editor-element-card').nth(1).locator('summary')).toContainText('Элемент 2');
+  await expect(page.locator('#editor-elements-stack .editor-element-card').nth(2).locator('summary')).toContainText('Элемент 3');
   await expect(preview.locator('[data-scene-elements-layer]')).toHaveCount(0);
   await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
 });
