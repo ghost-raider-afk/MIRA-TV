@@ -100,7 +100,7 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
     padding:10px;
     gap:9px;
     display:grid;
-    grid-template-rows:auto auto minmax(0,1fr) auto auto auto;
+    grid-template-rows:auto auto minmax(0,1fr) auto auto;
     border:1px solid var(--ui-border);
     border-radius:14px;
     background:var(--ui-panel);
@@ -120,7 +120,7 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
     padding-right:0;
   }
 
-  .animation-object-panels>[data-animation-object-panel]:not([hidden]){
+  .animation-inspector-panels>[data-animation-inspector-panel]:not([hidden]){
     height:100%;
     min-height:0;
     overflow:auto;
@@ -130,11 +130,10 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
   }
 
   .animation-inspector-head{grid-row:1}
-  .animation-object-manager{grid-row:2}
-  .animation-object-panels{grid-row:3}
+  .animation-inspector-tabs{grid-row:2}
+  .animation-inspector-panels{grid-row:3}
   .animation-targets{grid-row:4}
-  .animation-apply-status{grid-row:5}
-  .animation-inspector-actions{grid-row:6}
+  .animation-inspector-actions{grid-row:5}
 
   .animation-inspector .settings-card{
     padding:10px;
@@ -151,12 +150,6 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 
   .animation-inspector .animation-control-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .animation-inspector .animation-slider-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-  .animation-inspector .animation-announcement-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-  .animation-inspector .animation-entity-grid{grid-template-columns:minmax(170px,.65fr) minmax(0,1.35fr);gap:10px}
-  .animation-inspector .animation-entity-main-fields{grid-template-columns:minmax(160px,1fr) repeat(3,auto);gap:7px}
-  .animation-inspector .animation-entity-transform-grid{grid-template-columns:repeat(4,minmax(86px,1fr));gap:7px}
-  .animation-inspector .animation-entity-transform-grid .field:nth-child(n+5){grid-column:span 2}
-  .animation-inspector .animation-entity-asset-panel{grid-template-columns:76px 1fr;padding:8px;gap:8px}
 
   .animation-targets{
     display:grid;
@@ -176,15 +169,6 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 
   .animation-targets-head strong{font-size:12px}
   .animation-targets-head small{font-size:10px}
-  .animation-apply-status{
-    display:block;
-    margin-top:2px;
-    color:var(--ui-text-muted);
-    font-size:10px;
-    line-height:1.2;
-  }
-  .animation-apply-status[data-state="applied"]{color:var(--ui-success)}
-  .animation-apply-status[data-state="error"]{color:var(--ui-danger)}
   .animation-target-list{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -217,18 +201,12 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 @media(max-width:760px){
   .animation-inspector .animation-control-grid,
   .animation-inspector .animation-slider-grid,
-  .animation-inspector .animation-announcement-grid,
-  .animation-inspector .animation-entity-grid,
-  .animation-inspector .animation-entity-main-fields,
-  .animation-inspector .animation-entity-transform-grid{
-    grid-template-columns:1fr;
-  }
   .animation-inspector-actions{grid-template-columns:1fr}
 }
 
 @media(min-width:1181px){
-  .animation-inspector{grid-template-rows:auto auto minmax(0,1fr) auto auto auto;gap:7px;padding:8px}
-  .animation-object-panels{min-height:0;max-height:none}
+  .animation-inspector{grid-template-rows:auto auto minmax(0,1fr) auto auto;gap:7px;padding:8px}
+  .animation-inspector-panels{min-height:0;max-height:none}
   .animation-targets{padding:0;border-radius:8px;overflow:hidden}
   .animation-targets>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:5px 8px;cursor:pointer;list-style:none}
   .animation-targets>summary::-webkit-details-marker{display:none}

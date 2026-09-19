@@ -419,9 +419,9 @@ export class ScenePlaylistEditor {
 
   previewLayers() {
     if (this.disposed || !(this.stage instanceof Element)) return null;
-    const menuLayer = this.stage.querySelector('[data-scene-menu-layer]');
-    const contentLayer = this.stage.querySelector('[data-scene-content-layer]');
-    const fxLayer = this.stage.querySelector('[data-scene-fx-layer]');
+    const menuLayer = this.stage.querySelector('[data-player-menu-layer]');
+    const contentLayer = this.stage.querySelector('[data-player-content-layer]');
+    const fxLayer = this.stage.querySelector('[data-player-fx-layer]');
     if (!(menuLayer instanceof HTMLElement) || !(contentLayer instanceof HTMLElement) || !(fxLayer instanceof HTMLElement)) return null;
     return { menuLayer, contentLayer, fxLayer };
   }

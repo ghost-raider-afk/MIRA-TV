@@ -1,17 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const PROMO_PROFILE = {
-  motion_version: 3,
-  pattern: 'cinematic', flow_direction: 'alternate', easing: 'cinematic', cycle_seconds: 8,
-  event_duration_ms: 6500, wave_stagger_ms: 160, travel_px: 24, scale_amount: 0.04,
-  brightness_amount: 0.24, section_effect: 'cinematic', item_effect: 'cinematic', price_effect: 'none', intensity: 80,
-  promotion_effect: 'cinematic', promotion_intensity: 100, promotion_cycle_seconds: 4.5,
-  promotion_event_duration_ms: 1800, promotion_travel_px: 0, promotion_scale_amount: 0.06,
-  promotion_brightness_amount: 0.35, promotion_glow_radius: 28, promotion_easing: 'smooth'
-};
-
 async function login(page) {
-  await page.goto('/signin.html');
+  await page.goto('/signin');
   await page.getByLabel('Логин').fill('admin');
   await page.getByLabel('Пароль').fill(process.env.E2E_ADMIN_PASSWORD || 'Browser-CI-Password1!');
   await Promise.all([
@@ -20,251 +10,134 @@ async function login(page) {
   ]);
 }
 
-async function animationSettings(page) {
-  return page.evaluate(async () => {
-    const response = await fetch('/api/settings/animation', { credentials: 'same-origin', cache: 'no-store' });
-    if (!response.ok) throw new Error(`playlist settings GET failed: ${response.status}`);
-    return response.json();
-  });
+async function animationSettings(page, screenId = null) {
+  const suffix = screenId ? `/screens/${screenId}` : '';
+  const response = await page.request.get(`/api/settings/animation${suffix}`);
+  expect(response.ok()).toBeTruthy();
+  return response.json();
 }
 
 async function restoreAnimationSettings(page, settings) {
-  await page.evaluate(async (payload) => {
-    const response = await fetch('/api/settings/animation', {
-      method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-    });
-    if (!response.ok) throw new Error(`playlist settings restore failed: ${response.status}`);
-  }, {
-    enabled: settings.enabled, preset_id: settings.preset_id, profile: settings.profile,
-    entity: settings.entity, announcement: settings.announcement, brand: settings.brand, environment: settings.environment,
-    scene_playlist: settings.scene_playlist
+  const response = await page.request.put('/api/settings/animation', {
+    data: {
+      enabled: settings.enabled,
+      preset_id: settings.preset_id,
+      profile: settings.profile,
+      scene_playlist: settings.scene_playlist
+    }
   });
+  expect(response.ok()).toBeTruthy();
 }
 
 async function createPreviewFixture(page) {
-  return page.evaluate(async () => {
-    async function request(url, init = {}) {
-      const response = await fetch(url, {
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-        ...init
-      });
-      if (!response.ok) throw new Error(`${init.method || 'GET'} ${url} failed: ${response.status}`);
-      return response.status === 204 ? null : response.json();
-    }
-    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const product = await request('/api/catalog/products', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: `Playlist product ${suffix}`, producer: '', characteristics: '', strength: '', price_primary: '240',
-        alcoholic: false, beverage_color: 'none', filtration: 'none', active: true
-      })
-    });
-    const location = await request('/api/locations', { method: 'POST', body: JSON.stringify({ name: `Playlist ${suffix}`, address: '', active: true }) });
-    const screen = await request(`/api/locations/${location.id}/screens`, { method: 'POST', body: '{}' });
-    const editor = await request(`/api/screens/${screen.id}/editor`);
-    await request(`/api/screens/${screen.id}/draft`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        revision: editor.draft.revision,
-        rows: [
-          { id: 'real-preview-section', kind: 'section', name: 'НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO', enabled: true },
-          { id: 'real-preview-item', kind: 'item', product_id: product.id, promotion: true, promotion_text: 'АКЦИЯ', enabled: true }
-        ],
-        settings: { background_color: '#123456', accent_color: '#F4C915', text_color: '#F8FAFC' }
-      })
-    });
-    return { locationId: location.id, screenId: screen.id, productId: product.id };
-  });
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const productResponse = await page.request.post('/api/catalog/products', { data: {
+    name: `Playlist product ${suffix}`, producer: '', characteristics: '', strength: '', price_primary: '240',
+    alcoholic: false, beverage_color: 'none', filtration: 'none', active: true
+  } });
+  expect(productResponse.status()).toBe(201);
+  const product = await productResponse.json();
+
+  const locationResponse = await page.request.post('/api/locations', { data: { name: `Playlist ${suffix}`, address: '', active: true } });
+  expect(locationResponse.status()).toBe(201);
+  const location = await locationResponse.json();
+
+  const screenResponse = await page.request.post(`/api/locations/${location.id}/screens`, { data: {} });
+  expect(screenResponse.status()).toBe(201);
+  const screen = await screenResponse.json();
+  const editor = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+
+  const saved = await page.request.put(`/api/screens/${screen.id}/draft`, { data: {
+    revision: editor.draft.revision,
+    rows: [
+      { id: 'real-preview-section', kind: 'section', name: 'НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO', enabled: true },
+      { id: 'real-preview-item', kind: 'item', product_id: product.id, promotion: true, promotion_text: 'АКЦИЯ', enabled: true }
+    ],
+    settings: { background_color: '#123456', accent_color: '#F4C915', text_color: '#F8FAFC' }
+  } });
+  expect(saved.ok()).toBeTruthy();
+  return { locationId: location.id, screenId: screen.id, productId: product.id };
 }
 
 async function removePreviewFixture(page, fixture) {
-  await page.evaluate(async ({ screenId, locationId, productId }) => {
-    await fetch(`/api/screens/${screenId}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => undefined);
-    await fetch(`/api/locations/${locationId}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => undefined);
-    await fetch(`/api/catalog/products/${productId}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => undefined);
-  }, fixture);
+  await page.request.delete(`/api/screens/${fixture.screenId}`).catch(() => undefined);
+  await page.request.delete(`/api/locations/${fixture.locationId}`).catch(() => undefined);
+  await page.request.delete(`/api/catalog/products/${fixture.productId}`).catch(() => undefined);
 }
 
-test('Playlist Studio keeps Preview aligned with TV state and edits objects through the two-switch manager', async ({ page }) => {
+test('Playlist Studio owns only menu motion and Scene Playlist and shares the Player renderer', async ({ page }) => {
   await login(page);
   const fixture = await createPreviewFixture(page);
   const original = await animationSettings(page);
   try {
-    await page.goto(`/playlist.html?screen=${fixture.screenId}`);
+    await page.goto(`/playlist?screen=${fixture.screenId}`);
+
     const previewPane = page.locator('.playlist-preview-pane');
     const inspector = page.locator('.playlist-inspector');
-    const [previewBox, inspectorBox] = await Promise.all([previewPane.boundingBox(), inspector.boundingBox()]);
-    expect(previewBox).not.toBeNull();
-    expect(inspectorBox).not.toBeNull();
-    expect(previewBox.x).toBeLessThan(inspectorBox.x);
+    await expect(previewPane).toBeVisible();
+    await expect(inspector).toBeVisible();
+    await expect(inspector.locator('[data-animation-inspector-tab]')).toHaveCount(2);
+    await expect(inspector.locator('.animation-object-manager')).toHaveCount(0);
+    await expect(inspector).not.toContainText('Аквариум');
+    await expect(inspector).not.toContainText('Объявление');
+    await expect(inspector).not.toContainText('Бренд');
 
-    await expect(inspector.locator('.animation-object-tabs')).toHaveCount(0);
-    await expect(inspector.locator('.animation-object-manager')).toBeVisible();
-    await expect(inspector.locator('.animation-object-row')).toHaveCount(8);
-    for (const key of ['menu', 'promotion', 'weather', 'announcement', 'brand', 'aquarium', 'entity', 'playlist']) {
-      const object = inspector.locator(`[data-animation-object="${key}"]`);
-      await expect(object.locator('[data-animation-object-toggle="visible"]')).toHaveCount(1);
-      await expect(object.locator('[data-animation-object-toggle="motion"]')).toHaveCount(1);
-    }
-    await expect(inspector.locator('[data-animation-object="promotion"]')).toContainText('Акция');
-    await expect(inspector.locator('[data-animation-object="weather"]')).toContainText('Погода');
-    await expect(inspector.locator('#animation-object-tv-name')).toContainText('ТВ:');
-    await expect(inspector.locator('.animation-inspector-actions #animation-save')).toBeVisible();
-    await expect(inspector.locator('.animation-inspector-actions #animation-apply-screens')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Плейлист', exact: true })).toBeVisible();
-    await expect(page.getByText('ФОН · БЕЗ ИЗМЕНЕНИЙ')).toBeVisible();
-    await expect(page.locator('#animation-stage')).toHaveAttribute('data-screen-id', String(fixture.screenId));
-    await expect(page.locator('#animation-stage .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
-    await expect(inspector.locator('#animation-object-settings-select')).toBeVisible();
-    const menuVisibility = inspector.locator('[data-animation-object="menu"] [data-animation-object-toggle="visible"]');
-    if (!(await menuVisibility.isChecked())) await menuVisibility.check();
-    const liveApplyResponse = page.waitForResponse((response) =>
-      response.url().endsWith('/api/settings/animation/apply') && response.request().method() === 'PUT'
-    );
-    await menuVisibility.uncheck();
-    const liveApply = await liveApplyResponse;
-    expect(liveApply.ok()).toBeTruthy();
-    const liveApplyBody = liveApply.request().postDataJSON();
-    expect(liveApplyBody.screen_ids).toEqual([fixture.screenId]);
-    await expect.poll(async () => page.evaluate(async (screenId) => {
-      const response = await fetch(`/api/settings/animation/screens/${screenId}`, { credentials: 'same-origin', cache: 'no-store' });
-      const settings = await response.json();
-      return settings.profile.menu_visible;
-    }, fixture.screenId)).toBe(false);
-    const restoreLiveResponse = page.waitForResponse((response) =>
-      response.url().endsWith('/api/settings/animation/apply') && response.request().method() === 'PUT'
-    );
-    await menuVisibility.check();
-    expect((await restoreLiveResponse).ok()).toBeTruthy();
+    await expect(page.locator('#animation-screen-select')).toHaveValue(String(fixture.screenId));
+    await expect(page.locator('#animation-stage [data-player-menu-layer] .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
+    await expect(inspector.locator('#animation-save')).toBeVisible();
+    await expect(inspector.locator('#animation-apply-screens')).toBeVisible();
+    await expect(inspector.locator('#animation-target-summary')).toContainText('1 монитор');
 
-    const backgroundBeforeMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
-      color: getComputedStyle(node).backgroundColor,
-      image: getComputedStyle(node).backgroundImage
-    }));
-    const menuMotionToggle = inspector.locator('[data-animation-object="menu"] [data-animation-object-toggle="motion"]');
-    if (!(await menuMotionToggle.isChecked())) await menuMotionToggle.check();
-    const promotionToggle = inspector.locator('[data-animation-object="promotion"] [data-animation-object-toggle="motion"]');
-    if (!(await promotionToggle.isChecked())) await promotionToggle.check();
     await page.locator('#animation-item-effect').selectOption('cinematic');
     await page.locator('#animation-intensity').fill('82');
     await expect(page.locator('#animation-intensity-output')).toHaveText('82%');
     await expect(page.locator('#animation-stage')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
-
     const row = page.locator('#animation-stage g.table-item').first();
     const surface = row.locator(':scope > .row-motion-surface-item');
-    const content = row.locator(':scope > g.table-item-content');
-    const prices = row.locator(':scope > g.table-item-prices');
-    const badge = row.locator(':scope > g.promotion-badge');
-    const badgeGlow = row.locator(':scope > g.promotion-badge-glow');
-    const glow = row.locator(':scope > g.promotion-row-glow');
-    await expect(row).not.toHaveAttribute('data-motion', /.+/);
     await expect(surface).toHaveAttribute('data-motion', 'item');
-    await expect(surface).toHaveAttribute('data-motion-transform-owner', 'surface');
-    await expect(badge).not.toHaveAttribute('data-motion', /.+/);
-    await expect(badgeGlow).toHaveAttribute('data-motion', 'promotion-badge-glow');
-    await expect(glow).toHaveAttribute('data-motion', 'promotion-glow');
-    await expect(content).not.toHaveAttribute('data-motion', /.+/);
-    await expect(prices).not.toHaveAttribute('data-motion', /.+/);
     await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
-    await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
-    await expect(row).toHaveCSS('transform', 'none');
-    expect(await surface.evaluate((node) => node.getAnimations().length)).toBe(0);
-    await expect(badge).toHaveCSS('transform', 'none');
-    await expect(badgeGlow).toHaveCSS('transform', 'none');
-    expect(await badge.evaluate((node) => node.getAnimations().length)).toBe(0);
-    expect(await badgeGlow.evaluate((node) => node.getAnimations().length)).toBe(0);
-    expect(await page.locator('#animation-stage .animation-screen-background').evaluate((node) => node.getAnimations().length)).toBe(0);
-    const backgroundAfterMotion = await page.locator('#animation-stage .animation-screen-background').evaluate((node) => ({
-      color: getComputedStyle(node).backgroundColor,
-      image: getComputedStyle(node).backgroundImage
-    }));
-    expect(backgroundAfterMotion).toEqual(backgroundBeforeMotion);
 
-    const before = await content.boundingBox();
-    await page.waitForTimeout(450);
-    const after = await content.boundingBox();
-    expect(Math.abs((after?.x || 0) - (before?.x || 0))).toBeLessThan(0.1);
-    expect(Math.abs((after?.y || 0) - (before?.y || 0))).toBeLessThan(0.1);
-
-    await inspector.locator('#animation-object-settings-select').selectOption('promotion');
-    await expect(inspector.locator('[data-animation-object-panel="promotion"]')).toBeVisible();
-    await expect(page.getByRole('heading', { name: '«Акция»' })).toBeVisible();
-
-    await inspector.locator('#animation-object-settings-select').selectOption('announcement');
-    await expect(inspector.locator('[data-animation-object-panel="announcement"]')).toBeVisible();
-    const announcementToggle = inspector.locator('[data-animation-object="announcement"] [data-animation-object-toggle="visible"]');
-    if (!(await announcementToggle.isChecked())) await announcementToggle.check();
-    await page.locator('#animation-announcement-text').fill('Сегодня специальное предложение до 22:00');
-    await page.locator('#animation-announcement-font-family').selectOption('oswald');
-    await page.locator('#animation-announcement-vertical-scale').fill('1.35');
-    await page.locator('#animation-announcement-glow-enabled').check();
-    await expect(page.locator('#animation-stage .scene-announcement-text')).toHaveText('Сегодня специальное предложение до 22:00');
-    await expect(page.locator('#animation-stage .scene-announcement')).toHaveClass(/has-glow/);
-
-    await inspector.locator('#animation-object-settings-select').selectOption('brand');
-    await expect(inspector.locator('[data-animation-object-panel="brand"]')).toBeVisible();
-    const brandToggle = inspector.locator('[data-animation-object="brand"] [data-animation-object-toggle="visible"]');
-    if (!(await brandToggle.isChecked())) await brandToggle.check();
-    await page.locator('#animation-brand-text').fill('БАР\nМАЯК');
-    await page.locator('#animation-brand-x').fill('300');
-    await page.locator('#animation-brand-y').fill('120');
-    await page.locator('#animation-brand-line-spacing').fill('-18');
-    await page.locator('#animation-brand-effect').selectOption('neon-pulse');
-    await expect(page.locator('#animation-stage .scene-brand-title-line')).toHaveCount(2);
-    await expect(page.locator('#animation-brand-line-spacing-output')).toHaveText('-18 px');
-
-    await inspector.locator('#animation-object-settings-select').selectOption('aquarium');
-    await expect(inspector.locator('[data-animation-object-panel="aquarium"]')).toBeVisible();
-    const aquariumToggle = inspector.locator('[data-animation-object="aquarium"] [data-animation-object-toggle="visible"]');
-    if (!(await aquariumToggle.isChecked())) await aquariumToggle.check();
-    await page.locator('#animation-aquarium-style').selectOption('neon');
-    await page.locator('#animation-aquarium-fish-count').fill('4');
-    const environmentLayer = page.locator('#animation-stage [data-environment-layer]');
-    await expect(environmentLayer).toHaveClass(/animation-screen-environment-layer/);
-    await expect(environmentLayer).toHaveClass(/environment-effect-aquarium/);
-    await expect(page.locator('#animation-stage .aquarium-fish')).toHaveCount(4);
-    await expect(page.locator('#animation-stage .animation-screen-background')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
-
-    await inspector.locator('#animation-object-settings-select').selectOption('playlist');
-    await expect(inspector.locator('[data-animation-object-panel="playlist"]')).toBeVisible();
-    const playlistPanel = inspector.locator('[data-animation-object-panel="playlist"]');
+    await inspector.locator('[data-animation-inspector-tab="playlist"]').click();
+    const playlistPanel = inspector.locator('[data-animation-inspector-panel="playlist"]');
+    await expect(playlistPanel).toBeVisible();
     await expect(page.locator('.playlist-scene-strip')).toBeVisible();
     await expect(page.locator('.playlist-scene-card-menu')).toContainText('MenuScene');
+
     await playlistPanel.getByRole('button', { name: '+ PromoScene', exact: true }).click();
     await expect(page.locator('.playlist-scene-card-promo').last()).toBeVisible();
     await playlistPanel.getByLabel('Заголовок').fill('Пятничная акция');
     await playlistPanel.getByLabel('Текст').fill('Скидка 15% до закрытия');
     await playlistPanel.getByLabel('Режим показа').selectOption('fullscreen');
     await playlistPanel.getByRole('button', { name: '▶ Preview', exact: true }).click();
-    await expect(page.locator('#animation-stage [data-scene-menu-layer]')).toHaveClass(/scene-menu-suppressed/);
-    await page.locator('.playlist-scene-card-menu').click();
-    await expect(page.locator('#animation-stage [data-scene-menu-layer]')).not.toHaveClass(/scene-menu-suppressed/);
 
-    const responsePromise = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation') && response.request().method() === 'PUT');
+    const menuLayer = page.locator('#animation-stage [data-player-menu-layer]');
+    await expect(menuLayer).toHaveClass(/scene-menu-suppressed/);
+    await expect(page.locator('#animation-stage [data-player-content-layer] .scene-playlist-title')).toHaveText('Пятничная акция');
+    await page.locator('.playlist-scene-card-menu').click();
+    await expect(menuLayer).not.toHaveClass(/scene-menu-suppressed/);
+
+    const saveResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation') && response.request().method() === 'PUT');
     await page.locator('#animation-save').click();
-    expect((await responsePromise).ok()).toBeTruthy();
+    expect((await saveResponse).ok()).toBeTruthy();
+
     const saved = await animationSettings(page);
-    expect(saved.preset_id).toBe('cinematic-live-menu');
-    expect(saved.profile.price_effect).toBe('none');
-    expect(saved.profile.menu_visible).toBe(true);
-    expect(saved.profile.promotion_visible).toBe(true);
-    expect(saved.profile.promotion_effect).toBe('cinematic');
-    expect(saved.profile.promotion_easing).toBe('smooth');
     expect(saved.profile.intensity).toBe(82);
-    expect(saved.announcement.font_family).toBe('oswald');
-    expect(saved.announcement.vertical_scale).toBe(1.35);
-    expect(saved.announcement.glow_enabled).toBe(true);
-    expect(saved.announcement.animation_enabled).toBe(true);
-    expect(saved.brand.text).toBe('БАР\nМАЯК');
-    expect(saved.brand.x).toBe(300);
-    expect(saved.brand.line_spacing).toBe(-18);
-    expect(saved.environment.enabled).toBe(true);
-    expect(saved.environment.effect).toBe('aquarium');
-    expect(saved.environment.parameters.style).toBe('neon');
-    expect(saved.environment.parameters.fish_count).toBe(4);
+    expect(saved.profile.price_effect).toBe('none');
     expect(saved.scene_playlist.enabled).toBe(true);
-    expect(saved.scene_playlist.scenes.some((scene) => scene.type === 'promo' && scene.title === 'Пятничная акция' && scene.mode === 'fullscreen')).toBe(true);
+    expect(saved.scene_playlist.scenes.some((scene) =>
+      scene.type === 'promo' && scene.title === 'Пятничная акция' && scene.mode === 'fullscreen'
+    )).toBe(true);
+    for (const legacy of ['entity','announcement','brand','environment','weather']) expect(legacy in saved).toBe(false);
+
+    const applyResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation/apply') && response.request().method() === 'PUT');
+    await page.locator('#animation-apply-screens').click();
+    const appliedResponse = await applyResponse;
+    expect(appliedResponse.ok()).toBeTruthy();
+    expect(appliedResponse.request().postDataJSON().screen_ids).toEqual([fixture.screenId]);
+
+    const applied = await animationSettings(page, fixture.screenId);
+    expect(applied.profile.intensity).toBe(82);
+    expect(applied.scene_playlist.scenes.some((scene) => scene.title === 'Пятничная акция')).toBe(true);
   } finally {
     if (!page.isClosed()) {
       await restoreAnimationSettings(page, original);
@@ -273,92 +146,27 @@ test('Playlist Studio keeps Preview aligned with TV state and edits objects thro
   }
 });
 
-test('promotion badge and soft row glow are isolated from static row content', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+test('Scene Playlist preview rebinds to canonical Player layers after screen rerender', async ({ page }) => {
   await login(page);
-  await page.goto('/playlist.html');
-  const result = await page.evaluate(async (profile) => {
-    const [{ renderAnimationScreenPreview }, { AnimationPreviewPlayer }] = await Promise.all([
-      import('/js/motion/screen-preview.js'), import('/js/motion/preview-player.js')
-    ]);
-    const stage = document.createElement('div');
-    stage.className = 'animation-stage'; stage.style.width = '960px'; document.body.append(stage);
-    renderAnimationScreenPreview(stage, {
-      screen: { id: 999999, resolution: '1920x1080' },
-      draft: { rows: [
-        { id: 'section', kind: 'section', name: 'ПРОВЕРКА АКЦИИ', enabled: true },
-        { id: 'item', kind: 'item', name: 'Тестовая позиция', price_primary: '240', price_secondary: '360', promotion: true, promotion_text: 'АКЦИЯ', enabled: true }
-      ], settings: { background_color: '#101828', accent_color: '#F4C915', text_color: '#F8FAFC' } }, products: [], packaging: []
-    });
-    const player = new AnimationPreviewPlayer({ stage });
-    player.restart(profile);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    const row = stage.querySelector('g.table-item');
-    const surface = row?.querySelector(':scope > .row-motion-surface-item');
-    const content = row?.querySelector(':scope > g.table-item-content');
-    const prices = row?.querySelector(':scope > g.table-item-prices');
-    const badge = row?.querySelector(':scope > g.promotion-badge');
-    const badgeGlow = row?.querySelector(':scope > g.promotion-badge-glow');
-    const glow = row?.querySelector(':scope > g.promotion-row-glow');
-    const snapshot = {
-      rowMotion: row?.dataset.motion || '', surfaceMotion: surface?.dataset.motion || '',
-      contentMotion: content?.dataset.motion || '', pricesMotion: prices?.dataset.motion || '',
-      badgeMotion: badge?.dataset.motion || '', badgeGlowMotion: badgeGlow?.dataset.motion || '', glowMotion: glow?.dataset.motion || '',
-      rowTransform: row ? getComputedStyle(row).transform : 'none', surfaceTransform: surface ? getComputedStyle(surface).transform : 'none',
-      badgeTransform: badge ? getComputedStyle(badge).transform : 'none',
-      badgeGlowTransform: badgeGlow ? getComputedStyle(badgeGlow).transform : 'none',
-      badgeGlowOpacity: badgeGlow ? Number.parseFloat(getComputedStyle(badgeGlow).opacity) : 0,
-      glowOpacity: glow ? Number.parseFloat(getComputedStyle(glow).opacity) : 0,
-      surfaceAnimations: surface?.getAnimations().length ?? -1, badgeAnimations: badge?.getAnimations().length ?? -1,
-      badgeGlowAnimations: badgeGlow?.getAnimations().length ?? -1
-    };
-    player.destroy(); stage.remove(); return snapshot;
-  }, PROMO_PROFILE);
-  expect(result.rowMotion).toBe('');
-  expect(result.surfaceMotion).toBe('item');
-  expect(result.contentMotion).toBe('');
-  expect(result.pricesMotion).toBe('');
-  expect(result.badgeMotion).toBe('');
-  expect(result.badgeGlowMotion).toBe('promotion-badge-glow');
-  expect(result.glowMotion).toBe('promotion-glow');
-  expect(result.rowTransform).toBe('none');
-  expect(result.surfaceTransform).not.toBe('none');
-  expect(result.badgeTransform).toBe('none');
-  expect(result.badgeGlowTransform).toBe('none');
-  expect(result.badgeGlowOpacity).toBeGreaterThanOrEqual(0);
-  expect(result.glowOpacity).toBeGreaterThanOrEqual(0);
-  expect(result.surfaceAnimations).toBe(0);
-  expect(result.badgeAnimations).toBe(0);
-  expect(result.badgeGlowAnimations).toBe(0);
-});
+  const fixture = await createPreviewFixture(page);
+  try {
+    await page.goto(`/playlist?screen=${fixture.screenId}`);
+    await page.locator('[data-animation-inspector-tab="playlist"]').click();
+    const panel = page.locator('[data-animation-inspector-panel="playlist"]');
+    await panel.getByRole('button', { name: '+ ContentScene', exact: true }).click();
+    await panel.getByLabel('Заголовок').fill('Информация');
+    await panel.getByLabel('Режим показа').selectOption('split');
+    await panel.getByRole('button', { name: '▶ Preview', exact: true }).click();
 
-test('preview player rebinds scene targets after preview DOM replacement', async ({ page }) => {
-  await login(page);
-  await page.goto('/playlist.html');
-  const result = await page.evaluate(async (profile) => {
-    const [{ renderAnimationScreenPreview }, { AnimationPreviewPlayer }] = await Promise.all([
-      import('/js/motion/screen-preview.js'), import('/js/motion/preview-player.js')
-    ]);
-    const stage = document.createElement('div'); stage.className = 'animation-stage'; stage.style.width = '960px'; document.body.append(stage);
-    const player = new AnimationPreviewPlayer({ stage });
-    const bundle = (name) => ({
-      screen: { id: 999998, resolution: '1920x1080' },
-      draft: { rows: [
-        { id: `section-${name}`, kind: 'section', name: 'ПРОВЕРКА REBIND', enabled: true },
-        { id: `item-${name}`, kind: 'item', name, price_primary: '240', price_secondary: '360', promotion: true, promotion_text: 'АКЦИЯ', enabled: true }
-      ], settings: { background_color: '#101828', accent_color: '#F4C915', text_color: '#F8FAFC' } }, products: [], packaging: []
-    });
-    renderAnimationScreenPreview(stage, bundle('ПЕРВАЯ ПОЗИЦИЯ')); player.restart(profile);
-    const firstTarget = player.scene.node('menu.promotion-badge-glow.0')?.target;
-    renderAnimationScreenPreview(stage, bundle('ВТОРАЯ ПОЗИЦИЯ'));
-    const currentGlow = stage.querySelector('g.promotion-badge-glow');
-    player.restart(profile);
-    const reboundTarget = player.scene.node('menu.promotion-badge-glow.0')?.target;
-    const snapshot = { oldInStage: stage.contains(firstTarget), targetChanged: firstTarget !== reboundTarget, reboundIsCurrent: reboundTarget === currentGlow, reboundMotion: reboundTarget?.dataset.motion || '' };
-    player.destroy(); stage.remove(); return snapshot;
-  }, PROMO_PROFILE);
-  expect(result.oldInStage).toBe(false);
-  expect(result.targetChanged).toBe(true);
-  expect(result.reboundIsCurrent).toBe(true);
-  expect(result.reboundMotion).toBe('promotion-badge-glow');
+    await expect(page.locator('#animation-stage [data-player-menu-layer]')).toHaveCount(1);
+    await expect(page.locator('#animation-stage [data-player-content-layer] .scene-playlist-title')).toHaveText('Информация');
+
+    const select = page.locator('#animation-screen-select');
+    await select.selectOption(String(fixture.screenId));
+    await expect(page.locator('#animation-stage [data-player-menu-layer]')).toHaveCount(1);
+    await expect(page.locator('#animation-stage [data-player-content-layer]')).toHaveCount(1);
+    await expect(page.locator('#animation-stage [data-player-fx-layer]')).toHaveCount(1);
+  } finally {
+    if (!page.isClosed()) await removePreviewFixture(page, fixture);
+  }
 });
