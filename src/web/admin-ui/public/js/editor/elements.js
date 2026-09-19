@@ -514,10 +514,9 @@ function renderElementCard(state, element, index, options) {
   const typeRow = document.createElement('div');
   typeRow.className = 'editor-element-type-row';
   const hasOtherWeather = Boolean(options.weatherOwnerId && options.weatherOwnerId !== element.id);
-  const typeOptions = SCENE_ELEMENT_TYPE_OPTIONS.map(([value, title]) => {
-    const disabled = value === 'weather' && hasOtherWeather && element.type !== 'weather';
-    return [value, disabled ? `${title} — уже добавлена` : title, disabled];
-  });
+  const typeOptions = hasOtherWeather && element.type !== 'weather'
+    ? SCENE_ELEMENT_TYPE_OPTIONS.filter(([value]) => value !== 'weather')
+    : SCENE_ELEMENT_TYPE_OPTIONS;
   const type = select(element.type, typeOptions);
   type.setAttribute('aria-label', `Тип элемента ${index + 1}`);
   begin(type, options.onBeforeMutate);
@@ -553,6 +552,12 @@ function renderElementCard(state, element, index, options) {
   });
   typeRow.append(label('Тип элемента', type), label('Показывать', enabled, 'editor-element-check'), remove);
   identity.append(typeRow);
+  if (hasOtherWeather && element.type !== 'weather') {
+    const hint = document.createElement('small');
+    hint.className = 'editor-element-type-hint';
+    hint.textContent = 'Погода уже добавлена в сцену.';
+    identity.append(hint);
+  }
   body.append(identity, commonSettings(state, element, options));
 
   const specific = element.type === 'text'
