@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 PROGRAM_NAME="MIRA-TV"
-SCRIPT_VERSION="1.10.2"
+SCRIPT_VERSION="1.11.0"
 INSTALL_DIR="/opt/MIRA-TV"
 PERSIST_DIR="/var/lib/mira-tv"
 PERSIST_ENV="${PERSIST_DIR}/install.env"
