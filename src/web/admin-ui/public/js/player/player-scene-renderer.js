@@ -62,6 +62,7 @@ export class PlayerSceneRenderer {
   constructor(stage, { weatherEndpoint = '/api/device/weather', autoplay = true } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Player scene renderer requires an HTMLElement stage.');
     this.stage = stage;
+    this.stage.classList.add('player-scene-stage');
     this.autoplay = autoplay !== false;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
     this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }), {

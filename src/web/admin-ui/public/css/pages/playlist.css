@@ -55,7 +55,7 @@ body[data-page="animation"] .main-content.animation-content{visibility:hidden}
 
   .animation-studio-workspace{
     display:grid;
-    grid-template-columns:minmax(560px,.92fr) minmax(620px,1.08fr);
+    grid-template-columns:minmax(0,1.35fr) minmax(520px,.85fr);
     gap:14px;
     height:auto;
     min-height:0;
