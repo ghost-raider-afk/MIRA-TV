@@ -60,6 +60,11 @@ function videoContainerMatches(mime, formatName) {
   if(mime==='video/webm') return formats.includes('webm');
   return formats.includes('mp4')||formats.includes('mov');
 }
+function videoCodecMatches(mime, codecName) {
+  const codec = String(codecName || '').toLowerCase();
+  if (mime === 'video/webm') return codec === 'vp8' || codec === 'vp9';
+  return codec === 'h264';
+}
 async function inspectVideo(file, config, mime) {
   let stdout;
   try {
@@ -71,6 +76,7 @@ async function inspectVideo(file, config, mime) {
   const stream=probe?.streams?.[0], width=Number(stream?.width), height=Number(stream?.height);
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1) throw new ValidationError('Видео элемента не содержит корректного видеопотока.');
   if(!videoContainerMatches(mime,probe?.format?.format_name)) throw new ValidationError('MIME-тип видео не соответствует контейнеру.');
+  if(!videoCodecMatches(mime,stream.codec_name)) throw new ValidationError('Для совместимости с ТВ используйте H.264 в MP4 либо VP8/VP9 в WebM.');
   if(width>config.screenMaxWidth||height>config.screenMaxHeight||width*height>config.imageMaxPixels) throw new ValidationError(`Видео элемента превышает допустимое разрешение ${config.screenMaxWidth}×${config.screenMaxHeight}.`);
   return {width,height,codec:String(stream.codec_name||'')};
 }
