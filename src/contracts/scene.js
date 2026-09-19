@@ -197,7 +197,7 @@ function shortText(value, field, fallback = '', maximum = 120) {
 
 function weatherTimezone(value) {
   const text = shortText(value, 'weather.timezone', 'auto', 64) || 'auto';
-  if (text === 'auto' || /^[A-Za-z0-9_+\\-/]{1,64}$/.test(text)) return text;
+  if (text === 'auto' || /^[A-Za-z0-9_+/\\-]{1,64}$/.test(text)) return text;
   throw new ValidationError('Поле «weather.timezone» содержит недопустимый часовой пояс.');
 }
 
