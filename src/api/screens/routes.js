@@ -2,6 +2,7 @@ import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
+import { createSceneAssetStream } from '../../services/scene-assets-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 function settingsOptions(config) {
@@ -58,6 +59,25 @@ export function createScreensRouter({ store, config, realtime }) {
     if (!screen) throw notFound();
     const [draft, products, packaging] = await Promise.all([store.getScreenDraft(id), store.listProducts(), store.listPackaging()]);
     response.json({ screen, draft, products, packaging });
+  });
+
+  router.put('/screens/:id/scene-asset', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const screen = await store.getScreen(id);
+    if (!screen) throw notFound();
+    const asset = await createSceneAssetStream({
+      stream: request,
+      contentLength: request.get('content-length'),
+      contentType: request.get('content-type'),
+      config
+    });
+    await activity(store, request, {
+      action: 'screen.scene_asset.uploaded',
+      entity_type: 'screen',
+      entity_id: id,
+      message: `Загружен медиафайл элемента для монитора «${screen.name}».`
+    });
+    response.status(201).json(asset);
   });
 
   router.put('/screens/:id/draft', async (request, response) => {

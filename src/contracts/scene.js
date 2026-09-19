@@ -188,12 +188,39 @@ function mediaInput(value, { video = false } = {}) {
   };
 }
 
+function shortText(value, field, fallback = '', maximum = 120) {
+  if (value === undefined || value === null) return fallback;
+  const text = String(value).trim();
+  if (text.length > maximum) throw new ValidationError(`Поле «${field}» слишком длинное.`);
+  return text;
+}
+
+function weatherTimezone(value) {
+  const text = shortText(value, 'weather.timezone', 'auto', 64) || 'auto';
+  if (text === 'auto' || /^[A-Za-z0-9_+\\-/]{1,64}$/.test(text)) return text;
+  throw new ValidationError('Поле «weather.timezone» содержит недопустимый часовой пояс.');
+}
+
 function weatherInput(value) {
   const source = record(value);
   return {
-    mode: enumValue(source.mode, 'weather.mode', WEATHER_MODES, 'current'),
+    mode: enumValue(source.mode, 'weather.mode', WEATHER_MODES, 'current-and-forecast'),
+    location_name: shortText(source.location_name, 'weather.location_name', '', 120),
+    latitude: number(source.latitude, 'weather.latitude', null, -90, 90),
+    longitude: number(source.longitude, 'weather.longitude', null, -180, 180),
+    timezone: weatherTimezone(source.timezone),
+    refresh_minutes: integer(source.refresh_minutes, 'weather.refresh_minutes', 15, 5, 120),
     show_location: source.show_location !== false,
-    show_condition: source.show_condition !== false
+    show_condition: source.show_condition !== false,
+    show_feels_like: source.show_feels_like !== false,
+    show_humidity: source.show_humidity !== false,
+    show_wind: source.show_wind !== false,
+    show_forecast: source.show_forecast !== false,
+    forecast_items: integer(source.forecast_items, 'weather.forecast_items', 3, 1, 6),
+    animation_enabled: source.animation_enabled !== false,
+    animation_speed: number(source.animation_speed, 'weather.animation_speed', 1, 0.25, 2),
+    animation_intensity: number(source.animation_intensity, 'weather.animation_intensity', 1, 0.25, 2),
+    widget_motion_enabled: source.widget_motion_enabled !== false
   };
 }
 
