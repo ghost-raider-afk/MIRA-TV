@@ -28,10 +28,7 @@ function hasValidScene(value) {
 
 export async function migrateSceneElementsStorage(pool) {
   if (!await hasColumn(pool, 'screen_drafts', 'scene_json')) {
-    await pool.query(`
-      ALTER TABLE screen_drafts
-      ADD COLUMN scene_json TEXT NOT NULL DEFAULT '{"version":1,"elements":[]}';
-    `);
+    await pool.query('ALTER TABLE screen_drafts ADD COLUMN scene_json TEXT');
   }
 
   const { rows } = await pool.query('SELECT screen_id, scene_json FROM screen_drafts');
@@ -42,4 +39,7 @@ export async function migrateSceneElementsStorage(pool) {
       [EMPTY_SCENE_JSON, row.screen_id]
     );
   }
+
+  await pool.query(`ALTER TABLE screen_drafts ALTER COLUMN scene_json SET DEFAULT '{"version":1,"elements":[]}'`);
+  await pool.query('ALTER TABLE screen_drafts ALTER COLUMN scene_json SET NOT NULL');
 }
