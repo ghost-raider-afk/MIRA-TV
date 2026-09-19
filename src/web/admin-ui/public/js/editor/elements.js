@@ -513,19 +513,20 @@ function renderElementCard(state, element, index, options) {
   type.setAttribute('aria-label', `Тип элемента ${index + 1}`);
   begin(type, options.onBeforeMutate);
   type.addEventListener('change', () => {
+    const current = elementById(state, element.id) || element;
     const replacement = createSceneElement(type.value, index);
     Object.assign(replacement, {
-      id: element.id,
-      enabled: element.enabled,
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-      z_index: element.z_index,
-      opacity: element.opacity,
-      rotation_deg: element.rotation_deg
+      id: current.id,
+      enabled: current.enabled,
+      x: current.x,
+      y: current.y,
+      width: current.width,
+      height: current.height,
+      z_index: current.z_index,
+      opacity: current.opacity,
+      rotation_deg: current.rotation_deg
     });
-    replaceSceneElement(state, element.id, replacement);
+    replaceSceneElement(state, current.id, replacement);
     selectSceneElement(state, element.id);
     options.onStructureChange?.();
   });
