@@ -511,6 +511,13 @@ function renderElementCard(state, element, index, options) {
   typeRow.className = 'editor-element-type-row';
   const type = select(element.type, SCENE_ELEMENT_TYPE_OPTIONS);
   type.setAttribute('aria-label', `Тип элемента ${index + 1}`);
+  const hasOtherWeather = Array.isArray(state.scene?.elements)
+    && state.scene.elements.some((item) => item.id !== element.id && item.type === 'weather');
+  const weatherOption = [...type.options].find((option) => option.value === 'weather');
+  if (weatherOption && hasOtherWeather && element.type !== 'weather') {
+    weatherOption.disabled = true;
+    weatherOption.title = 'На мониторе уже есть элемент «Погода».';
+  }
   begin(type, options.onBeforeMutate);
   type.addEventListener('change', () => {
     const current = elementById(state, element.id) || element;
