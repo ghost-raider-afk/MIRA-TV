@@ -602,3 +602,171 @@ export function renderSceneElements(state, {
   const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
   elements.forEach((element, index) => container.append(renderElementCard(state, element, index, options)));
 }
+
+
+function sceneLayerSubtitle(element) {
+  if (element?.type === 'text') {
+    const value = String(element?.text?.runs?.[0]?.value || '').trim().replace(/\s+/g, ' ');
+    if (value) return value.slice(0, 42);
+  }
+  if (element?.type === 'weather') {
+    const place = String(element?.weather?.location_name || '').trim();
+    if (place) return place;
+  }
+  const source = String(element?.media?.source_url || '').trim();
+  if (source) return source.split('/').pop() || typeLabel(element.type);
+  return typeLabel(element?.type);
+}
+
+export function renderSceneLayerList(state, {
+  container,
+  onBeforeMutate,
+  onVisualChange,
+  onStructureChange,
+  onSelect
+} = {}) {
+  if (!(container instanceof HTMLElement)) return;
+  const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+  container.replaceChildren();
+
+  if (!elements.length) {
+    const empty = document.createElement('p');
+    empty.className = 'scene-editor-empty';
+    empty.textContent = 'Сцена пустая. Добавьте первый элемент.';
+    container.append(empty);
+    return;
+  }
+
+  const indexed = elements.map((element, index) => ({ element, index }))
+    .sort((left, right) => Number(right.element?.z_index || 0) - Number(left.element?.z_index || 0) || right.index - left.index);
+
+  for (const { element, index } of indexed) {
+    const row = document.createElement('div');
+    row.className = 'scene-editor-layer';
+    row.classList.toggle('is-selected', state.selectedElementId === element.id);
+    row.dataset.sceneLayerId = element.id;
+
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'scene-editor-layer-eye';
+    eye.textContent = element.enabled === false ? '○' : '●';
+    eye.title = element.enabled === false ? 'Показать элемент' : 'Скрыть элемент';
+    eye.setAttribute('aria-label', eye.title);
+    eye.addEventListener('click', () => {
+      onBeforeMutate?.();
+      patch(state, element.id, { enabled: element.enabled === false });
+      onVisualChange?.();
+      onStructureChange?.();
+    });
+
+    const selectButton = document.createElement('button');
+    selectButton.type = 'button';
+    selectButton.className = 'scene-editor-layer-select';
+    selectButton.setAttribute('aria-label', `Выбрать Элемент ${index + 1}`);
+    const title = document.createElement('strong');
+    title.textContent = `Элемент ${index + 1} · ${typeLabel(element.type)}`;
+    const subtitle = document.createElement('span');
+    subtitle.textContent = sceneLayerSubtitle(element);
+    selectButton.append(title, subtitle);
+    selectButton.addEventListener('click', () => {
+      selectSceneElement(state, element.id);
+      onSelect?.(element.id);
+    });
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'scene-editor-layer-delete';
+    remove.textContent = '×';
+    remove.title = `Удалить Элемент ${index + 1}`;
+    remove.setAttribute('aria-label', remove.title);
+    remove.addEventListener('click', () => {
+      onBeforeMutate?.();
+      removeSceneElement(state, element.id);
+      onStructureChange?.();
+    });
+
+    row.append(eye, selectButton, remove);
+    container.append(row);
+  }
+}
+
+function inspectorGroups(element, sections) {
+  if (element.type === 'text') {
+    return [
+      ['Основное', sections.slice(0, 3)],
+      ['Шрифт', sections.slice(3, 5)],
+      ['Эффекты', sections.slice(5)]
+    ];
+  }
+  if (element.type === 'weather') {
+    return [
+      ['Основное', sections.slice(0, 2)],
+      ['Погода', sections.slice(2, 4)],
+      ['Анимация', sections.slice(4)]
+    ];
+  }
+  return [
+    ['Основное', sections.slice(0, 2)],
+    ['Медиа', sections.slice(2)]
+  ];
+}
+
+export function renderSceneElementInspector(state, {
+  container,
+  onBeforeMutate,
+  onVisualChange,
+  onStructureChange,
+  onUpload
+} = {}) {
+  if (!(container instanceof HTMLElement)) return null;
+  container.replaceChildren();
+
+  const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+  const element = elements.find((item) => item.id === state.selectedElementId) || null;
+  if (!element) {
+    const empty = document.createElement('p');
+    empty.className = 'scene-editor-empty';
+    empty.textContent = 'Выберите элемент слева или на рабочем экране.';
+    container.append(empty);
+    return null;
+  }
+
+  const index = elements.indexOf(element);
+  const weatherOwnerId = elements.find((item) => item?.type === 'weather')?.id || null;
+  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
+  const card = renderElementCard(state, element, index, options);
+  card.open = true;
+
+  const body = card.querySelector(':scope > .editor-element-card-body');
+  const sections = body ? [...body.children].filter((node) => node.classList?.contains('editor-element-settings-section')) : [];
+  const groups = inspectorGroups(element, sections).filter(([, nodes]) => nodes.length);
+
+  const tabs = document.createElement('div');
+  tabs.className = 'scene-editor-inspector-tabs';
+  tabs.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0,1fr))`;
+  const panels = [];
+
+  groups.forEach(([name, nodes], groupIndex) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.textContent = name;
+    tab.classList.toggle('active', groupIndex === 0);
+    tab.setAttribute('role', 'tab');
+
+    const panel = document.createElement('div');
+    panel.className = 'scene-editor-inspector-panel';
+    panel.hidden = groupIndex !== 0;
+    nodes.forEach((node) => panel.append(node));
+    panels.push(panel);
+
+    tab.addEventListener('click', () => {
+      [...tabs.children].forEach((button) => button.classList.toggle('active', button === tab));
+      panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
+    });
+    tabs.append(tab);
+  });
+
+  if (body) body.replaceChildren(tabs, ...panels);
+  container.append(card);
+  return element;
+}
