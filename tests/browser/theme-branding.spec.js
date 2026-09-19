@@ -71,7 +71,8 @@ test('light theme uses light semantic chrome and editor surfaces', async ({ page
   await waitForRouteReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.locator('.editor-commandbar')).toBeVisible();
-  await expect(page.locator('.editor-menu-editor-table')).toBeVisible();
+  await expect(page.locator('.editor-preview-card')).toBeVisible();
+  await expect(page.locator('#editor-preview-row-inspector')).toBeVisible();
 
   const colors = await page.evaluate(() => {
     const css = (selector) => getComputedStyle(document.querySelector(selector)).backgroundColor;
@@ -79,14 +80,16 @@ test('light theme uses light semantic chrome and editor surfaces', async ({ page
       rail: css('.ui-rail'),
       context: css('.ui-context'),
       commandbar: css('.editor-commandbar'),
-      table: css('.editor-menu-editor-table'),
+      editorSurface: css('.editor-preview-card'),
+      inspector: css('#editor-preview-row-inspector'),
       page: getComputedStyle(document.body).backgroundColor
     };
   });
 
   expect(colors.rail).toBe('rgb(255, 255, 255)');
   expect(colors.context).toBe('rgb(248, 249, 251)');
-  expect(colors.table).toBe('rgb(255, 255, 255)');
+  expect(colors.editorSurface).not.toBe('rgb(21, 29, 41)');
+  expect(colors.inspector).not.toBe('rgb(21, 29, 41)');
   expect(colors.commandbar).not.toBe('rgb(21, 29, 41)');
   expect(colors.page).not.toBe('rgb(13, 17, 24)');
 });

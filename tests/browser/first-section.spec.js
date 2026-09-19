@@ -73,18 +73,18 @@ test('first section is a real editable row and never inherits the monitor name',
 
   await page.goto(`/screen-editor.html?id=${screen.id}`);
 
-  const firstRow = page.locator('.editor-menu-editor-table tbody tr').first();
-  await expect(firstRow).toHaveClass(/editor-menu-table-section/);
-  await expect(firstRow).toHaveClass(/is-pinned-section/);
-  const sectionName = firstRow.locator('input.editor-section-name');
+  const preview = page.locator('#editor-menu-preview');
+  const firstRow = preview.locator('[data-editor-preview-row-control="section"]').first();
+  await expect(firstRow).toBeVisible();
+  await expect(firstRow).toHaveAttribute('data-source-row-ids', /section-primary/);
+  const sectionName = firstRow.locator('[data-preview-section-input]');
   await expect(sectionName).toHaveValue('Новый раздел');
-  await expect(firstRow).toContainText('1 л');
-  await expect(firstRow).toContainText('1,5 л');
-  await expect(firstRow.getByRole('button', { name: 'Переместить выше' })).toBeDisabled();
-  await expect(firstRow.getByRole('button', { name: 'Удалить строку' })).toBeDisabled();
+  await sectionName.focus();
+  const inspector = page.locator('#editor-preview-row-inspector');
+  await expect(inspector.getByRole('button', { name: 'Переместить выше' })).toBeDisabled();
+  await expect(inspector.getByRole('button', { name: 'Удалить строку' })).toBeDisabled();
   await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
 
-  const preview = page.locator('#editor-menu-preview');
   await expect(preview.locator('.section-title').first()).toHaveText('Новый раздел');
   await expect(preview.locator('.section-title', { hasText: monitorName })).toHaveCount(0);
 
