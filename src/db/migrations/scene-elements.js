@@ -1,4 +1,5 @@
-const EMPTY_SCENE_JSON = JSON.stringify({ version: 1, elements: [] });
+const EMPTY_SCENE = Object.freeze({ version: 1, elements: [] });
+const EMPTY_SCENE_JSON = JSON.stringify(EMPTY_SCENE);
 
 async function hasColumn(pool, table, column) {
   const { rowCount } = await pool.query(
@@ -7,6 +8,22 @@ async function hasColumn(pool, table, column) {
     [table, column]
   );
   return rowCount > 0;
+}
+
+function hasValidScene(value) {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  try {
+    const scene = JSON.parse(value);
+    return Boolean(
+      scene
+      && typeof scene === 'object'
+      && !Array.isArray(scene)
+      && Number(scene.version) === 1
+      && Array.isArray(scene.elements)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function migrateSceneElementsStorage(pool) {
@@ -19,7 +36,7 @@ export async function migrateSceneElementsStorage(pool) {
 
   const { rows } = await pool.query('SELECT screen_id, scene_json FROM screen_drafts');
   for (const row of rows) {
-    if (typeof row.scene_json === 'string' && row.scene_json.trim()) continue;
+    if (hasValidScene(row.scene_json)) continue;
     await pool.query(
       'UPDATE screen_drafts SET scene_json = $1 WHERE screen_id = $2',
       [EMPTY_SCENE_JSON, row.screen_id]
