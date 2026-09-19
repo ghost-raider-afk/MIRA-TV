@@ -31,6 +31,7 @@ export function createEditorState(initial = {}) {
     screen: clone(initial.screen ?? null),
     rows: normalizedRows.rows,
     settings: clone(initial.settings && typeof initial.settings === 'object' ? initial.settings : {}),
+    scene: clone(initial.scene && typeof initial.scene === 'object' ? initial.scene : { version: 1, elements: [] }),
     selectedRowId: initial.selectedRowId ?? null,
     dirty: initial.dirty === true || normalizedRows.changed,
     revision: Number.isInteger(initial.revision) ? initial.revision : 0,

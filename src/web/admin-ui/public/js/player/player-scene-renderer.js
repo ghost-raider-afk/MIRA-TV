@@ -18,6 +18,7 @@ import { PlayerWeatherRuntime } from './weather-bootstrap.js';
 export const ALL_PLAYER_COMPONENTS = Object.freeze([
   'screen',
   'menu',
+  'scene',
   'animation',
   'environment',
   'scene_playlist',

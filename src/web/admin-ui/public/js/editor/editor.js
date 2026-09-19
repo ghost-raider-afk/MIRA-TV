@@ -171,6 +171,7 @@ export function initialiseScreenEditor() {
       screen,
       rows: Array.isArray(editor.draft?.rows) ? editor.draft.rows : [],
       settings: normaliseEditorSettings(editor.draft?.settings || {}),
+      scene: structuredClone(editor.draft?.scene || { version: 1, elements: [] }),
       dirty: false,
       revision: 0,
       draftRevision: Number(editor.draft?.revision || 0)
@@ -208,6 +209,7 @@ export function initialiseScreenEditor() {
         screen: saved.screen,
         rows: saved.draft.rows || [],
         settings: normaliseEditorSettings(saved.draft.settings || {}),
+        scene: structuredClone(saved.draft.scene || { version: 1, elements: [] }),
         dirty: false,
         revision: editorState.revision,
         draftRevision: Number(saved.draft.revision || 0)
@@ -243,6 +245,7 @@ export function initialiseScreenEditor() {
         screen,
         rows: result.draft.rows || [],
         settings: normaliseEditorSettings(result.draft.settings || {}),
+        scene: structuredClone(result.draft.scene || { version: 1, elements: [] }),
         dirty: false,
         revision: editorState.revision,
         draftRevision: Number(result.draft.revision || 0)
@@ -271,6 +274,7 @@ export function initialiseScreenEditor() {
         screen,
         rows: result.draft.rows || [],
         settings: normaliseEditorSettings(result.draft.settings || {}),
+        scene: structuredClone(result.draft.scene || { version: 1, elements: [] }),
         dirty: false,
         revision: editorState.revision,
         draftRevision: Number(result.draft.revision || 0)

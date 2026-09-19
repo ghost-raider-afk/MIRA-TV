@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const PLAYER_STATE_SCHEMA_VERSION = 2;
+export const PLAYER_STATE_SCHEMA_VERSION = 3;
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('base64url');
@@ -66,6 +66,7 @@ export async function buildPlayerState(store, session, config, { renderRevision 
   const components = {
     screen: screenComponent(screen),
     menu: { draft: { rows: draft.rows || [], settings: draft.settings || {}, revision: draft.revision }, products, packaging },
+    scene: draft.scene || { version: 1, elements: [] },
     animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
     environment: animationSettings?.environment || null,
     scene_playlist: animationSettings?.scene_playlist || null,
@@ -92,6 +93,7 @@ export function fullPlayerContext(state) {
     draft: components.menu.draft,
     products: components.menu.products,
     packaging: components.menu.packaging,
+    scene: components.scene,
     animation: components.animation,
     environment: components.environment,
     scene_playlist: components.scene_playlist,
