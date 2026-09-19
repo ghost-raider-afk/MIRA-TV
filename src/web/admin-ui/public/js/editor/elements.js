@@ -131,7 +131,11 @@ function input(type, value, options = {}) {
 
 function select(value, options) {
   const node = document.createElement('select');
-  options.forEach(([optionValue, title]) => node.append(new Option(title, optionValue)));
+  options.forEach(([optionValue, title, disabled = false]) => {
+    const option = new Option(title, optionValue);
+    option.disabled = disabled === true;
+    node.append(option);
+  });
   node.value = String(value ?? '');
   return node;
 }
@@ -509,15 +513,14 @@ function renderElementCard(state, element, index, options) {
   const identity = section('Тип элемента');
   const typeRow = document.createElement('div');
   typeRow.className = 'editor-element-type-row';
-  const type = select(element.type, SCENE_ELEMENT_TYPE_OPTIONS);
-  type.setAttribute('aria-label', `Тип элемента ${index + 1}`);
   const hasOtherWeather = Array.isArray(state.scene?.elements)
     && state.scene.elements.some((item) => item.id !== element.id && item.type === 'weather');
-  const weatherOption = [...type.options].find((option) => option.value === 'weather');
-  if (weatherOption && hasOtherWeather && element.type !== 'weather') {
-    weatherOption.disabled = true;
-    weatherOption.title = 'На мониторе уже есть элемент «Погода».';
-  }
+  const typeOptions = SCENE_ELEMENT_TYPE_OPTIONS.map(([value, title]) => {
+    const disabled = value === 'weather' && hasOtherWeather && element.type !== 'weather';
+    return [value, disabled ? `${title} — уже добавлена` : title, disabled];
+  });
+  const type = select(element.type, typeOptions);
+  type.setAttribute('aria-label', `Тип элемента ${index + 1}`);
   begin(type, options.onBeforeMutate);
   type.addEventListener('change', () => {
     const current = elementById(state, element.id) || element;
