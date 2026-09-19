@@ -23,8 +23,8 @@ test('monitor editor owns one generic scene element model', async () => {
   assert.match(elements, /const current = elementById\(state, element\.id\) \|\| element/);
   assert.match(elements, /replaceSceneElement\(state, current\.id, replacement\)/);
   assert.match(elements, /hasOtherWeather/);
-  assert.match(elements, /option\.disabled = disabled === true/);
-  assert.match(elements, /typeOptions = SCENE_ELEMENT_TYPE_OPTIONS\.map/);
+  assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
+  assert.match(elements, /Погода уже добавлена в сцену/);
   for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение']) assert.ok(elements.includes(photoshopControl));
   assert.match(editor, /container: elementsContainer/);
   assert.doesNotMatch(editor, /elementsList|elementProperties/);
