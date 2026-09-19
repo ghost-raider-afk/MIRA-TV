@@ -88,6 +88,26 @@ test('legacy drafts get a real editable first section independent from monitor n
   assert.notEqual(lines[0].name, state.screen.name);
 });
 
+test('display lines retain stable source row identity for direct Preview editing', () => {
+  const state = createEditorState({
+    rows: [
+      { id: 'section-source', kind: 'section', name: 'Светлое', enabled: true },
+      { id: 'item-source', kind: 'item', product_id: 1, enabled: true },
+      { id: 'pack-source-1', kind: 'packaging', packaging_id: 10, enabled: true },
+      { id: 'pack-source-2', kind: 'packaging', packaging_id: 11, enabled: true }
+    ]
+  });
+  const model = buildRenderModel(state, { width: 1920, height: 1080 });
+  const lines = buildDisplayLines(model, {
+    products: [{ id: 1, name: 'Бавария', price_primary: '179' }],
+    packaging: [{ id: 10, name: 'ПЭТ 1 л', unit_price: '10' }, { id: 11, name: 'ПЭТ 1,5 л', unit_price: '12' }]
+  });
+  assert.equal(lines[0].sourceRowId, 'section-source');
+  assert.equal(lines[1].sourceRowId, 'item-source');
+  assert.deepEqual(lines[2].sourceRowIds, ['pack-source-1', 'pack-source-2']);
+  assert.deepEqual(lines[2].items.map((item) => item.sourceRowId), ['pack-source-1', 'pack-source-2']);
+});
+
 test('renderer model filters disabled rows and respects arbitrary monitor aspect ratio', () => {
   const state = createEditorState({ rows: [{ id: 'a', kind: 'section', name: 'A', enabled: true }, { id: 'b', kind: 'section', name: 'B', enabled: false }] });
   const model = buildRenderModel(state, { width: 1024, height: 768 });
