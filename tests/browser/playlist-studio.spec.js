@@ -85,12 +85,11 @@ test('Playlist Studio owns only menu motion and Scene Playlist and shares the Pl
     await expect(page.locator('#animation-screen-select')).toHaveValue(String(fixture.screenId));
     await expect(page.locator('#animation-stage [data-player-menu-layer] .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
     await expect(page.locator('#animation-stage')).toHaveClass(/player-scene-stage/);
-    const stageBox = await page.locator('#animation-stage').boundingBox();
+    const stageSize = await page.locator('#animation-stage').evaluate((node) => ({ width: node.clientWidth, height: node.clientHeight }));
     const svgBox = await page.locator('#animation-stage [data-player-menu-layer] svg.menu-table-svg').boundingBox();
-    expect(stageBox).not.toBeNull();
     expect(svgBox).not.toBeNull();
-    expect(Math.abs(svgBox.width - stageBox.width)).toBeLessThanOrEqual(1);
-    expect(Math.abs(svgBox.height - stageBox.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(svgBox.width - stageSize.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(svgBox.height - stageSize.height)).toBeLessThanOrEqual(1);
     await expect(inspector.locator('#animation-save')).toBeVisible();
     await expect(inspector.locator('#animation-apply-screens')).toBeVisible();
     await expect(inspector.locator('#animation-target-summary')).toContainText('1 монитор');

@@ -329,7 +329,7 @@ function textSettings(state, element, options) {
 
   for (const [title, key, fields] of [
     ['Обводка', 'stroke', [['width_px', 'Толщина', 0, 64], ['color', 'Цвет'], ['opacity', 'Прозрачность', 0, 1, .01]]],
-    ['Тень', 'shadow', [['offset_x_px', 'X', -500, 500], ['offset_y_px', 'Y', -500, 500], ['blur_px', 'Размытие', 0, 256], ['color', 'Цвет'], ['opacity', 'Прозрачность', 0, 1, .01]]],
+    ['Тень', 'shadow', [['offset_x_px', 'Смещение X', -500, 500], ['offset_y_px', 'Смещение Y', -500, 500], ['blur_px', 'Размытие', 0, 256], ['color', 'Цвет'], ['opacity', 'Прозрачность', 0, 1, .01]]],
     ['Свечение', 'glow', [['blur_px', 'Размытие', 0, 256], ['spread_px', 'Расширение', 0, 128], ['color', 'Цвет'], ['opacity', 'Прозрачность', 0, 1, .01]]]
   ]) {
     const box = document.createElement('fieldset');
