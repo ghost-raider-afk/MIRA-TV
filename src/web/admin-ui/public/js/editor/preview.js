@@ -47,8 +47,17 @@ function ensurePreviewLayers(target) {
   sceneLayer.setAttribute('data-scene-elements-layer', '');
   sceneLayer.style.zIndex = '10';
 
-  target.append(menuLayer, sceneLayer);
-  const current = { menuLayer, sceneLayer, sceneRenderer: new SceneElementRenderer(sceneLayer) };
+  const editorLayer = document.createElement('div');
+  editorLayer.className = 'editor-preview-controls-layer';
+  editorLayer.dataset.editorPreviewControlsLayer = '';
+  editorLayer.setAttribute('aria-label', 'Редактирование строк меню');
+  editorLayer.style.position = 'absolute';
+  editorLayer.style.inset = '0';
+  editorLayer.style.zIndex = '40';
+  editorLayer.style.pointerEvents = 'none';
+
+  target.append(menuLayer, sceneLayer, editorLayer);
+  const current = { menuLayer, sceneLayer, editorLayer, sceneRenderer: new SceneElementRenderer(sceneLayer) };
   previewLayers.set(target, current);
   return current;
 }
@@ -70,7 +79,7 @@ export function renderPreview(editorState, { screen, products, packaging, target
   const lines = buildDisplayLines(model, { products, packaging, fallbackTitle: 'Новый раздел' });
   const layout = buildRenderLayout(model, lines);
   const { palette } = layout;
-  const { menuLayer, sceneRenderer } = ensurePreviewLayers(target);
+  const { menuLayer, editorLayer, sceneRenderer } = ensurePreviewLayers(target);
 
   target.style.backgroundColor = palette.background;
   target.style.backgroundImage = model.settings.background_image_url ? 'url("' + model.settings.background_image_url + '")' : '';
@@ -86,5 +95,5 @@ export function renderPreview(editorState, { screen, products, packaging, target
   applyPreviewTypography(menuLayer, layout);
   sceneRenderer.render(editorState.scene);
 
-  return { model, lines, layout };
+  return { model, lines, layout, editorLayer };
 }

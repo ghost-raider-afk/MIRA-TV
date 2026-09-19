@@ -7,7 +7,7 @@ import { createEditorState, markEditorSaved, replaceEditorState } from './state.
 import { updateSettings } from './commands.js';
 import { createEditorHistory } from './history.js';
 import { normaliseEditorSettings } from './settings.js';
-import { appendRow, renderRows } from './rows.js';
+import { appendRow, renderPreviewRows } from './rows.js';
 import { bindScreenProperties, bindSettingsProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
 import { renderPreview } from './preview.js';
 import { serializeDraft } from './serializer.js';
@@ -128,8 +128,7 @@ export function initialiseScreenEditor() {
   let packaging = [];
 
   const previewTarget = element('editor-menu-preview');
-  const rowsTarget = element('editor-menu-rows');
-  const rowsEmpty = element('editor-menu-empty');
+  const inspectorTarget = element('editor-preview-row-inspector');
 
   setEditorLoading(form, true);
 
@@ -140,25 +139,28 @@ export function initialiseScreenEditor() {
     target: previewTarget
   });
 
-  const refreshEditorView = () => {
+  const refreshEditorView = ({ syncRows = true } = {}) => {
     if (!isMounted()) return null;
     const activeScreen = editorState.screen || screen;
     const preview = refreshPreview(activeScreen);
+    if (syncRows && preview?.editorLayer) {
+      renderPreviewRows(editorState, {
+        target: preview.editorLayer,
+        inspector: inspectorTarget,
+        model: preview.model,
+        lines: preview.lines,
+        layout: preview.layout,
+        products,
+        packaging,
+        onBeforeMutate: () => history.checkpoint(),
+        onVisualChange: () => refreshEditorView({ syncRows: false }),
+        onStructureChange: () => refreshEditorView({ syncRows: true })
+      });
+    }
     setLayoutWarning(preview, activeScreen);
     setFontScaleState(preview);
     setDirtyState(editorState);
     return preview;
-  };
-
-  const refreshRows = () => {
-    if (!isMounted()) return;
-    renderRows(editorState, {
-      target: rowsTarget,
-      empty: rowsEmpty,
-      products,
-      packaging,
-      onChange: refreshEditorView
-    });
   };
 
   const load = async () => {
@@ -178,7 +180,6 @@ export function initialiseScreenEditor() {
     });
     history.clear();
     populateEditor(screen, editorState);
-    refreshRows();
     setEditorLoading(form, false);
     refreshEditorView();
   };
@@ -186,9 +187,9 @@ export function initialiseScreenEditor() {
 
   bindSettingsProperties(editorState, refreshEditorView);
   bindScreenProperties(editorState, refreshEditorView);
-  element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshRows(); refreshEditorView(); });
-  element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshRows(); refreshEditorView(); });
-  element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshRows(); refreshEditorView(); });
+  element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshEditorView(); });
+  element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshEditorView(); });
+  element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshEditorView(); });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -218,7 +219,6 @@ export function initialiseScreenEditor() {
       markEditorSaved(editorState);
       history.clear();
       populateEditor(screen, editorState);
-      refreshRows();
       refreshEditorView();
       await loadNotifications();
       setEditorMessage('Состояние сохранено и доступно TV Player.', 'success');

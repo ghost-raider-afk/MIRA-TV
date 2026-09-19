@@ -68,7 +68,7 @@ for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 76
   test(`compact editor remains usable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await login(page);
-    const { screen } = await createEditorFixture(page, { rows: 4 });
+    const { screen, product } = await createEditorFixture(page, { rows: 4 });
     await page.goto(`/screen-editor?id=${screen.id}`);
 
     const commandbar = page.locator('.editor-commandbar');
@@ -90,20 +90,19 @@ for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 76
     await openSettings(page, 'Монитор');
     await openSettings(page, 'Таблица');
 
-    const table = page.locator('.editor-menu-editor-table');
-    const scroll = page.locator('.editor-menu-table-scroll');
-    await expect(table).toBeVisible();
-    await expect(table.getByRole('columnheader', { name: 'Данные из базы' })).toBeVisible();
-    await expect(table.locator('tbody tr')).toHaveCount(5);
-    const itemBox = await table.locator('tbody tr').nth(1).boundingBox();
-    expect(itemBox).not.toBeNull();
-    expect(itemBox.height).toBeGreaterThanOrEqual(32);
-    expect(itemBox.height).toBeLessThanOrEqual(36);
-    expect(await table.locator('tbody tr').nth(1).locator('select').evaluate((node) => getComputedStyle(node).fontSize)).toBe('11px');
-    const dimensions = await scroll.evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
-    expect(dimensions.clientWidth).toBeGreaterThan(500);
+    await expect(page.locator('#editor-menu-rows')).toHaveCount(0);
+    await expect(page.locator('.editor-menu-editor-table')).toHaveCount(0);
 
     const preview = page.locator('#editor-menu-preview');
+    await expect(preview.locator('[data-editor-preview-row-control]')).toHaveCount(5);
+    const sectionInput = preview.locator('[data-preview-section-input]').first();
+    await expect(sectionInput).toBeVisible();
+    await expect(preview.locator('[data-preview-product-select]')).toHaveCount(4);
+    await expect(preview.locator('[data-preview-product-select]').first()).toHaveValue(String(product.id));
+    await expect(preview.getByRole('button', { name: 'Сортировать раздел по алфавиту' })).toHaveCount(1);
+    await sectionInput.fill('Разливное меню');
+    await expect(preview.locator('.section-title').first()).toContainText('Разливное меню');
+    await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
     const svg = preview.locator('svg.menu-table-svg');
     await expect(svg).toBeVisible();
     await expect(svg).toHaveAttribute('viewBox', '0 0 1920 1080');
@@ -145,9 +144,12 @@ test('editor reflows at a 200% equivalent viewport without page-level horizontal
   const outline = await summary.evaluate((node) => getComputedStyle(node).outlineStyle);
   expect(outline).not.toBe('none');
 
-  const tableScroll = page.locator('.editor-menu-table-scroll');
-  const tableDimensions = await tableScroll.evaluate((node) => ({ client: node.clientWidth, scroll: node.scrollWidth }));
-  expect(tableDimensions.scroll).toBeGreaterThanOrEqual(tableDimensions.client);
+  await expect(page.locator('.editor-menu-editor-table')).toHaveCount(0);
+  const preview = page.locator('#editor-menu-preview');
+  await expect(preview.locator('[data-editor-preview-row-control]')).toHaveCount(4);
+  const previewBox = await preview.boundingBox();
+  expect(previewBox).not.toBeNull();
+  expect(previewBox.width).toBeLessThanOrEqual(948);
 });
 
 test('reference density keeps MIRA-TV 1 two-line typography without overlap', async ({ page }) => {
