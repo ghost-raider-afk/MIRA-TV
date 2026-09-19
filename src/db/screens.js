@@ -5,6 +5,13 @@ function normaliseDraft(row, screenId) {
   return { ...record, revision: Number(record.revision || 0) };
 }
 
+function sceneAssetUrls(scene) {
+  if (!Array.isArray(scene?.elements)) return [];
+  return scene.elements
+    .map((element) => String(element?.media?.source_url || ''))
+    .filter((url) => url.startsWith('/site-assets/scene/'));
+}
+
 export function createScreensRepository(pool) {
   async function getScreen(id) {
     const { rows } = await pool.query(
@@ -104,6 +111,15 @@ export function createScreensRepository(pool) {
       if (!url) return false;
       const { rows } = await pool.query('SELECT settings_json FROM screen_drafts');
       return rows.some((row) => jsonValue(row.settings_json, {}).background_image_url === url);
+    },
+    async isSceneAssetReferenced(url) {
+      if (!url) return false;
+      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
+      return rows.some((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] })).includes(url));
+    },
+    async listSceneAssetReferences() {
+      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
+      return [...new Set(rows.flatMap((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))))];
     },
     async screensUsingCatalog(kind, catalogId) {
       const column = kind === 'product' ? 'product_id' : 'packaging_id';
