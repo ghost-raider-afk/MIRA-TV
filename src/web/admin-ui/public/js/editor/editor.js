@@ -5,7 +5,6 @@ import { loadNotifications } from '../core/notifications.js';
 import { navigate } from '../core/router.js';
 import { createEditorState, markEditorSaved, replaceEditorState } from './state.js';
 import { updateSettings } from './commands.js';
-import { createEditorHistory } from './history.js';
 import { normaliseEditorSettings } from './settings.js';
 import { appendRow, renderPreviewRows } from './rows.js';
 import { appendSceneElement, renderSceneElements } from './elements.js';
@@ -123,7 +122,6 @@ export function initialiseScreenEditor() {
   const isMounted = () => !disposed && document.getElementById('screen-editor-form') === form;
 
   const editorState = createEditorState();
-  const history = createEditorHistory(editorState);
   let screen = null;
   let products = [];
   let packaging = [];
@@ -147,7 +145,7 @@ export function initialiseScreenEditor() {
 
   const refreshElements = () => renderSceneElements(editorState, {
     container: elementsContainer,
-    onBeforeMutate: () => history.checkpoint(),
+    onBeforeMutate: undefined,
     onVisualChange: () => setDirtyState(editorState),
     onStructureChange: () => {
       refreshElements();
@@ -170,7 +168,7 @@ export function initialiseScreenEditor() {
         layout: preview.layout,
         products,
         packaging,
-        onBeforeMutate: () => history.checkpoint(),
+        onBeforeMutate: undefined,
         onVisualChange: () => refreshEditorView({ syncRows: false }),
         onStructureChange: () => refreshEditorView({ syncRows: true })
       });
@@ -196,7 +194,6 @@ export function initialiseScreenEditor() {
       revision: 0,
       draftRevision: Number(editor.draft?.revision || 0)
     });
-    history.clear();
     populateEditor(screen, editorState);
     setEditorLoading(form, false);
     refreshEditorView();
@@ -205,9 +202,9 @@ export function initialiseScreenEditor() {
 
   bindSettingsProperties(editorState, refreshEditorView);
   bindScreenProperties(editorState, refreshEditorView);
-  element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshEditorView(); });
-  element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshEditorView(); });
-  element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshEditorView(); });
+  element('editor-add-section')?.addEventListener('click', () => { appendRow(editorState, 'section'); refreshEditorView(); });
+  element('editor-add-item')?.addEventListener('click', () => { appendRow(editorState, 'item'); refreshEditorView(); });
+  element('editor-add-packaging')?.addEventListener('click', () => { appendRow(editorState, 'packaging'); refreshEditorView(); });
   element('editor-add-element')?.addEventListener('click', () => {
     history.checkpoint();
     appendSceneElement(editorState);
@@ -241,8 +238,7 @@ export function initialiseScreenEditor() {
       });
       screen = saved.screen;
       markEditorSaved(editorState);
-      history.clear();
-      populateEditor(screen, editorState);
+        populateEditor(screen, editorState);
       refreshEditorView();
       await loadNotifications();
       setEditorMessage('Состояние сохранено и доступно TV Player.', 'success');
@@ -274,8 +270,7 @@ export function initialiseScreenEditor() {
         revision: editorState.revision,
         draftRevision: Number(result.draft.revision || 0)
       });
-      history.clear();
-      populateEditor(screen, editorState);
+        populateEditor(screen, editorState);
       refreshEditorView();
       setEditorMessage('Фон монитора загружен.', 'success');
     } catch (error) {
@@ -303,8 +298,7 @@ export function initialiseScreenEditor() {
         revision: editorState.revision,
         draftRevision: Number(result.draft.revision || 0)
       });
-      history.clear();
-      populateEditor(screen, editorState);
+        populateEditor(screen, editorState);
       refreshEditorView();
       setEditorMessage('Фон удалён.', 'success');
     } catch (error) {
