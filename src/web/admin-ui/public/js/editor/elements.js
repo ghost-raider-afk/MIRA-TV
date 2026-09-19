@@ -513,8 +513,7 @@ function renderElementCard(state, element, index, options) {
   const identity = section('Тип элемента');
   const typeRow = document.createElement('div');
   typeRow.className = 'editor-element-type-row';
-  const hasOtherWeather = Array.isArray(state.scene?.elements)
-    && state.scene.elements.some((item) => item.id !== element.id && item.type === 'weather');
+  const hasOtherWeather = Boolean(options.weatherOwnerId && options.weatherOwnerId !== element.id);
   const typeOptions = SCENE_ELEMENT_TYPE_OPTIONS.map(([value, title]) => {
     const disabled = value === 'weather' && hasOtherWeather && element.type !== 'weather';
     return [value, disabled ? `${title} — уже добавлена` : title, disabled];
@@ -594,6 +593,7 @@ export function renderSceneElements(state, {
     return;
   }
 
-  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload };
+  const weatherOwnerId = elements.find((element) => element?.type === 'weather')?.id || null;
+  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
   elements.forEach((element, index) => container.append(renderElementCard(state, element, index, options)));
 }
