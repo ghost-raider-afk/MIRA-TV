@@ -16,3 +16,5 @@
 .player-scene-stage .tv-player-gpu-effect.is-pulse,
 .player-scene-stage .tv-player-gpu-effect.is-focus{background:radial-gradient(ellipse at center,rgba(246,201,14,.12),rgba(246,201,14,.08) 34%,transparent 68%)}
 .player-scene-stage [data-motion]{opacity:1;transform-box:fill-box;transform-origin:center}
+
+.player-scene-stage[data-scene-playlist-fullscreen="true"] .tv-player-scene-elements-layer{opacity:0;visibility:hidden}
