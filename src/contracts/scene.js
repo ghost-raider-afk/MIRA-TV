@@ -2,6 +2,7 @@ import { ValidationError } from '../shared/errors.js';
 
 const SCENE_VERSION = 1;
 const MAX_ELEMENTS = 64;
+const MAX_VIDEO_ELEMENTS = 2;
 const MAX_RUNS = 128;
 const MAX_TEXT_LENGTH = 12000;
 const MAX_GRADIENT_STOPS = 8;
@@ -264,6 +265,12 @@ export function sceneInput(value, { maxWidth = 1920, maxHeight = 1080 } = {}) {
   if (elementsSource.length > MAX_ELEMENTS) throw new ValidationError(`Сцена может содержать не более ${MAX_ELEMENTS} элементов.`);
 
   const elements = elementsSource.map((element, index) => elementInput(element, index, { maxWidth, maxHeight }));
+  if (elements.filter((element) => element.type === 'weather').length > 1) {
+    throw new ValidationError('Сцена может содержать только один элемент «Погода».');
+  }
+  if (elements.filter((element) => element.type === 'video' && element.enabled !== false).length > MAX_VIDEO_ELEMENTS) {
+    throw new ValidationError(`Одновременно можно использовать не более ${MAX_VIDEO_ELEMENTS} видеоэлементов.`);
+  }
   const ids = new Set();
   for (const element of elements) {
     if (ids.has(element.id)) throw new ValidationError('Идентификаторы элементов сцены должны быть уникальными.');
