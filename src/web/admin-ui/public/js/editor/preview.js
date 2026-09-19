@@ -76,7 +76,7 @@ export function renderPreview(editorState, { screen, products, packaging, target
   target.style.backgroundImage = model.settings.background_image_url ? 'url("' + model.settings.background_image_url + '")' : '';
   target.style.backgroundSize = 'cover';
   target.style.backgroundPosition = 'center';
-  target.style.aspectRatio = String(model.viewport.width) + ' / ' + String(model.viewport.height);
+  target.style.aspectRatio = `${model.viewport.width} / ${model.viewport.height}`;
   target.dataset.menuFits = layout.vertical.fits ? 'true' : 'false';
   target.dataset.fontScaleEffective = String(layout.vertical.effectivePercent);
   target.dataset.fontKey = layout.typography.key;
