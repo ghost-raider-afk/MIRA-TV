@@ -62,7 +62,7 @@ function mediaNode(type) {
     video.autoplay = true;
     video.playsInline = true;
     video.controls = false;
-    video.preload = 'auto';
+    video.preload = 'metadata';
     video.setAttribute('playsinline', '');
     video.setAttribute('disablepictureinpicture', '');
     video.setAttribute('aria-hidden', 'true');
@@ -196,7 +196,7 @@ function syncVideo(video, element, playbackAllowed) {
 
 function updateMedia(node, element, playbackAllowed) {
   const media = element?.media || {};
-  const source = sameOriginAsset(media.source_url);
+  const source = element?.enabled === false ? '' : sameOriginAsset(media.source_url);
   applyMediaLayout(node, media);
   if (node.dataset.sceneSource !== source) {
     node.dataset.sceneSource = source;
@@ -275,11 +275,16 @@ export class SceneElementRenderer {
     this.autoplay = autoplay !== false;
     this.weatherPreview = weatherPreview === true;
     this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
+    this.sceneVisible = this.activityTarget?.dataset.scenePlaylistFullscreen !== 'true';
     this.entries = new Map();
     this.destroyed = false;
     this.handleVisibilityChange = () => this.syncVideos();
     this.handlePlayerActivity = (event) => {
       this.active = event?.detail?.active === true;
+      this.syncVideos();
+    };
+    this.handleScenePlaylistMode = (event) => {
+      this.sceneVisible = event?.detail?.fullscreen !== true;
       this.syncVideos();
     };
     layer.setAttribute('data-scene-elements-layer', '');
@@ -291,10 +296,11 @@ export class SceneElementRenderer {
     layer.style.containerType = 'inline-size';
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     this.activityTarget?.addEventListener('mira:player-active', this.handlePlayerActivity);
+    this.activityTarget?.addEventListener('mira:scene-playlist-mode', this.handleScenePlaylistMode);
   }
 
   playbackAllowed() {
-    return this.autoplay && this.active && document.visibilityState !== 'hidden';
+    return this.autoplay && this.active && this.sceneVisible && document.visibilityState !== 'hidden';
   }
 
   render(scene) {
@@ -370,6 +376,7 @@ export class SceneElementRenderer {
     this.destroyed = true;
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     this.activityTarget?.removeEventListener('mira:player-active', this.handlePlayerActivity);
+    this.activityTarget?.removeEventListener('mira:scene-playlist-mode', this.handleScenePlaylistMode);
     this.clear();
     this.activityTarget = null;
     this.layer = null;
