@@ -57,7 +57,7 @@ function ensurePreviewLayers(target) {
   editorLayer.style.pointerEvents = 'none';
 
   target.append(menuLayer, sceneLayer, editorLayer);
-  const current = { menuLayer, sceneLayer, editorLayer, sceneRenderer: new SceneElementRenderer(sceneLayer) };
+  const current = { menuLayer, sceneLayer, editorLayer, sceneRenderer: new SceneElementRenderer(sceneLayer, { weatherPreview: true }) };
   previewLayers.set(target, current);
   return current;
 }

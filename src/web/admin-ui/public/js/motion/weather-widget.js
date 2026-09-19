@@ -55,6 +55,8 @@ export function normaliseWeatherWidget(source = {}) {
   const legacy = LEGACY_POSITION[position];
   return {
     enabled: value.enabled === true,
+    embedded: value.embedded === true,
+    show_location: value.show_location !== false,
     location_name: String(value.location_name || '').trim().slice(0, 120),
     latitude: Number.isFinite(Number(value.latitude)) ? Number(value.latitude) : null,
     longitude: Number.isFinite(Number(value.longitude)) ? Number(value.longitude) : null,
@@ -186,8 +188,14 @@ function createContent(config, data) {
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
-  card.style.left = `${(config.x / WEATHER_SCENE_WIDTH) * 100}%`;
-  card.style.top = `${(config.y / WEATHER_SCENE_HEIGHT) * 100}%`;
+  if (config.embedded) {
+    card.dataset.weatherEmbedded = 'true';
+    card.style.left = '0';
+    card.style.top = '0';
+  } else {
+    card.style.left = `${(config.x / WEATHER_SCENE_WIDTH) * 100}%`;
+    card.style.top = `${(config.y / WEATHER_SCENE_HEIGHT) * 100}%`;
+  }
 
   const content = document.createElement('div');
   content.className = 'weather-widget-content';
@@ -198,7 +206,7 @@ function createContent(config, data) {
   icon.innerHTML = svgIcon(data.icon || 'cloud');
   const primary = document.createElement('div');
   primary.className = 'weather-widget-primary';
-  primary.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
+  if (config.show_location) primary.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
   primary.append(text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`));
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
   top.append(icon, primary);
@@ -253,6 +261,7 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   const sceneScale = Number(layer.dataset.weatherSceneScale);
   if (!Number.isFinite(sceneScale) || sceneScale <= 0) layer.dataset.weatherSceneScale = '1';
   layer.dataset.weatherEnabled = config.enabled ? 'true' : 'false';
+  layer.dataset.weatherEmbedded = config.embedded ? 'true' : 'false';
   applyMotionSettings(layer, config);
   if (!config.enabled) return;
 

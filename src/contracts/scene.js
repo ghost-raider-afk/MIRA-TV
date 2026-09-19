@@ -274,3 +274,23 @@ export function sceneInput(value, { maxWidth = 1920, maxHeight = 1080 } = {}) {
 
 export const SCENE_ELEMENT_TYPES = Object.freeze([...ELEMENT_TYPES]);
 export const SCENE_CANONICAL_SIZE = Object.freeze({ width: 1920, height: 1080 });
+
+
+export function sceneWeatherSettings(scene, screenId = null) {
+  const element = Array.isArray(scene?.elements)
+    ? scene.elements.find((item) => item?.enabled !== false && item?.type === 'weather')
+    : null;
+  if (!element) return null;
+  return {
+    enabled: true,
+    embedded: true,
+    screen_id: Number.isSafeInteger(Number(screenId)) ? Number(screenId) : undefined,
+    ...(element.weather || {}),
+    position: 'top-left',
+    x: 0,
+    y: 0,
+    width_px: Math.max(260, Math.min(760, Number(element.width) || 420)),
+    scale: 1,
+    opacity: 1
+  };
+}

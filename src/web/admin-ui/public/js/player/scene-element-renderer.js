@@ -1,3 +1,5 @@
+import { renderWeatherWidget, WEATHER_SAMPLE } from '../motion/weather-widget.js';
+
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 
@@ -221,7 +223,21 @@ function createContent(type) {
   return mediaNode(type);
 }
 
-function updateContent(content, element, playbackAllowed) {
+function weatherSettings(element) {
+  return {
+    enabled: element?.enabled !== false,
+    embedded: true,
+    ...(element?.weather || {}),
+    position: 'top-left',
+    x: 0,
+    y: 0,
+    width_px: Math.max(260, Math.min(760, Number(element?.width) || 420)),
+    scale: 1,
+    opacity: 1
+  };
+}
+
+function updateContent(content, element, playbackAllowed, weatherPreview = false) {
   if (element.type === 'text') {
     renderText(content, element.text);
     return;
@@ -230,6 +246,7 @@ function updateContent(content, element, playbackAllowed) {
     content.dataset.weatherMode = String(element.weather?.mode || 'current');
     content.dataset.showLocation = element.weather?.show_location === false ? 'false' : 'true';
     content.dataset.showCondition = element.weather?.show_condition === false ? 'false' : 'true';
+    if (weatherPreview) renderWeatherWidget(content, weatherSettings(element), WEATHER_SAMPLE);
     return;
   }
   updateMedia(content, element, playbackAllowed);
@@ -251,11 +268,12 @@ function applyGeometry(node, element) {
 }
 
 export class SceneElementRenderer {
-  constructor(layer, { activityTarget = null, autoplay = true } = {}) {
+  constructor(layer, { activityTarget = null, autoplay = true, weatherPreview = false } = {}) {
     if (!(layer instanceof HTMLElement)) throw new TypeError('SceneElementRenderer requires an HTMLElement layer.');
     this.layer = layer;
     this.activityTarget = activityTarget instanceof HTMLElement ? activityTarget : null;
     this.autoplay = autoplay !== false;
+    this.weatherPreview = weatherPreview === true;
     this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
     this.entries = new Map();
     this.destroyed = false;
@@ -311,7 +329,7 @@ export class SceneElementRenderer {
       applyGeometry(entry.node, element);
       entry.element = element;
       if (entry.fingerprint !== fingerprint) {
-        updateContent(entry.content, element, this.playbackAllowed());
+        updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview);
         entry.fingerprint = fingerprint;
       } else if (entry.content instanceof HTMLVideoElement) {
         syncVideo(entry.content, element, this.playbackAllowed());
@@ -326,6 +344,10 @@ export class SceneElementRenderer {
       entry.node.remove();
       this.entries.delete(id);
     }
+  }
+
+  contentFor(elementId) {
+    return this.entries.get(String(elementId || ''))?.content || null;
   }
 
   syncVideos() {

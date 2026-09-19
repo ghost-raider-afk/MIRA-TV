@@ -51,9 +51,17 @@ export class PlayerWeatherRuntime {
     window.addEventListener('offline', this.handleOffline);
   }
 
+  setLayer(layer) {
+    const next = layer instanceof HTMLElement ? layer : null;
+    if (next === this.layer) return;
+    this.layer?.replaceChildren();
+    this.layer = next;
+    if (this.layer) this.render();
+  }
+
   ensureLayer() {
     if (this.layer?.isConnected) return this.layer;
-    const layer = this.stage.querySelector('[data-weather-layer]');
+    const layer = this.stage.querySelector('[data-weather-layer], [data-scene-weather-mount]');
     if (layer instanceof HTMLElement) {
       this.layer = layer;
       return layer;
