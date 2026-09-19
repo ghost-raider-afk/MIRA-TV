@@ -18,6 +18,10 @@ import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
+import { migrateManagerRole } from './migrations/manager-role.js';
+import { migrateSceneElementsStorage } from './migrations/scene-elements.js';
+import { migrateLegacySceneOwnership } from './migrations/scene-element-ownership.js';
+import { retireLegacySceneOwnership } from './migrations/scene-ownership-cleanup.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -31,7 +35,6 @@ import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
 import { createScreenRenderJournalRepository } from './screen-render-journal.js';
-import { createWeatherRepository } from './weather.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -52,7 +55,11 @@ const MIGRATIONS = Object.freeze([
   { name: '016-scene-playlist', run: migrateScenePlaylist },
   { name: '017-player-telemetry', run: migratePlayerTelemetry },
   { name: '018-screen-render-journal', run: migrateScreenRenderJournal },
-  { name: '019-weather-widget', run: migrateWeatherWidget }
+  { name: '019-weather-widget', run: migrateWeatherWidget },
+  { name: '020-manager-role', run: migrateManagerRole },
+  { name: '021-scene-elements', run: migrateSceneElementsStorage },
+  { name: '022-scene-element-ownership', run: migrateLegacySceneOwnership },
+  { name: '023-scene-ownership-cleanup', run: retireLegacySceneOwnership }
 ]);
 
 function createRepositories(queryable) {
@@ -69,8 +76,7 @@ function createRepositories(queryable) {
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
     createPlayerTelemetryRepository(queryable),
-    createScreenRenderJournalRepository(queryable),
-    createWeatherRepository(queryable)
+    createScreenRenderJournalRepository(queryable)
   );
 }
 

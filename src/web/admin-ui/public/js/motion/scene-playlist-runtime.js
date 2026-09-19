@@ -1,6 +1,4 @@
-import { createEntityMedia, normaliseSceneEntity } from './entity-editor.js';
-
-const SCENE_TYPES = Object.freeze(['promo', 'content', 'object-story']);
+const SCENE_TYPES = Object.freeze(['promo', 'content']);
 const SCENE_MODES = Object.freeze(['overlay', 'split', 'fullscreen']);
 
 export const DEFAULT_SCENE_PLAYLIST = Object.freeze({ enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: Object.freeze([]) });
@@ -32,7 +30,9 @@ function commonStage(menuLayer, contentLayer, fxLayer) {
 
 export function normaliseScenePlaylist(value = {}) {
   const source = sourceObject(value);
-  const scenes = Array.isArray(source.scenes) ? source.scenes.slice(0, 20) : [];
+  const scenes = Array.isArray(source.scenes)
+    ? source.scenes.filter((item) => sourceObject(item).type !== 'object-story').slice(0, 20)
+    : [];
   return {
     enabled: source.enabled === true && scenes.length > 0,
     animation_enabled: source.animation_enabled !== false,
@@ -52,26 +52,15 @@ export function normaliseScenePlaylist(value = {}) {
   };
 }
 
-function playbackSignature(playlist, entity) {
-  return JSON.stringify({ playlist, entity: sourceObject(entity) });
+function playbackSignature(playlist) {
+  return JSON.stringify(playlist);
 }
 
 function typeLabel(type) {
-  if (type === 'promo') return 'PROMO SCENE';
-  if (type === 'object-story') return 'OBJECT STORY';
-  return 'CONTENT SCENE';
+  return type === 'promo' ? 'PROMO SCENE' : 'CONTENT SCENE';
 }
 
-function entityMedia(entity) {
-  const current = normaliseSceneEntity(entity);
-  if (!current.asset_url) return null;
-  const media = createEntityMedia(current);
-  media.setAttribute('aria-hidden', 'true');
-  if (media instanceof HTMLImageElement) media.alt = '';
-  return media;
-}
-
-function buildSceneContent(scene, entity) {
+function buildSceneContent(scene) {
   const root = document.createElement('div');
   root.className = `scene-playlist-content scene-type-${scene.type} scene-mode-${scene.mode}`;
   root.dataset.scenePlaylistId = scene.id;
@@ -99,15 +88,6 @@ function buildSceneContent(scene, entity) {
     copy.append(body);
   }
 
-  if (scene.type === 'object-story') {
-    const media = entityMedia(entity);
-    if (media) {
-      const shell = document.createElement('div');
-      shell.className = 'scene-playlist-object-media';
-      shell.append(media);
-      card.append(shell);
-    }
-  }
   card.append(copy);
   root.append(card);
   return root;
@@ -120,12 +100,8 @@ function buildSceneFx(scene) {
   return fx;
 }
 
-function reducedMotion() {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-}
-
 function animateEntrance(node, mode) {
-  if (!(node instanceof Element) || reducedMotion()) return;
+  if (!(node instanceof Element)) return;
   const x = mode === 'split' ? '3.5%' : '0';
   node.animate(
     [{ opacity: 0, transform: `translate3d(${x},2.5%,0) scale(.985)` }, { opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }],
@@ -134,7 +110,7 @@ function animateEntrance(node, mode) {
 }
 
 function animateExit(node, mode) {
-  if (!(node instanceof Element) || reducedMotion()) return Promise.resolve();
+  if (!(node instanceof Element)) return Promise.resolve();
   const x = mode === 'split' ? '2.5%' : '0';
   const animation = node.animate(
     [{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }, { opacity: 0, transform: `translate3d(${x},-1.5%,0) scale(.99)` }],
@@ -150,7 +126,6 @@ export class ScenePlaylistRuntime {
     this.playlist = DEFAULT_SCENE_PLAYLIST;
     this.layers = null;
     this.stage = null;
-    this.entity = null;
     this.sceneIndex = 0;
     this.signature = null;
     this.playbackActive = false;
@@ -171,21 +146,19 @@ export class ScenePlaylistRuntime {
     this.showMenu();
     this.layers = null;
     this.stage = null;
-    this.entity = null;
     this.signature = null;
   }
 
-  render(value, { menuLayer, contentLayer, fxLayer, entity = null, autoplay = true } = {}) {
+  render(value, { menuLayer, contentLayer, fxLayer, autoplay = true } = {}) {
     const nextPlaylist = normaliseScenePlaylist(value);
     const nextLayers = { menuLayer, contentLayer, fxLayer };
-    const nextSignature = playbackSignature(nextPlaylist, entity);
+    const nextSignature = playbackSignature(nextPlaylist);
     const sameLayers = this.layers?.menuLayer === menuLayer
       && this.layers?.contentLayer === contentLayer
       && this.layers?.fxLayer === fxLayer;
 
     if (autoplay && this.playbackActive && sameLayers && this.signature === nextSignature) {
       this.playlist = nextPlaylist;
-      this.entity = entity;
       return this.playlist;
     }
 
@@ -195,7 +168,6 @@ export class ScenePlaylistRuntime {
     this.playlist = nextPlaylist;
     this.layers = nextLayers;
     this.stage = commonStage(menuLayer, contentLayer, fxLayer);
-    this.entity = entity;
     this.sceneIndex = 0;
     this.signature = nextSignature;
     this.showMenu();
@@ -264,7 +236,7 @@ export class ScenePlaylistRuntime {
       const { menuLayer, contentLayer, fxLayer } = this.layers || {};
       if (!(contentLayer instanceof Element) || !(fxLayer instanceof Element)) throw new Error('Scene Playlist layers are unavailable.');
       const fxHost = ensurePlaylistFxHost(fxLayer);
-      contentLayer.replaceChildren(buildSceneContent(scene, this.entity));
+      contentLayer.replaceChildren(buildSceneContent(scene));
       fxHost.replaceChildren(buildSceneFx(scene));
       contentLayer.dataset.scenePlaylistMode = scene.mode;
       fxHost.dataset.scenePlaylistMode = scene.mode;

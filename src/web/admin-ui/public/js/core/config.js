@@ -10,7 +10,6 @@ export const API = Object.freeze({
   siteSettings: '/api/settings/site',
   animationSettings: '/api/settings/animation',
   animationApply: '/api/settings/animation/apply',
-  animationEntityAsset: '/api/settings/animation/entity-asset',
   notifications: '/api/notifications',
   frontendErrors: '/api/diagnostics/frontend-errors',
   locations: '/api/locations',
@@ -23,6 +22,9 @@ export const API = Object.freeze({
   productsImportPreview: '/api/catalog/products/import/preview',
   productsExport: '/api/catalog/products/export.csv',
   packaging: '/api/catalog/packaging',
+  managers: '/api/admin/managers',
+  managerBase: '/api/manager',
+  managerOverview: '/api/manager/overview',
 });
 
 export function pageName() {

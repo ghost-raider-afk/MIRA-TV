@@ -31,10 +31,10 @@ function collectMenuNodes(stage) {
     order: index, count: rows.length, depth: 0, transformOwner: 'surface', metadata: { surfaceOnly: true }
   }));
 
-  const promotions = [...stage.querySelectorAll('g.promotion-badge')];
-  promotions.forEach((target, index) => append(nodes, {
-    id: `menu.promotion.${index}`, kind: 'promotion', layer: MOTION_LAYERS.MENU, target,
-    order: index, count: promotions.length, depth: 2, transformOwner: 'promotion-badge'
+  const badgeGlows = [...stage.querySelectorAll('g.promotion-badge-glow')];
+  badgeGlows.forEach((target, index) => append(nodes, {
+    id: `menu.promotion-badge-glow.${index}`, kind: 'promotion-badge-glow', layer: MOTION_LAYERS.MENU, target,
+    order: index, count: badgeGlows.length, depth: 2, transformOwner: 'promotion-overlay'
   }));
 
   const glows = [...stage.querySelectorAll('g.promotion-row-glow')];

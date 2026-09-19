@@ -24,16 +24,16 @@ test('Unified TV scene runtime is event-driven and pauses hidden motion plus vid
   assert.match(source, /mira:player-active/);
   assert.match(source, /visibilitychange/);
   assert.match(source, /this\.runtime\.pause\(\)/);
-  assert.match(source, /this\.entityMedia\.pause\(\)/);
+  assert.doesNotMatch(source, /entityMedia|data-motion-entity-layer/);
   assert.match(source, /activityControlled/);
   assert.doesNotMatch(source, /setInterval|MutationObserver/, 'Scene runtime must stay event-driven');
 });
 
-test('Player owner publishes visibility while unified motion and CSS animations suspend invisible pixels', async () => {
-  const [player, motion, css] = await Promise.all([
+test('Player activity suspends menu motion and generic scene video without legacy CSS owners', async () => {
+  const [player, motion, elements] = await Promise.all([
     read('js/player/player.js'),
     read('js/motion/scene-motion-runtime.js'),
-    read('css/motion-overlays.css')
+    read('js/player/scene-element-renderer.js')
   ]);
   assert.match(player, /playerStage\.dataset\.playerActive/);
   assert.match(player, /playerStage\.dataset\.playerPageVisible/);
@@ -44,8 +44,8 @@ test('Player owner publishes visibility while unified motion and CSS animations 
   assert.match(motion, /mira:scene-playlist-mode/);
   assert.match(motion, /visibilitychange/);
   assert.match(motion, /this\.runtime\.pause\(\)/);
-  assert.match(css, /data-player-active="false"/);
-  assert.match(css, /data-player-page-visible="false"/);
-  assert.match(css, /data-scene-playlist-fullscreen="true"/);
-  assert.match(css, /animation-play-state:paused!important/);
+  assert.match(elements, /mira:player-active/);
+  assert.match(elements, /visibilitychange/);
+  assert.match(elements, /video\.pause\(\)/);
+  assert.doesNotMatch(elements, /MutationObserver|setInterval/);
 });

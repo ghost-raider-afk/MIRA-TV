@@ -1,13 +1,11 @@
 import express from 'express';
 import { siteSettingsInput, userPreferencesInput } from '../../contracts/input.js';
 import { animationSettingsInput, animationTargetScreenIds } from '../../contracts/animation.js';
-import { weatherWidgetInput } from '../../contracts/weather.js';
 import { ValidationError } from '../../shared/errors.js';
 import { activity, notFound } from '../helpers.js';
 import { hashPassword, passwordChangeInput, verifyPassword } from '../../services/password-service.js';
 import { issueSession, sessionCookie, themeCookie } from '../../services/session-service.js';
 import { replaceSiteImage, siteSettingsResponse } from '../../services/site-assets-service.js';
-import { replaceEntityAssetStream } from '../../services/entity-assets-service.js';
 
 async function animationInputPreservingPlaylist(store, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return animationSettingsInput(body);
@@ -66,24 +64,17 @@ export function createSettingsRouter({ store, config, realtime }) {
     const result = await store.transaction(async (tx) => {
       const input = await animationInputPreservingPlaylist(tx, request.body?.settings);
       const settings = await tx.updateAnimationSettings({ ...input, updated_by: request.session.sub });
-      const sourceWeather = Object.hasOwn(request.body || {}, 'weather') ? request.body.weather : await tx.getWeatherSettings();
-      const weatherInput = weatherWidgetInput(sourceWeather);
-      const weather = Object.hasOwn(request.body || {}, 'weather')
-        ? await tx.updateWeatherSettings(weatherInput, request.session.sub)
-        : weatherInput;
-
       const appliedScreenIds = await tx.applyAnimationSettingsToScreens(screenIds, settings, request.session.sub);
-      const weatherScreenIds = await tx.applyWeatherSettingsToScreens(screenIds, weather, request.session.sub);
-      if (appliedScreenIds.length !== screenIds.length || weatherScreenIds.length !== screenIds.length) {
+      if (appliedScreenIds.length !== screenIds.length) {
         throw new ValidationError('Один или несколько выбранных мониторов больше не существуют. Обновите список и повторите применение.');
       }
       const revisions = await tx.markScreenRenderChanged(
         appliedScreenIds,
-        ['animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather'],
+        ['animation', 'scene_playlist'],
         'animation.applied',
         request.session.sub
       );
-      return { settings, weather, applied_screen_ids: appliedScreenIds, revisions };
+      return { settings, applied_screen_ids: appliedScreenIds, revisions };
     });
     await activity(store, request, {
       action: 'settings.animation.applied',
@@ -94,14 +85,9 @@ export function createSettingsRouter({ store, config, realtime }) {
     notifyRevisions(realtime, result.revisions);
     response.json({
       settings: result.settings,
-      weather: result.weather,
       applied_screen_ids: result.applied_screen_ids,
       applied_screens: result.revisions.map((item) => ({ screen_id: item.screen_id, revision: item.revision }))
     });
-  });
-  router.put('/animation/entity-asset', async (request, response) => {
-    const settings = await replaceEntityAssetStream({ stream: request, contentLength: request.get('content-length'), contentType: request.get('content-type'), config, store, username: request.session.sub });
-    await activity(store, request, { action: 'settings.animation.entity_asset_updated', entity_type: 'animation_settings', entity_id: settings.id, message: 'Обновлён медиафайл Entity.' }); response.json(settings);
   });
   router.put('/site/logo', express.raw({ type: '*/*', limit: config.siteLogoMaxBytes }), async (request, response) => {
     const settings = await replaceSiteImage({ kind: 'logo', bytes: request.body, config, store, username: request.session.sub });

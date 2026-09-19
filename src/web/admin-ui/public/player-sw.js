@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v20';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v21';
-const SHELL_CACHE = 'mira-tv-player-shell-v22';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v23';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v25';
+const SHELL_CACHE = 'mira-tv-player-shell-v26';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: v1.10.2 Player version sync, canonical weather layer and scene visibility. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: stable promotion halo, compositor-safe motion filters and authored-motion parity. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
@@ -14,10 +14,10 @@ const SHELL_ASSETS = [
   '/fonts/DejaVuSerif-Bold.ttf',
   '/css/player.css',
   '/css/weather-widget.css',
-  '/css/motion-overlays.css',
-  '/css/brand-motion-v2.css',
   '/css/scene-playlist.css',
   '/js/player/player.js',
+  '/js/player/player-scene-renderer.js',
+  '/js/player/scene-element-renderer.js',
   '/js/player/player-store.js',
   '/js/player/player-realtime-client.js',
   '/js/player/player-state-sync.js',
@@ -28,11 +28,6 @@ const SHELL_ASSETS = [
   '/js/editor/renderer-model.js',
   '/js/editor/renderer-svg.js',
   '/js/motion/weather-widget.js',
-  '/js/motion/entity-editor.js',
-  '/js/motion/entity-behavior.js',
-  '/js/motion/announcement.js',
-  '/js/motion/brand-title.js',
-  '/js/motion/environment.js',
   '/js/motion/scene-playlist-runtime.js',
   '/js/motion/scene-motion-runtime.js',
   '/js/motion/scene-visibility.js',
@@ -162,7 +157,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(cachedShell(event.request));
     return;
   }
-  if (/^\/site-assets\/entities\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
+  if (/^\/site-assets\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
     event.respondWith(videoRequest(event.request));
     return;
   }

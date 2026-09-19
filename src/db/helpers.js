@@ -36,7 +36,8 @@ export function normaliseMenuRecord(row) {
   return {
     ...record,
     rows: jsonValue(record.rows_json, []),
-    settings: jsonValue(record.settings_json, {})
+    settings: jsonValue(record.settings_json, {}),
+    scene: jsonValue(record.scene_json, { version: 1, elements: [] })
   };
 }
 

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
+import { menuSettingsInput } from '../contracts/menu-settings.js';
 
-export const PLAYER_STATE_SCHEMA_VERSION = 2;
+export const PLAYER_STATE_SCHEMA_VERSION = 4;
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('base64url');
@@ -46,11 +47,10 @@ export function playerRuntimeHash(config, renderRevision = 1) {
 }
 
 export async function buildPlayerState(store, session, config, { renderRevision = null } = {}) {
-  const [screen, draft, animationSettings, weather] = await Promise.all([
+  const [screen, draft, animationSettings] = await Promise.all([
     store.getScreen(session.screen_id),
     store.getScreenDraft(session.screen_id),
-    store.getScreenAnimationSettings(session.screen_id),
-    store.getScreenWeatherSettings(session.screen_id)
+    store.getScreenAnimationSettings(session.screen_id)
   ]);
   if (!screen || screen.active === false) return null;
 
@@ -63,16 +63,18 @@ export async function buildPlayerState(store, session, config, { renderRevision 
     store.listPackagingByIds(packagingIds)
   ]);
 
+  const canonicalMenuSettings = menuSettingsInput(draft.settings || {}, {
+    allowBackgroundImage: true,
+    maxWidth: config.screenMaxWidth,
+    maxHeight: config.screenMaxHeight
+  });
+
   const components = {
     screen: screenComponent(screen),
-    menu: { draft: { rows: draft.rows || [], settings: draft.settings || {}, revision: draft.revision }, products, packaging },
+    menu: { draft: { rows: draft.rows || [], settings: canonicalMenuSettings }, products, packaging },
+    scene: draft.scene || { version: 1, elements: [] },
     animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
-    environment: animationSettings?.environment || null,
     scene_playlist: animationSettings?.scene_playlist || null,
-    entity: animationSettings?.entity || null,
-    brand: animationSettings?.brand || null,
-    announcement: animationSettings?.announcement || null,
-    weather: weather || null,
     runtime: playerRuntimeComponent(config, currentRenderRevision || 1)
   };
 
@@ -92,13 +94,9 @@ export function fullPlayerContext(state) {
     draft: components.menu.draft,
     products: components.menu.products,
     packaging: components.menu.packaging,
+    scene: components.scene,
     animation: components.animation,
-    environment: components.environment,
     scene_playlist: components.scene_playlist,
-    entity: components.entity,
-    brand: components.brand,
-    announcement: components.announcement,
-    weather: components.weather,
     ...components.runtime
   };
 }

@@ -34,6 +34,17 @@
               </div>
               <div class="system-summary" aria-label="Системные параметры"><div><span>Срок сессии</span><strong id="site-session-ttl">—</strong></div></div>
             </section>
+            <section class="settings-card" aria-labelledby="managers-title">
+              <div class="card-heading"><div><p class="eyebrow">ДОСТУП</p><h2 id="managers-title">Менеджеры</h2><p>Менеджер входит через обычную страницу авторизации и получает только просмотр опубликованных мониторов.</p></div></div>
+              <form id="manager-create-form" class="manager-admin-form">
+                <label class="field"><span>Логин</span><input id="manager-create-username" type="text" minlength="3" maxlength="64" autocomplete="off" required /></label>
+                <label class="field"><span>Пароль</span><input id="manager-create-password" type="password" autocomplete="new-password" required /></label>
+                <button class="button button-primary" id="manager-create-submit" type="submit">Добавить менеджера</button>
+              </form>
+              <p class="form-message is-hidden" id="manager-settings-message" role="status" aria-live="polite"></p>
+              <div class="manager-admin-list" id="manager-admin-list"></div>
+              <p class="empty-state is-hidden" id="manager-admin-empty">Менеджеров пока нет.</p>
+            </section>
           </div>
         </main>
       </div>

@@ -18,11 +18,12 @@ function cachedRecord(key) {
 }
 
 export class PlayerWeatherRuntime {
-  constructor(stage, { layer = null } = {}) {
+  constructor(stage, { layer = null, endpoint = '/api/device/weather' } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Weather runtime requires an HTMLElement stage.');
     this.stage = stage;
     this.layer = layer instanceof HTMLElement ? layer : stage.querySelector('[data-weather-layer]');
     this.settings = normaliseWeatherWidget();
+    this.endpoint = String(endpoint || '/api/device/weather');
     this.snapshot = null;
     this.timer = null;
     this.generation = 0;
@@ -50,9 +51,17 @@ export class PlayerWeatherRuntime {
     window.addEventListener('offline', this.handleOffline);
   }
 
+  setLayer(layer) {
+    const next = layer instanceof HTMLElement ? layer : null;
+    if (next === this.layer) return;
+    this.layer?.replaceChildren();
+    this.layer = next;
+    if (this.layer) this.render();
+  }
+
   ensureLayer() {
     if (this.layer?.isConnected) return this.layer;
-    const layer = this.stage.querySelector('[data-weather-layer]');
+    const layer = this.stage.querySelector('[data-weather-layer], [data-scene-weather-mount]');
     if (layer instanceof HTMLElement) {
       this.layer = layer;
       return layer;
@@ -142,7 +151,7 @@ export class PlayerWeatherRuntime {
     if (this.destroyed || !this.active || !this.visible || !navigator.onLine || !this.settings.enabled) return;
     const currentGeneration = ++this.generation;
     try {
-      const response = await fetch('/api/device/weather', { cache: 'no-store', credentials: 'same-origin' });
+      const response = await fetch(this.endpoint, { cache: 'no-store', credentials: 'same-origin' });
       if (response.status === 204) {
         this.snapshot = null;
         this.render();
@@ -154,8 +163,9 @@ export class PlayerWeatherRuntime {
       if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
       const body = await response.json();
       if (currentGeneration !== this.generation || this.destroyed) return;
-      this.switchScreen(body?.settings?.screen_id);
-      this.settings = normaliseWeatherWidget(body?.settings ?? this.settings);
+      const responseScreenId = validScreenId(body?.settings?.screen_id);
+      if (responseScreenId) this.switchScreen(responseScreenId);
+      // SceneElement is the only configuration owner. The weather endpoint supplies data, not UI settings.
       this.snapshot = body?.snapshot || this.snapshot;
       this.render();
       this.saveCachedWeather();

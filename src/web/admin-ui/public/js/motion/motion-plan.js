@@ -78,14 +78,13 @@ export function compilePromotionMotionProgram(scene, context = {}) {
   const effect = context.menuEnabled === false || profile.promotion_visible === false ? 'none' : (profile.promotion_effect || 'cinematic');
   const gain = clamp(Number(profile.promotion_intensity) || 0, 0, 100) / 100;
   const activeFraction = clamp((Number(profile.promotion_event_duration_ms) || 1800) / duration, 0.18, 0.72);
-  const requestedScale = Math.max(0, Number(profile.promotion_scale_amount) || 0.06);
-  const scaleAmount = gain === 0 ? 0 : clamp(requestedScale * gain * 0.44, 0.01, 0.06);
   const tracks = effect === 'none' ? [] : scene.nodes.flatMap((node) => {
-    if (node.kind === 'promotion') return [Object.freeze({
+    if (node.kind === 'promotion-badge-glow') return [Object.freeze({
       node,
-      claims: Object.freeze(['transform', 'appearance']),
+      claims: Object.freeze(['opacity', 'appearance']),
       procedural: Object.freeze({
-        kind: 'promo-badge', activeFraction, scaleAmount,
+        kind: 'promo-badge-glow', activeFraction,
+        opacity: gain === 0 ? 0 : clamp(0.24 + gain * 0.46, 0.24, 0.70),
         brightnessAmount: clamp((Number(profile.promotion_brightness_amount) || 0.3) * gain, 0, 0.34),
         glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 30)
       }),

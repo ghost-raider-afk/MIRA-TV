@@ -45,12 +45,13 @@ test('preview aspect ratio is driven by monitor resolution and table has one can
 });
 
 test('preview and TV rendering share one canonical SVG model without a delivery-image renderer', async () => {
-  const [facade, model, svg, preview, player] = await Promise.all([
+  const [facade, model, svg, preview, player, sceneRenderer] = await Promise.all([
     source('src/web/admin-ui/public/js/editor/renderer.js'),
     source('src/web/admin-ui/public/js/editor/renderer-model.js'),
     source('src/web/admin-ui/public/js/editor/renderer-svg.js'),
     source('src/web/admin-ui/public/js/editor/preview.js'),
-    source('src/web/admin-ui/public/js/player/player.js')
+    source('src/web/admin-ui/public/js/player/player.js'),
+    source('src/web/admin-ui/public/js/player/player-scene-renderer.js')
   ]);
   assert.match(facade, /from '\.\/renderer-model\.js'/);
   assert.match(facade, /buildTableSvg.*from '\.\/renderer-svg\.js'/s);
@@ -58,7 +59,8 @@ test('preview and TV rendering share one canonical SVG model without a delivery-
   assert.match(svg, /export function buildTableSvg/);
   assert.equal((svg.match(/export function buildTableSvg/g) || []).length, 1);
   assert.match(preview, /buildTableSvg\(model, lines, layout\)/);
-  assert.match(player, /buildTableSvg/);
+  assert.match(player, /PlayerSceneRenderer/);
+  assert.match(sceneRenderer, /buildTableSvg/);
 });
 
 test('site accent derives contrast colors instead of reusing arbitrary accent as text', async () => {

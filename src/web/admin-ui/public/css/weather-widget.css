@@ -483,10 +483,6 @@
   animation-play-state: paused !important;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .weather-widget-layer * { animation: none !important; }
-}
-
 .weather-settings-card { display: grid; gap: 12px; }
 .weather-location-search { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
 .weather-location-results { display: grid; gap: 5px; }
@@ -520,3 +516,5 @@
   .weather-actions,
   .weather-position-coordinates { grid-template-columns: 1fr; }
 }
+
+.weather-widget-layer[data-weather-embedded="true"]{position:absolute;inset:0;overflow:hidden}.weather-widget-layer[data-weather-embedded="true"] .weather-widget{left:0!important;top:0!important;width:100%!important;height:100%;padding:clamp(8px,2.2cqw,18px);transform:none!important;transform-origin:top left}.weather-widget-layer[data-weather-embedded="true"] .weather-widget-content{width:100%;height:100%}.weather-widget-layer[data-weather-embedded="true"] .weather-atmosphere{inset:0}

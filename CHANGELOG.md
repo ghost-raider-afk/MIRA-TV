@@ -1,5 +1,62 @@
 # История изменений
 
+## 1.11.0 — 19 сентября 2026
+
+Архитектурный релиз единой сцены MIRA-TV: специализированные визуальные владельцы удалены, редактор монитора, Preview, TV Player и Manager работают через общий `scene.elements[]` и общий renderer.
+
+### Единые элементы сцены
+
+- введён единственный канонический владелец визуальных элементов — `scene.elements[]`;
+- доступны ровно пять типов: «Текстовое поле», «Погода», «Картинка», «Видео» и «Логотип»;
+- Aquarium удалён из активной архитектуры без переноса в новый тип;
+- Brand, Entity, Announcement, Environment и отдельный Weather больше не имеют собственного runtime/storage ownership;
+- старые Brand и Announcement мигрируются в текстовые элементы, Entity — в image/video, Weather — в weather element;
+- медиа элементов загружаются независимо в `/site-assets/scene/` с проверкой PNG/JPEG/WebP/MP4/WebM.
+
+### Редактор монитора
+
+- добавлен список «Элемент 1», «Элемент 2» и далее с выбором типа каждого элемента;
+- текстовое поле получило шрифт, размер, насыщенность, цвет, курсив, трекинг, интерлиньяж, масштаб X/Y, смещение базовой линии, регистр, выравнивание, перенос строк, обводку, тень и свечение;
+- общая геометрия элементов задаётся в канонических координатах 1920×1080 с управлением слоем, прозрачностью и поворотом;
+- погода настраивается внутри обычного элемента сцены;
+- строки меню редактируются непосредственно поверх Preview;
+- названия разделов изменяются в Preview, продукция выбирается из общей базы выпадающим списком;
+- добавлена стабильная сортировка продукции А→Я внутри каждого раздела.
+
+### Preview, TV Player и Manager
+
+- Preview, реальный TV Player и Manager используют общий `PlayerSceneRenderer` и keyed `SceneElementRenderer`;
+- DOM элементов привязан к `element.id`, поэтому неизменённые media/video nodes не пересоздаются;
+- Player State переведён на schema v4 с компонентами `screen / menu / scene / animation / scene_playlist / runtime`;
+- scene-only обновления не перестраивают меню;
+- Player menu hash строится по каноническим настройкам отображения и не зависит от служебной editor revision;
+- Weather runtime получает с API только погодные данные, а конфигурация остаётся собственностью weather element;
+- offline Player shell обновлён до v26, а внутренние MP4/WebM обслуживаются общим безопасным video-cache path.
+
+### Playlist Studio
+
+- Playlist Studio отвечает только за движение меню/акции и Scene Playlist;
+- удалены старый object manager и Entity-зависимый Object Story;
+- Scene Playlist использует те же canonical Player layers `menu / fx / content / scene`;
+- применение Playlist изменяет только `animation` и `scene_playlist`;
+- исправлены desktop/compact layout, fullscreen lifecycle и route disposal.
+
+### База данных и миграции
+
+- migration 022 переносит поддерживаемые legacy-визуальные данные в generic scene elements;
+- migration 023 удаляет `entity_json`, `announcement_json`, `brand_json`, `environment_json`, `aquarium_json` и отдельные weather tables;
+- новые мониторы больше не создают и не читают retired visual columns;
+- историческая совместимость обновления старой установки сохранена без возврата legacy runtime.
+
+### Проверки
+
+- добавлены E2E для создания, форматирования, media upload, сохранения и повторной загрузки generic scene elements;
+- проверяется realtime admin → Player delta с сохранением keyed DOM и без перестройки неизменённого меню;
+- проверяется parity Weather Preview ↔ Player;
+- проверяется сохранение media node при menu-only delta;
+- проверяются Playlist lifecycle и desktop/compact layout;
+- перед релизом полностью прошли `node-check`, `compose-check` и `browser-visual`.
+
 ## 1.10.2 — 19 сентября 2026
 
 Срочное исправление синхронизации Player, геометрии Weather Preview, desktop-компоновки Playlist Studio и видимости операторской анимации меню/акции.

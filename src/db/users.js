@@ -43,6 +43,54 @@ export function createUsersRepository(pool) {
       return rows.map(normaliseRow);
     },
 
+    async listManagers() {
+      const { rows } = await pool.query(
+        `SELECT username, role, active, session_version, password_changed_at, created_at, updated_at
+         FROM web_users WHERE role = 'manager' ORDER BY username`
+      );
+      return rows.map(normaliseRow);
+    },
+
+    async createManager({ username, passwordHash }) {
+      const now = isoNow();
+      const { rows } = await pool.query(
+        `INSERT INTO web_users (username, password_hash, role, active, session_version, password_changed_at, created_at, updated_at)
+         VALUES ($1, $2, 'manager', TRUE, 1, $3, $3, $3)
+         RETURNING username, role, active, session_version, password_changed_at, created_at, updated_at`,
+        [username, passwordHash, now]
+      );
+      await getUserPreferences(username);
+      return normaliseRow(rows[0]);
+    },
+
+    async setManagerActive(username, active) {
+      const { rows } = await pool.query(
+        `UPDATE web_users SET active = $1, session_version = session_version + 1, updated_at = $2
+         WHERE username = $3 AND role = 'manager'
+         RETURNING username, role, active, session_version, password_changed_at, created_at, updated_at`,
+        [active === true, isoNow(), username]
+      );
+      return normaliseRow(rows[0]);
+    },
+
+    async updateManagerPassword(username, passwordHash) {
+      const now = isoNow();
+      const { rows } = await pool.query(
+        `UPDATE web_users SET password_hash = $1, session_version = session_version + 1,
+         password_changed_at = $2, updated_at = $2 WHERE username = $3 AND role = 'manager'
+         RETURNING username, role, active, session_version, password_changed_at, created_at, updated_at`,
+        [passwordHash, now, username]
+      );
+      return normaliseRow(rows[0]);
+    },
+
+    async deleteManager(username) {
+      const result = await pool.query("DELETE FROM web_users WHERE username = $1 AND role = 'manager'", [username]);
+      if (!result.rowCount) return false;
+      await pool.query('DELETE FROM user_preferences WHERE username = $1', [username]);
+      return true;
+    },
+
     async updateUserPassword(username, passwordHash) {
       const { rows } = await pool.query(
         `UPDATE web_users SET password_hash = $1, session_version = session_version + 1,

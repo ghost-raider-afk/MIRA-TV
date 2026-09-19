@@ -1,12 +1,8 @@
 const LAYERS = Object.freeze([
-  Object.freeze({ id: 'environment', className: 'tv-player-environment-layer', attribute: 'data-player-environment-layer' }),
   Object.freeze({ id: 'menu', className: 'tv-player-menu-layer', attribute: 'data-player-menu-layer' }),
   Object.freeze({ id: 'fx', className: 'tv-player-fx-layer', attribute: 'data-player-fx-layer' }),
   Object.freeze({ id: 'content', className: 'tv-player-content-layer', attribute: 'data-player-content-layer' }),
-  Object.freeze({ id: 'entity', className: 'tv-player-entity-layer', attribute: 'data-motion-entity-layer' }),
-  Object.freeze({ id: 'weather', className: 'tv-player-weather-layer', attribute: 'data-weather-layer' }),
-  Object.freeze({ id: 'brand', className: 'tv-player-brand-layer', attribute: 'data-brand-layer' }),
-  Object.freeze({ id: 'announcement', className: 'tv-player-announcement-layer', attribute: 'data-announcement-layer' })
+  Object.freeze({ id: 'scene', className: 'tv-player-scene-elements-layer', attribute: 'data-scene-elements-layer' })
 ]);
 
 const LAYER_BY_ID = new Map(LAYERS.map((layer, index) => [layer.id, Object.freeze({ ...layer, index })]));
@@ -78,14 +74,10 @@ export class PlayerSceneLayerComposer {
 
   ensureCore() {
     return Object.freeze({
-      environment: this.ensure('environment', { ariaLabel: 'Фоновая сцена' }),
       menu: this.ensure('menu', { ariaHidden: true }),
       fx: this.ensure('fx', { ariaHidden: true }),
       content: this.ensure('content', { ariaHidden: true }),
-      entity: this.ensure('entity', { ariaHidden: true }),
-      weather: this.ensure('weather', { ariaLabel: 'Погода' }),
-      brand: this.ensure('brand', { ariaLabel: 'Название бренда' }),
-      announcement: this.ensure('announcement', { ariaLabel: 'Объявление' })
+      scene: this.ensure('scene', { ariaHidden: true })
     });
   }
 }

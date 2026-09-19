@@ -44,8 +44,24 @@ export class WasmMotionDriver {
     if (!(track?.node?.target instanceof Element)) throw new TypeError('WASM motion track requires a DOM target.');
     const handle = { driver: 'mira-wasm', kind: 'track', state: 'idle', track };
     this.procedural.add(handle);
-    track.node.target.style.transformBox = 'fill-box';
-    track.node.target.style.transformOrigin = 'center';
+    const target = track.node.target;
+    if (track.claims?.includes('transform')) {
+      target.style.transformBox = 'fill-box';
+      target.style.transformOrigin = 'center';
+    }
+    const spec = track.procedural;
+    if (spec.kind === 'promo-badge-glow') {
+      const brightness = 1 + number(spec.brightnessAmount, 0.16);
+      const radius = number(spec.glowRadius, 16);
+      target.style.filter = radius > 0
+        ? `brightness(${brightness.toFixed(3)}) drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})`
+        : `brightness(${brightness.toFixed(3)})`;
+    } else if (spec.kind === 'promo-glow') {
+      const radius = number(spec.glowRadius, 18);
+      target.style.filter = radius > 0 ? `drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})` : 'none';
+    } else if (spec.kind === 'row') {
+      target.style.filter = spec.pattern === 'spark' ? `drop-shadow(0 0 10px ${ROW_GLOW})` : 'none';
+    }
     return handle;
   }
 
@@ -169,29 +185,15 @@ export class WasmMotionDriver {
           target.style.transform = 'none';
         }
         target.style.opacity = opacity.toFixed(4);
-        target.style.filter = pattern === 'spark' && opacity > 0.002
-          ? `brightness(${(1.08 + energy * 0.32).toFixed(3)}) drop-shadow(0 0 ${(3 + energy * 10).toFixed(2)}px ${ROW_GLOW})`
-          : `brightness(${(1 + energy * 0.22).toFixed(3)})`;
         return;
       }
       target.style.transform = `translate3d(${x.toFixed(3)}px, ${y.toFixed(3)}px, 0) scale(${scale.toFixed(5)})`;
-      target.style.filter = `brightness(${brightness.toFixed(4)})`;
       return;
     }
     const active = number(spec.activeFraction, 0.4);
-    if (spec.kind === 'promo-badge') {
-      const scale = this.kernel._mira_promo_scale(phase, active, number(spec.scaleAmount, 0.04));
-      const glow = this.kernel._mira_promo_glow(phase, active);
-      target.style.transform = `scale(${scale.toFixed(5)})`;
-      target.style.filter = glow > 0.001 ? `brightness(${(1 + glow * number(spec.brightnessAmount, 0.16)).toFixed(4)}) drop-shadow(0 0 ${(glow * number(spec.glowRadius, 16)).toFixed(2)}px ${RED_GLOW})` : 'brightness(1)';
-      return;
-    }
-    if (spec.kind === 'promo-glow') {
+    if (spec.kind === 'promo-badge-glow' || spec.kind === 'promo-glow') {
       const glow = this.kernel._mira_promo_glow(phase, active);
       target.style.opacity = (glow * number(spec.opacity, 0.6)).toFixed(4);
-      target.style.filter = glow > 0.001 && number(spec.glowRadius) > 0
-        ? `drop-shadow(0 0 ${(glow * number(spec.glowRadius, 18)).toFixed(2)}px ${RED_GLOW})`
-        : 'none';
     }
   }
 }

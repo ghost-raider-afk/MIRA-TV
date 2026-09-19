@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV — Просмотр</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="manager">
+    <main class="manager-view">
+      <header class="manager-header">
+        <div class="manager-brand"><strong data-manager-app-name>MIRA-TV</strong><span>Контроль опубликованных экранов</span></div>
+        <div class="manager-header-actions"><span data-manager-user></span><button class="button button-secondary" id="manager-refresh" type="button">Обновить</button><button class="button button-secondary" id="manager-logout" type="button">Выйти</button></div>
+      </header>
+      <section class="manager-content" aria-labelledby="manager-title">
+        <div class="manager-heading"><div><p class="eyebrow">РЕЖИМ ПРОСМОТРА</p><h1 id="manager-title">Торговые точки и телевизоры</h1></div><p>Только опубликованные экраны. Изменение настроек недоступно.</p></div>
+        <p class="form-message is-hidden" id="manager-message" role="status" aria-live="polite"></p>
+        <div class="manager-locations" id="manager-locations" aria-live="polite"></div>
+        <p class="empty-state is-hidden" id="manager-empty">Нет опубликованных мониторов.</p>
+      </section>
+    </main>
+    <div class="manager-fullscreen is-hidden" id="manager-fullscreen" role="dialog" aria-modal="true" aria-label="Полноэкранный просмотр телевизора">
+      <div class="manager-fullscreen-stage" id="manager-fullscreen-stage" data-player-stage></div>
+      <div class="manager-fullscreen-bar"><div><strong id="manager-fullscreen-title"></strong><span id="manager-fullscreen-subtitle"></span></div><button class="manager-fullscreen-close" id="manager-fullscreen-close" type="button" aria-label="Закрыть полноэкранный просмотр">×</button></div>
+    </div>
+  </body>
+</html>

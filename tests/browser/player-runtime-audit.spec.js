@@ -22,67 +22,54 @@ function contextSnapshot() {
     { id: 'pack-1', kind: 'packaging', packaging_id: 1, enabled: true },
     { id: 'pack-2', kind: 'packaging', packaging_id: 2, enabled: true }
   ];
-  const hashes = Object.fromEntries(['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather', 'runtime'].map((name) => [name, `${name}-runtime-audit-012345678901234567890123456789`]));
+  const hashes = Object.fromEntries(['screen','menu','scene','animation','scene_playlist','runtime'].map((name) => [name, `${name}-runtime-audit-012345678901234567890123456789`]));
   return {
-    schema_version: 2,
-    revision: 'runtime-audit-v1',
+    schema_version: 4,
+    revision: '4:1',
+    render_revision: 1,
     hashes,
     screen: { id: 77, name: 'TV Runtime Audit', resolution: '1920x1080', status: 'active', location_id: 7, location_name: 'Тестовая точка', location_number: 1 },
     draft: {
       revision: 1,
       settings: {
-        background_color: '#101828',
-        accent_color: '#F4C915',
-        text_color: '#F8FAFC',
-        font_family: 'arial-narrow',
-        font_scale_percent: 100,
-        table_x: 56,
-        table_y: 15,
-        table_width_px: 1374,
-        table_height_px: 925
+        background_color: '#101828', accent_color: '#F4C915', text_color: '#F8FAFC',
+        font_family: 'arial-narrow', font_scale_percent: 100,
+        table_x: 56, table_y: 15, table_width_px: 1374, table_height_px: 925
       },
       rows
     },
     products,
     packaging,
+    scene: {
+      version: 1,
+      elements: [
+        {
+          id:'runtime-title', type:'text', enabled:true,
+          x:1480, y:60, width:340, height:150, z_index:5, opacity:1, rotation_deg:0,
+          text:{
+            runs:[{value:'MIRA TAPROOM',font_family:'system-sans',font_size_px:58,font_weight:800,color:'#FFFFFF'}],
+            paragraph:{align:'center',vertical_align:'center',wrap:true},
+            effects:{fill:{enabled:true,mode:'solid',color:'#FFFFFF',opacity:1},glow:{enabled:true,blur_px:12,spread_px:0,color:'#35D9FF',opacity:.65}}
+          }
+        },
+        {
+          id:'runtime-weather', type:'weather', enabled:true,
+          x:80, y:80, width:420, height:340, z_index:6, opacity:.96, rotation_deg:0,
+          weather:{
+            mode:'current-and-forecast',location_name:'Хельсинки',latitude:60.1699,longitude:24.9384,timezone:'Europe/Helsinki',
+            refresh_minutes:15,show_location:true,show_condition:true,show_feels_like:true,show_humidity:true,show_wind:true,
+            show_forecast:true,forecast_items:3,animation_enabled:true,animation_speed:1,animation_intensity:1,widget_motion_enabled:true
+          }
+        }
+      ]
+    },
     animation: { enabled: false, profile: null },
-    entity: null,
-    announcement: null,
-    brand: {
-      enabled: true,
-      text: 'MIRA\nTAPROOM',
-      x: 1650,
-      y: 120,
-      font_family: 'inter',
-      font_size: 58,
-      vertical_scale: 1,
-      line_spacing: -14,
-      letter_spacing: 2,
-      text_color: '#FFFFFF',
-      glow_color: '#35D9FF',
-      glow_strength: 12,
-      entrance_effect: 'none',
-      loop_effect: 'float',
-      exit_effect: 'none',
-      entrance_duration_ms: 900,
-      exit_duration_ms: 550,
-      letter_stagger_ms: 0,
-      amplitude_px: 8,
-      overshoot: 0,
-      cycle_seconds: 5.5,
-      effect: 'none'
-    },
-    environment: {
-      enabled: true,
-      effect: 'aquarium',
-      parameters: { style: 'premium', intro_fill: false, intensity: 45, fish_count: 4, bubble_density: 12, plant_density: 8, caustics: 12, speed: 35 }
-    },
-    scene_playlist: { enabled: false, menu_duration_seconds: 40, scenes: [] },
-    weather: weatherResponse().settings,
-    fallback_poll_interval_ms: 60000,
-    log_batch_size: 100,
-    log_local_max_entries: 5000,
-    log_local_max_bytes: 10 * MiB
+    scene_playlist: { enabled: false, animation_enabled:true, menu_duration_seconds: 40, scenes: [] },
+    app_version:'1.10.2',
+    fallback_poll_interval_ms:60000,
+    log_batch_size:100,
+    log_local_max_entries:5000,
+    log_local_max_bytes:10 * MiB
   };
 }
 
@@ -177,7 +164,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
       deltaRequests += 1;
       const body = deltaRequests === 1
         ? { full_snapshot_required: true, context: snapshot }
-        : { schema_version: 2, revision: snapshot.revision, hashes: snapshot.hashes, changed: {}, unchanged: true };
+        : { schema_version: 4, revision: snapshot.revision, hashes: snapshot.hashes, changed: {}, unchanged: true };
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
     await page.route('**/api/device/weather', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(weather) }));
@@ -187,33 +174,29 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
     await page.goto('/player', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
     await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg')).toHaveCount(1);
-    const brandLocator = page.locator('[data-brand-layer] .scene-brand-title');
-    await expect(brandLocator).toBeVisible();
-    await expect(page.locator('[data-player-environment-layer] .aquarium-fish')).toHaveCount(4);
-    await expect(page.locator('[data-weather-layer] .weather-widget')).toBeVisible();
+    const titleLocator = page.locator('[data-scene-element-id="runtime-title"]');
+    await expect(titleLocator.locator('[data-scene-text] span')).toHaveText('MIRA TAPROOM');
+    const weatherLocator = page.locator('[data-scene-element-id="runtime-weather"]');
+    await expect(weatherLocator.locator('.weather-widget')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
 
-    const brandGeometry = await brandLocator.evaluate((node) => {
+    const elementGeometry = await titleLocator.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       return {
         position: getComputedStyle(node).position,
         left: rect.left,
         top: rect.top,
         right: rect.right,
-        bottom: rect.bottom,
-        centerX: rect.left + rect.width / 2,
-        centerY: rect.top + rect.height / 2
+        bottom: rect.bottom
       };
     });
-    expect(brandGeometry.position).toBe('absolute');
-    expect(Math.abs(brandGeometry.centerX - snapshot.brand.x)).toBeLessThan(2);
-    expect(Math.abs(brandGeometry.centerY - snapshot.brand.y)).toBeLessThan(2);
-    expect(brandGeometry.left).toBeGreaterThanOrEqual(0);
-    expect(brandGeometry.top).toBeGreaterThanOrEqual(0);
-    expect(brandGeometry.right).toBeLessThanOrEqual(1920);
-    expect(brandGeometry.bottom).toBeLessThanOrEqual(1080);
+    expect(elementGeometry.position).toBe('absolute');
+    expect(elementGeometry.left).toBeGreaterThanOrEqual(0);
+    expect(elementGeometry.top).toBeGreaterThanOrEqual(0);
+    expect(elementGeometry.right).toBeLessThanOrEqual(1920);
+    expect(elementGeometry.bottom).toBeLessThanOrEqual(1080);
 
-    const weatherStyle = await page.locator('[data-weather-layer] .weather-widget').evaluate((node) => {
+    const weatherStyle = await weatherLocator.locator('.weather-widget').evaluate((node) => {
       const style = getComputedStyle(node);
       return { backgroundColor: style.backgroundColor, backgroundImage: style.backgroundImage, borderTopWidth: style.borderTopWidth, boxShadow: style.boxShadow };
     });
@@ -269,7 +252,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
 
     console.log(`MIRA_PLAYER_RESOURCE_AUDIT ${JSON.stringify(audit)}`);
     await testInfo.attach('tv-player-runtime-1920x1080', { body: await page.screenshot({ type: 'png' }), contentType: 'image/png' });
-    await testInfo.attach('tv-player-runtime-metrics', { body: Buffer.from(JSON.stringify({ audit, brandGeometry, resources: resources.rows }, null, 2)), contentType: 'application/json' });
+    await testInfo.attach('tv-player-runtime-metrics', { body: Buffer.from(JSON.stringify({ audit, elementGeometry, resources: resources.rows }, null, 2)), contentType: 'application/json' });
 
     expect(errors).toEqual([]);
     expect(audit.domNodes).toBeLessThan(2200);

@@ -219,7 +219,7 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
     : [{ id: 'render-base-section', kind: 'section', name: fallbackTitle, enabled: true, renderIndex: -1 }];
 
   if (sourceRows[0]?.kind !== 'section') {
-    lines.push(Object.freeze({ kind: 'section', name: fallbackTitle, showPriceLabels: true, virtual: true }));
+    lines.push(Object.freeze({ kind: 'section', name: fallbackTitle, showPriceLabels: true, virtual: true, sourceRowId: null }));
     firstSectionSeen = true;
   }
 
@@ -229,7 +229,8 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         kind: 'section',
         name: row.name || fallbackTitle,
         showPriceLabels: !firstSectionSeen,
-        virtual: row.renderIndex === -1
+        virtual: row.renderIndex === -1,
+        sourceRowId: row.id || null
       }));
       firstSectionSeen = true;
       toneIndex = 0;
@@ -242,6 +243,7 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
       toneIndex += 1;
       lines.push(Object.freeze({
         kind: 'item',
+        sourceRowId: row.id || null,
         tone,
         name: product?.name || row.name || 'Продукция не выбрана',
         metadata: formatProductMetadata(product),
@@ -256,6 +258,7 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
     if (row.kind === 'packaging') {
       const item = recordById(packaging, row.packaging_id ?? row.packagingId);
       const entry = Object.freeze({
+        sourceRowId: row.id || null,
         name: item?.name || row.name || 'Тара не выбрана',
         unitPrice: item?.unit_price || row.unit_price || row.unitPrice || '',
         tone: toneIndex % 2 === 0 ? 'light' : 'accent'
@@ -263,9 +266,17 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
       toneIndex += 1;
       const previous = lines.at(-1);
       if (previous?.kind === 'packaging' && previous.items.length < 2) {
-        lines[lines.length - 1] = Object.freeze({ ...previous, items: Object.freeze([...previous.items, entry]) });
+        lines[lines.length - 1] = Object.freeze({
+          ...previous,
+          sourceRowIds: Object.freeze([...previous.sourceRowIds, row.id || null]),
+          items: Object.freeze([...previous.items, entry])
+        });
       } else {
-        lines.push(Object.freeze({ kind: 'packaging', items: Object.freeze([entry]) }));
+        lines.push(Object.freeze({
+          kind: 'packaging',
+          sourceRowIds: Object.freeze([row.id || null]),
+          items: Object.freeze([entry])
+        }));
       }
     }
   }

@@ -1,6 +1,6 @@
 import { ValidationError } from '../shared/errors.js';
 
-export const SCENE_TYPES = Object.freeze(['promo', 'content', 'object-story']);
+export const SCENE_TYPES = Object.freeze(['promo', 'content']);
 export const SCENE_MODES = Object.freeze(['overlay', 'split', 'fullscreen']);
 export const MAX_PLAYLIST_SCENES = 20;
 
@@ -32,7 +32,9 @@ function sceneText(value, max) {
 
 export function completeScenePlaylist(value = {}) {
   const source = sourceObject(value);
-  const scenes = Array.isArray(source.scenes) ? source.scenes.slice(0, MAX_PLAYLIST_SCENES) : [];
+  const scenes = Array.isArray(source.scenes)
+    ? source.scenes.filter((item) => sourceObject(item).type !== 'object-story').slice(0, MAX_PLAYLIST_SCENES)
+    : [];
   return {
     enabled: source.enabled === true && scenes.length > 0,
     animation_enabled: source.animation_enabled !== false,
@@ -81,7 +83,7 @@ export function scenePlaylistInput(value) {
   const ids = playlist.scenes.map((scene) => scene.id);
   if (new Set(ids).size !== ids.length) throw new ValidationError('Scene Playlist содержит повторяющиеся идентификаторы сцен.');
   for (const scene of playlist.scenes) {
-    if (scene.enabled && !scene.title && !scene.body && scene.type !== 'object-story') {
+    if (scene.enabled && !scene.title && !scene.body) {
       throw new ValidationError('У включённой PromoScene/ContentScene должен быть заголовок или текст.');
     }
   }

@@ -2,6 +2,7 @@ import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
+import { createSceneAssetStream } from '../../services/scene-assets-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 function settingsOptions(config) {
@@ -15,26 +16,49 @@ function notifyRevisions(realtime, revisions) {
 async function cloneScreen(tx, sourceId, targetLocationId, config, updatedBy) {
   const source = await tx.getScreen(sourceId);
   if (!source) throw notFound();
-  const [draft, sourceAnimation, sourceWeather] = await Promise.all([
-    tx.getScreenDraft(source.id), tx.getScreenAnimationSettings(source.id), tx.getScreenWeatherSettings(source.id)
+  const [draft, sourceAnimation] = await Promise.all([
+    tx.getScreenDraft(source.id), tx.getScreenAnimationSettings(source.id)
   ]);
   const created = await tx.createScreen({ location_id: targetLocationId, resolution: source.resolution, status: 'draft', active: source.active !== false });
   const saved = await tx.saveScreenDraft(created.id, {
     rows: structuredClone(draft.rows || []),
-    settings: menuSettingsInput(draft.settings || {}, settingsOptions(config))
+    settings: menuSettingsInput(draft.settings || {}, settingsOptions(config)),
+    scene: structuredClone(draft.scene || { version: 1, elements: [] })
   }, 1);
   if (!saved) throw conflict('Не удалось создать независимую копию монитора.');
   if (sourceAnimation) {
     const applied = await tx.applyAnimationSettingsToScreens([created.id], sourceAnimation, updatedBy);
     if (applied.length !== 1) throw conflict('Не удалось создать независимую копию плейлиста монитора.');
   }
-  if (sourceWeather) await tx.applyWeatherSettingsToScreens([created.id], sourceWeather, updatedBy);
-  await tx.markScreenRenderChanged([created.id], ['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather'], 'screen.cloned', updatedBy);
+  await tx.markScreenRenderChanged([created.id], ['screen', 'menu', 'scene', 'animation', 'scene_playlist'], 'screen.cloned', updatedBy);
   return tx.getScreen(created.id);
 }
 
 function draftRevisionHeader(request) {
   return positiveId(request.get('x-draft-revision'), 'x-draft-revision');
+}
+
+function sameJson(left, right) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function screenRenderState(screen) {
+  return {
+    location_id: Number(screen?.location_id),
+    name: String(screen?.name || ''),
+    resolution: String(screen?.resolution || ''),
+    status: String(screen?.status || ''),
+    active: screen?.active !== false
+  };
+}
+
+function changedDraftComponents(currentScreen, currentDraft, nextScreen, nextDraft) {
+  const changed = [];
+  if (!sameJson(screenRenderState(currentScreen), screenRenderState(nextScreen))) changed.push('screen');
+  if (!sameJson(currentDraft?.rows || [], nextDraft?.rows || [])
+      || !sameJson(currentDraft?.settings || {}, nextDraft?.settings || {})) changed.push('menu');
+  if (!sameJson(currentDraft?.scene || { version: 1, elements: [] }, nextDraft?.scene || { version: 1, elements: [] })) changed.push('scene');
+  return changed;
 }
 
 export function createScreensRouter({ store, config, realtime }) {
@@ -59,6 +83,25 @@ export function createScreensRouter({ store, config, realtime }) {
     response.json({ screen, draft, products, packaging });
   });
 
+  router.put('/screens/:id/scene-asset', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const screen = await store.getScreen(id);
+    if (!screen) throw notFound();
+    const asset = await createSceneAssetStream({
+      stream: request,
+      contentLength: request.get('content-length'),
+      contentType: request.get('content-type'),
+      config
+    });
+    await activity(store, request, {
+      action: 'screen.scene_asset.uploaded',
+      entity_type: 'screen',
+      entity_id: id,
+      message: `Загружен медиафайл элемента для монитора «${screen.name}».`
+    });
+    response.status(201).json(asset);
+  });
+
   router.put('/screens/:id/draft', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     const expectedRevision = positiveId(request.body?.revision, 'revision');
@@ -66,7 +109,8 @@ export function createScreensRouter({ store, config, realtime }) {
       if (!await tx.lockScreen(id)) throw notFound();
       const current = await tx.getScreen(id);
       if (!current) throw notFound();
-      const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes);
+      const currentDraft = await tx.getScreenDraft(id);
+      const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
       let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: current.status, active: current.active };
       if (request.body?.screen && typeof request.body.screen === 'object' && !Array.isArray(request.body.screen)) {
@@ -78,7 +122,10 @@ export function createScreensRouter({ store, config, realtime }) {
       if (!updatedScreen) throw notFound();
       const saved = await tx.saveScreenDraft(id, draft, expectedRevision);
       if (!saved) throw conflict('Меню уже было изменено в другом окне. Обновите редактор и повторите изменения.', { expected_revision: expectedRevision });
-      const revisions = await tx.markScreenRenderChanged([id], ['screen', 'menu'], 'screen.state.saved', request.session.sub);
+      const changedComponents = changedDraftComponents(current, currentDraft, updatedScreen, saved);
+      const revisions = changedComponents.length
+        ? await tx.markScreenRenderChanged([id], changedComponents, 'screen.state.saved', request.session.sub)
+        : [];
       return { screen: await tx.getScreen(id), draft: saved, revisions };
     });
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
@@ -99,7 +146,7 @@ export function createScreensRouter({ store, config, realtime }) {
         const draft = await tx.getScreenDraft(id);
         previousUrl = draft.settings?.background_image_url || '';
         const settings = menuSettingsInput({ ...draft.settings, background_image_url: asset.publicUrl }, settingsOptions(config));
-        const saved = await tx.saveScreenDraft(id, { rows: draft.rows || [], settings }, expectedRevision);
+        const saved = await tx.saveScreenDraft(id, { rows: draft.rows || [], settings, scene: draft.scene || { version: 1, elements: [] } }, expectedRevision);
         if (!saved) throw conflict('Состояние уже изменено в другом окне. Обновите редактор.');
         const revisions = await tx.markScreenRenderChanged([id], ['menu'], 'screen.background.updated', request.session.sub);
         return { screen: await tx.getScreen(id), draft: saved, revisions };
@@ -125,7 +172,7 @@ export function createScreensRouter({ store, config, realtime }) {
       const draft = await tx.getScreenDraft(id);
       previousUrl = draft.settings?.background_image_url || '';
       const settings = menuSettingsInput({ ...draft.settings, background_image_url: '' }, settingsOptions(config));
-      const saved = await tx.saveScreenDraft(id, { rows: draft.rows || [], settings }, expectedRevision);
+      const saved = await tx.saveScreenDraft(id, { rows: draft.rows || [], settings, scene: draft.scene || { version: 1, elements: [] } }, expectedRevision);
       if (!saved) throw conflict('Состояние уже изменено в другом окне. Обновите редактор.');
       const revisions = await tx.markScreenRenderChanged([id], ['menu'], 'screen.background.removed', request.session.sub);
       return { screen: await tx.getScreen(id), draft: saved, revisions };

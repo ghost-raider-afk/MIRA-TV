@@ -1,38 +1,11 @@
-import {
-  buildDisplayLines,
-  buildRenderLayout,
-  buildRenderModel,
-  buildTableSvg
-} from '../editor/renderer.js';
-import { renderSceneEntity } from '../motion/entity-editor.js';
-import { renderAnnouncementLayer } from '../motion/announcement.js';
-import { renderBrandTitleLayer } from '../motion/brand-title.js';
-import { renderEnvironmentLayer } from '../motion/environment.js';
-import { ScenePlaylistRuntime } from '../motion/scene-playlist-runtime.js';
-import { applySceneVisibility } from '../motion/scene-visibility.js';
-import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js';
-import { SceneMotionRuntime } from '../motion/scene-motion-runtime.js';
-import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
 import { createPlayerStateSync } from './player-state-sync.js';
-import { PlayerWeatherRuntime } from './weather-bootstrap.js';
+import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.10.2';
+const PLAYER_BUILD_VERSION = '1.11.0';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
-const ALL_PLAYER_COMPONENTS = Object.freeze([
-  'screen',
-  'menu',
-  'animation',
-  'environment',
-  'scene_playlist',
-  'entity',
-  'weather',
-  'brand',
-  'announcement',
-  'runtime'
-]);
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
 const pairing = document.querySelector('[data-activation-pairing]');
@@ -44,11 +17,7 @@ const activationLead = document.querySelector('.activation-lead');
 const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
-const sceneLayers = new PlayerSceneLayerComposer(playerStage);
-const flatMenuRenderer = new FlatMenuRenderer();
-const sceneMotionRuntime = new SceneMotionRuntime(playerStage, { activityControlled: true });
-const scenePlaylistRuntime = new ScenePlaylistRuntime();
-const weatherRuntime = new PlayerWeatherRuntime(playerStage, { layer: sceneLayers.ensure('weather', { ariaLabel: 'Погода' }) });
+const playerSceneRenderer = new PlayerSceneRenderer(playerStage);
 
 let pollTimer = null;
 let expiryTimer = null;
@@ -204,9 +173,7 @@ async function enterImmersiveMode() {
 
 function showActivationScreen() {
   playerStateSync?.stop();
-  scenePlaylistRuntime.destroy();
-  sceneMotionRuntime.reset();
-  flatMenuRenderer.destroy();
+  playerSceneRenderer.reset();
   setHidden(player, true);
   dispatchPlayerActivity(false);
   setHidden(activationView, false);
@@ -387,115 +354,6 @@ async function createActivation({ automatic = false } = {}) {
   }
 }
 
-function resolutionOf(screen) {
-  const match = String(screen?.resolution || '').match(/(\d+)\D+(\d+)/);
-  return { width: Number(match?.[1]) || 1920, height: Number(match?.[2]) || 1080 };
-}
-
-function sameOriginAsset(value) {
-  const text = String(value || '').trim();
-  if (!text) return '';
-  try {
-    const url = new URL(text, window.location.origin);
-    return url.origin === window.location.origin ? url.href : '';
-  } catch {
-    return '';
-  }
-}
-
-async function renderPlayerContext(context, changedNames = ALL_PLAYER_COMPONENTS) {
-  const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
-  const {
-    environment: environmentLayer,
-    menu: menuLayer,
-    fx: fxLayer,
-    content: contentLayer,
-    entity: entityLayer,
-    weather: weatherLayer,
-    brand: brandLayer,
-    announcement: announcementLayer
-  } = sceneLayers.ensureCore();
-
-  const menuDirty = dirty.has('menu') || dirty.has('screen');
-  const motionDirty = menuDirty || dirty.has('animation') || dirty.has('entity');
-  const playlistDirty = dirty.has('scene_playlist') || dirty.has('entity') || dirty.has('screen');
-  let viewport = null;
-  let model = null;
-  let renderMode = null;
-
-  if (menuDirty || motionDirty) {
-    viewport = resolutionOf(context.screen);
-    model = buildRenderModel(context.draft, viewport);
-    renderMode = playerMenuRenderMode(context);
-  }
-
-  if (menuDirty) {
-    const lines = buildDisplayLines(model, {
-      products: context.products || [],
-      packaging: context.packaging || [],
-      fallbackTitle: context.screen?.name || 'Меню'
-    });
-    const layout = buildRenderLayout(model, lines);
-    const menuSvg = buildTableSvg(model, lines, layout);
-    menuLayer.dataset.renderMode = renderMode;
-    try {
-      await flatMenuRenderer.render(menuLayer, menuSvg, viewport);
-    } catch (error) {
-      console.error('Flat MIRA-TV render failed; using static DOM fallback', error);
-      flatMenuRenderer.destroy();
-      menuLayer.innerHTML = menuSvg;
-      menuLayer.dataset.renderMode = 'dom-fallback';
-      sceneMotionRuntime.reset();
-    }
-
-    playerStage.style.backgroundColor = model.settings.background_color || '#101828';
-    const background = sameOriginAsset(model.settings.background_image_url);
-    playerStage.style.backgroundImage = background ? `url(${JSON.stringify(background)})` : 'none';
-  } else if (dirty.has('animation')) {
-    menuLayer.dataset.renderMode = renderMode;
-  }
-
-  if (menuDirty || dirty.has('animation')) applySceneVisibility(playerStage, context.animation?.profile);
-
-  if (dirty.has('environment')) {
-    renderEnvironmentLayer(environmentLayer, context.environment, { allowIntro: true });
-  }
-  if (dirty.has('entity')) {
-    renderSceneEntity(playerStage, context.entity, { editable: false });
-    playerStage.dispatchEvent(new CustomEvent('mira:entity-rendered'));
-  }
-  if (dirty.has('brand')) {
-    renderBrandTitleLayer(brandLayer, context.brand);
-  }
-  if (dirty.has('announcement')) {
-    renderAnnouncementLayer(announcementLayer, context.announcement);
-  }
-  if (dirty.has('weather') || dirty.has('screen') || menuDirty) {
-    weatherRuntime.applyContext(context.weather, context.screen?.id, {
-      configurationChanged: dirty.has('weather') || dirty.has('screen'),
-      menuChanged: menuDirty
-    });
-    weatherLayer.setAttribute('aria-hidden', context.weather?.enabled === true ? 'false' : 'true');
-  }
-  if (motionDirty) {
-    sceneMotionRuntime.render({
-      menuEnabled: renderMode === 'flat-motion',
-      profile: context.animation?.profile,
-      entity: context.entity
-    });
-  }
-  if (playlistDirty) {
-    scenePlaylistRuntime.render(context.scene_playlist, {
-      menuLayer,
-      contentLayer,
-      fxLayer,
-      entity: context.entity,
-      autoplay: true
-    });
-  }
-  entityLayer.setAttribute('aria-hidden', 'true');
-}
-
 function showConnectionMessage(message) {
   if (!message) {
     setHidden(playerMessage, true);
@@ -508,7 +366,7 @@ function showConnectionMessage(message) {
 
 async function applySyncedContext(context, changedNames, { source } = {}) {
   clearPairingTimers();
-  await renderPlayerContext(context, changedNames);
+  await playerSceneRenderer.render(context, changedNames);
   reconcilePlayerBuild(context, changedNames, source);
   setHidden(activationView, true);
   setHidden(player, false);

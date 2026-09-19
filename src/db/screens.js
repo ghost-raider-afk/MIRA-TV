@@ -1,7 +1,7 @@
 import { isoNow, jsonValue, normaliseMenuRecord, normaliseRow } from './helpers.js';
 
 function normaliseDraft(row, screenId) {
-  const record = normaliseMenuRecord(row) || { screen_id: screenId, rows: [], settings: {}, revision: 0 };
+  const record = normaliseMenuRecord(row) || { screen_id: screenId, rows: [], settings: {}, scene: { version: 1, elements: [] }, revision: 0 };
   return { ...record, revision: Number(record.revision || 0) };
 }
 
@@ -46,13 +46,13 @@ export function createScreensRepository(pool) {
         [location_id, locationNumber, resolvedName, resolution, status, active, now]
       );
       const id = Number(rows[0].id);
-      await pool.query('INSERT INTO screen_drafts (screen_id, rows_json, settings_json, revision, updated_at) VALUES ($1,$2,$3,1,$4)', [id,'[]','{}',now]);
-      const { rows: animationRows } = await pool.query('SELECT enabled, preset_id, profile_json, entity_json, announcement_json, brand_json, environment_json, scene_playlist_json, updated_by FROM animation_settings WHERE id = 1');
+      await pool.query('INSERT INTO screen_drafts (screen_id, rows_json, settings_json, scene_json, revision, updated_at) VALUES ($1,$2,$3,$4,1,$5)', [id,'[]','{}',JSON.stringify({ version: 1, elements: [] }),now]);
+      const { rows: animationRows } = await pool.query('SELECT enabled, preset_id, profile_json, scene_playlist_json, updated_by FROM animation_settings WHERE id = 1');
       const animation = animationRows[0];
       if (animation) await pool.query(
-        `INSERT INTO screen_animation_settings (screen_id, enabled, preset_id, profile_json, entity_json, announcement_json, brand_json, environment_json, scene_playlist_json, updated_by, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (screen_id) DO NOTHING`,
-        [id, animation.enabled === true, animation.preset_id || 'cinematic-live-menu', animation.profile_json || '{}', animation.entity_json || '{}', animation.announcement_json || '{}', animation.brand_json || '{}', animation.environment_json || '{}', animation.scene_playlist_json || '{}', animation.updated_by || '', now]
+        `INSERT INTO screen_animation_settings (screen_id, enabled, preset_id, profile_json, scene_playlist_json, updated_by, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (screen_id) DO NOTHING`,
+        [id, animation.enabled === true, animation.preset_id || 'cinematic-live-menu', animation.profile_json || '{}', animation.scene_playlist_json || '{}', animation.updated_by || '', now]
       );
       return getScreen(id);
     },
@@ -80,25 +80,24 @@ export function createScreensRepository(pool) {
       const { rows } = await pool.query('SELECT * FROM screen_drafts WHERE screen_id = $1', [screenId]);
       return normaliseDraft(rows[0], screenId);
     },
-    async saveScreenDraft(screenId, { rows, settings }, expectedRevision) {
+    async saveScreenDraft(screenId, { rows, settings, scene = { version: 1, elements: [] } }, expectedRevision) {
       const now = isoNow();
       let saved;
       if (Number.isInteger(expectedRevision) && expectedRevision > 0) {
         const result = await pool.query(
-          'UPDATE screen_drafts SET rows_json=$1, settings_json=$2, revision=revision+1, updated_at=$3 WHERE screen_id=$4 AND revision=$5 RETURNING *',
-          [JSON.stringify(rows), JSON.stringify(settings), now, screenId, expectedRevision]
+          'UPDATE screen_drafts SET rows_json=$1, settings_json=$2, scene_json=$3, revision=revision+1, updated_at=$4 WHERE screen_id=$5 AND revision=$6 RETURNING *',
+          [JSON.stringify(rows), JSON.stringify(settings), JSON.stringify(scene), now, screenId, expectedRevision]
         );
         saved = result.rows[0];
         if (!saved) return null;
       } else {
         const result = await pool.query(
-          `INSERT INTO screen_drafts (screen_id, rows_json, settings_json, revision, updated_at) VALUES ($1,$2,$3,1,$4)
-           ON CONFLICT (screen_id) DO UPDATE SET rows_json=EXCLUDED.rows_json, settings_json=EXCLUDED.settings_json, revision=screen_drafts.revision+1, updated_at=EXCLUDED.updated_at RETURNING *`,
-          [screenId, JSON.stringify(rows), JSON.stringify(settings), now]
+          `INSERT INTO screen_drafts (screen_id, rows_json, settings_json, scene_json, revision, updated_at) VALUES ($1,$2,$3,$4,1,$5)
+           ON CONFLICT (screen_id) DO UPDATE SET rows_json=EXCLUDED.rows_json, settings_json=EXCLUDED.settings_json, scene_json=EXCLUDED.scene_json, revision=screen_drafts.revision+1, updated_at=EXCLUDED.updated_at RETURNING *`,
+          [screenId, JSON.stringify(rows), JSON.stringify(settings), JSON.stringify(scene), now]
         );
         saved = result.rows[0];
       }
-      await pool.query("UPDATE screens SET status='draft', updated_at=$1 WHERE id=$2", [now, screenId]);
       return normaliseDraft(saved, screenId);
     },
     async isScreenBackgroundReferenced(url) {

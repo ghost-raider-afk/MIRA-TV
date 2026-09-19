@@ -1,17 +1,14 @@
 import { ScenePlaylistRuntime, normaliseScenePlaylist } from './scene-playlist-runtime.js';
 
 const MAX_SCENES = 20;
-const TYPE_LABELS = Object.freeze({ promo: 'PromoScene', content: 'ContentScene', 'object-story': 'Object Story' });
-const TYPE_SHORT = Object.freeze({ promo: 'PROMO', content: 'CONTENT', 'object-story': 'OBJECT' });
+const TYPE_LABELS = Object.freeze({ promo: 'PromoScene', content: 'ContentScene' });
+const TYPE_SHORT = Object.freeze({ promo: 'PROMO', content: 'CONTENT' });
 const MODE_LABELS = Object.freeze({ overlay: 'Overlay', split: 'Split', fullscreen: 'Fullscreen' });
 
 function sceneSeed(type, index) {
   const sequence = index + 1;
   if (type === 'content') {
     return { id: `content-${sequence}`, type, enabled: true, mode: 'overlay', duration_seconds: 10, title: 'Информация', body: 'Добавьте текст ContentScene.' };
-  }
-  if (type === 'object-story') {
-    return { id: `object-story-${sequence}`, type, enabled: true, mode: 'split', duration_seconds: 10, title: 'История объекта', body: 'Используется текущий Entity выбранного плейлиста.' };
   }
   return { id: `promo-${sequence}`, type: 'promo', enabled: true, mode: 'overlay', duration_seconds: 8, title: 'Специальное предложение', body: 'Добавьте текст PromoScene.' };
 }
@@ -44,9 +41,8 @@ function field(label, control, className = '') {
 }
 
 export class ScenePlaylistEditor {
-  constructor({ stage, getEntity = () => null } = {}) {
+  constructor({ stage } = {}) {
     this.stage = stage;
-    this.getEntity = getEntity;
     this.runtime = new ScenePlaylistRuntime();
     this.playlist = normaliseScenePlaylist();
     this.root = null;
@@ -83,7 +79,6 @@ export class ScenePlaylistEditor {
     this.menuDurationOutput = null;
     this.summary = null;
     this.stage = null;
-    this.getEntity = () => null;
   }
 
   mount(container) {
@@ -131,7 +126,7 @@ export class ScenePlaylistEditor {
     global.append(enabledLabel, animationLabel, field('MenuScene между временными сценами', durationWrap));
 
     const add = root.querySelector('.playlist-scene-add');
-    for (const type of ['promo', 'content', 'object-story']) {
+    for (const type of ['promo', 'content']) {
       const control = button(`+ ${TYPE_LABELS[type]}`);
       control.dataset.addScene = type;
       control.addEventListener('click', () => this.addScene(type));
@@ -424,9 +419,9 @@ export class ScenePlaylistEditor {
 
   previewLayers() {
     if (this.disposed || !(this.stage instanceof Element)) return null;
-    const menuLayer = this.stage.querySelector('[data-scene-menu-layer]');
-    const contentLayer = this.stage.querySelector('[data-scene-content-layer]');
-    const fxLayer = this.stage.querySelector('[data-scene-fx-layer]');
+    const menuLayer = this.stage.querySelector('[data-player-menu-layer]');
+    const contentLayer = this.stage.querySelector('[data-player-content-layer]');
+    const fxLayer = this.stage.querySelector('[data-player-fx-layer]');
     if (!(menuLayer instanceof HTMLElement) || !(contentLayer instanceof HTMLElement) || !(fxLayer instanceof HTMLElement)) return null;
     return { menuLayer, contentLayer, fxLayer };
   }
@@ -434,7 +429,7 @@ export class ScenePlaylistEditor {
   rebindPreview({ autoplay = true } = {}) {
     const layers = this.previewLayers();
     if (!layers) return;
-    this.runtime.render(this.playlist, { ...layers, entity: this.getEntity(), autoplay });
+    this.runtime.render(this.playlist, { ...layers, autoplay });
   }
 
   previewScene(index) {

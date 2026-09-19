@@ -2,22 +2,26 @@ import { test, expect } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
 
-const COMPONENTS = ['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'runtime'];
+const COMPONENTS = ['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'];
 
 function hashes(suffix = 'a') {
   return Object.fromEntries(COMPONENTS.map((name) => [name, `${name}-${suffix}-012345678901234567890123456789`]));
 }
 
-function playerContext({ revision = 'revision-a', hashSuffix = 'a', entity = null, fallbackMs = 60_000 } = {}) {
+function playerContext({ revision = 'revision-a', hashSuffix = 'a', scene = { version: 1, elements: [] }, fallbackMs = 60_000 } = {}) {
   const stateHashes = hashes(hashSuffix);
   return {
-    schema_version: 2,
+    schema_version: 4,
     revision,
+    render_revision: 1,
     hashes: stateHashes,
     screen: { id: 17, name: 'Экран 1', resolution: '1920x1080', status: 'active', location_id: 3, location_name: 'Точка 1', location_number: 1 },
     draft: { rows: [], settings: { background_color: '#101828' }, revision: 1 },
     products: [], packaging: [],
-    animation: { enabled: false, profile: null }, environment: null, scene_playlist: null, entity, brand: null, announcement: null, weather: null,
+    scene,
+    animation: { enabled: false, profile: null },
+    scene_playlist: { enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: [] },
+    app_version: '1.10.2',
     fallback_poll_interval_ms: fallbackMs, log_batch_size: 100, log_local_max_entries: 5000, log_local_max_bytes: 10 * 1024 * 1024
   };
 }
@@ -90,7 +94,7 @@ test('failed WebSocket reconnects never starve the rare REST fallback', async ({
   let deltaRequests = 0;
   await page.route('**/api/device/player-delta', async (route) => {
     deltaRequests += 1;
-    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 2, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
+    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 4, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/player');
@@ -105,7 +109,7 @@ test('unchanged delta leaves the already rendered vector menu untouched', async 
   let deltaRequests = 0;
   await page.route('**/api/device/player-delta', async (route) => {
     deltaRequests += 1;
-    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 2, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
+    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 4, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/player');
@@ -116,33 +120,36 @@ test('unchanged delta leaves the already rendered vector menu untouched', async 
   await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg[data-identity-probe="same-vector"]')).toHaveCount(1);
 });
 
-test('menu-only delta does not recreate an unchanged Entity media node', async ({ page }) => {
+test('menu-only delta does not recreate an unchanged generic scene media node', async ({ page }) => {
   await installFailingWebSocket(page, { accelerateTimers: true });
   await mockAuthorizedSession(page);
-  const entity = {
-    version: 2, id: 'test-entity', name: 'Тестовый объект', asset_url: '/site-assets/entities/test.png', asset_type: 'image', media_type: 'image/png', width: 1, height: 1, visible: true,
-    transform: { x: 1500, y: 300, width: 240, scale: 1, rotation: 0, depth: 10, opacity: 1 }
+  const scene = {
+    version: 1,
+    elements: [{
+      id: 'stable-media', type: 'image', enabled: true,
+      x: 1500, y: 300, width: 240, height: 180, z_index: 10, opacity: 1, rotation_deg: 0,
+      media: { source_url: '/site-assets/scene/test.png', fit: 'contain', position_x_percent: 50, position_y_percent: 50 }
+    }]
   };
-  const first = playerContext({ revision: 'revision-a', hashSuffix: 'a', entity, fallbackMs: 60_000 });
+  const first = playerContext({ revision: 'revision-a', hashSuffix: 'a', scene, fallbackMs: 60_000 });
   const secondHashes = { ...first.hashes, menu: 'menu-b-012345678901234567890123456789' };
   let deltaRequests = 0;
-  await page.route('**/site-assets/entities/test.png', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') }));
+  await page.route('**/site-assets/scene/test.png', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') }));
   await page.route('**/api/device/player-delta', async (route) => {
     deltaRequests += 1;
     const body = deltaRequests === 1 ? { full_snapshot_required: true, context: first } : {
-      schema_version: 2, revision: 'revision-b', hashes: secondHashes,
+      schema_version: 4, revision: 'revision-b', render_revision: 2, hashes: secondHashes,
       changed: { menu: { draft: { rows: [], settings: { background_color: '#111827' }, revision: 2 }, products: [], packaging: [] } }, unchanged: false
     };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/player');
-  const entityMedia = page.locator('[data-motion-entity-layer] .animation-scene-entity-media');
-  await expect(entityMedia).toHaveCount(1);
-  await entityMedia.evaluate((node) => { node.dataset.identityProbe = 'same-entity'; });
+  const media = page.locator('[data-scene-element-id="stable-media"] img');
+  await expect(media).toHaveCount(1);
+  await media.evaluate((node) => { node.dataset.identityProbe = 'same-media'; });
   await expect.poll(() => deltaRequests, { timeout: 4000 }).toBeGreaterThanOrEqual(2);
-  await expect(page.locator('[data-motion-entity-layer] .animation-scene-entity-media[data-identity-probe="same-entity"]')).toHaveCount(1);
+  await expect(page.locator('[data-scene-element-id="stable-media"] img[data-identity-probe="same-media"]')).toHaveCount(1);
 });
-
 test('failed critical background never replaces the previous Last Known Good state', async ({ page }) => {
   const previous = playerContext({ revision: 'revision-lkg', hashSuffix: 'lkg' });
   previous.draft.settings.background_color = '#123456';

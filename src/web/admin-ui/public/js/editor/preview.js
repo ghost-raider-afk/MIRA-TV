@@ -1,5 +1,8 @@
 import { buildDisplayLines, buildRenderLayout, buildRenderModel, buildTableSvg } from './renderer.js';
 import { parseResolution } from './settings.js';
+import { SceneElementRenderer } from '../player/scene-element-renderer.js';
+
+const previewLayers = new WeakMap();
 
 function textNode(tag, className, text) {
   const node = document.createElement(tag);
@@ -16,10 +19,54 @@ function applyPreviewTypography(target, layout) {
   svg.dataset.fontKey = layout.typography.key;
 }
 
+function destroyPreviewLayers(target) {
+  const current = previewLayers.get(target);
+  if (!current) return;
+  current.sceneRenderer.destroy();
+  previewLayers.delete(target);
+}
+
+function ensurePreviewLayers(target) {
+  const existing = previewLayers.get(target);
+  if (existing && existing.menuLayer.parentElement === target && existing.sceneLayer.parentElement === target) return existing;
+
+  destroyPreviewLayers(target);
+  target.replaceChildren();
+  target.style.position = 'relative';
+  target.style.overflow = 'hidden';
+
+  const menuLayer = document.createElement('div');
+  menuLayer.dataset.editorPreviewMenuLayer = '';
+  menuLayer.setAttribute('aria-hidden', 'true');
+  menuLayer.style.position = 'absolute';
+  menuLayer.style.inset = '0';
+  menuLayer.style.zIndex = '0';
+
+  const sceneLayer = document.createElement('div');
+  sceneLayer.className = 'editor-preview-scene-elements-layer';
+  sceneLayer.setAttribute('data-scene-elements-layer', '');
+  sceneLayer.style.zIndex = '10';
+
+  const editorLayer = document.createElement('div');
+  editorLayer.className = 'editor-preview-controls-layer';
+  editorLayer.dataset.editorPreviewControlsLayer = '';
+  editorLayer.setAttribute('aria-label', 'Редактирование строк меню');
+  editorLayer.style.position = 'absolute';
+  editorLayer.style.inset = '0';
+  editorLayer.style.zIndex = '40';
+  editorLayer.style.pointerEvents = 'none';
+
+  target.append(menuLayer, sceneLayer, editorLayer);
+  const current = { menuLayer, sceneLayer, editorLayer, sceneRenderer: new SceneElementRenderer(sceneLayer, { weatherPreview: true }) };
+  previewLayers.set(target, current);
+  return current;
+}
+
 export function renderPreview(editorState, { screen, products, packaging, target }) {
   if (!target) return null;
   const resolution = parseResolution(screen?.resolution);
   if (!resolution) {
+    destroyPreviewLayers(target);
     target.classList.add('is-invalid-resolution');
     target.classList.remove('is-overflowing');
     target.style.aspectRatio = '16 / 9';
@@ -32,9 +79,10 @@ export function renderPreview(editorState, { screen, products, packaging, target
   const lines = buildDisplayLines(model, { products, packaging, fallbackTitle: 'Новый раздел' });
   const layout = buildRenderLayout(model, lines);
   const { palette } = layout;
+  const { menuLayer, editorLayer, sceneRenderer } = ensurePreviewLayers(target);
 
   target.style.backgroundColor = palette.background;
-  target.style.backgroundImage = model.settings.background_image_url ? `url("${model.settings.background_image_url}")` : '';
+  target.style.backgroundImage = model.settings.background_image_url ? 'url("' + model.settings.background_image_url + '")' : '';
   target.style.backgroundSize = 'cover';
   target.style.backgroundPosition = 'center';
   target.style.aspectRatio = `${model.viewport.width} / ${model.viewport.height}`;
@@ -42,8 +90,10 @@ export function renderPreview(editorState, { screen, products, packaging, target
   target.dataset.fontScaleEffective = String(layout.vertical.effectivePercent);
   target.dataset.fontKey = layout.typography.key;
   target.classList.toggle('is-overflowing', !layout.vertical.fits);
-  target.innerHTML = buildTableSvg(model, lines, layout);
-  applyPreviewTypography(target, layout);
 
-  return { model, lines, layout };
+  menuLayer.innerHTML = buildTableSvg(model, lines, layout);
+  applyPreviewTypography(menuLayer, layout);
+  sceneRenderer.render(editorState.scene);
+
+  return { model, lines, layout, editorLayer };
 }

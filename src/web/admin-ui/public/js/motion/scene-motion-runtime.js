@@ -1,6 +1,5 @@
 import { buildDomMotionScene } from './dom-scene-adapter.js';
 import { WasmMotionDriver } from './drivers/wasm-motion-driver.js';
-import { compileEntityBehaviorProgram } from './entity-behavior.js';
 import { DEFAULT_SCENE_COMPILERS } from './motion-plan.js';
 import { SceneRuntime } from './scene-runtime.js';
 
@@ -10,11 +9,10 @@ export class SceneMotionRuntime {
     this.stage = stage;
     this.activityControlled = activityControlled === true;
     this.driver = driver || new WasmMotionDriver();
-    this.compilers = compilers || [...DEFAULT_SCENE_COMPILERS, compileEntityBehaviorProgram];
+    this.compilers = compilers || DEFAULT_SCENE_COMPILERS;
     this.runtime = new SceneRuntime({ root: stage, driver: this.driver, compilers: this.compilers });
     this.plan = null;
     this.scene = null;
-    this.entityMedia = null;
     this.fullscreenSuppressed = stage.dataset.scenePlaylistFullscreen === 'true';
     this.playerActive = this.activityControlled ? stage.dataset.playerActive === 'true' : true;
     this.destroyed = false;
@@ -41,42 +39,27 @@ export class SceneMotionRuntime {
       && document.visibilityState !== 'hidden';
   }
 
-  mediaShouldPlay() {
-    return this.playerActive
-      && !this.fullscreenSuppressed
-      && document.visibilityState !== 'hidden';
-  }
-
   syncPlayback() {
-    if (this.plan?.tracks?.length) {
-      if (this.motionShouldPlay()) this.runtime.play();
-      else this.runtime.pause();
-    }
-    if (this.entityMedia instanceof HTMLVideoElement) {
-      if (this.mediaShouldPlay()) void this.entityMedia.play().catch(() => undefined);
-      else this.entityMedia.pause();
-    }
+    if (!this.plan?.tracks?.length) return;
+    if (this.motionShouldPlay()) this.runtime.play();
+    else this.runtime.pause();
   }
 
   reset() {
     this.runtime.destroy();
     this.plan = null;
     this.scene = null;
-    if (this.entityMedia instanceof HTMLVideoElement) this.entityMedia.pause();
-    this.entityMedia = null;
     delete this.stage.dataset.motionMode;
   }
 
-  render({ profile = null, entity = null, menuEnabled = false } = {}) {
+  render({ profile = null, menuEnabled = false } = {}) {
     if (this.destroyed) return null;
     this.runtime.destroy();
     this.scene = buildDomMotionScene(this.stage);
     this.plan = this.runtime.load({
       scene: this.scene,
-      context: { profile: profile || {}, entity, menuEnabled: menuEnabled === true }
+      context: { profile: profile || {}, menuEnabled: menuEnabled === true }
     });
-    this.entityMedia = this.stage.querySelector('[data-motion-entity-layer] .animation-scene-entity-media');
-    if (!(this.entityMedia instanceof HTMLVideoElement)) this.entityMedia = null;
 
     if (this.plan.tracks.length) this.stage.dataset.motionMode = 'wasm-continuous';
     else delete this.stage.dataset.motionMode;
@@ -92,7 +75,6 @@ export class SceneMotionRuntime {
   pause() {
     if (this.destroyed) return;
     this.runtime.pause();
-    if (this.entityMedia instanceof HTMLVideoElement) this.entityMedia.pause();
   }
 
   replay() {

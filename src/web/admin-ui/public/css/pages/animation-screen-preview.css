@@ -14,4 +14,3 @@
 .animation-stage [data-motion]{opacity:1;transform-box:fill-box;transform-origin:center;will-change:transform,filter}
 .animation-stage[data-motion-mode="wasm-continuous"] .animation-screen-canvas{opacity:1}
 @media(max-width:760px){.animation-screen-picker{grid-template-columns:1fr}.animation-screen-picker p{text-align:left;white-space:normal}}
-@media(prefers-reduced-motion:reduce){.scene-announcement-text{animation-duration:calc(var(--announcement-duration) * 1.5)}}

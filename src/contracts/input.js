@@ -1,4 +1,5 @@
 import { ValidationError, UnprocessableEntityError } from '../shared/errors.js';
+import { sceneInput } from './scene.js';
 
 const VALID_STATUSES = new Set(['draft', 'ready', 'published']);
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
@@ -95,7 +96,7 @@ export function packagingInput(body) {
   return { name: requireText(body.name, 'Название тары'), unit_price: normalisePrice(body.unit_price, 'Цена тары'), active: body.active !== false };
 }
 
-export async function menuDraftInput(body, store, maxBytes) {
+export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, maxHeight = 1080 } = {}) {
   if (!Array.isArray(body.rows)) throw new ValidationError('Меню должно содержать список строк.');
   const products = new Map((await store.listProducts()).map((item) => [item.id, item]));
   const packaging = new Map((await store.listPackaging()).map((item) => [item.id, item]));
@@ -128,8 +129,9 @@ export async function menuDraftInput(body, store, maxBytes) {
     throw new ValidationError('Тип строки меню не поддерживается.');
   });
   const settings = body.settings && typeof body.settings === 'object' && !Array.isArray(body.settings) ? body.settings : {};
-  if (Buffer.byteLength(JSON.stringify({ rows, settings }), 'utf8') > maxBytes) throw new ValidationError('Черновик меню слишком большой.');
-  return { rows, settings };
+  const scene = sceneInput(body.scene, { maxWidth, maxHeight });
+  if (Buffer.byteLength(JSON.stringify({ rows, settings, scene }), 'utf8') > maxBytes) throw new ValidationError('Черновик меню слишком большой.');
+  return { rows, settings, scene };
 }
 
 
