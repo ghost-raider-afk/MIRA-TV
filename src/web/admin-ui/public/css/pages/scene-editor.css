@@ -251,3 +251,6 @@
   body[data-page="scene"] .scene-editor-table-edit-layer .editor-preview-choice-option strong{font-size:11px}
   body[data-page="scene"] .scene-editor-table-edit-layer .editor-preview-choice-option small{font-size:9px}
 }
+
+.scene-editor-system-layer:disabled{opacity:.38;cursor:default}
+.scene-editor-system-layer:disabled:hover{border-color:transparent;background:transparent}
