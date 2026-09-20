@@ -122,7 +122,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await inspector.getByLabel('Текст', { exact:true }).fill('бар маяк');
   await inspector.getByLabel('X', { exact:true }).fill('300');
   await inspector.getByLabel('Y', { exact:true }).fill('160');
-  await inspector.getByText('Шрифт', { exact:true }).click();
+  await inspector.getByText('Шрифт и абзац', { exact:true }).click();
   await inspector.getByLabel('Размер, px', { exact:true }).fill('96');
   await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toContainText('бар маяк');
