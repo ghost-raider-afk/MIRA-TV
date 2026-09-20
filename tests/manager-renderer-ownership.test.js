@@ -16,7 +16,7 @@ test('Manager cards and fullscreen share the generic PlayerSceneRenderer', async
   assert.match(manager, /fullscreenRenderer = new PlayerSceneRenderer\(stage/);
   assert.doesNotMatch(manager, /renderAnimationScreenPreview|renderSceneEntity|renderAnnouncementLayer|renderBrandTitleLayer|renderEnvironmentLayer|applySceneVisibility/);
 
-  assert.match(player, /constructor\(stage, \{ weatherEndpoint = '\/api\/device\/weather', autoplay = true, weatherPreview = false \} = \{\}\)/);
+  assert.match(player, /constructor\(stage, \{ weatherEndpoint = '\/api\/device\/weather', autoplay = true, weatherPreview = false, weatherSnapshotProvider = null \} = \{\}\)/);
   assert.match(player, /stage\.classList\.add\('player-scene-stage'\)/);
   assert.match(player, /new SceneElementRenderer/);
   assert.match(player, /autoplay: this\.autoplay/);

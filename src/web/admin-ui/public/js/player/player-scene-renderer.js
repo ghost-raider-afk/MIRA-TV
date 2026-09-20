@@ -59,7 +59,7 @@ function sameOriginAsset(value) {
 }
 
 export class PlayerSceneRenderer {
-  constructor(stage, { weatherEndpoint = '/api/device/weather', autoplay = true, weatherPreview = false } = {}) {
+  constructor(stage, { weatherEndpoint = '/api/device/weather', autoplay = true, weatherPreview = false, weatherSnapshotProvider = null } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Player scene renderer requires an HTMLElement stage.');
     this.stage = stage;
     this.stage.classList.add('player-scene-stage');
@@ -69,7 +69,8 @@ export class PlayerSceneRenderer {
     this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }), {
       activityTarget: stage,
       autoplay: this.autoplay,
-      weatherPreview: this.weatherPreview
+      weatherPreview: this.weatherPreview,
+      weatherSnapshotProvider
     });
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.sceneMotionRuntime = new SceneMotionRuntime(stage, { activityControlled: true });

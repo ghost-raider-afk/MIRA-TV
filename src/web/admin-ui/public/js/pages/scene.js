@@ -150,6 +150,9 @@ export function initialiseSceneEditor() {
   let resizeObserver = null;
   let interactionActive = false;
   let selectedOwner = 'none';
+  let weatherPreviewTimer = 0;
+  let weatherPreviewGeneration = 0;
+  const weatherPreviewSnapshots = new Map();
   const history = createEditorHistory(state);
 
   const active = () => !disposed && token === generation && document.body.dataset.page === 'scene';
@@ -889,6 +892,47 @@ export function initialiseSceneEditor() {
     });
   }
 
+  async function searchWeatherLocations(query) {
+    const value = String(query || '').trim();
+    if (value.length < 2) return [];
+    return api.get(`/api/weather/locations?q=${encodeURIComponent(value)}`);
+  }
+
+  function refreshWeatherPreview(elementId, weather, { immediate = false } = {}) {
+    window.clearTimeout(weatherPreviewTimer);
+    weatherPreviewTimer = 0;
+    const generation = ++weatherPreviewGeneration;
+    const latitude = Number(weather?.latitude);
+    const longitude = Number(weather?.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      weatherPreviewSnapshots.delete(String(elementId));
+      scheduleSceneRender();
+      return;
+    }
+
+    const run = async () => {
+      const params = new URLSearchParams({
+        name:String(weather?.location_name || ''),
+        latitude:String(latitude),
+        longitude:String(longitude),
+        timezone:String(weather?.timezone || 'auto')
+      });
+      try {
+        const snapshot = await api.get(`/api/weather/preview?${params.toString()}`);
+        if (!active() || generation !== weatherPreviewGeneration) return;
+        weatherPreviewSnapshots.set(String(elementId), snapshot);
+      } catch {
+        if (!active() || generation !== weatherPreviewGeneration) return;
+        weatherPreviewSnapshots.delete(String(elementId));
+      }
+      scheduleSceneRender();
+    };
+
+    if (immediate) void run();
+    else weatherPreviewTimer = window.setTimeout(() => void run(), 350);
+  }
+
   async function uploadSceneAsset(file) {
     if (!currentScreenId) throw new Error('Монитор не выбран.');
     return api.put(`${API.screens}/${currentScreenId}/scene-asset`, file, {
@@ -921,7 +965,9 @@ export function initialiseSceneEditor() {
         renderSelectionOwners();
         scheduleSceneRender();
       },
-      onUpload: uploadSceneAsset
+      onUpload: uploadSceneAsset,
+      onWeatherLocationSearch: searchWeatherLocations,
+      onWeatherConfigurationChange: refreshWeatherPreview
     });
     if (!selected) {
       const title = element('scene-editor-properties-title');
@@ -940,7 +986,11 @@ export function initialiseSceneEditor() {
     renderer?.destroy();
     stage.replaceChildren();
     stage.dataset.playerActive = 'false';
-    renderer = new PlayerSceneRenderer(stage, { autoplay: false, weatherPreview: true });
+    renderer = new PlayerSceneRenderer(stage, {
+      autoplay:false,
+      weatherPreview:true,
+      weatherSnapshotProvider:(sceneElement) => weatherPreviewSnapshots.get(String(sceneElement?.id || '')) || null
+    });
     await renderer.render(sceneContext(), ['screen', 'menu', 'scene']);
     fitPreviewShell();
     refreshSelectionOverlay();
@@ -960,6 +1010,10 @@ export function initialiseSceneEditor() {
       draftRevision:Number(bundle.draft?.revision || 0)
     });
     selectedOwner = 'none';
+    weatherPreviewSnapshots.clear();
+    weatherPreviewGeneration += 1;
+    window.clearTimeout(weatherPreviewTimer);
+    weatherPreviewTimer = 0;
     history.clear();
     const resolution = element('scene-editor-resolution');
     if (resolution) resolution.textContent = state.screen?.resolution || '—';
@@ -1187,6 +1241,9 @@ export function initialiseSceneEditor() {
       renderer = null;
       window.removeEventListener('beforeunload', onBeforeUnload);
       form.removeEventListener('keydown', onEditorKeydown);
+      window.clearTimeout(weatherPreviewTimer);
+      weatherPreviewGeneration += 1;
+      weatherPreviewSnapshots.clear();
       delete document.body.dataset.sceneMobilePanel;
     }
   };

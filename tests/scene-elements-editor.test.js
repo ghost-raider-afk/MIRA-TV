@@ -25,6 +25,9 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(monitorHtml, /id="editor-scene-link"/);
 
   for (const label of ['Текстовое поле','Погода','Картинка','Видео','Логотип']) assert.ok(elements.includes(label));
+  assert.match(elements, /Начните вводить город/);
+  assert.match(elements, /onWeatherLocationSearch/);
+  assert.match(elements, /onWeatherConfigurationChange/);
   for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение','Автомасштаб при resize','Масштаб внутри, %']) assert.ok(elements.includes(photoshopControl));
   assert.match(sceneHtml, /scene-editor-background-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
   assert.match(sceneHtml, /scene-editor-table-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
@@ -35,12 +38,15 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(elements, /export function renderSceneLayerList/);
   assert.match(elements, /export function renderSceneElementInspector/);
   assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
-  assert.match(scenePage, /new PlayerSceneRenderer\(stage, \{ autoplay: false, weatherPreview: true \}\)/);
+  assert.match(scenePage, /weatherSnapshotProvider/);
+  assert.match(scenePage, /\/api\/weather\/locations/);
+  assert.match(scenePage, /\/api\/weather\/preview/);
   assert.match(scenePage, /renderSceneElementInspector/);
   assert.match(scenePage, /renderSceneLayerList/);
   assert.match(scenePage, /\/scene-asset/);
   assert.match(scenePage, /SCENE_WIDTH \/ Math\.max\(1, rect\.width\)/);
-  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 238px/);
+  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 286px/);
+  assert.match(css, /editor-weather-location-results/);
   assert.match(css, /@media\(min-width:1101px\)/);
   assert.doesNotMatch(css, /scene-editor-inspector-tabs|@media\(min-width:961px\)/);
   assert.match(css, /overflow:hidden/);
