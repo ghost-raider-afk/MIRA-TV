@@ -104,7 +104,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(geometry.documentScroll).toBeLessThanOrEqual(geometry.documentClient + 2);
   expect(geometry.layersScroll).toBeLessThanOrEqual(geometry.layersClient + 2);
   expect(geometry.propertiesScroll).toBeLessThanOrEqual(geometry.propertiesClient + 2);
-  expect(geometry.propertiesWidth).toBeLessThanOrEqual(250);
+  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(270);
+  expect(geometry.propertiesWidth).toBeLessThanOrEqual(290);
 
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
@@ -146,6 +147,46 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(Number(await inspector.getByLabel('Ширина', { exact:true }).inputValue())).toBeGreaterThan(720);
   expect(Number(await inspector.getByLabel('Высота', { exact:true }).inputValue())).toBeGreaterThan(220);
 
+  await page.route(/\/api\/weather\/locations(?:\?|$)/, async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify([{
+        name:'Комсомольск-на-Амуре',
+        admin1:'Хабаровский край',
+        country:'Россия',
+        latitude:50.5503,
+        longitude:137.0079,
+        timezone:'Asia/Vladivostok'
+      }])
+    });
+  });
+  await page.route(/\/api\/weather\/preview(?:\?|$)/, async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify({
+        location_name:'Комсомольск-на-Амуре, Хабаровский край',
+        latitude:50.5503,
+        longitude:137.0079,
+        timezone:'Asia/Vladivostok',
+        temperature:12,
+        apparent_temperature:10,
+        humidity:71,
+        wind_speed:9,
+        weather_code:3,
+        is_day:true,
+        condition:'Облачно',
+        icon:'cloud',
+        updated_at:new Date().toISOString(),
+        forecast:[
+          { time:'2026-09-20T21:00', temperature:11, icon:'cloud', precipitation_probability:10 },
+          { time:'2026-09-20T23:00', temperature:9, icon:'cloud', precipitation_probability:10 }
+        ]
+      })
+    });
+  });
+
   await page.locator('#scene-editor-add').click();
   await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
@@ -157,12 +198,41 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.getByLabel('Автомасштаб при resize')).toBeChecked();
   await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveValue('100');
 
+  const locationSearch = inspector.getByLabel('Населённый пункт');
+  await locationSearch.fill('Комсомольск');
+  const locationOption = inspector.getByRole('option', { name:/Комсомольск-на-Амуре/ });
+  await expect(locationOption).toBeVisible();
+  await locationOption.click();
+  await expect(inspector.getByLabel('Широта')).toHaveValue('50.5503');
+  await expect(inspector.getByLabel('Долгота')).toHaveValue('137.0079');
+  await expect(inspector.getByLabel('Часовой пояс')).toHaveValue('Asia/Vladivostok');
+  await expect(weatherContent).toContainText(/Комсомольск-на-Амуре/i);
+  await expect(weatherContent).toContainText('12°');
+
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
   await inspector.getByLabel('Высота', { exact:true }).fill('180');
   await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.5)');
 
   await inspector.getByLabel('Масштаб внутри, %').fill('80');
   await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.4)');
+
+  const weatherFit = await weatherContent.evaluate((mount) => {
+    const widget = mount.querySelector('.weather-widget');
+    if (!(widget instanceof HTMLElement)) return null;
+    const outer = mount.getBoundingClientRect();
+    const inner = widget.getBoundingClientRect();
+    return {
+      left:inner.left - outer.left,
+      top:inner.top - outer.top,
+      right:inner.right - outer.right,
+      bottom:inner.bottom - outer.bottom
+    };
+  });
+  expect(weatherFit).not.toBeNull();
+  expect(weatherFit.left).toBeGreaterThanOrEqual(-2);
+  expect(weatherFit.top).toBeGreaterThanOrEqual(-2);
+  expect(weatherFit.right).toBeLessThanOrEqual(2);
+  expect(weatherFit.bottom).toBeLessThanOrEqual(2);
 
   await inspector.getByLabel('Автомасштаб при resize').uncheck();
   await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');

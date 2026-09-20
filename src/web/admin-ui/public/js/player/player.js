@@ -4,7 +4,7 @@ import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-rende
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.13.1';
+const PLAYER_BUILD_VERSION = '1.13.2';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');

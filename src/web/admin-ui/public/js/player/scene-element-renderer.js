@@ -20,6 +20,26 @@ function sceneUnit(value) {
   return String((Number(value || 0) / SCENE_WIDTH) * 100) + 'cqw';
 }
 
+function weatherPreviewKey(element) {
+  const weather = element?.weather || {};
+  const latitude = Number(weather.latitude);
+  const longitude = Number(weather.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
+  return [
+    latitude.toFixed(6),
+    longitude.toFixed(6),
+    String(weather.timezone || 'auto'),
+    String(weather.location_name || '').trim()
+  ].join('|');
+}
+
+function weatherPreviewFallback(element) {
+  return {
+    ...WEATHER_SAMPLE,
+    location_name: String(element?.weather?.location_name || WEATHER_SAMPLE.location_name).trim() || WEATHER_SAMPLE.location_name
+  };
+}
+
 function contentScaleFactor(element) {
   const manual = Math.max(.1, Math.min(3, Number(element?.content_scale_percent ?? 100) / 100));
   if (element?.content_auto_scale === false) return manual;
@@ -30,7 +50,7 @@ function contentScaleFactor(element) {
   return Math.max(.01, Math.min(width / referenceWidth, height / referenceHeight)) * manual;
 }
 
-function applyContentGeometry(content, element) {
+function applyContentGeometry(content, element, sceneScale = 1) {
   const referenceWidth = Math.max(1, Number(element?.content_reference_width || element?.width || 1));
   const referenceHeight = Math.max(1, Number(element?.content_reference_height || element?.height || 1));
   const scale = contentScaleFactor(element);
@@ -45,6 +65,19 @@ function applyContentGeometry(content, element) {
   content.style.maxHeight = 'none';
   content.style.transformOrigin = 'center center';
   content.style.transform = 'translate(-50%, -50%) scale(' + String(scale) + ')';
+
+  if (element?.type === 'weather') {
+    const viewportScale = Math.max(.05, Math.min(4, Number(sceneScale) || 1));
+    content.dataset.weatherSceneScale = String(viewportScale);
+    content.style.setProperty('--weather-scene-scale', String(viewportScale));
+    content.style.setProperty('--weather-embedded-width', String(100 / viewportScale) + '%');
+    content.style.setProperty('--weather-embedded-height', String(100 / viewportScale) + '%');
+  } else {
+    content.removeAttribute('data-weather-scene-scale');
+    content.style.removeProperty('--weather-scene-scale');
+    content.style.removeProperty('--weather-embedded-width');
+    content.style.removeProperty('--weather-embedded-height');
+  }
 }
 
 function clampOpacity(value, fallback = 1) {
@@ -264,7 +297,7 @@ function weatherSettings(element) {
   };
 }
 
-function updateContent(content, element, playbackAllowed, weatherPreview = false) {
+function updateContent(content, element, playbackAllowed, weatherPreview = false, weatherSnapshot = null) {
   if (element.type === 'text') {
     renderText(content, element.text);
     return;
@@ -273,7 +306,11 @@ function updateContent(content, element, playbackAllowed, weatherPreview = false
     content.dataset.weatherMode = String(element.weather?.mode || 'current');
     content.dataset.showLocation = element.weather?.show_location === false ? 'false' : 'true';
     content.dataset.showCondition = element.weather?.show_condition === false ? 'false' : 'true';
-    if (weatherPreview) renderWeatherWidget(content, weatherSettings(element), WEATHER_SAMPLE);
+    if (weatherPreview) renderWeatherWidget(
+      content,
+      weatherSettings(element),
+      weatherSnapshot || weatherPreviewFallback(element)
+    );
     return;
   }
   updateMedia(content, element, playbackAllowed);
@@ -295,12 +332,19 @@ function applyGeometry(node, element) {
 }
 
 export class SceneElementRenderer {
-  constructor(layer, { activityTarget = null, autoplay = true, weatherPreview = false } = {}) {
+  constructor(layer, {
+    activityTarget = null,
+    autoplay = true,
+    weatherPreview = false,
+    weatherPreviewEndpoint = '/api/weather/preview'
+  } = {}) {
     if (!(layer instanceof HTMLElement)) throw new TypeError('SceneElementRenderer requires an HTMLElement layer.');
     this.layer = layer;
     this.activityTarget = activityTarget instanceof HTMLElement ? activityTarget : null;
     this.autoplay = autoplay !== false;
     this.weatherPreview = weatherPreview === true;
+    this.weatherPreviewEndpoint = String(weatherPreviewEndpoint || '/api/weather/preview');
+    this.weatherPreviewStates = new Map();
     this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
     this.sceneVisible = this.activityTarget?.dataset.scenePlaylistFullscreen !== 'true';
     this.entries = new Map();
@@ -328,6 +372,75 @@ export class SceneElementRenderer {
 
   playbackAllowed() {
     return this.autoplay && this.active && this.sceneVisible && document.visibilityState !== 'hidden';
+  }
+
+  sceneScale() {
+    const width = this.layer?.getBoundingClientRect?.().width || this.layer?.clientWidth || SCENE_WIDTH;
+    return Math.max(.05, Number(width) / SCENE_WIDTH || 1);
+  }
+
+  previewSnapshotFor(element) {
+    if (!this.weatherPreview || element?.type !== 'weather') return null;
+    const key = weatherPreviewKey(element);
+    if (!key) return null;
+    const state = this.weatherPreviewStates.get(String(element.id || ''));
+    return state?.key === key ? state.snapshot || null : null;
+  }
+
+  requestWeatherPreview(element, entry) {
+    if (!this.weatherPreview || element?.type !== 'weather' || !(entry?.content instanceof HTMLElement)) return;
+    const id = String(element.id || '');
+    const key = weatherPreviewKey(element);
+    if (!id || !key) {
+      this.weatherPreviewStates.delete(id);
+      return;
+    }
+
+    const current = this.weatherPreviewStates.get(id);
+    if (current?.key === key && (current.snapshot || current.pending)) return;
+
+    const generation = Number(current?.generation || 0) + 1;
+    this.weatherPreviewStates.set(id, { key, snapshot:null, pending:true, generation });
+
+    const weather = element.weather || {};
+    const params = new URLSearchParams({
+      name:String(weather.location_name || ''),
+      latitude:String(weather.latitude),
+      longitude:String(weather.longitude),
+      timezone:String(weather.timezone || 'auto')
+    });
+    const endpoint = this.weatherPreviewEndpoint + (this.weatherPreviewEndpoint.includes('?') ? '&' : '?') + params.toString();
+
+    void fetch(endpoint, { cache:'no-store', credentials:'same-origin' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Weather preview HTTP ' + String(response.status));
+        return response.json();
+      })
+      .then((snapshot) => {
+        if (this.destroyed) return;
+        const state = this.weatherPreviewStates.get(id);
+        const liveEntry = this.entries.get(id);
+        if (!state || state.key !== key || state.generation !== generation || liveEntry !== entry) return;
+        state.snapshot = snapshot && typeof snapshot === 'object' ? snapshot : null;
+        state.pending = false;
+        if (!state.snapshot || !(entry.content instanceof HTMLElement)) return;
+        renderWeatherWidget(entry.content, weatherSettings(entry.element), state.snapshot);
+        applyContentGeometry(entry.content, entry.element, this.sceneScale());
+      })
+      .catch((error) => {
+        const state = this.weatherPreviewStates.get(id);
+        if (state?.key === key && state.generation === generation) state.pending = false;
+        console.warn('MIRA-TV weather preview failed', error);
+      });
+  }
+
+  refreshGeometry() {
+    if (this.destroyed) return;
+    const scale = this.sceneScale();
+    for (const entry of this.entries.values()) {
+      if (!(entry.content instanceof HTMLElement) || !entry.element) continue;
+      applyContentGeometry(entry.content, entry.element, scale);
+    }
   }
 
   render(scene) {
@@ -361,13 +474,15 @@ export class SceneElementRenderer {
       const fingerprint = JSON.stringify(element);
       applyGeometry(entry.node, element);
       entry.element = element;
+      const previewSnapshot = this.previewSnapshotFor(element);
       if (entry.fingerprint !== fingerprint) {
-        updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview);
+        updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview, previewSnapshot);
         entry.fingerprint = fingerprint;
       } else if (entry.content instanceof HTMLVideoElement) {
         syncVideo(entry.content, element, this.playbackAllowed());
       }
-      applyContentGeometry(entry.content, element);
+      applyContentGeometry(entry.content, element, this.sceneScale());
+      if (this.weatherPreview && element.type === 'weather') this.requestWeatherPreview(element, entry);
 
       this.layer.append(entry.node);
     }
@@ -377,6 +492,7 @@ export class SceneElementRenderer {
       if (entry.content instanceof HTMLVideoElement) entry.content.pause();
       entry.node.remove();
       this.entries.delete(id);
+      this.weatherPreviewStates.delete(id);
     }
   }
 
@@ -397,6 +513,7 @@ export class SceneElementRenderer {
       entry.node.remove();
     }
     this.entries.clear();
+    this.weatherPreviewStates.clear();
   }
 
   destroy() {

@@ -38,7 +38,7 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([['Обзор', '/']]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Подключить ТВ', '/connect-tv']]),
+  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Плейлист', '/playlist'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   playlist: Object.freeze([['Плейлист', '/playlist']]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
@@ -47,7 +47,6 @@ const CONTEXT_LINKS = Object.freeze({
 export const PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key: 'monitors', label: 'Мониторы', href: '/screens', icon: 'monitor' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
-  Object.freeze({ key: 'playlist', label: 'Плейлист', href: '/playlist', icon: 'motion' }),
   Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings', icon: 'settings' })
 ]);
 
