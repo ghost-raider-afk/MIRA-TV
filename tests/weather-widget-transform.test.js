@@ -119,3 +119,18 @@ test('weather runtime changes rotate only the offline shell cache and preserve d
   assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v25'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
+
+
+test('Scene weather preview invalidates stale source data and uses protected preview endpoint', async () => {
+  const [runtime, renderer] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/weather-bootstrap.js'),
+    read('src/web/admin-ui/public/js/player/player-scene-renderer.js')
+  ]);
+  assert.match(runtime, /function weatherSourceKey\(settings\)/);
+  assert.match(runtime, /sourceChanged = nextSourceKey !== this\.sourceKey/);
+  assert.match(runtime, /hasWeatherCoordinates\(this\.settings\)/);
+  assert.match(runtime, /url\.searchParams\.set\('latitude'/);
+  assert.match(runtime, /url\.searchParams\.set\('longitude'/);
+  assert.match(runtime, /if \(this\.preview\)/);
+  assert.match(renderer, /weatherPreviewEndpoint = '\/api\/weather\/preview'/);
+});
