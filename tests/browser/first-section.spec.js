@@ -72,7 +72,9 @@ test('first section is a real editable row and never inherits the monitor name',
   expect(saveLegacyShape.status()).toBe(200);
 
   await page.goto(`/scene?screen=${screen.id}`);
-  await page.locator('#scene-editor-table-layer').click();
+  const tableLayer = page.locator('#scene-editor-table-layer');
+  await expect(tableLayer).toBeEnabled();
+  await tableLayer.click();
 
   const preview = page.locator('#scene-editor-stage');
   const editLayer = page.locator('#scene-editor-table-edit-layer');
