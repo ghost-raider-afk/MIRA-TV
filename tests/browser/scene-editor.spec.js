@@ -44,6 +44,49 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
   const { screen, product } = await fixture(page);
+
+  await page.route('**/api/weather/locations**', async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify([{
+        name:'Комсомольск-на-Амуре',
+        admin1:'Хабаровский край',
+        country:'Россия',
+        latitude:50.5503,
+        longitude:137.0079,
+        timezone:'Asia/Vladivostok'
+      }])
+    });
+  });
+  await page.route('**/api/weather/preview**', async (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('name')).toBe('Комсомольск-на-Амуре');
+    expect(Number(url.searchParams.get('latitude'))).toBeCloseTo(50.5503, 3);
+    expect(Number(url.searchParams.get('longitude'))).toBeCloseTo(137.0079, 3);
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify({
+        location_name:'Комсомольск-на-Амуре',
+        temperature:-7,
+        apparent_temperature:-11,
+        humidity:71,
+        wind_speed:9,
+        weather_code:3,
+        is_day:true,
+        condition:'Облачно',
+        icon:'cloud',
+        updated_at:new Date().toISOString(),
+        forecast:[
+          { time:'2026-09-20T12:00', temperature:-6, icon:'cloud', precipitation_probability:10 },
+          { time:'2026-09-20T15:00', temperature:-5, icon:'cloud', precipitation_probability:10 },
+          { time:'2026-09-20T18:00', temperature:-8, icon:'cloud', precipitation_probability:20 }
+        ]
+      })
+    });
+  });
+
   await page.goto(`/scene?screen=${screen.id}`);
 
   await expect(page.locator('#scene-editor-layers')).toBeVisible();
@@ -104,7 +147,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(geometry.documentScroll).toBeLessThanOrEqual(geometry.documentClient + 2);
   expect(geometry.layersScroll).toBeLessThanOrEqual(geometry.layersClient + 2);
   expect(geometry.propertiesScroll).toBeLessThanOrEqual(geometry.propertiesClient + 2);
-  expect(geometry.propertiesWidth).toBeLessThanOrEqual(250);
+  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(275);
+  expect(geometry.propertiesWidth).toBeLessThanOrEqual(300);
 
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
@@ -157,15 +201,44 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.getByLabel('Автомасштаб при resize')).toBeChecked();
   await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveValue('100');
 
+  const city = inspector.getByLabel('Населённый пункт');
+  await city.fill('Комсомольск');
+  const cityOption = inspector.locator('.editor-weather-location-option', { hasText:'Комсомольск-на-Амуре' });
+  await expect(cityOption).toBeVisible();
+  await cityOption.click();
+  await expect(city).toHaveValue('Комсомольск-на-Амуре');
+  await expect(inspector.getByLabel('Широта')).toHaveValue('50.5503');
+  await expect(inspector.getByLabel('Долгота')).toHaveValue('137.0079');
+  await expect(inspector.getByLabel('Часовой пояс')).toHaveValue('Asia/Vladivostok');
+  await expect(weatherContent.locator('.weather-widget-location')).toHaveText('Комсомольск-на-Амуре');
+  await expect(weatherContent.locator('.weather-widget-temperature')).toHaveText('-7°');
+
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
   await inspector.getByLabel('Высота', { exact:true }).fill('180');
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.5)');
+
+  const resizeScale = await expect.poll(async () => Number(await weatherContent.getAttribute('data-scene-content-scale'))).toBeGreaterThan(0);
+  const scaleAt100 = Number(await weatherContent.getAttribute('data-scene-content-scale'));
+  const intrinsicFit = Number(await weatherContent.getAttribute('data-scene-intrinsic-fit'));
+  expect(intrinsicFit).toBeGreaterThan(0);
+  expect(intrinsicFit).toBeLessThanOrEqual(1);
+  expect(scaleAt100).toBeLessThanOrEqual(.5);
+
+  const weatherBounds = await weatherElement.boundingBox();
+  const widgetBounds = await weatherContent.locator('.weather-widget-content').boundingBox();
+  expect(weatherBounds).not.toBeNull();
+  expect(widgetBounds).not.toBeNull();
+  expect(widgetBounds.left).toBeGreaterThanOrEqual(weatherBounds.left - 2);
+  expect(widgetBounds.top).toBeGreaterThanOrEqual(weatherBounds.top - 2);
+  expect(widgetBounds.right).toBeLessThanOrEqual(weatherBounds.right + 2);
+  expect(widgetBounds.bottom).toBeLessThanOrEqual(weatherBounds.bottom + 2);
 
   await inspector.getByLabel('Масштаб внутри, %').fill('80');
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.4)');
+  await expect.poll(async () => Number(await weatherContent.getAttribute('data-scene-content-scale'))).toBeLessThan(scaleAt100);
+  const scaleAt80 = Number(await weatherContent.getAttribute('data-scene-content-scale'));
+  expect(scaleAt80 / scaleAt100).toBeCloseTo(.8, 1);
 
   await inspector.getByLabel('Автомасштаб при resize').uncheck();
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
+  await expect.poll(async () => Number(await weatherContent.getAttribute('data-scene-content-scale'))).toBeGreaterThan(scaleAt80);
 
   await page.locator('#scene-editor-add').click();
   await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
