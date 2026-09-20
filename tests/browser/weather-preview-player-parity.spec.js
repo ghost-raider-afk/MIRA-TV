@@ -85,6 +85,27 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
     }});
     expect(save.ok()).toBeTruthy();
 
+    const snapshot={
+      location_name:'Хельсинки', latitude:60.1699, longitude:24.9384, timezone:'Europe/Helsinki',
+      temperature:18, apparent_temperature:17, humidity:64, wind_speed:12,
+      weather_code:61, is_day:true, condition:'Дождь', icon:'rain', updated_at:'2026-09-20T18:00',
+      forecast:[
+        {time:'2026-09-20T19:00',temperature:18,icon:'rain'},
+        {time:'2026-09-20T20:00',temperature:17,icon:'cloud'},
+        {time:'2026-09-20T21:00',temperature:16,icon:'cloud'}
+      ]
+    };
+    await adminPage.route('**/api/weather/preview**',route=>route.fulfill({
+      status:200,contentType:'application/json',body:JSON.stringify(snapshot)
+    }));
+    await adminPage.goto(`/scene?screen=${screen.id}`);
+    const previewLayer=adminPage.locator('#scene-editor-stage [data-scene-elements-layer]');
+    const previewNode=previewLayer.locator('[data-scene-element-id="weather-parity"]');
+    await expect(previewNode.locator('.weather-widget')).toBeVisible();
+    const previewGeometry=await normalizedGeometry(adminPage,'#scene-editor-stage [data-scene-elements-layer]','[data-scene-element-id="weather-parity"]');
+    const previewScale=Number(await previewNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
+    const previewText=await previewNode.locator('.weather-widget').innerText();
+
     await adminPage.goto(`/screen-editor?id=${screen.id}`);
     await expect(adminPage.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(0);
     await expect(adminPage.locator('#editor-menu-preview [data-scene-element-type]')).toHaveCount(0);
@@ -116,11 +137,6 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
       app_version:process.env.MIRA_TV_VERSION || '1.11.1', fallback_poll_interval_ms:60000, log_batch_size:100,
       log_local_max_entries:5000, log_local_max_bytes:10485760
     };
-    const snapshot={
-      location_name:'Хельсинки', temperature:18, apparent_temperature:17, humidity:64, wind_speed:12,
-      weather_code:61, is_day:true, condition:'Дождь', icon:'rain', updated_at:new Date().toISOString(),
-      forecast:[]
-    };
     let deltaRequests=0;
     await playerPage.route('**/api/device/session',route=>route.fulfill({
       status:200,contentType:'application/json',
@@ -148,7 +164,12 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
 
     for(const key of ['x','y','width','height']) {
       expect(Math.abs(persistedWeather[key]-playerGeometry[key]),key).toBeLessThan(1.5);
+      expect(Math.abs(previewGeometry[key]-playerGeometry[key]),`preview/player ${key}`).toBeLessThan(1.5);
     }
+    const playerScale=Number(await playerNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
+    const playerText=await playerNode.locator('.weather-widget').innerText();
+    expect(Math.abs(previewScale-playerScale)).toBeLessThan(.001);
+    expect(previewText).toBe(playerText);
     await player.close();
   } finally {
     if(locationId) await adminPage.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);

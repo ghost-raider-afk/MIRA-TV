@@ -1,7 +1,7 @@
 import express from 'express';
 import { weatherWidgetInput } from '../../contracts/weather.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
-import { getWeatherSnapshot, searchWeatherLocations } from '../../services/weather-service.js';
+import { getWeatherSnapshot, hasWeatherCoordinates, searchWeatherLocations } from '../../services/weather-service.js';
 
 function screenId(value) {
   const id = Number(value);
@@ -18,7 +18,7 @@ export function createWeatherRouter({ store, config }) {
     if (!screen) return response.status(404).json({ error: 'Монитор не найден.' });
     const draft = await store.getScreenDraft(id);
     const settings = sceneWeatherSettings(draft?.scene, id);
-    if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) {
+    if (!settings?.enabled || !hasWeatherCoordinates(settings)) {
       return response.status(204).end();
     }
     return response.json({ settings, snapshot: await getWeatherSnapshot(settings, config) });

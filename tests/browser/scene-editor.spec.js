@@ -61,14 +61,14 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect((await tableLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
   const inspectorWidth1600 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
-  expect(inspectorWidth1600).toBeGreaterThanOrEqual(270);
-  expect(inspectorWidth1600).toBeLessThanOrEqual(290);
+  expect(inspectorWidth1600).toBeGreaterThanOrEqual(296);
+  expect(inspectorWidth1600).toBeLessThanOrEqual(312);
   const previewWidth1600 = (await page.locator('#scene-editor-stage-shell').boundingBox())?.width || 0;
   expect(previewWidth1600).toBeGreaterThan(650);
   await page.setViewportSize({ width:1920, height:1080 });
   const inspectorWidth1920 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
-  expect(inspectorWidth1920).toBeGreaterThanOrEqual(270);
-  expect(inspectorWidth1920).toBeLessThanOrEqual(290);
+  expect(inspectorWidth1920).toBeGreaterThanOrEqual(296);
+  expect(inspectorWidth1920).toBeLessThanOrEqual(312);
   await page.setViewportSize({ width:1600, height:900 });
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('#scene-editor-undo')).toBeDisabled();
@@ -114,8 +114,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(geometry.documentScroll).toBeLessThanOrEqual(geometry.documentClient + 2);
   expect(geometry.layersScroll).toBeLessThanOrEqual(geometry.layersClient + 2);
   expect(geometry.propertiesScroll).toBeLessThanOrEqual(geometry.propertiesClient + 2);
-  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(270);
-  expect(geometry.propertiesWidth).toBeLessThanOrEqual(290);
+  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(296);
+  expect(geometry.propertiesWidth).toBeLessThanOrEqual(312);
 
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
@@ -129,6 +129,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(addMenu.getByRole('menuitem')).toHaveCount(5);
   await addMenu.getByRole('menuitem', { name:/Текстовое поле/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(1);
+  await expect(page.locator('.scene-editor-layer-select strong')).toHaveText('Текстовое поле');
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент 1');
   await expect(page.locator('#scene-editor-properties-kind')).toHaveText('T');
@@ -292,10 +293,13 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
 
   const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
   await location.fill('Турку');
-  await expect(page.locator('.scene-weather-location-results')).toBeVisible();
-  await page.locator('.scene-weather-location-results .weather-location-option', { hasText:'Турку' }).click();
+  await expect(page.locator('#scene-editor-properties').getByLabel('Широта')).toHaveValue('60.4518');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Долгота')).toHaveValue('22.2666');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Часовой пояс')).toHaveValue('Europe/Helsinki');
 
   const weatherNode = page.locator('div[data-scene-element-type="weather"][data-scene-element-id]');
+  await expect(page.locator('.scene-editor-layer-select strong')).toHaveText('Погода');
+  await expect(page.locator('.scene-editor-selection-box.is-selected')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(weatherNode.locator('.weather-widget-location')).toHaveText('Турку');
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);

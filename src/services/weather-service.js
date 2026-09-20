@@ -1,8 +1,14 @@
 const cache = new Map();
 
 function finite(value, min, max) {
+  if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) && number >= min && number <= max ? number : null;
+}
+
+export function hasWeatherCoordinates(settings) {
+  return finite(settings?.latitude, -90, 90) !== null
+    && finite(settings?.longitude, -180, 180) !== null;
 }
 
 function controller(timeoutMs) {
@@ -51,16 +57,30 @@ function cacheKey(latitude, longitude, timezone) {
   return `${latitude.toFixed(3)}:${longitude.toFixed(3)}:${timezone || 'auto'}`;
 }
 
-function forecastItems(hourly, count) {
+function wallClockMs(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(value || ''));
+  if (!match) return Number.NaN;
+  return Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+    Number(match[6] || 0)
+  );
+}
+
+function forecastItems(hourly, count, currentTime) {
   const times = Array.isArray(hourly?.time) ? hourly.time : [];
   const temperatures = Array.isArray(hourly?.temperature_2m) ? hourly.temperature_2m : [];
   const codes = Array.isArray(hourly?.weather_code) ? hourly.weather_code : [];
   const probabilities = Array.isArray(hourly?.precipitation_probability) ? hourly.precipitation_probability : [];
-  const now = Date.now();
+  const currentWallClock = wallClockMs(currentTime);
+  const threshold = Number.isFinite(currentWallClock) ? currentWallClock + 45 * 60 * 1000 : Number.NEGATIVE_INFINITY;
   const result = [];
   for (let index = 0; index < times.length && result.length < count; index += 1) {
-    const timestamp = Date.parse(times[index]);
-    if (!Number.isFinite(timestamp) || timestamp < now + 45 * 60 * 1000) continue;
+    const timestamp = wallClockMs(times[index]);
+    if (!Number.isFinite(timestamp) || timestamp < threshold) continue;
     result.push({
       time: times[index],
       temperature: Number(temperatures[index]),
@@ -98,7 +118,11 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
   const timezone = String(settings?.timezone || 'auto');
   const key = cacheKey(latitude, longitude, timezone);
   const cached = cache.get(key);
-  if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
+  if (!force && cached && cached.expiresAt > Date.now()) {
+    const locationName = String(settings?.location_name || '').trim();
+    if (cached.value.location_name === locationName) return cached.value;
+    return Object.freeze({ ...cached.value, location_name: locationName });
+  }
 
   const url = new URL('/v1/forecast', config.weatherProviderBaseUrl);
   url.searchParams.set('latitude', String(latitude));
@@ -125,7 +149,7 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
     is_day: isDay,
     condition: condition(current.weather_code),
     icon: icon(current.weather_code, isDay),
-    forecast: forecastItems(body?.hourly, 6)
+    forecast: forecastItems(body?.hourly, 6, current.time)
   });
   cache.set(key, { expiresAt: Date.now() + config.weatherCacheSeconds * 1000, value });
   if (cache.size > 256) {

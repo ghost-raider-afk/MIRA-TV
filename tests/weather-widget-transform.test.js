@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { completeWeatherWidget, weatherWidgetInput } from '../src/contracts/weather.js';
 import { normaliseWeatherWidget } from '../src/web/admin-ui/public/js/motion/weather-widget.js';
+import { getWeatherSnapshot, hasWeatherCoordinates } from '../src/services/weather-service.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -30,10 +31,55 @@ test('weather widget stores canonical transform and motion controls', () => {
   assert.equal(value.widget_motion_enabled, false);
 });
 
-test('browser weather model preserves empty coordinates as null', () => {
+test('browser and server weather models preserve empty coordinates as unconfigured', () => {
   const value = normaliseWeatherWidget({ enabled:true, latitude:null, longitude:'' });
   assert.equal(value.latitude, null);
   assert.equal(value.longitude, null);
+  assert.equal(hasWeatherCoordinates({ latitude:null, longitude:null }), false);
+  assert.equal(hasWeatherCoordinates({ latitude:'', longitude:'' }), false);
+  assert.equal(hasWeatherCoordinates({ latitude:0, longitude:0 }), true);
+});
+
+test('weather forecast filtering follows provider city wall clock instead of server timezone', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    timezone:'Asia/Vladivostok',
+    current:{
+      time:'2026-09-20T22:10',
+      temperature_2m:9,
+      apparent_temperature:7,
+      relative_humidity_2m:70,
+      weather_code:3,
+      wind_speed_10m:11,
+      is_day:0
+    },
+    hourly:{
+      time:['2026-09-20T22:00','2026-09-20T23:00','2026-09-21T00:00','2026-09-21T01:00'],
+      temperature_2m:[9,8,7,6],
+      weather_code:[3,3,3,3],
+      precipitation_probability:[10,10,10,10]
+    }
+  }), { status:200, headers:{'content-type':'application/json'} });
+  try {
+    const snapshot = await getWeatherSnapshot({
+      location_name:'Комсомольск-на-Амуре',
+      latitude:50.55,
+      longitude:137.01,
+      timezone:'Asia/Vladivostok'
+    }, {
+      weatherProviderBaseUrl:'https://weather.invalid',
+      weatherFetchTimeoutMs:1000,
+      weatherCacheSeconds:600
+    }, { force:true });
+    assert.equal(snapshot.timezone, 'Asia/Vladivostok');
+    assert.deepEqual(snapshot.forecast.slice(0, 3).map((item) => item.time), [
+      '2026-09-20T23:00',
+      '2026-09-21T00:00',
+      '2026-09-21T01:00'
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('legacy weather settings keep animation enabled with safe defaults', () => {
@@ -73,6 +119,7 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.match(widget, /layer\.append\(atmosphere, widget\)/);
   assert.match(widget, /export const WEATHER_SCENE_WIDTH = 1920/);
   assert.match(widget, /export const WEATHER_SCENE_HEIGHT = 1080/);
+  assert.match(widget, /timeLabel\(item\.time, data\.timezone \|\| config\.timezone\)/);
   assert.match(css, /weather-atmosphere/);
   assert.doesNotMatch(preview, /SceneElementRenderer|weatherPreview|data-scene-elements-layer/);
 });

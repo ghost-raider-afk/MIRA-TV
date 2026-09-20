@@ -33,6 +33,10 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(css, /scene-editor-layers-panel\{grid-template-rows:auto auto minmax\(0,1fr\) auto\}/);
   assert.match(css, /scene-editor-system-layers\{[^}]*align-content:start/);
   assert.match(elements, /export function renderSceneLayerList/);
+  assert.match(elements, /title\.textContent = typeLabel\(element\.type\)/);
+  assert.doesNotMatch(elements, /title\.textContent = `Элемент \$\{index \+ 1\}/);
+  assert.match(css, /scene-editor-layer\{[^}]*min-height:25px/);
+  assert.match(css, /scene-editor-selection-box\{[^}]*background:transparent/);
   assert.match(elements, /export function renderSceneElementInspector/);
   assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
   assert.match(scenePage, /new PlayerSceneRenderer\(stage, \{ autoplay: false, weatherPreview: true \}\)/);
@@ -40,8 +44,8 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(scenePage, /renderSceneLayerList/);
   assert.match(scenePage, /\/scene-asset/);
   assert.match(scenePage, /SCENE_WIDTH \/ Math\.max\(1, rect\.width\)/);
-  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 284px/);
-  assert.match(css, /grid-template-columns:150px minmax\(0,1fr\) 270px/);
+  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 304px/);
+  assert.match(css, /grid-template-columns:150px minmax\(0,1fr\) 286px/);
   assert.match(css, /@media\(min-width:1101px\)/);
   assert.doesNotMatch(css, /scene-editor-inspector-tabs|@media\(min-width:961px\)/);
   assert.match(css, /overflow:hidden/);
