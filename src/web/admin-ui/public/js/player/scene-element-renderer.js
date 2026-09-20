@@ -9,7 +9,7 @@ const FONT_FAMILIES = Object.freeze({
   arial: "Arial, 'Liberation Sans', sans-serif",
   'dejavu-condensed': "'DejaVu Sans Condensed', 'DejaVu Sans', sans-serif",
   'liberation-narrow': "'Liberation Sans Narrow', 'Arial Narrow', Arial, sans-serif",
-  'system-sans': "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  'system-sans': "'MIRA Sans', Arial, sans-serif"
 });
 
 function percentage(value, total) {
