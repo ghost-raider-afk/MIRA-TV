@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadConfig } from '../src/config/index.js';
-import { positiveId, siteSettingsInput } from '../src/contracts/input.js';
+import { menuDraftInput, positiveId, siteSettingsInput } from '../src/contracts/input.js';
 import { menuSettingsInput } from '../src/contracts/menu-settings.js';
 import { passwordChangeInput } from '../src/services/password-service.js';
 
@@ -60,4 +60,36 @@ test('environment integer parser rejects partial numeric strings', () => {
   assert.throws(() => loadConfig(runtimeEnv({ POSTGRES_POOL_MAX: '5connections' })), /POSTGRES_POOL_MAX.*целым числом/);
   assert.throws(() => loadConfig(runtimeEnv({ SCREEN_BACKGROUND_MAX_BYTES: '20MB' })), /SCREEN_BACKGROUND_MAX_BYTES.*целым числом/);
   assert.throws(() => loadConfig(runtimeEnv({ SCENE_ASSET_MAX_BYTES: '100MB' })), /SCENE_ASSET_MAX_BYTES.*целым числом/);
+});
+
+
+test('menu draft validates and persists promotion animation presets', async () => {
+  const store = {
+    async listProducts() {
+      return [{ id:1, name:'Акционный товар', price_primary:'200', price_secondary:'300', active:true }];
+    },
+    async listPackaging() { return []; }
+  };
+  const draft = await menuDraftInput({
+    rows:[
+      { id:'section', kind:'section', name:'Меню', enabled:true },
+      {
+        id:'item', kind:'item', product_id:1, enabled:true, promotion:true, promotion_text:'АКЦИЯ',
+        promotion_animation:'gloss', promotion_badge_animation:'breathe'
+      }
+    ],
+    settings:{},
+    scene:{ version:1, elements:[] }
+  }, store, 49152);
+  assert.equal(draft.rows[1].promotion_animation, 'gloss');
+  assert.equal(draft.rows[1].promotion_badge_animation, 'breathe');
+
+  await assert.rejects(() => menuDraftInput({
+    rows:[
+      { id:'section', kind:'section', name:'Меню', enabled:true },
+      { id:'item', kind:'item', product_id:1, enabled:true, promotion:true, promotion_animation:'flash' }
+    ],
+    settings:{},
+    scene:{ version:1, elements:[] }
+  }, store, 49152), /Анимация строки акции/);
 });
