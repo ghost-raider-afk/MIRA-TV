@@ -32,7 +32,13 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(renderer, /content_reference_width/);
   assert.match(renderer, /content_reference_height/);
   assert.match(renderer, /translate\(-50%, -50%\) scale/);
-  assert.match(renderer, /applyContentGeometry\(entry\.content, element\)/);
+  assert.match(renderer, /applyContentGeometry\(entry\.content, element, this\.sceneScale\(\)\)/);
+  assert.match(renderer, /weatherPreviewEndpoint/);
+  assert.match(renderer, /\/api\/weather\/preview/);
+  assert.match(renderer, /weatherPreviewFallback/);
+  assert.match(renderer, /weatherPreviewStates = new Map/);
+  assert.match(renderer, /refreshGeometry\(\)/);
+  assert.match(renderer, /--weather-embedded-width/);
   assert.doesNotMatch(renderer, /innerHTML/);
 
   assert.match(preview, /menuLayer\.innerHTML = buildTableSvg/);
