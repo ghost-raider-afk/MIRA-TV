@@ -60,6 +60,16 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect((await backgroundLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   expect((await tableLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
+  const inspectorWidth1600 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
+  expect(inspectorWidth1600).toBeGreaterThanOrEqual(270);
+  expect(inspectorWidth1600).toBeLessThanOrEqual(290);
+  const previewWidth1600 = (await page.locator('#scene-editor-stage-shell').boundingBox())?.width || 0;
+  expect(previewWidth1600).toBeGreaterThan(650);
+  await page.setViewportSize({ width:1920, height:1080 });
+  const inspectorWidth1920 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
+  expect(inspectorWidth1920).toBeGreaterThanOrEqual(270);
+  expect(inspectorWidth1920).toBeLessThanOrEqual(290);
+  await page.setViewportSize({ width:1600, height:900 });
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('#scene-editor-undo')).toBeDisabled();
   await expect(page.locator('#scene-editor-redo')).toBeDisabled();
@@ -224,4 +234,93 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Текстовое поле/ }).click();
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
   await expect(page.locator('.scene-editor-resize-handle')).toHaveCount(8);
+});
+
+
+test('Scene weather preview resolves selected city and intrinsic autoscale keeps content inside the element box', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen } = await fixture(page);
+
+  await page.route('**/api/weather/locations**', async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify([{ name:'Турку', admin1:'Varsinais-Suomi', country:'Финляндия', latitude:60.4518, longitude:22.2666, timezone:'Europe/Helsinki' }])
+    });
+  });
+  const previewRequests = [];
+  await page.route('**/api/weather/preview**', async (route) => {
+    const url = new URL(route.request().url());
+    previewRequests.push(Object.fromEntries(url.searchParams));
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify({
+        location_name:url.searchParams.get('name'),
+        latitude:Number(url.searchParams.get('latitude')),
+        longitude:Number(url.searchParams.get('longitude')),
+        timezone:url.searchParams.get('timezone'),
+        temperature:7,
+        apparent_temperature:5,
+        humidity:71,
+        wind_speed:9,
+        weather_code:3,
+        is_day:true,
+        condition:'Облачно',
+        icon:'cloud',
+        updated_at:new Date().toISOString(),
+        forecast:[
+          { time:new Date(Date.now()+3600000).toISOString(), temperature:8, icon:'cloud' },
+          { time:new Date(Date.now()+7200000).toISOString(), temperature:7, icon:'cloud' },
+          { time:new Date(Date.now()+10800000).toISOString(), temperature:6, icon:'cloud' }
+        ]
+      })
+    });
+  });
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-add').click();
+  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Погода/ }).click();
+
+  const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
+  await location.fill('Турку');
+  await expect(page.locator('.scene-weather-location-results')).toBeVisible();
+  await page.locator('.scene-weather-location-results .weather-location-option', { hasText:'Турку' }).click();
+
+  const weatherNode = page.locator('[data-scene-element-type="weather"]');
+  await expect(weatherNode.locator('.weather-widget-location')).toHaveText('Турку');
+  await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
+  await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
+  expect(previewRequests.at(-1)).toMatchObject({
+    name:'Турку',
+    latitude:'60.4518',
+    longitude:'22.2666',
+    timezone:'Europe/Helsinki'
+  });
+
+  const width = page.locator('#scene-editor-properties').getByLabel('Ширина');
+  const height = page.locator('#scene-editor-properties').getByLabel('Высота');
+  await width.fill('250');
+  await height.fill('150');
+
+  await expect.poll(async () => weatherNode.evaluate((node) => {
+    const outer = node.getBoundingClientRect();
+    const widget = node.querySelector('.weather-widget');
+    if (!(widget instanceof HTMLElement)) return false;
+    const rects = [widget, ...widget.querySelectorAll('*')]
+      .filter((item) => item instanceof Element)
+      .map((item) => item.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 || rect.height > 0);
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    return left >= outer.left - 1 && top >= outer.top - 1 && right <= outer.right + 1 && bottom <= outer.bottom + 1;
+  })).toBe(true);
+
+  await expect(weatherNode).toHaveCSS('overflow', 'hidden');
+  const effectiveScale = Number(await weatherNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
+  expect(effectiveScale).toBeGreaterThan(0);
+  expect(effectiveScale).toBeLessThan(1);
 });
