@@ -111,11 +111,11 @@ export function initialiseSceneEditor() {
   function fitPreviewShell() {
     if (!state.screen) return;
     const resolution = resolutionOf(state.screen);
-    const widthLimit = Math.max(240, canvasPane.clientWidth * .82);
-    const heightLimit = Math.max(180, canvasPane.clientHeight * .68);
+    const widthLimit = Math.max(360, canvasPane.clientWidth * .9);
+    const heightLimit = Math.max(240, canvasPane.clientHeight * .82);
     const scale = Math.min(widthLimit / resolution.width, heightLimit / resolution.height);
-    const width = Math.max(240, Math.floor(resolution.width * scale));
-    const height = Math.max(135, Math.floor(resolution.height * scale));
+    const width = Math.max(360, Math.floor(resolution.width * scale));
+    const height = Math.max(203, Math.floor(resolution.height * scale));
     shell.style.width = `${width}px`;
     shell.style.height = `${height}px`;
     shell.style.aspectRatio = `${resolution.width} / ${resolution.height}`;
