@@ -39,3 +39,24 @@
 @media(max-width:900px){.editor-elements-stack{grid-template-columns:1fr}.editor-element-card[open]{grid-column:auto}}
 
 .editor-element-type-hint{color:var(--ui-text-muted);font-size:8px;line-height:1.3}
+
+
+/* Compact searchable picker used by Scene inline table editing. */
+.editor-preview-choice{position:absolute;z-index:12;min-width:0;pointer-events:auto}
+.editor-preview-product-choice{left:1%;top:5%;width:min(var(--preview-name-width),72%);height:48%}
+.editor-preview-packaging-choice{top:13%;width:32%;height:70%}
+.editor-preview-packaging-choice[data-preview-packaging-slot="1"]{left:1%}
+.editor-preview-packaging-choice[data-preview-packaging-slot="2"]{left:51%}
+.editor-preview-choice>.editor-preview-choice-trigger{position:relative;inset:auto;display:flex;width:100%;height:100%;align-items:center;padding:0 18px 0 6px;text-align:left;white-space:nowrap}
+.editor-preview-choice-trigger::after{content:'⌄';position:absolute;right:5px;top:50%;transform:translateY(-55%);font-size:.8em;opacity:.65}
+.editor-preview-choice-trigger-text{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editor-preview-choice-popup{position:absolute;z-index:120;top:calc(100% + 3px);left:0;width:clamp(220px,135%,360px);padding:5px;border:1px solid var(--ui-border-strong);border-radius:6px;background:var(--ui-panel-raised);box-shadow:0 12px 28px color-mix(in srgb,var(--ui-shadow-color) 28%,transparent)}
+.editor-preview-choice-popup[hidden]{display:none}
+.editor-preview-choice-search{width:100%;min-height:28px;height:28px;padding:3px 7px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-input);color:var(--ui-text);font-size:10px;line-height:1.2}
+.editor-preview-choice-list{display:grid;max-height:190px;gap:2px;margin-top:4px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.editor-preview-choice-option{display:grid;min-height:28px;align-content:center;gap:1px;padding:4px 6px;border:0;border-radius:4px;background:transparent;color:var(--ui-text);cursor:pointer;text-align:left}
+.editor-preview-choice-option:hover,.editor-preview-choice-option:focus-visible{background:color-mix(in srgb,var(--ui-accent) 10%,var(--ui-panel));outline:none}
+.editor-preview-choice-option[aria-selected="true"]{background:color-mix(in srgb,var(--ui-accent) 14%,var(--ui-panel))}
+.editor-preview-choice-option strong{overflow:hidden;font-size:9px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}
+.editor-preview-choice-option small{overflow:hidden;color:var(--ui-text-muted);font-size:7px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}
+.editor-preview-choice-empty{padding:8px 6px;color:var(--ui-text-muted);font-size:8px;text-align:center}
