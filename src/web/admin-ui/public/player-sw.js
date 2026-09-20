@@ -137,10 +137,16 @@ async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
   const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
   const cached = await cache.match(fullRequest);
-  if (cached) return cached;
-  if (!request.headers.has('range')) return cachedAsset(request);
-  try { return await networkWithTimeout(request, 8000); }
-  catch { return Response.error(); }
+  if (!request.headers.has('range')) return cached || cachedAsset(request);
+
+  // Do not slice a potentially 100 MB cached video in JavaScript. When online,
+  // preserve the browser's native byte-range pipeline; the complete cache is
+  // only the offline fallback when the network is unavailable.
+  try {
+    const ranged = await networkWithTimeout(request, 8000);
+    if (ranged.status === 206 || ranged.ok) return ranged;
+  } catch {}
+  return cached || Response.error();
 }
 
 self.addEventListener('fetch', (event) => {
