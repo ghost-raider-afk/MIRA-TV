@@ -7,17 +7,12 @@ import { createEditorState, markEditorSaved, replaceEditorState } from './state.
 import { updateSettings } from './commands.js';
 import { createEditorHistory } from './history.js';
 import { normaliseEditorSettings } from './settings.js';
-import { appendRow, renderPreviewRows } from './rows.js';
-import { bindScreenProperties, bindSettingsProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
+import { bindScreenProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
 import { renderPreview } from './preview.js';
 import { serializeDraft } from './serializer.js';
 
 const EDITOR_LOADING_CONTROLS = Object.freeze([
-  'editor-name', 'editor-resolution', 'editor-status', 'editor-active',
-  'editor-font-scale', 'editor-font-scale-number', 'editor-font-family',
-  'editor-table-x', 'editor-table-y', 'editor-table-width', 'editor-table-height',
-  'editor-add-section', 'editor-add-item', 'editor-add-packaging',
-  'editor-save'
+  'editor-name', 'editor-resolution', 'editor-status', 'editor-active', 'editor-save'
 ]);
 
 function editorScreenId() {
@@ -126,7 +121,6 @@ export function initialiseScreenEditor() {
   let packaging = [];
 
   const previewTarget = element('editor-menu-preview');
-  const inspectorTarget = element('editor-preview-row-inspector');
 
   setEditorLoading(form, true);
 
@@ -137,24 +131,10 @@ export function initialiseScreenEditor() {
     target: previewTarget
   });
 
-  const refreshEditorView = ({ syncRows = true } = {}) => {
+  const refreshEditorView = () => {
     if (!isMounted()) return null;
     const activeScreen = editorState.screen || screen;
     const preview = refreshPreview(activeScreen);
-    if (syncRows && preview?.editorLayer) {
-      renderPreviewRows(editorState, {
-        target: preview.editorLayer,
-        inspector: inspectorTarget,
-        model: preview.model,
-        lines: preview.lines,
-        layout: preview.layout,
-        products,
-        packaging,
-        onBeforeMutate: () => history.checkpoint(),
-        onVisualChange: () => refreshEditorView({ syncRows: false }),
-        onStructureChange: () => refreshEditorView({ syncRows: true })
-      });
-    }
     setLayoutWarning(preview, activeScreen);
     setFontScaleState(preview);
     setDirtyState(editorState);
@@ -179,17 +159,15 @@ export function initialiseScreenEditor() {
     history.clear();
     populateEditor(screen, editorState);
     const sceneLink = element('editor-scene-link');
+    const previewSceneLink = element('editor-preview-scene-link');
     if (sceneLink instanceof HTMLAnchorElement) sceneLink.href = `/scene?screen=${screenId}`;
+    if (previewSceneLink instanceof HTMLAnchorElement) previewSceneLink.href = `/scene?screen=${screenId}`;
     setEditorLoading(form, false);
     refreshEditorView();
   };
   void load().catch((error) => { if (isMounted()) setEditorMessage(error.message); });
 
-  bindSettingsProperties(editorState, refreshEditorView);
   bindScreenProperties(editorState, refreshEditorView);
-  element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshEditorView(); });
-  element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshEditorView(); });
-  element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshEditorView(); });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
