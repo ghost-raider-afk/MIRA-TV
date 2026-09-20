@@ -16,15 +16,27 @@ const ELEMENT_LABELS = Object.freeze({
   logo: 'Логотип',
   image: 'Картинка',
   video: 'Видео',
-  weather: 'Погода'
+  weather: 'Погода',
+  background: 'Фон',
+  table: 'Таблица меню'
 });
 const ELEMENT_ICONS = Object.freeze({
   text: 'T',
   logo: '◈',
   image: '▧',
   video: '▶',
-  weather: '☁'
+  weather: '☁',
+  background: '▧',
+  table: '▦'
 });
+const TABLE_FONTS = Object.freeze([
+  ['arial-narrow', 'Arial Narrow'],
+  ['tahoma-bold', 'Tahoma Bold'],
+  ['arial', 'Arial'],
+  ['dejavu-condensed', 'DejaVu Sans Condensed'],
+  ['liberation-narrow', 'Liberation Sans Narrow'],
+  ['system-sans', 'Системный sans-serif']
+]);
 
 let generation = 0;
 
@@ -78,6 +90,9 @@ export function initialiseSceneEditor() {
   const propertiesRoot = element('scene-editor-properties');
   const addButton = element('scene-editor-add');
   const addMenu = element('scene-editor-add-menu');
+  const backgroundLayer = element('scene-editor-background-layer');
+  const tableLayer = element('scene-editor-table-layer');
+  const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
   const screenSelect = element('scene-editor-screen');
   if (!(form instanceof HTMLFormElement)
       || !(stage instanceof HTMLElement)
@@ -88,6 +103,8 @@ export function initialiseSceneEditor() {
       || !(propertiesRoot instanceof HTMLElement)
       || !(addButton instanceof HTMLButtonElement)
       || !(addMenu instanceof HTMLElement)
+      || !(backgroundLayer instanceof HTMLButtonElement)
+      || !(tableLayer instanceof HTMLButtonElement)
       || !(screenSelect instanceof HTMLSelectElement)) return undefined;
 
   const token = ++generation;
@@ -100,6 +117,7 @@ export function initialiseSceneEditor() {
   let previewFrame = 0;
   let resizeObserver = null;
   let interactionActive = false;
+  let selectedOwner = 'table';
 
   const active = () => !disposed && token === generation && document.body.dataset.page === 'scene';
 
@@ -111,6 +129,7 @@ export function initialiseSceneEditor() {
   }
 
   function selectedElement() {
+    if (selectedOwner !== 'element') return null;
     return state.scene?.elements?.find((item) => item.id === state.selectedElementId) || null;
   }
 
@@ -118,21 +137,33 @@ export function initialiseSceneEditor() {
     const selected = selectedElement();
     const status = element('scene-editor-selection-status');
     const title = element('scene-editor-properties-title');
+    const kind = element('scene-editor-properties-kind');
     const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
     const index = selected ? elements.indexOf(selected) : -1;
-    const caption = selected ? `Элемент ${index + 1}` : 'Элемент не выбран';
-    if (status) status.textContent = selected
-      ? `${caption} · X ${Math.round(Number(selected.x) || 0)} · Y ${Math.round(Number(selected.y) || 0)}`
-      : 'Элемент не выбран';
+    const ownerType = selectedOwner === 'element' ? selected?.type : selectedOwner;
+    const caption = selectedOwner === 'background'
+      ? 'Фон'
+      : selectedOwner === 'table'
+        ? 'Таблица меню'
+        : selected
+          ? `Элемент ${index + 1}`
+          : 'Элемент не выбран';
+
+    if (status) {
+      status.textContent = selected
+        ? `${caption} · X ${Math.round(Number(selected.x) || 0)} · Y ${Math.round(Number(selected.y) || 0)}`
+        : selectedOwner === 'table'
+          ? `Таблица · X ${Math.round(Number(state.settings.table_x) || 0)} · Y ${Math.round(Number(state.settings.table_y) || 0)}`
+          : caption;
+    }
     if (title) title.textContent = caption;
-    const kind = element('scene-editor-properties-kind');
     if (kind) {
-      const typeLabel = selected ? (ELEMENT_LABELS[selected.type] || selected.type) : 'Тип элемента не выбран';
-      kind.textContent = selected ? (ELEMENT_ICONS[selected.type] || '•') : '—';
-      kind.dataset.elementType = selected?.type || '';
-      kind.dataset.tooltip = selected ? typeLabel : '';
+      const typeLabel = ownerType ? (ELEMENT_LABELS[ownerType] || ownerType) : 'Тип элемента не выбран';
+      kind.textContent = ownerType ? (ELEMENT_ICONS[ownerType] || '•') : '—';
+      kind.dataset.elementType = ownerType || '';
+      kind.dataset.tooltip = ownerType ? typeLabel : '';
       kind.setAttribute('aria-label', typeLabel);
-      kind.title = selected ? typeLabel : '';
+      kind.title = ownerType ? typeLabel : '';
     }
   }
 
@@ -161,16 +192,246 @@ export function initialiseSceneEditor() {
 
   function syncOverlaySelection() {
     selectionLayer.querySelectorAll('.scene-editor-selection-box').forEach((node) => {
-      node.classList.toggle('is-selected', node.dataset.sceneElementId === state.selectedElementId);
+      node.classList.toggle('is-selected', selectedOwner === 'element' && node.dataset.sceneElementId === state.selectedElementId);
     });
+    selectionLayer.querySelector('.scene-editor-table-selection-box')?.classList.toggle('is-selected', selectedOwner === 'table');
+    backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
+    tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     setSelectionStatus();
   }
 
-  function selectInCanvas(elementId) {
-    selectSceneElement(state, elementId);
+  function selectOwner(owner, elementId = null) {
+    selectedOwner = owner;
+    if (owner === 'element' && elementId) selectSceneElement(state, elementId);
+    else state.selectedElementId = null;
     renderLayers();
     renderInspector();
     syncOverlaySelection();
+    if (window.matchMedia('(max-width: 1100px)').matches && owner !== 'element') {
+      document.body.dataset.sceneMobilePanel = 'properties';
+    }
+  }
+
+  function selectInCanvas(elementId) {
+    selectOwner('element', elementId);
+  }
+
+  async function renderDocumentPreview() {
+    if (!renderer || !active()) return;
+    await renderer.render(sceneContext(), ['screen', 'menu']);
+    if (!active()) return;
+    refreshSelectionOverlay();
+  }
+
+  function patchMenuSettings(patch) {
+    state.settings = { ...state.settings, ...patch };
+    state.dirty = true;
+    setDirty();
+    setSelectionStatus();
+    void renderDocumentPreview();
+  }
+
+  function makeField(labelText, control) {
+    const label = document.createElement('label');
+    label.className = 'field';
+    const caption = document.createElement('span');
+    caption.textContent = labelText;
+    label.append(caption, control);
+    return label;
+  }
+
+  function compactInput(type, value, { min, max, step } = {}) {
+    const input = document.createElement('input');
+    input.type = type;
+    if (value !== undefined && value !== null) input.value = String(value);
+    if (min !== undefined) input.min = String(min);
+    if (max !== undefined) input.max = String(max);
+    if (step !== undefined) input.step = String(step);
+    return input;
+  }
+
+  async function applyBackgroundUpload(file) {
+    if (!currentScreenId || !file) return;
+    const upload = propertiesRoot.querySelector('[data-scene-background-upload]');
+    setPending(upload, true, 'Загружаем…');
+    const dirtyBefore = state.dirty;
+    try {
+      const result = await api.put(`${API.screens}/${currentScreenId}/background`, file, {
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-Draft-Revision': String(state.draftRevision)
+        }
+      });
+      if (!active()) return;
+      state.settings = {
+        ...state.settings,
+        background_image_url: result.draft?.settings?.background_image_url || ''
+      };
+      state.draftRevision = Number(result.draft?.revision || state.draftRevision);
+      state.screen = structuredClone(result.screen || state.screen);
+      state.dirty = dirtyBefore;
+      setDirty();
+      await renderFullPreview();
+      renderInspector();
+      setMessage('scene-editor-message', 'Фон загружен.', 'success');
+    } catch (error) {
+      if (active()) setMessage('scene-editor-message', error.message);
+    } finally {
+      if (active()) setPending(upload, false, 'Загружаем…');
+    }
+  }
+
+  async function removeBackground() {
+    if (!currentScreenId || !state.settings.background_image_url) return;
+    const dirtyBefore = state.dirty;
+    try {
+      const result = await api.delete(`${API.screens}/${currentScreenId}/background`, {
+        headers: { 'X-Draft-Revision': String(state.draftRevision) }
+      });
+      if (!active()) return;
+      state.settings = { ...state.settings, background_image_url: '' };
+      state.draftRevision = Number(result.draft?.revision || state.draftRevision);
+      state.screen = structuredClone(result.screen || state.screen);
+      state.dirty = dirtyBefore;
+      setDirty();
+      await renderFullPreview();
+      renderInspector();
+      setMessage('scene-editor-message', 'Фон удалён.', 'success');
+    } catch (error) {
+      if (active()) setMessage('scene-editor-message', error.message);
+    }
+  }
+
+  function renderBackgroundInspector() {
+    propertiesRoot.replaceChildren();
+    const stack = document.createElement('div');
+    stack.className = 'scene-editor-inspector-stack';
+
+    const appearance = document.createElement('details');
+    appearance.className = 'scene-editor-inspector-group';
+    appearance.open = true;
+    const appearanceSummary = document.createElement('summary');
+    appearanceSummary.textContent = 'Фон';
+    const appearancePanel = document.createElement('div');
+    appearancePanel.className = 'scene-editor-inspector-panel';
+
+    const color = compactInput('color', state.settings.background_color || '#101828');
+    color.setAttribute('aria-label', 'Цвет фона');
+    color.addEventListener('input', () => patchMenuSettings({ background_color: color.value.toUpperCase() }));
+    appearancePanel.append(makeField('Цвет', color));
+
+    const file = compactInput('file');
+    file.accept = 'image/png,image/jpeg,image/webp';
+    file.setAttribute('aria-label', 'Фоновое изображение');
+    const status = document.createElement('small');
+    status.className = 'scene-editor-background-state';
+    status.textContent = state.settings.background_image_url ? 'Изображение загружено' : 'Без изображения';
+
+    const actions = document.createElement('div');
+    actions.className = 'scene-editor-inspector-actions';
+    const upload = document.createElement('button');
+    upload.type = 'button';
+    upload.className = 'button button-secondary';
+    upload.dataset.sceneBackgroundUpload = '';
+    upload.textContent = 'Загрузить';
+    upload.addEventListener('click', () => {
+      const selected = file.files?.[0];
+      if (!selected) {
+        setMessage('scene-editor-message', 'Выберите PNG, JPEG или WebP.');
+        return;
+      }
+      void applyBackgroundUpload(selected);
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'button button-danger';
+    remove.textContent = 'Удалить';
+    remove.disabled = !state.settings.background_image_url;
+    remove.addEventListener('click', () => void removeBackground());
+    actions.append(upload, remove);
+    appearancePanel.append(makeField('Изображение', file), status, actions);
+    appearance.append(appearanceSummary, appearancePanel);
+    stack.append(appearance);
+    propertiesRoot.append(stack);
+  }
+
+  function renderTableInspector() {
+    propertiesRoot.replaceChildren();
+    const stack = document.createElement('div');
+    stack.className = 'scene-editor-inspector-stack';
+
+    const geometry = document.createElement('details');
+    geometry.className = 'scene-editor-inspector-group';
+    geometry.open = true;
+    geometry.append(Object.assign(document.createElement('summary'), { textContent:'Трансформация' }));
+    const geometryPanel = document.createElement('div');
+    geometryPanel.className = 'scene-editor-inspector-panel';
+    const grid = document.createElement('div');
+    grid.className = 'geometry-grid';
+    for (const [caption, key, min, max] of [
+      ['X','table_x',0,1919], ['Y','table_y',0,1079],
+      ['W','table_width_px',1,1920], ['H','table_height_px',1,1080]
+    ]) {
+      const control = compactInput('number', state.settings[key], { min, max, step:1 });
+      control.setAttribute('aria-label', caption === 'W' ? 'Ширина таблицы' : caption === 'H' ? 'Высота таблицы' : caption);
+      control.addEventListener('input', () => {
+        const value = Number(control.value);
+        if (!Number.isFinite(value)) return;
+        const next = Math.round(value);
+        const patch = { [key]:next };
+        if (key === 'table_x') patch.table_x = clamp(next, 0, SCENE_WIDTH - Number(state.settings.table_width_px || 1));
+        if (key === 'table_y') patch.table_y = clamp(next, 0, SCENE_HEIGHT - Number(state.settings.table_height_px || 1));
+        if (key === 'table_width_px') patch.table_width_px = clamp(next, 1, SCENE_WIDTH - Number(state.settings.table_x || 0));
+        if (key === 'table_height_px') patch.table_height_px = clamp(next, 1, SCENE_HEIGHT - Number(state.settings.table_y || 0));
+        patchMenuSettings(patch);
+      });
+      grid.append(makeField(caption, control));
+    }
+    geometryPanel.append(grid);
+    geometry.append(geometryPanel);
+
+    const typography = document.createElement('details');
+    typography.className = 'scene-editor-inspector-group';
+    typography.open = true;
+    typography.append(Object.assign(document.createElement('summary'), { textContent:'Типографика' }));
+    const typePanel = document.createElement('div');
+    typePanel.className = 'scene-editor-inspector-panel';
+    const font = document.createElement('select');
+    for (const [value,label] of TABLE_FONTS) font.add(new Option(label,value));
+    font.value = state.settings.font_family || 'arial-narrow';
+    font.setAttribute('aria-label','Шрифт таблицы');
+    font.addEventListener('change', () => patchMenuSettings({ font_family:font.value }));
+    const scale = compactInput('number', state.settings.font_scale_percent || 100, { min:55,max:130,step:1 });
+    scale.setAttribute('aria-label','Масштаб шрифта таблицы');
+    scale.addEventListener('input', () => {
+      const value = Number(scale.value);
+      if (Number.isFinite(value)) patchMenuSettings({ font_scale_percent:clamp(Math.round(value),55,130) });
+    });
+    typePanel.append(makeField('Шрифт',font), makeField('Масштаб, %',scale));
+    typography.append(typePanel);
+
+    const palette = document.createElement('details');
+    palette.className = 'scene-editor-inspector-group';
+    palette.append(Object.assign(document.createElement('summary'), { textContent:'Оформление' }));
+    const palettePanel = document.createElement('div');
+    palettePanel.className = 'scene-editor-inspector-panel';
+    const paletteGrid = document.createElement('div');
+    paletteGrid.className = 'compact-form-grid';
+    for (const [caption,key,fallback] of [['Акцент','accent_color','#F4C915'],['Текст','text_color','#F8FAFC']]) {
+      const control = compactInput('color', state.settings[key] || fallback);
+      control.setAttribute('aria-label',caption);
+      control.addEventListener('input', () => patchMenuSettings({ [key]:control.value.toUpperCase() }));
+      paletteGrid.append(makeField(caption,control));
+    }
+    palettePanel.append(paletteGrid);
+    palette.append(palettePanel);
+
+    const content = document.createElement('div');
+    content.className = 'scene-editor-table-content-hint';
+    content.textContent = 'Клик по таблице на рабочем поле включает её редактирование. Наполнение строк переносится сюда следующим этапом без отдельного Preview-редактора.';
+
+    stack.append(geometry, typography, palette, content);
+    propertiesRoot.append(stack);
   }
 
   function refreshSelectionOverlay() {
@@ -339,6 +600,8 @@ export function initialiseSceneEditor() {
   }
 
   function renderLayers() {
+    backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
+    tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     renderSceneLayerList(state, {
       container: layersRoot,
       onVisualChange: () => {
@@ -362,6 +625,16 @@ export function initialiseSceneEditor() {
   }
 
   function renderInspector() {
+    if (selectedOwner === 'background') {
+      renderBackgroundInspector();
+      setSelectionStatus();
+      return;
+    }
+    if (selectedOwner === 'table') {
+      renderTableInspector();
+      setSelectionStatus();
+      return;
+    }
     const selected = renderSceneElementInspector(state, {
       container: propertiesRoot,
       onVisualChange: () => {
@@ -405,6 +678,7 @@ export function initialiseSceneEditor() {
     state.settings = structuredClone(bundle.draft?.settings || {});
     state.scene = structuredClone(bundle.draft?.scene || { version: 1, elements: [] });
     state.selectedElementId = state.scene.elements?.[0]?.id || null;
+    selectedOwner = state.selectedElementId ? 'element' : 'table';
     state.dirty = false;
     state.revision = 0;
     state.draftRevision = Number(bundle.draft?.revision || 0);
@@ -476,6 +750,21 @@ export function initialiseSceneEditor() {
     });
   });
 
+  backgroundLayer.addEventListener('click', () => selectOwner('background'));
+  tableLayer.addEventListener('click', () => selectOwner('table'));
+
+  mobileToolbar?.querySelectorAll('[data-scene-mobile-panel]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const panel = button.dataset.sceneMobilePanel;
+      if (panel === 'add') {
+        document.body.dataset.sceneMobilePanel = 'layers';
+        setAddMenuOpen(true);
+        return;
+      }
+      document.body.dataset.sceneMobilePanel = document.body.dataset.sceneMobilePanel === panel ? '' : panel;
+    });
+  });
+
   addButton.addEventListener('click', () => {
     setAddMenuOpen(addMenu.hidden);
   });
@@ -488,6 +777,7 @@ export function initialiseSceneEditor() {
         return;
       }
       setAddMenuOpen(false);
+      selectedOwner = 'element';
       setDirty();
       renderSelectionOwners();
       scheduleSceneRender();
@@ -518,8 +808,9 @@ export function initialiseSceneEditor() {
       state.rows = structuredClone(saved.draft.rows || []);
       state.settings = structuredClone(saved.draft.settings || {});
       state.scene = structuredClone(saved.draft.scene || { version: 1, elements: [] });
-      if (!state.scene.elements.some((item) => item.id === state.selectedElementId)) {
+      if (selectedOwner === 'element' && !state.scene.elements.some((item) => item.id === state.selectedElementId)) {
         state.selectedElementId = state.scene.elements[0]?.id || null;
+        selectedOwner = state.selectedElementId ? 'element' : 'table';
       }
       state.draftRevision = Number(saved.draft.revision || state.draftRevision);
       state.dirty = false;
@@ -565,6 +856,7 @@ export function initialiseSceneEditor() {
       renderer?.destroy();
       renderer = null;
       window.removeEventListener('beforeunload', onBeforeUnload);
+      delete document.body.dataset.sceneMobilePanel;
     }
   };
 }
