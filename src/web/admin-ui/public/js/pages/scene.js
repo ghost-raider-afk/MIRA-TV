@@ -950,6 +950,11 @@ export function initialiseSceneEditor() {
     if (!Number.isSafeInteger(id) || id < 1) return;
     currentScreenId = id;
     screenSelect.disabled = true;
+    addButton.disabled = true;
+    backgroundLayer.disabled = true;
+    tableLayer.disabled = true;
+    const saveButton = element('scene-editor-save');
+    if (saveButton) saveButton.disabled = true;
     setMessage('scene-editor-message', '');
     const bundle = await api.get(`${API.screens}/${id}/editor`);
     if (!active() || currentScreenId !== id) return;
@@ -961,6 +966,8 @@ export function initialiseSceneEditor() {
     form.setAttribute('aria-busy', 'false');
     element('scene-editor-save').disabled = false;
     addButton.disabled = false;
+    backgroundLayer.disabled = false;
+    tableLayer.disabled = false;
     syncAddMenuAvailability();
     screenSelect.disabled = false;
   }
