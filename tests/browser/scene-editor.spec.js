@@ -171,7 +171,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#editor-background-file')).toHaveCount(0);
   await expect(page.locator('#editor-table-x')).toHaveCount(0);
   await expect(page.locator('#editor-menu-preview [data-editor-preview-row-control]')).toHaveCount(0);
-  await expect(page.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(0);
+  await expect(page.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(1);
+  await expect(page.locator('#editor-menu-preview [data-scene-element-type]')).toHaveCount(3);
   await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
   await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
 });
