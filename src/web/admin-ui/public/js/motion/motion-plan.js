@@ -79,30 +79,37 @@ export function compilePromotionMotionProgram(scene, context = {}) {
   const gain = clamp(Number(profile.promotion_intensity) || 0, 0, 100) / 100;
   const activeFraction = clamp((Number(profile.promotion_event_duration_ms) || 1800) / duration, 0.18, 0.72);
   const tracks = effect === 'none' ? [] : scene.nodes.flatMap((node) => {
+    const animation = node.metadata?.animation || '';
     if (node.kind === 'promotion-badge-glow') return [Object.freeze({
       node,
-      claims: Object.freeze(['opacity', 'appearance']),
+      claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
-        kind: 'promo-badge-glow', activeFraction,
-        opacity: gain === 0 ? 0 : clamp(0.24 + gain * 0.46, 0.24, 0.70),
+        kind: 'promo-badge-glow', animation, activeFraction,
+        opacity: gain === 0 ? 0 : clamp(0.22 + gain * 0.42, 0.22, 0.64),
         brightnessAmount: clamp((Number(profile.promotion_brightness_amount) || 0.3) * gain, 0, 0.34),
         glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 30)
       }),
       timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
     })];
+    if (node.kind === 'promotion-badge-shine' && animation === 'shine') return [Object.freeze({
+      node,
+      claims: Object.freeze(['opacity', 'transform']),
+      procedural: Object.freeze({ kind: 'promo-badge-shine', activeFraction, opacity: clamp(0.48 + gain * 0.42, 0.48, 0.90) }),
+      timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
+    })];
     if (node.kind === 'promotion-glow') return [Object.freeze({
       node,
-      claims: Object.freeze(['opacity', 'appearance']),
+      claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
-        kind: 'promo-glow', activeFraction,
-        opacity: gain === 0 ? 0 : clamp(0.18 + gain * 0.52, 0.18, 0.70),
+        kind: 'promo-glow', animation: ['wave', 'fill', 'gloss'].includes(animation) ? animation : 'wave', activeFraction,
+        opacity: gain === 0 ? 0 : clamp(0.18 + gain * 0.48, 0.18, 0.66),
         glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 36)
       }),
       timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
     })];
     return [];
   });
-  return createSceneProgram({ id: 'promotion-motion', duration, tracks, metadata: { engine: 'mira-wasm', promotionStyle: 'row-glow-pulse' } });
+  return createSceneProgram({ id: 'promotion-motion', duration, tracks, metadata: { engine: 'mira-wasm', promotionStyle: 'preset-surfaces' } });
 }
 
 export const DEFAULT_SCENE_COMPILERS = Object.freeze([compileMenuMotionProgram, compilePromotionMotionProgram]);
