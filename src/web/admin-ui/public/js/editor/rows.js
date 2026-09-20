@@ -41,7 +41,8 @@ function packagingById(packaging, id) {
 function activeRecords(records, selectedId) {
   return records
     .filter((item) => item.active || Number(item.id) === Number(selectedId))
-    .toSorted((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'ru', { sensitivity:'base' }));
+    .slice()
+    .sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'ru', { sensitivity:'base' }));
 }
 
 function choiceControl({
