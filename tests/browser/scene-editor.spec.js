@@ -53,6 +53,12 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
   await expect(page.locator('#scene-editor-background-layer')).toBeVisible();
   await expect(page.locator('#scene-editor-table-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await expect(page.locator('#scene-editor-undo')).toBeDisabled();
+  await expect(page.locator('#scene-editor-redo')).toBeDisabled();
+
+  await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
   await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(2);
@@ -109,6 +115,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await inspector.getByLabel('Размер, px', { exact:true }).fill('96');
   await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toContainText('бар маяк');
+  await expect(page.locator('#scene-editor-undo')).toBeEnabled();
 
   const seHandle = page.locator('.scene-editor-resize-handle[data-direction="se"]');
   await expect(seHandle).toBeVisible();
