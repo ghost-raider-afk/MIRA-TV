@@ -14,10 +14,8 @@ import { serializeDraft } from './serializer.js';
 
 const EDITOR_LOADING_CONTROLS = Object.freeze([
   'editor-name', 'editor-resolution', 'editor-status', 'editor-active',
-  'editor-background-color', 'editor-accent-color', 'editor-text-color',
   'editor-font-scale', 'editor-font-scale-number', 'editor-font-family',
   'editor-table-x', 'editor-table-y', 'editor-table-width', 'editor-table-height',
-  'editor-background-file', 'editor-background-upload', 'editor-background-remove',
   'editor-add-section', 'editor-add-item', 'editor-add-packaging',
   'editor-save'
 ]);
@@ -228,65 +226,6 @@ export function initialiseScreenEditor() {
       if (isMounted()) setEditorMessage(error.message);
     } finally {
       if (isMounted()) setPending(submit, false, 'Сохраняем…');
-    }
-  });
-
-  element('editor-background-upload')?.addEventListener('click', async () => {
-    if (editorState.dirty) return setEditorMessage('Сначала сохраните текущие изменения, затем загрузите фон.');
-    const file = element('editor-background-file')?.files?.[0];
-    if (!file) return setEditorMessage('Выберите PNG, JPEG или WebP.');
-    const button = element('editor-background-upload');
-    setPending(button, true, 'Загружаем…');
-    try {
-      const result = await api.put(`${API.screens}/${screenId}/background`, file, {
-        headers: { 'Content-Type': file.type || 'application/octet-stream', 'X-Draft-Revision': String(editorState.draftRevision) }
-      });
-      if (!isMounted()) return;
-      screen = result.screen;
-      replaceEditorState(editorState, {
-        screen,
-        rows: result.draft.rows || [],
-        settings: normaliseEditorSettings(result.draft.settings || {}),
-        scene: structuredClone(result.draft.scene || { version: 1, elements: [] }),
-        dirty: false,
-        revision: editorState.revision,
-        draftRevision: Number(result.draft.revision || 0)
-      });
-      history.clear();
-      populateEditor(screen, editorState);
-      refreshEditorView();
-      setEditorMessage('Фон монитора загружен.', 'success');
-    } catch (error) {
-      if (isMounted()) setEditorMessage(error.message);
-    } finally {
-      if (isMounted()) setPending(button, false, 'Загружаем…');
-    }
-  });
-
-  element('editor-background-remove')?.addEventListener('click', async () => {
-    if (editorState.dirty) return setEditorMessage('Сначала сохраните текущие изменения.');
-    if (!editorState.settings.background_image_url) return;
-    try {
-      const result = await api.delete(`${API.screens}/${screenId}/background`, {
-        headers: { 'X-Draft-Revision': String(editorState.draftRevision) }
-      });
-      if (!isMounted()) return;
-      screen = result.screen;
-      replaceEditorState(editorState, {
-        screen,
-        rows: result.draft.rows || [],
-        settings: normaliseEditorSettings(result.draft.settings || {}),
-        scene: structuredClone(result.draft.scene || { version: 1, elements: [] }),
-        dirty: false,
-        revision: editorState.revision,
-        draftRevision: Number(result.draft.revision || 0)
-      });
-      history.clear();
-      populateEditor(screen, editorState);
-      refreshEditorView();
-      setEditorMessage('Фон удалён.', 'success');
-    } catch (error) {
-      if (isMounted()) setEditorMessage(error.message);
     }
   });
 
