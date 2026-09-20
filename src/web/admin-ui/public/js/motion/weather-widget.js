@@ -21,8 +21,8 @@ const MOTION_DURATIONS = Object.freeze({
   fog: 14,
   lightning: 8.4,
   star: 4.4,
-  rays: 42,
-  glow: 8,
+  celestial: 12,
+  glow: 9,
   hover: 7
 });
 
@@ -169,27 +169,35 @@ function createAtmosphere(state, config) {
 
   const intensity = config.animation_intensity;
   if (state === 'rain' || state === 'drizzle' || state === 'storm') {
-    const rainCount = state === 'drizzle' ? 34 : 52;
+    const rainCount = state === 'drizzle' ? 26 : 44;
     atmosphere.append(particleGroup('weather-rain', intensityCount(rainCount, intensity)));
-    atmosphere.append(particleGroup('weather-clouds', state === 'storm' ? 7 : 5));
-    atmosphere.append(particleGroup('weather-mist', 3));
+    atmosphere.append(particleGroup('weather-clouds', state === 'storm' ? 6 : 5));
+    atmosphere.append(particleGroup('weather-mist', 2));
     if (state === 'storm') atmosphere.append(particleGroup('weather-lightning', 2));
   } else if (state === 'snow') {
-    atmosphere.append(particleGroup('weather-snow', intensityCount(54, intensity)));
+    atmosphere.append(particleGroup('weather-snow', intensityCount(46, intensity)));
     atmosphere.append(particleGroup('weather-clouds', 5));
     atmosphere.append(particleGroup('weather-mist', 2));
   } else if (state === 'fog') {
     atmosphere.append(particleGroup('weather-fog', 6));
-  } else if (state === 'cloudy' || state.startsWith('partly-cloudy')) {
-    atmosphere.append(particleGroup('weather-clouds', state === 'cloudy' ? 7 : 4));
-    if (state.endsWith('night')) atmosphere.append(particleGroup('weather-stars', intensityCount(28, intensity, 80)));
-    else atmosphere.append(particleGroup('weather-sun-rays', intensityCount(12, intensity, 36)));
-  } else if (state === 'clear-night') {
-    atmosphere.append(particleGroup('weather-stars', intensityCount(40, intensity, 100)));
-    atmosphere.append(particleGroup('weather-moon-glow', 1));
-  } else {
-    atmosphere.append(particleGroup('weather-sun-rays', intensityCount(18, intensity, 48)));
+  } else if (state === 'cloudy') {
+    atmosphere.append(particleGroup('weather-clouds', 7));
+  } else if (state === 'partly-cloudy-day') {
     atmosphere.append(particleGroup('weather-sun-glow', 1));
+    atmosphere.append(particleGroup('weather-sun', 1));
+    atmosphere.append(particleGroup('weather-clouds', 4));
+  } else if (state === 'partly-cloudy-night') {
+    atmosphere.append(particleGroup('weather-moon-glow', 1));
+    atmosphere.append(particleGroup('weather-moon', 1));
+    atmosphere.append(particleGroup('weather-stars', intensityCount(12, intensity, 28)));
+    atmosphere.append(particleGroup('weather-clouds', 4));
+  } else if (state === 'clear-night') {
+    atmosphere.append(particleGroup('weather-stars', intensityCount(16, intensity, 36)));
+    atmosphere.append(particleGroup('weather-moon-glow', 1));
+    atmosphere.append(particleGroup('weather-moon', 1));
+  } else {
+    atmosphere.append(particleGroup('weather-sun-glow', 1));
+    atmosphere.append(particleGroup('weather-sun', 1));
   }
   return atmosphere;
 }
