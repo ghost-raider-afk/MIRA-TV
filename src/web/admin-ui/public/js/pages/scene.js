@@ -921,6 +921,7 @@ export function initialiseSceneEditor() {
         renderSelectionOwners();
         scheduleSceneRender();
       },
+      onWeatherLocationSearch: (query) => api.get(`/api/weather/locations?q=${encodeURIComponent(query)}`),
       onUpload: uploadSceneAsset
     });
     if (!selected) {
@@ -943,6 +944,7 @@ export function initialiseSceneEditor() {
     renderer = new PlayerSceneRenderer(stage, { autoplay: false, weatherPreview: true });
     await renderer.render(sceneContext(), ['screen', 'menu', 'scene']);
     fitPreviewShell();
+    renderer.refreshGeometry?.();
     refreshSelectionOverlay();
     if (selectedOwner === 'table') renderTableEditLayer();
   }
@@ -1162,6 +1164,7 @@ export function initialiseSceneEditor() {
 
   resizeObserver = new ResizeObserver(() => {
     fitPreviewShell();
+    renderer?.refreshGeometry?.();
     refreshSelectionOverlay();
   });
   resizeObserver.observe(canvasPane);
