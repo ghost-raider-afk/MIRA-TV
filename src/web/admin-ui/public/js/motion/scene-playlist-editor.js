@@ -100,13 +100,13 @@ export class ScenePlaylistEditor {
     this.summary = root.querySelector('[data-playlist-summary]');
     const global = root.querySelector('.playlist-scene-global');
     const enabledLabel = document.createElement('label');
-    enabledLabel.className = 'animation-entity-visible playlist-enabled-toggle';
+    enabledLabel.className = 'playlist-toggle playlist-enabled-toggle';
     this.enabled = document.createElement('input');
     this.enabled.type = 'checkbox';
     this.enabled.id = 'animation-scene-playlist-enabled';
     enabledLabel.append(this.enabled, Object.assign(document.createElement('span'), { textContent: 'Включить временные сцены' }));
     const animationLabel = document.createElement('label');
-    animationLabel.className = 'animation-entity-visible playlist-animation-toggle';
+    animationLabel.className = 'playlist-toggle playlist-animation-toggle';
     this.animationEnabled = document.createElement('input');
     this.animationEnabled.type = 'checkbox';
     this.animationEnabled.id = 'animation-scene-playlist-animation-enabled';
@@ -382,7 +382,7 @@ export class ScenePlaylistEditor {
     enabled.type = 'checkbox';
     enabled.checked = scene.enabled;
     const enabledLabel = document.createElement('label');
-    enabledLabel.className = 'animation-entity-visible';
+    enabledLabel.className = 'playlist-toggle';
     enabledLabel.append(enabled, Object.assign(document.createElement('span'), { textContent: 'Сцена активна' }));
     enabled.addEventListener('change', () => this.updateScene(index, { enabled: enabled.checked }));
 
