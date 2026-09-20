@@ -186,3 +186,41 @@
   body[data-page="scene"] .scene-editor-layers-panel,
   body[data-page="scene"] .scene-editor-properties-panel{width:min(90vw,310px)}
 }
+
+
+/* Inline table editing — compact controls over the canonical TV table */
+.scene-editor-table-edit-layer{position:absolute;z-index:25;inset:0;pointer-events:none}
+.scene-editor-table-edit-layer[hidden]{display:none}
+.scene-editor-table-edit-layer .editor-preview-row-control{pointer-events:none}
+.scene-editor-table-edit-layer .editor-preview-inline-shell,
+.scene-editor-table-edit-layer .editor-preview-inline-control,
+.scene-editor-table-edit-layer .editor-preview-packaging-controls{pointer-events:auto}
+.scene-editor-table-edit-layer .editor-preview-inline-shell{min-height:18px}
+.scene-editor-table-edit-layer .editor-preview-inline-control{min-height:18px;height:18px;padding:0 5px;border-width:1px;border-radius:3px;font-size:8px;line-height:16px}
+.scene-editor-table-edit-layer select.editor-preview-inline-control{padding-right:18px;font-size:8px}
+.scene-editor-table-edit-layer .editor-preview-inline-control option{font-size:10px}
+.scene-editor-table-edit-layer .editor-preview-sort{min-width:28px;min-height:18px;height:18px;padding:0 4px;font-size:7px}
+.scene-editor-table-edit-layer .editor-preview-inline-section{gap:3px}
+.scene-editor-table-edit-layer .editor-preview-packaging-controls{gap:3px}
+
+.scene-editor-table-row-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.scene-editor-table-row-actions .button{min-height:25px;padding:3px 4px;font-size:7px}
+.scene-editor-table-row-inspector{display:grid;gap:4px}
+.scene-editor-table-row-inspector .editor-preview-selected-row,
+.scene-editor-table-row-inspector .editor-preview-hidden-rows{margin:0;padding:5px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised)}
+.scene-editor-table-row-inspector .editor-preview-inspector-head{display:grid;gap:4px}
+.scene-editor-table-row-inspector .editor-preview-inspector-head>div:first-child{display:grid;gap:1px}
+.scene-editor-table-row-inspector .editor-preview-inspector-head span{font-size:7px}
+.scene-editor-table-row-inspector .editor-preview-inspector-head strong{font-size:8px}
+.scene-editor-table-row-inspector .editor-preview-inspector-actions{display:flex;flex-wrap:wrap;gap:3px}
+.scene-editor-table-row-inspector .editor-preview-row-action{min-height:23px;padding:2px 5px;font-size:7px}
+.scene-editor-table-row-inspector .editor-preview-promotion-editor{display:grid;gap:3px;margin-top:4px}
+.scene-editor-table-row-inspector .editor-preview-promotion-editor input[type="text"]{min-height:24px;font-size:8px}
+.scene-editor-table-row-inspector .editor-preview-inspector-help{margin:0;color:var(--ui-text-muted);font-size:7px;line-height:1.35}
+
+@media(max-width:1100px){
+  body[data-page="scene"] .scene-editor-table-edit-layer .editor-preview-inline-control{min-height:28px;height:28px;padding:2px 6px;font-size:11px;line-height:24px}
+  body[data-page="scene"] .scene-editor-table-edit-layer select.editor-preview-inline-control{font-size:11px}
+  body[data-page="scene"] .scene-editor-table-edit-layer .editor-preview-sort{min-width:36px;min-height:28px;height:28px;font-size:9px}
+  body[data-page="scene"] .scene-editor-table-row-actions .button{min-height:36px;font-size:9px}
+}
