@@ -18,6 +18,13 @@ const ELEMENT_LABELS = Object.freeze({
   video: 'Видео',
   weather: 'Погода'
 });
+const ELEMENT_ICONS = Object.freeze({
+  text: 'T',
+  logo: '◈',
+  image: '▧',
+  video: '▶',
+  weather: '☁'
+});
 
 let generation = 0;
 
@@ -119,7 +126,14 @@ export function initialiseSceneEditor() {
       : 'Элемент не выбран';
     if (title) title.textContent = caption;
     const kind = element('scene-editor-properties-kind');
-    if (kind) kind.textContent = selected ? (ELEMENT_LABELS[selected.type] || selected.type) : '—';
+    if (kind) {
+      const typeLabel = selected ? (ELEMENT_LABELS[selected.type] || selected.type) : 'Тип элемента не выбран';
+      kind.textContent = selected ? (ELEMENT_ICONS[selected.type] || '•') : '—';
+      kind.dataset.elementType = selected?.type || '';
+      kind.dataset.tooltip = selected ? typeLabel : '';
+      kind.setAttribute('aria-label', typeLabel);
+      kind.title = selected ? typeLabel : '';
+    }
   }
 
   function fitPreviewShell() {
