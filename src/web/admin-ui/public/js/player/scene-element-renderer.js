@@ -158,7 +158,7 @@ function renderText(node, text) {
   node.style.height = '100%';
   node.style.display = 'flex';
   node.style.alignItems = verticalAlignment(paragraph.vertical_align);
-  node.style.overflow = 'hidden';
+  node.style.overflow = 'visible';
 
   const flow = document.createElement('div');
   flow.dataset.sceneTextFlow = '';
@@ -262,7 +262,7 @@ function applyGeometry(node, element) {
   node.style.opacity = String(clampOpacity(element.opacity, 1));
   node.style.transform = 'rotate(' + String(Number(element.rotation_deg || 0)) + 'deg)';
   node.style.transformOrigin = 'center center';
-  node.style.overflow = 'hidden';
+  node.style.overflow = element.type === 'text' ? 'visible' : 'hidden';
   node.style.pointerEvents = 'none';
   node.style.display = element.enabled === false ? 'none' : 'block';
 }
