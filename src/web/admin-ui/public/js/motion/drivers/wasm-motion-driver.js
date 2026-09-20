@@ -19,6 +19,17 @@ function phaseAt(time, duration) {
   return phase < 0 ? phase + 1 : phase;
 }
 
+function smoothstep(value) {
+  const t = clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function activeProgress(phase, activeFraction) {
+  const active = clamp(number(activeFraction, 0.4), 0.01, 1);
+  if (phase >= active) return null;
+  return smoothstep(phase / active);
+}
+
 export class WasmMotionDriver {
   constructor({ kernelLoader = loadMotionKernel } = {}) {
     this.name = 'mira-wasm';
@@ -53,11 +64,16 @@ export class WasmMotionDriver {
     if (spec.kind === 'promo-badge-glow') {
       const brightness = 1 + number(spec.brightnessAmount, 0.16);
       const radius = number(spec.glowRadius, 16);
+      target.style.transformOrigin = 'center';
       target.style.filter = radius > 0
         ? `brightness(${brightness.toFixed(3)}) drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})`
         : `brightness(${brightness.toFixed(3)})`;
+    } else if (spec.kind === 'promo-badge-shine') {
+      target.style.transformOrigin = 'left center';
+      target.style.filter = 'none';
     } else if (spec.kind === 'promo-glow') {
       const radius = number(spec.glowRadius, 18);
+      target.style.transformOrigin = spec.animation === 'fill' ? 'left center' : 'center';
       target.style.filter = radius > 0 ? `drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})` : 'none';
     } else if (spec.kind === 'row') {
       target.style.filter = spec.pattern === 'spark' ? `drop-shadow(0 0 10px ${ROW_GLOW})` : 'none';
@@ -191,9 +207,50 @@ export class WasmMotionDriver {
       return;
     }
     const active = number(spec.activeFraction, 0.4);
-    if (spec.kind === 'promo-badge-glow' || spec.kind === 'promo-glow') {
+    if (spec.kind === 'promo-badge-glow') {
+      if (spec.animation === 'breathe') {
+        const pulse = 0.5 - 0.5 * Math.cos(Math.PI * 2 * phase);
+        target.style.opacity = (number(spec.opacity, 0.6) * (0.22 + pulse * 0.58)).toFixed(4);
+        target.style.transform = `scale(${(1 + pulse * 0.018).toFixed(5)})`;
+        return;
+      }
       const glow = this.kernel._mira_promo_glow(phase, active);
-      target.style.opacity = (glow * number(spec.opacity, 0.6)).toFixed(4);
+      target.style.opacity = (glow * number(spec.opacity, 0.6) * 0.36).toFixed(4);
+      target.style.transform = 'none';
+      return;
+    }
+    if (spec.kind === 'promo-badge-shine') {
+      const progress = activeProgress(phase, active);
+      if (progress === null) {
+        target.style.opacity = '0';
+        target.style.transform = 'translate3d(0,0,0)';
+        return;
+      }
+      const envelope = Math.sin(Math.PI * progress);
+      target.style.opacity = (envelope * number(spec.opacity, 0.8)).toFixed(4);
+      target.style.transform = `translate3d(${(progress * 500).toFixed(2)}%,0,0)`;
+      return;
+    }
+    if (spec.kind === 'promo-glow') {
+      const progress = activeProgress(phase, active);
+      if (progress === null) {
+        target.style.opacity = '0';
+        target.style.transform = 'none';
+        return;
+      }
+      const envelope = Math.sin(Math.PI * progress);
+      const opacity = envelope * number(spec.opacity, 0.6);
+      if (spec.animation === 'fill') {
+        target.style.transformOrigin = 'left center';
+        target.style.transform = `scaleX(${Math.max(0.02, progress).toFixed(4)})`;
+        target.style.opacity = (opacity * 0.82).toFixed(4);
+        return;
+      }
+      const gloss = spec.animation === 'gloss';
+      const travel = gloss ? (-210 + progress * 420) : (-125 + progress * 250);
+      target.style.transformOrigin = 'center';
+      target.style.transform = `translate3d(${travel.toFixed(2)}%,0,0) scaleX(${gloss ? '0.16' : '0.38'})`;
+      target.style.opacity = (opacity * (gloss ? 0.72 : 0.88)).toFixed(4);
     }
   }
 }
