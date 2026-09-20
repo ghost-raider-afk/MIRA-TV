@@ -700,7 +700,7 @@ function inspectorGroups(element, sections) {
     return [
       ['Трансформация', sections.slice(0, 1), true],
       ['Содержимое', sections.slice(1, 2), true],
-      ['Типографика', sections.slice(2, 4), false],
+      ['Шрифт', sections.slice(2, 4), false],
       ['Эффекты', sections.slice(4), false]
     ];
   }
