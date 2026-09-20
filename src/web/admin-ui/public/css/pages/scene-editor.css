@@ -224,3 +224,6 @@
 
 .scene-editor-system-layer:disabled{opacity:.38;cursor:default}
 .scene-editor-system-layer:disabled:hover{border-color:transparent;background:transparent}
+
+.scene-editor-properties-kind svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.scene-editor-content-scale-grid{margin-top:3px;padding-top:5px;border-top:1px solid var(--ui-border)}
