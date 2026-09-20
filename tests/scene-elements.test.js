@@ -28,6 +28,10 @@ test('scene contract normalizes canonical geometry and rich-text runs', () => {
   assert.equal(scene.elements[0].text.runs[1].font_weight, 700);
   assert.equal(scene.elements[0].text.paragraph.align, 'center');
   assert.equal(scene.elements[0].text.effects.stroke.enabled, true);
+  assert.equal(scene.elements[0].content_auto_scale, true);
+  assert.equal(scene.elements[0].content_scale_percent, 100);
+  assert.equal(scene.elements[0].content_reference_width, 800);
+  assert.equal(scene.elements[0].content_reference_height, 300);
 });
 
 test('scene contract strips incompatible type-specific data', () => {
@@ -84,4 +88,27 @@ test('weather scene element owns location and presentation settings', () => {
   assert.equal(weather.timezone, 'Europe/Helsinki');
   assert.equal(weather.forecast_items, 4);
   assert.equal(weather.animation_speed, 1.25);
+});
+
+
+test('scene contract persists independent content scaling controls', () => {
+  const scene = sceneInput({
+    elements: [{
+      id:'scaled-logo',
+      type:'logo',
+      width:420,
+      height:240,
+      content_auto_scale:false,
+      content_scale_percent:135,
+      content_reference_width:520,
+      content_reference_height:360,
+      media:{ source_url:'', fit:'contain' }
+    }]
+  });
+
+  const element = scene.elements[0];
+  assert.equal(element.content_auto_scale, false);
+  assert.equal(element.content_scale_percent, 135);
+  assert.equal(element.content_reference_width, 520);
+  assert.equal(element.content_reference_height, 360);
 });
