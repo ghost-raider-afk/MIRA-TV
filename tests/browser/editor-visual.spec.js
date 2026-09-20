@@ -65,62 +65,28 @@ async function openSettings(page, name) {
 }
 
 for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }]) {
-  test(`compact editor remains usable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`monitor settings stay compact and preview-only at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await login(page);
-    const { screen, product } = await createEditorFixture(page, { rows: 4 });
+    const { screen } = await createEditorFixture(page, { rows: 4 });
     await page.goto(`/screen-editor?id=${screen.id}`);
 
     const commandbar = page.locator('.editor-commandbar');
     await expect(commandbar).toBeVisible();
     expect((await commandbar.boundingBox())?.height).toBeLessThanOrEqual(60);
-    expect(await commandbar.evaluate((node) => getComputedStyle(node).position)).toBe('sticky');
-    await expect(page.getByText('Шаблоны', { exact: true })).toHaveCount(0);
-    await expect(page.locator('.editor-tool-popover')).toHaveCount(0);
-
-    const settings = page.locator('.editor-settings-panel');
-    const mainColumn = page.locator('.editor-main-column');
-    await expect(settings).toBeVisible();
-    await expect(mainColumn).toBeVisible();
-    const settingsBox = await settings.boundingBox();
-    const mainColumnBox = await mainColumn.boundingBox();
-    expect(settingsBox).not.toBeNull();
-    expect(mainColumnBox).not.toBeNull();
-    expect(settingsBox.x + settingsBox.width).toBeLessThanOrEqual(mainColumnBox.x + 2);
-    await openSettings(page, 'Монитор');
-    await openSettings(page, 'Таблица');
-
-    await expect(page.locator('#editor-menu-rows')).toHaveCount(0);
-    await expect(page.locator('.editor-menu-editor-table')).toHaveCount(0);
+    await expect(page.locator('.editor-settings-panel')).toBeVisible();
+    await expect(page.locator('.editor-main-column')).toBeVisible();
+    await expect(page.locator('.editor-settings-section').filter({ hasText:'Монитор' })).toHaveCount(1);
+    await expect(page.locator('.editor-settings-section').filter({ hasText:'Таблица' })).toHaveCount(0);
+    await expect(page.locator('.editor-settings-section').filter({ hasText:'Оформление' })).toHaveCount(0);
+    await expect(page.locator('#editor-background-file')).toHaveCount(0);
+    await expect(page.locator('#editor-table-x')).toHaveCount(0);
 
     const preview = page.locator('#editor-menu-preview');
-    await expect(preview.locator('[data-editor-preview-row-control]')).toHaveCount(5);
-    const sectionInput = preview.locator('[data-preview-section-input]').first();
-    await expect(sectionInput).toBeVisible();
-    await expect(preview.locator('[data-preview-product-select]')).toHaveCount(4);
-    await expect(preview.locator('[data-preview-product-select]').first()).toHaveValue(String(product.id));
-    await expect(preview.locator('svg .section-title').first()).toHaveCSS('visibility', 'hidden');
-    await expect(preview.locator('svg .item-name').first()).toHaveCSS('visibility', 'hidden');
-    await expect(preview.locator('svg .item-meta').first()).toHaveCSS('visibility', 'visible');
-    await expect(preview.locator('svg .price').first()).toHaveCSS('visibility', 'visible');
-    await expect(preview.getByRole('button', { name: 'Сортировать раздел по алфавиту' })).toHaveCount(1);
-    await sectionInput.fill('Разливное меню');
-    await expect(preview.locator('.section-title').first()).toContainText('Разливное меню');
-    await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
-    const svg = preview.locator('svg.menu-table-svg');
-    await expect(svg).toBeVisible();
-    await expect(svg).toHaveAttribute('viewBox', '0 0 1920 1080');
-    await expect(svg.locator('line.separator[x1="65"][x2="1430"]')).toHaveCount(4);
-    await expect(svg.locator('line[x1="1258"]')).toHaveCount(0);
-    await expect(svg.locator('line[x1="1405"]')).toHaveCount(0);
-    await expect(svg.locator('.item-name').first()).toContainText('БАВАРИЯ ПШЕНИЧНОЕ');
-    await expect(svg.locator('.item-name').first()).not.toContainText('4,6%');
-    await expect(svg.locator('.item-meta').first()).toContainText('ООО «Портал», п. Солнечный · 4,6% · светлое · нефильтрованное');
-    await expect(svg.locator('.table-section rect').first()).toHaveAttribute('x', '56');
-    await expect(svg.locator('.table-section rect').first()).toHaveAttribute('width', '1374');
-    await expect(svg.locator('.price').first()).toHaveAttribute('text-anchor', 'end');
-
-    await test.info().attach(`editor-${viewport.width}x${viewport.height}.png`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+    await expect(preview.locator('[data-editor-preview-row-control]')).toHaveCount(0);
+    await expect(preview.locator('svg.menu-table-svg')).toBeVisible();
+    await expect(preview.locator('svg.menu-table-svg')).toHaveAttribute('viewBox', '0 0 1920 1080');
+    await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
   });
 }
 
