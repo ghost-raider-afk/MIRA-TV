@@ -80,6 +80,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('.scene-editor-layer')).toHaveCount(1);
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент 1');
+  await expect(page.locator('#scene-editor-properties-kind')).toHaveText('T');
+  await expect(page.locator('#scene-editor-properties-kind')).toHaveAttribute('aria-label', 'Текстовое поле');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toHaveCount(1);
 
   const inspector = page.locator('#scene-editor-properties');
