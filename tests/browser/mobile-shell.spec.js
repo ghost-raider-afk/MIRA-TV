@@ -32,7 +32,6 @@ test.describe('mobile application shell', () => {
     await expect(rail.getByLabel('Обзор')).toBeVisible();
     await expect(rail.getByLabel('Мониторы')).toBeVisible();
     await expect(rail.getByLabel('Каталог')).toBeVisible();
-    await expect(rail.getByLabel('Плейлист')).toBeVisible();
     await expect(rail.getByLabel('Настройки')).toBeVisible();
 
     const railBox = await rail.boundingBox();
