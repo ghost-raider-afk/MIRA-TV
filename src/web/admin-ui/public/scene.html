@@ -43,11 +43,11 @@
                   <div class="scene-editor-add-wrap">
                     <button id="scene-editor-add" class="button button-secondary" type="button" aria-haspopup="menu" aria-expanded="false" disabled>+ Элемент</button>
                     <div id="scene-editor-add-menu" class="scene-editor-add-menu" role="menu" aria-label="Добавить элемент" hidden>
-                      <button type="button" role="menuitem" data-scene-element-type="text"><strong>Текстовое поле</strong><span>Надпись и типографика</span></button>
-                      <button type="button" role="menuitem" data-scene-element-type="logo"><strong>Логотип</strong><span>Логотип бренда</span></button>
-                      <button type="button" role="menuitem" data-scene-element-type="image"><strong>Картинка</strong><span>Изображение на сцене</span></button>
-                      <button type="button" role="menuitem" data-scene-element-type="video"><strong>Видео</strong><span>MP4 / WebM, до двух</span></button>
-                      <button type="button" role="menuitem" data-scene-element-type="weather"><strong>Погода</strong><span>Один виджет на сцену</span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="text"><span class="scene-editor-type-icon" aria-hidden="true">T</span><span class="scene-editor-add-copy"><strong>Текстовое поле</strong><small>Надпись и типографика</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="logo"><span class="scene-editor-type-icon" aria-hidden="true">◈</span><span class="scene-editor-add-copy"><strong>Логотип</strong><small>Логотип бренда</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="image"><span class="scene-editor-type-icon" aria-hidden="true">▧</span><span class="scene-editor-add-copy"><strong>Картинка</strong><small>Изображение на сцене</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="video"><span class="scene-editor-type-icon" aria-hidden="true">▶</span><span class="scene-editor-add-copy"><strong>Видео</strong><small>MP4 / WebM, до двух</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="weather"><span class="scene-editor-type-icon" aria-hidden="true">☁</span><span class="scene-editor-add-copy"><strong>Погода</strong><small>Один виджет на сцену</small></span></button>
                     </div>
                   </div>
                 </div>
@@ -78,7 +78,7 @@
               <aside class="scene-editor-panel scene-editor-properties-panel" aria-label="Свойства элемента">
                 <div class="scene-editor-panel-head scene-editor-properties-head">
                   <div><span class="scene-editor-kicker">СВОЙСТВА</span><strong id="scene-editor-properties-title">Элемент не выбран</strong></div>
-                  <span id="scene-editor-properties-kind" class="scene-editor-properties-kind">—</span>
+                  <span id="scene-editor-properties-kind" class="scene-editor-properties-kind" role="img" tabindex="0" aria-label="Тип элемента не выбран">—</span>
                 </div>
                 <div id="scene-editor-properties" class="scene-editor-properties">
                   <p class="scene-editor-empty">Выберите элемент слева или на рабочем экране.</p>
