@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { completeWeatherWidget, weatherWidgetInput } from '../src/contracts/weather.js';
+import { normaliseWeatherWidget } from '../src/web/admin-ui/public/js/motion/weather-widget.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -27,6 +28,12 @@ test('weather widget stores canonical transform and motion controls', () => {
   assert.equal(value.animation_speed, 1.6);
   assert.equal(value.animation_intensity, 1.4);
   assert.equal(value.widget_motion_enabled, false);
+});
+
+test('browser weather model preserves empty coordinates as null', () => {
+  const value = normaliseWeatherWidget({ enabled:true, latitude:null, longitude:'' });
+  assert.equal(value.latitude, null);
+  assert.equal(value.longitude, null);
 });
 
 test('legacy weather settings keep animation enabled with safe defaults', () => {
