@@ -743,24 +743,38 @@ export function renderSceneElementInspector(state, {
 
   const tabs = document.createElement('div');
   tabs.className = 'scene-editor-inspector-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Разделы свойств элемента');
   tabs.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0,1fr))`;
   const panels = [];
 
   groups.forEach(([name, nodes], groupIndex) => {
     const tab = document.createElement('button');
+    const tabId = `scene-inspector-tab-${element.id}-${groupIndex}`;
+    const panelId = `scene-inspector-panel-${element.id}-${groupIndex}`;
     tab.type = 'button';
+    tab.id = tabId;
     tab.textContent = name;
     tab.classList.toggle('active', groupIndex === 0);
     tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', panelId);
+    tab.setAttribute('aria-selected', groupIndex === 0 ? 'true' : 'false');
 
     const panel = document.createElement('div');
+    panel.id = panelId;
     panel.className = 'scene-editor-inspector-panel';
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', tabId);
     panel.hidden = groupIndex !== 0;
     nodes.forEach((node) => panel.append(node));
     panels.push(panel);
 
     tab.addEventListener('click', () => {
-      [...tabs.children].forEach((button) => button.classList.toggle('active', button === tab));
+      [...tabs.children].forEach((button) => {
+        const active = button === tab;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
       panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
     });
     tabs.append(tab);
