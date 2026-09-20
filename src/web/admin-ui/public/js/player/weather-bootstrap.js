@@ -20,14 +20,19 @@ function cachedRecord(key) {
 function weatherSourceKey(settings) {
   return JSON.stringify([
     String(settings?.location_name || '').trim(),
-    Number.isFinite(Number(settings?.latitude)) ? Number(settings.latitude) : null,
-    Number.isFinite(Number(settings?.longitude)) ? Number(settings.longitude) : null,
+    settings?.latitude !== null && settings?.latitude !== '' && Number.isFinite(Number(settings?.latitude)) ? Number(settings.latitude) : null,
+    settings?.longitude !== null && settings?.longitude !== '' && Number.isFinite(Number(settings?.longitude)) ? Number(settings.longitude) : null,
     String(settings?.timezone || 'auto')
   ]);
 }
 
 function hasWeatherCoordinates(settings) {
-  return Number.isFinite(Number(settings?.latitude)) && Number.isFinite(Number(settings?.longitude));
+  return settings?.latitude !== null
+    && settings?.latitude !== ''
+    && settings?.longitude !== null
+    && settings?.longitude !== ''
+    && Number.isFinite(Number(settings.latitude))
+    && Number.isFinite(Number(settings.longitude));
 }
 
 export class PlayerWeatherRuntime {
