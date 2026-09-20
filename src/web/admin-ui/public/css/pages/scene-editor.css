@@ -224,3 +224,11 @@
   body[data-page="scene"] .scene-editor-table-edit-layer .editor-preview-sort{min-width:36px;min-height:28px;height:28px;font-size:9px}
   body[data-page="scene"] .scene-editor-table-row-actions .button{min-height:36px;font-size:9px}
 }
+
+
+.scene-editor-history-button{display:grid;width:30px;height:30px;place-items:center;border:1px solid var(--ui-border);border-radius:6px;background:var(--ui-panel-raised);color:var(--ui-text);font:800 15px/1 inherit;cursor:pointer}
+.scene-editor-history-button:hover:not(:disabled){background:color-mix(in srgb,var(--ui-accent) 8%,var(--ui-panel))}
+.scene-editor-history-button:disabled{opacity:.34;cursor:default}
+@media(max-width:600px){
+  body[data-page="scene"] .scene-editor-history-button{width:30px;height:30px}
+}
