@@ -30,6 +30,8 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(sceneHtml, /scene-editor-table-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
   assert.match(css, /scene-editor-system-layer\{[^}]*min-height:25px/);
   assert.match(css, /scene-editor-system-icon svg/);
+  assert.match(css, /scene-editor-layers-panel\{grid-template-rows:auto auto minmax\(0,1fr\) auto\}/);
+  assert.match(css, /scene-editor-system-layers\{[^}]*align-content:start/);
   assert.match(elements, /export function renderSceneLayerList/);
   assert.match(elements, /export function renderSceneElementInspector/);
   assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
