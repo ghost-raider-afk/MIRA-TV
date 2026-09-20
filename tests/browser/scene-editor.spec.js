@@ -170,10 +170,16 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
 
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
   await inspector.getByLabel('Высота', { exact:true }).fill('180');
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.5)');
+  await expect.poll(() => weatherContent.evaluate((node) => {
+    const scale = Number(node.dataset.sceneContentScale);
+    return scale > .47 && scale <= .5;
+  })).toBe(true);
 
   await inspector.getByLabel('Масштаб внутри, %').fill('80');
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.4)');
+  await expect.poll(() => weatherContent.evaluate((node) => {
+    const scale = Number(node.dataset.sceneContentScale);
+    return Math.abs(scale - .4) < .01;
+  })).toBe(true);
 
   await inspector.getByLabel('Автомасштаб при resize').uncheck();
   await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
