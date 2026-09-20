@@ -71,12 +71,18 @@ function localAsset(value) {
   }
 }
 
-function activeAssetManifest(context) {
-  const sceneAssets = Array.isArray(context?.scene?.elements)
-    ? context.scene.elements
-        .filter((element) => element?.enabled !== false)
-        .map((element) => element?.media?.source_url)
+function enabledSceneMedia(context) {
+  return Array.isArray(context?.scene?.elements)
+    ? context.scene.elements.filter((element) =>
+        element?.enabled !== false
+        && ['image', 'logo', 'video'].includes(element?.type)
+        && localAsset(element?.media?.source_url)
+      )
     : [];
+}
+
+function activeAssetManifest(context) {
+  const sceneAssets = enabledSceneMedia(context).map((element) => element.media.source_url);
   const assets = [
     context?.draft?.settings?.background_image_url,
     ...sceneAssets
@@ -84,13 +90,34 @@ function activeAssetManifest(context) {
   return [...new Set(assets)];
 }
 
+async function requireAsset(url, { video = false } = {}) {
+  const headers = video ? { Range: 'bytes=0-65535' } : undefined;
+  const response = await fetch(url, {
+    cache: video ? 'no-cache' : 'force-cache',
+    credentials: 'same-origin',
+    headers
+  });
+  const acceptable = video ? response.status === 200 || response.status === 206 : response.ok;
+  if (!acceptable) throw new Error(`Critical Player asset unavailable: HTTP ${response.status}`);
+}
+
 async function prepareCriticalAssets(context, changedNames) {
   const dirty = new Set(changedNames || []);
-  if (!dirty.has('menu') && !dirty.has('screen')) return;
-  const background = localAsset(context?.draft?.settings?.background_image_url);
-  if (!background) return;
-  const response = await fetch(background, { cache: 'force-cache', credentials: 'same-origin' });
-  if (!response.ok) throw new Error(`Critical Player background unavailable: HTTP ${response.status}`);
+  const tasks = [];
+
+  if (dirty.has('menu') || dirty.has('screen')) {
+    const background = localAsset(context?.draft?.settings?.background_image_url);
+    if (background) tasks.push(requireAsset(background));
+  }
+
+  if (dirty.has('scene')) {
+    for (const element of enabledSceneMedia(context)) {
+      const url = localAsset(element.media.source_url);
+      if (url) tasks.push(requireAsset(url, { video: element.type === 'video' }));
+    }
+  }
+
+  await Promise.all(tasks);
 }
 
 function publishActiveAssets(context) {
