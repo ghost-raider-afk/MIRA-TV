@@ -10,7 +10,7 @@ export function createEditorRow(kind) {
     ...(kind === 'section'
       ? { name: 'Новый раздел' }
       : kind === 'item'
-        ? { product_id: '', promotion: false, promotion_text: '' }
+        ? { product_id: '', promotion: false, promotion_text: '', promotion_animation: 'wave', promotion_badge_animation: 'shine' }
         : { packaging_id: '' })
   };
 }
@@ -357,7 +357,54 @@ function promotionControls(editorState, row, options) {
     updateRow(editorState, row.id, { promotion_text: text.value });
     options.onVisualChange?.();
   });
-  shell.append(toggle, text);
+
+  const animationGrid = document.createElement('div');
+  animationGrid.className = 'editor-preview-promotion-motion-grid';
+
+  const rowAnimationLabel = document.createElement('label');
+  const rowAnimationCaption = document.createElement('span');
+  rowAnimationCaption.textContent = 'Анимация строки';
+  const rowAnimation = document.createElement('select');
+  rowAnimation.setAttribute('aria-label', 'Анимация строки акции');
+  for (const [value, labelText] of [
+    ['wave', 'Мягкая волна'],
+    ['fill', 'Заполнение'],
+    ['gloss', 'Gloss-перелив']
+  ]) rowAnimation.add(new Option(labelText, value));
+  rowAnimation.value = row.promotion_animation || 'wave';
+  rowAnimation.disabled = !checkbox.checked;
+
+  const badgeAnimationLabel = document.createElement('label');
+  const badgeAnimationCaption = document.createElement('span');
+  badgeAnimationCaption.textContent = 'Анимация плашки';
+  const badgeAnimation = document.createElement('select');
+  badgeAnimation.setAttribute('aria-label', 'Анимация плашки акции');
+  for (const [value, labelText] of [
+    ['shine', 'Gloss Shine'],
+    ['breathe', 'Breathing Glow']
+  ]) badgeAnimation.add(new Option(labelText, value));
+  badgeAnimation.value = row.promotion_badge_animation || 'shine';
+  badgeAnimation.disabled = !checkbox.checked;
+
+  checkbox.addEventListener('change', () => {
+    rowAnimation.disabled = !checkbox.checked;
+    badgeAnimation.disabled = !checkbox.checked;
+  });
+  rowAnimation.addEventListener('change', () => {
+    options.onBeforeMutate?.();
+    updateRow(editorState, row.id, { promotion_animation: rowAnimation.value });
+    options.onVisualChange?.();
+  });
+  badgeAnimation.addEventListener('change', () => {
+    options.onBeforeMutate?.();
+    updateRow(editorState, row.id, { promotion_badge_animation: badgeAnimation.value });
+    options.onVisualChange?.();
+  });
+
+  rowAnimationLabel.append(rowAnimationCaption, rowAnimation);
+  badgeAnimationLabel.append(badgeAnimationCaption, badgeAnimation);
+  animationGrid.append(rowAnimationLabel, badgeAnimationLabel);
+  shell.append(toggle, text, animationGrid);
   return shell;
 }
 
