@@ -104,7 +104,7 @@ test('stored v3 bounce/pop settings are canonicalized instead of reintroducing j
   assert.equal(migrated.promotion_travel_px, 0);
 });
 
-test('Playlist Studio owns only menu motion and Scene Playlist while visual elements stay in monitor editor', async () => {
+test('Playlist Studio owns only menu motion and Scene Playlist while visual elements stay in Scene editor', async () => {
   const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, scenePlaylistRuntime, scenePlaylistCss, playerCss, playerSceneCss, previewCss, indexCss] = await Promise.all([
     read('playlist.html'), read('js/pages/playlist.js'), read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
     read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/scene-motion-runtime.js'),
@@ -143,7 +143,8 @@ test('Playlist Studio owns only menu motion and Scene Playlist while visual elem
   assert.doesNotMatch(domAdapter, /kind: 'background'/);
   assert.doesNotMatch(domAdapter, /kind: 'price'/);
   assert.match(domAdapter, /row-motion-surface-item/);
-  assert.match(previewCss, /\.animation-screen-background\{[^}]*background-size:cover/);
+  assert.match(previewCss, /\.animation-screen-picker\{/);
+  assert.doesNotMatch(previewCss, /animation-screen-(?:entity|weather|brand|announcement|environment)-layer|animation-scene-entity/);
   for (const authoredSource of [scenePlaylistRuntime, scenePlaylistCss, playerCss, playerSceneCss, previewCss]) {
     assert.doesNotMatch(authoredSource, /prefers-reduced-motion/, 'operator-authored scene motion must ignore OS reduced-motion');
   }
