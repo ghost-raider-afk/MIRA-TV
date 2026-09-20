@@ -164,10 +164,11 @@ export class PlayerWeatherRuntime {
     this.clearTimer();
     if (this.destroyed || !this.settings.enabled || !hasWeatherCoordinates(this.settings) || !this.active || !this.visible || !navigator.onLine) return;
     const wait = Number.isFinite(Number(delay)) ? Number(delay) : this.settings.refresh_minutes * 60_000;
+    const minimumDelay = this.preview ? 200 : 1000;
     this.timer = setTimeout(() => {
       this.timer = null;
       void this.refresh();
-    }, Math.max(1000, wait));
+    }, Math.max(minimumDelay, wait));
   }
 
   requestUrl() {
