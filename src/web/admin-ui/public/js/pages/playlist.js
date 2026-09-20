@@ -16,6 +16,13 @@ const selectedTargets = new Set();
 function active(token) { return token === generation && document.body.dataset.page !== 'signin'; }
 function label(screen) { return `${screen.location_name || 'Без точки'} — ${screen.name}`; }
 
+function screenAspectRatio(screen) {
+  const match = String(screen?.resolution || '').match(/(\d+)\D+(\d+)/);
+  const width = Math.max(1, Number(match?.[1]) || 1920);
+  const height = Math.max(1, Number(match?.[2]) || 1080);
+  return `${width} / ${height}`;
+}
+
 function setStageActive(stage, value) {
   stage.dataset.playerActive = value ? 'true' : 'false';
   stage.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: value } }));
@@ -87,6 +94,8 @@ async function renderScreen(screen, token) {
     ]);
     if (!active(token)) return;
     currentSettings = applied || await api.get(API.animationSettings);
+    const shell = stage.closest('.animation-player-shell');
+    if (shell instanceof HTMLElement) shell.style.aspectRatio = screenAspectRatio(bundle.screen);
     currentContext = {
       screen: bundle.screen,
       draft: bundle.draft,
