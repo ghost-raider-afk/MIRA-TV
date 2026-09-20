@@ -39,7 +39,10 @@ test('Scene owns canonical menu editing while monitor settings keep a read-only 
   assert.match(rows, /line\.sourceRowId/);
   assert.match(rows, /line\.sourceRowIds/);
   assert.match(rows, /sortSectionItems/);
-  assert.match(rows, /dataset\.previewProductSelect/);
+  assert.match(rows, /datasetName:'previewProductSelect'/);
+  assert.match(rows, /role', 'combobox'/);
+  assert.match(rows, /editor-preview-choice-search/);
+  assert.doesNotMatch(rows, /createElement\('select'\)/);
   assert.match(rows, /updateRow\(editorState, row\.id, \{ name: input\.value \}\)/);
   assert.doesNotMatch(rows, /createElement\('table'\)|<thead>|<tbody>/);
   assert.doesNotMatch(editorCss, /editor-menu-editor-table|editor-menu-table-scroll|editor-menu-rows/);
