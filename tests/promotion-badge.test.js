@@ -12,7 +12,7 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
       { id: 'section', kind: 'section', name: 'Меню', enabled: true },
       {
         id: 'item', kind: 'item', name: 'Тестовая позиция', price_primary: '240', price_secondary: '360',
-        promotion: true, promotion_text: 'АКЦИЯ', enabled: true
+        promotion: true, promotion_text: 'АКЦИЯ', promotion_animation: 'gloss', promotion_badge_animation: 'shine', enabled: true
       }
     ]
   }, { width: 1920, height: 1080 });
@@ -30,10 +30,12 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.ok(badge, 'promotion-badge group must exist');
   assert.match(badge, /<path\b[^>]*fill="#D92D35"\/?>/);
   assert.match(badge, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
-  assert.match(svg, /class="promotion-badge-glow" opacity="0"/);
-  assert.match(svg, /class="promotion-row-glow"/);
+  assert.match(svg, /class="promotion-badge-glow" data-promotion-badge-animation="shine" opacity="0"/);
+  assert.match(svg, /class="promotion-badge-shine" data-promotion-badge-animation="shine"/);
+  assert.match(svg, /class="promotion-row-glow" data-promotion-row-animation="gloss"/);
   assert.match(svg, /id="mira-promo-row-glow"/);
-  assert.doesNotMatch(svg, /promotion-light-wave|data-wave-travel|mira-promo-wave/);
+  assert.match(svg, /id="mira-promo-badge-shine"/);
+  assert.match(svg, /clipPath id="mira-promo-badge-clip-/);
   assert.ok(badgeStart > rowStart && pricesStart > rowStart && rowEnd > pricesStart, 'badge, content and prices must stay inside the same table-item row');
 });
 
@@ -49,8 +51,11 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.match(adapter, /transformOwner: 'surface'/);
   assert.match(adapter, /surfaceOnly: true/);
   assert.match(adapter, /g\.promotion-badge-glow/);
+  assert.match(adapter, /g\.promotion-badge-shine/);
   assert.doesNotMatch(adapter, /querySelectorAll\('g\.promotion-badge'\)/);
   assert.match(adapter, /g\.promotion-row-glow/);
+  assert.match(adapter, /promotionBadgeAnimation/);
+  assert.match(adapter, /promotionRowAnimation/);
   assert.doesNotMatch(adapter, /querySelectorAll\('g\.table-item, g\.table-packaging'\)/);
   assert.doesNotMatch(adapter, /kind: 'price'/);
   assert.doesNotMatch(adapter, /menu\.price/);
@@ -60,7 +65,10 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.match(driver, /requestAnimationFrame/);
   assert.match(driver, /spec\.surfaceOnly/);
   assert.match(driver, /spec\.kind === 'promo-badge-glow'/);
+  assert.match(driver, /spec\.kind === 'promo-badge-shine'/);
   assert.match(driver, /spec\.kind === 'promo-glow'/);
+  assert.match(driver, /spec\.animation === 'fill'/);
+  assert.match(driver, /spec\.animation === 'gloss'/);
   assert.doesNotMatch(driver, /spec\.kind === 'promo-badge'/);
   assert.doesNotMatch(driver, /_mira_promo_scale\(/);
   assert.doesNotMatch(driver, /_mira_promo_wave_progress/);
