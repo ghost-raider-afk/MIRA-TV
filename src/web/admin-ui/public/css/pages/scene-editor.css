@@ -10,6 +10,7 @@
 .scene-editor-workspace{display:grid;grid-template-columns:164px minmax(0,1fr) 238px;gap:8px;min-height:0}
 .scene-editor-panel,.scene-editor-canvas-panel{min-width:0;min-height:0;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel);box-shadow:var(--ui-shadow-sm)}
 .scene-editor-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:7px;overflow:hidden}
+.scene-editor-layers-panel{grid-template-rows:auto auto minmax(0,1fr) auto}
 .scene-editor-panel-head{display:flex;min-height:38px;align-items:center;justify-content:space-between;gap:8px;padding-bottom:7px;border-bottom:1px solid var(--ui-border)}
 .scene-editor-panel-head>div{display:grid;gap:1px}.scene-editor-panel-head strong{font-size:12px}.scene-editor-kicker{color:var(--ui-text-muted);font-size:8px;font-weight:900;letter-spacing:.12em}.scene-editor-panel-head .button{min-height:30px;padding:4px 8px;font-size:9px}
 .scene-editor-layers{display:grid;align-content:start;gap:5px;padding:8px 0;overflow:auto;scrollbar-width:thin}.scene-editor-layer-hint{padding-top:7px;border-top:1px solid var(--ui-border);color:var(--ui-text-muted);font-size:7px;line-height:1.35}
@@ -86,12 +87,14 @@
 
 
 /* First-class Background/Table layers */
-.scene-editor-system-layers{display:grid;gap:3px;padding:7px 0 3px;border-bottom:1px solid var(--ui-border)}
-.scene-editor-system-layer{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:center;gap:5px;width:100%;min-height:34px;padding:3px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ui-text);cursor:pointer;text-align:left}
+.scene-editor-system-layers{display:grid;align-content:start;gap:1px;padding:3px 0;border-bottom:1px solid var(--ui-border)}
+.scene-editor-system-layer{display:grid;grid-template-columns:18px minmax(0,1fr);align-items:center;gap:4px;width:100%;min-height:25px;padding:1px 2px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--ui-text);cursor:pointer;text-align:left}
 .scene-editor-system-layer:hover{background:color-mix(in srgb,var(--ui-accent) 5%,transparent)}
 .scene-editor-system-layer.is-selected{border-color:color-mix(in srgb,var(--ui-accent) 55%,var(--ui-border));background:color-mix(in srgb,var(--ui-accent) 8%,var(--ui-panel))}
-.scene-editor-system-icon{display:grid;width:22px;height:22px;place-items:center;border:1px solid var(--ui-border);border-radius:4px;background:var(--ui-panel-raised);font-size:9px;font-weight:900}
-.scene-editor-system-layer>span:last-child{display:grid;min-width:0;gap:1px}.scene-editor-system-layer strong{font-size:9px}.scene-editor-system-layer small{overflow:hidden;color:var(--ui-text-muted);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.scene-editor-system-icon{display:grid;width:18px;height:18px;place-items:center;color:var(--ui-text-muted)}
+.scene-editor-system-icon svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.scene-editor-system-layer.is-selected .scene-editor-system-icon{color:var(--ui-accent)}
+.scene-editor-system-layer strong{min-width:0;overflow:hidden;font-size:8px;font-weight:850;line-height:1.1;text-overflow:ellipsis;white-space:nowrap}
 
 .scene-editor-table-selection-box{position:absolute;z-index:20;display:block;border:1px solid transparent;background:transparent;pointer-events:auto;cursor:move}
 .scene-editor-table-selection-box:hover{border-color:color-mix(in srgb,var(--ui-accent) 30%,transparent)}
@@ -222,3 +225,6 @@
 
 .scene-editor-system-layer:disabled{opacity:.38;cursor:default}
 .scene-editor-system-layer:disabled:hover{border-color:transparent;background:transparent}
+
+.scene-editor-properties-kind svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.scene-editor-content-scale-grid{margin-top:3px;padding-top:5px;border-top:1px solid var(--ui-border)}

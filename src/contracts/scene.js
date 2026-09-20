@@ -246,7 +246,11 @@ function elementInput(value, index, options) {
     height,
     z_index: integer(source.z_index, `elements[${index}].z_index`, index, -1000, 1000),
     opacity: number(source.opacity, `elements[${index}].opacity`, 1, 0, 1),
-    rotation_deg: number(source.rotation_deg, `elements[${index}].rotation_deg`, 0, -360, 360)
+    rotation_deg: number(source.rotation_deg, `elements[${index}].rotation_deg`, 0, -360, 360),
+    content_auto_scale: source.content_auto_scale !== false,
+    content_scale_percent: number(source.content_scale_percent, `elements[${index}].content_scale_percent`, 100, 10, 300),
+    content_reference_width: integer(source.content_reference_width, `elements[${index}].content_reference_width`, width, 1, options.maxWidth),
+    content_reference_height: integer(source.content_reference_height, `elements[${index}].content_reference_height`, height, 1, options.maxHeight)
   };
 
   if (type === 'text') return { ...common, text: textInput(source.text) };
@@ -296,7 +300,7 @@ export function sceneWeatherSettings(scene, screenId = null) {
     position: 'top-left',
     x: 0,
     y: 0,
-    width_px: Math.max(260, Math.min(760, Number(element.width) || 420)),
+    width_px: Math.max(260, Math.min(760, Number(element.content_reference_width || element.width) || 420)),
     scale: 1,
     opacity: 1
   };

@@ -54,13 +54,17 @@
                   </div>
                 </div>
                 <div class="scene-editor-system-layers" aria-label="Основные слои сцены">
-                  <button id="scene-editor-background-layer" class="scene-editor-system-layer" type="button" data-scene-owner="background" disabled>
-                    <span class="scene-editor-system-icon" aria-hidden="true">▧</span>
-                    <span><strong>Фон</strong><small>Цвет и изображение</small></span>
+                  <button id="scene-editor-background-layer" class="scene-editor-system-layer" type="button" data-scene-owner="background" title="Фон · цвет и изображение" disabled>
+                    <span class="scene-editor-system-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5.5 17 4.2-4.3 3.1 2.8 2.3-2.2 3.4 3.7"/></svg>
+                    </span>
+                    <strong>Фон</strong>
                   </button>
-                  <button id="scene-editor-table-layer" class="scene-editor-system-layer" type="button" data-scene-owner="table" disabled>
-                    <span class="scene-editor-system-icon" aria-hidden="true">▦</span>
-                    <span><strong>Таблица меню</strong><small>Содержимое и оформление</small></span>
+                  <button id="scene-editor-table-layer" class="scene-editor-system-layer" type="button" data-scene-owner="table" title="Таблица меню · содержимое и оформление" disabled>
+                    <span class="scene-editor-system-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10M15 9.5v10M3.5 14.5h17"/></svg>
+                    </span>
+                    <strong>Таблица меню</strong>
                   </button>
                 </div>
                 <div id="scene-editor-layers" class="scene-editor-layers" aria-label="Список элементов"></div>

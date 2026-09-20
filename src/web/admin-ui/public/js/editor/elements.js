@@ -83,17 +83,23 @@ function defaultMedia(video = false) {
 }
 
 export function createSceneElement(type = 'text', index = 0) {
+  const width = type === 'text' ? 720 : 520;
+  const height = type === 'text' ? 220 : 360;
   const common = {
     id: uid(),
     enabled: true,
     type,
     x: 120 + (index % 5) * 32,
     y: 120 + (index % 5) * 32,
-    width: type === 'text' ? 720 : 520,
-    height: type === 'text' ? 220 : 360,
+    width,
+    height,
     z_index: index,
     opacity: 1,
-    rotation_deg: 0
+    rotation_deg: 0,
+    content_auto_scale: true,
+    content_scale_percent: 100,
+    content_reference_width: width,
+    content_reference_height: height
   };
   if (type === 'text') return { ...common, text: defaultText() };
   if (type === 'weather') return { ...common, weather: defaultWeather() };
@@ -245,6 +251,23 @@ function commonSettings(state, element, options) {
   const opacity = input('range', element.opacity ?? 1, { min: 0, max: 1, step: .01 });
   bind(opacity, 'input', () => patch(state, element.id, { opacity: numberValue(opacity, 1) }), options);
   block.append(label('Прозрачность элемента', opacity));
+
+  const contentGrid = document.createElement('div');
+  contentGrid.className = 'compact-form-grid scene-editor-content-scale-grid';
+
+  const autoScale = check(element.content_auto_scale !== false);
+  bind(autoScale, 'change', () => patch(state, element.id, { content_auto_scale: autoScale.checked }), options);
+
+  const contentScale = input('number', element.content_scale_percent ?? 100, { min: 10, max: 300, step: 1 });
+  bind(contentScale, 'input', () => patch(state, element.id, {
+    content_scale_percent: numberValue(contentScale, 100)
+  }), options);
+
+  contentGrid.append(
+    label('Автомасштаб при resize', autoScale, 'editor-element-check'),
+    label('Масштаб внутри, %', contentScale)
+  );
+  block.append(contentGrid);
   return block;
 }
 
@@ -537,7 +560,11 @@ function renderElementCard(state, element, index, options) {
       height: current.height,
       z_index: current.z_index,
       opacity: current.opacity,
-      rotation_deg: current.rotation_deg
+      rotation_deg: current.rotation_deg,
+      content_auto_scale: current.content_auto_scale !== false,
+      content_scale_percent: current.content_scale_percent ?? 100,
+      content_reference_width: current.content_reference_width || current.width,
+      content_reference_height: current.content_reference_height || current.height
     });
     replaceSceneElement(state, current.id, replacement);
     selectSceneElement(state, element.id);

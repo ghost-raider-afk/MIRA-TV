@@ -20,6 +20,33 @@ function sceneUnit(value) {
   return String((Number(value || 0) / SCENE_WIDTH) * 100) + 'cqw';
 }
 
+function contentScaleFactor(element) {
+  const manual = Math.max(.1, Math.min(3, Number(element?.content_scale_percent ?? 100) / 100));
+  if (element?.content_auto_scale === false) return manual;
+  const referenceWidth = Math.max(1, Number(element?.content_reference_width || element?.width || 1));
+  const referenceHeight = Math.max(1, Number(element?.content_reference_height || element?.height || 1));
+  const width = Math.max(1, Number(element?.width || 1));
+  const height = Math.max(1, Number(element?.height || 1));
+  return Math.max(.01, Math.min(width / referenceWidth, height / referenceHeight)) * manual;
+}
+
+function applyContentGeometry(content, element) {
+  const referenceWidth = Math.max(1, Number(element?.content_reference_width || element?.width || 1));
+  const referenceHeight = Math.max(1, Number(element?.content_reference_height || element?.height || 1));
+  const scale = contentScaleFactor(element);
+  content.style.position = 'absolute';
+  content.style.left = '50%';
+  content.style.top = '50%';
+  content.style.right = 'auto';
+  content.style.bottom = 'auto';
+  content.style.width = sceneUnit(referenceWidth);
+  content.style.height = sceneUnit(referenceHeight);
+  content.style.maxWidth = 'none';
+  content.style.maxHeight = 'none';
+  content.style.transformOrigin = 'center center';
+  content.style.transform = 'translate(-50%, -50%) scale(' + String(scale) + ')';
+}
+
 function clampOpacity(value, fallback = 1) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
@@ -231,7 +258,7 @@ function weatherSettings(element) {
     position: 'top-left',
     x: 0,
     y: 0,
-    width_px: Math.max(260, Math.min(760, Number(element?.width) || 420)),
+    width_px: Math.max(260, Math.min(760, Number(element?.content_reference_width || element?.width) || 420)),
     scale: 1,
     opacity: 1
   };
@@ -340,6 +367,7 @@ export class SceneElementRenderer {
       } else if (entry.content instanceof HTMLVideoElement) {
         syncVideo(entry.content, element, this.playbackAllowed());
       }
+      applyContentGeometry(entry.content, element);
 
       this.layer.append(entry.node);
     }

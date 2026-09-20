@@ -51,8 +51,14 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-properties')).toBeVisible();
   await expect(page.locator('#scene-editor-screen')).toHaveValue(String(screen.id));
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
-  await expect(page.locator('#scene-editor-background-layer')).toBeVisible();
-  await expect(page.locator('#scene-editor-table-layer')).toBeVisible();
+  const backgroundLayer = page.locator('#scene-editor-background-layer');
+  const tableLayer = page.locator('#scene-editor-table-layer');
+  await expect(backgroundLayer).toBeVisible();
+  await expect(tableLayer).toBeVisible();
+  await expect(backgroundLayer.locator('svg')).toHaveCount(1);
+  await expect(tableLayer.locator('svg')).toHaveCount(1);
+  expect((await backgroundLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
+  expect((await tableLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('#scene-editor-undo')).toBeDisabled();
@@ -143,8 +149,23 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.locator('#scene-editor-add').click();
   await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
-  await expect(page.locator('#scene-editor-stage [data-scene-element-type="weather"]')).toHaveCount(1);
+  const weatherElement = page.locator('#scene-editor-stage [data-scene-element-type="weather"]');
+  const weatherContent = weatherElement.locator('[data-scene-weather-mount]');
+  await expect(weatherElement).toHaveCount(1);
+  await expect(weatherContent).toHaveCount(1);
   await expect(inspector.locator('summary[aria-label^="Погода:"]')).toBeVisible();
+  await expect(inspector.getByLabel('Автомасштаб при resize')).toBeChecked();
+  await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveValue('100');
+
+  await inspector.getByLabel('Ширина', { exact:true }).fill('260');
+  await inspector.getByLabel('Высота', { exact:true }).fill('180');
+  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.5)');
+
+  await inspector.getByLabel('Масштаб внутри, %').fill('80');
+  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.4)');
+
+  await inspector.getByLabel('Автомасштаб при resize').uncheck();
+  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
 
   await page.locator('#scene-editor-add').click();
   await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();

@@ -41,7 +41,7 @@ function weatherSettingsFromElement(element) {
     position: 'top-left',
     x: 0,
     y: 0,
-    width_px: Math.max(260, Math.min(760, Number(element.width) || 420)),
+    width_px: Math.max(260, Math.min(760, Number(element.content_reference_width || element.width) || 420)),
     scale: 1,
     opacity: 1
   };
