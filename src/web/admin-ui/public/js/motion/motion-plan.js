@@ -75,8 +75,11 @@ export function compilePromotionMotionProgram(scene, context = {}) {
   if (!scene || !Array.isArray(scene.nodes)) throw new TypeError('Promotion motion compiler requires a scene graph.');
   const profile = context.profile || context || {};
   const duration = Math.max(2000, Number(profile.promotion_cycle_seconds) * 1000 || 4800);
-  const effect = context.menuEnabled === false || profile.promotion_visible === false ? 'none' : (profile.promotion_effect || 'cinematic');
-  const gain = clamp(Number(profile.promotion_intensity) || 0, 0, 100) / 100;
+  const effect = context.promotionEnabled === false || profile.promotion_visible === false || profile.promotion_effect === 'none'
+    ? 'none'
+    : (profile.promotion_effect || 'cinematic');
+  const promotionIntensity = profile.promotion_intensity === undefined ? 72 : Number(profile.promotion_intensity);
+  const gain = clamp(Number.isFinite(promotionIntensity) ? promotionIntensity : 72, 0, 100) / 100;
   const activeFraction = clamp((Number(profile.promotion_event_duration_ms) || 1800) / duration, 0.18, 0.72);
   const tracks = effect === 'none' ? [] : scene.nodes.flatMap((node) => {
     const animation = node.metadata?.animation || '';
