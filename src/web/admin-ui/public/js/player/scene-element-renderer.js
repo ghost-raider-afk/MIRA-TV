@@ -1,5 +1,3 @@
-import { renderWeatherWidget, WEATHER_SAMPLE } from '../motion/weather-widget.js';
-
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 
@@ -20,20 +18,86 @@ function sceneUnit(value) {
   return String((Number(value || 0) / SCENE_WIDTH) * 100) + 'cqw';
 }
 
-function contentScaleFactor(element) {
-  const manual = Math.max(.1, Math.min(3, Number(element?.content_scale_percent ?? 100) / 100));
-  if (element?.content_auto_scale === false) return manual;
+function manualContentScale(element) {
+  return Math.max(.1, Math.min(3, Number(element?.content_scale_percent ?? 100) / 100));
+}
+
+function referenceGeometry(element) {
   const referenceWidth = Math.max(1, Number(element?.content_reference_width || element?.width || 1));
   const referenceHeight = Math.max(1, Number(element?.content_reference_height || element?.height || 1));
   const width = Math.max(1, Number(element?.width || 1));
   const height = Math.max(1, Number(element?.height || 1));
-  return Math.max(.01, Math.min(width / referenceWidth, height / referenceHeight)) * manual;
+  return {
+    referenceWidth,
+    referenceHeight,
+    nominalScale: Math.max(.01, Math.min(width / referenceWidth, height / referenceHeight))
+  };
 }
 
-function applyContentGeometry(content, element) {
-  const referenceWidth = Math.max(1, Number(element?.content_reference_width || element?.width || 1));
-  const referenceHeight = Math.max(1, Number(element?.content_reference_height || element?.height || 1));
-  const scale = contentScaleFactor(element);
+function visualMeasurementNodes(content, element) {
+  if (element?.type === 'weather') {
+    const widget = content.querySelector('.weather-widget');
+    return widget ? [widget, ...widget.querySelectorAll('*')] : [content];
+  }
+  if (element?.type === 'text') {
+    const flow = content.querySelector('[data-scene-text-flow]');
+    return flow ? [flow, ...flow.querySelectorAll('*')] : [content];
+  }
+  return [content];
+}
+
+function measuredFitScale(node, content, element) {
+  if (!(node instanceof HTMLElement) || !(content instanceof HTMLElement) || !node.isConnected) {
+    return referenceGeometry(element).nominalScale;
+  }
+
+  const nodeTransform = node.style.transform;
+  const contentTransform = content.style.transform;
+  node.style.transform = 'none';
+  content.style.transform = 'translate(-50%, -50%) scale(1)';
+  void content.offsetWidth;
+
+  const nodeRect = node.getBoundingClientRect();
+  const contentRect = content.getBoundingClientRect();
+  const centerX = contentRect.left + contentRect.width / 2;
+  const centerY = contentRect.top + contentRect.height / 2;
+  let left = Number.POSITIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+
+  for (const candidate of visualMeasurementNodes(content, element)) {
+    if (!(candidate instanceof Element)) continue;
+    const rect = candidate.getBoundingClientRect();
+    if (!Number.isFinite(rect.left) || (!rect.width && !rect.height)) continue;
+    left = Math.min(left, rect.left);
+    top = Math.min(top, rect.top);
+    right = Math.max(right, rect.right);
+    bottom = Math.max(bottom, rect.bottom);
+  }
+
+  node.style.transform = nodeTransform;
+  content.style.transform = contentTransform;
+
+  if (!Number.isFinite(left) || !Number.isFinite(top) || nodeRect.width <= 0 || nodeRect.height <= 0) {
+    return referenceGeometry(element).nominalScale;
+  }
+
+  const visualWidth = Math.max(1, 2 * Math.max(Math.abs(left - centerX), Math.abs(right - centerX)));
+  const visualHeight = Math.max(1, 2 * Math.max(Math.abs(top - centerY), Math.abs(bottom - centerY)));
+  return Math.max(.01, Math.min(nodeRect.width / visualWidth, nodeRect.height / visualHeight));
+}
+
+function contentScaleFactor(node, content, element) {
+  const manual = manualContentScale(element);
+  if (element?.content_auto_scale === false) return manual;
+  const nominal = referenceGeometry(element).nominalScale;
+  const fit = measuredFitScale(node, content, element);
+  return Math.max(.01, Math.min(nominal * manual, fit));
+}
+
+function applyContentGeometry(node, content, element) {
+  const { referenceWidth, referenceHeight } = referenceGeometry(element);
   content.style.position = 'absolute';
   content.style.left = '50%';
   content.style.top = '50%';
@@ -44,7 +108,10 @@ function applyContentGeometry(content, element) {
   content.style.maxWidth = 'none';
   content.style.maxHeight = 'none';
   content.style.transformOrigin = 'center center';
+  content.style.transform = 'translate(-50%, -50%) scale(1)';
+  const scale = contentScaleFactor(node, content, element);
   content.style.transform = 'translate(-50%, -50%) scale(' + String(scale) + ')';
+  content.dataset.sceneContentScale = String(scale);
 }
 
 function clampOpacity(value, fallback = 1) {
@@ -250,21 +317,7 @@ function createContent(type) {
   return mediaNode(type);
 }
 
-function weatherSettings(element) {
-  return {
-    enabled: element?.enabled !== false,
-    embedded: true,
-    ...(element?.weather || {}),
-    position: 'top-left',
-    x: 0,
-    y: 0,
-    width_px: Math.max(260, Math.min(760, Number(element?.content_reference_width || element?.width) || 420)),
-    scale: 1,
-    opacity: 1
-  };
-}
-
-function updateContent(content, element, playbackAllowed, weatherPreview = false) {
+function updateContent(content, element, playbackAllowed) {
   if (element.type === 'text') {
     renderText(content, element.text);
     return;
@@ -273,7 +326,6 @@ function updateContent(content, element, playbackAllowed, weatherPreview = false
     content.dataset.weatherMode = String(element.weather?.mode || 'current');
     content.dataset.showLocation = element.weather?.show_location === false ? 'false' : 'true';
     content.dataset.showCondition = element.weather?.show_condition === false ? 'false' : 'true';
-    if (weatherPreview) renderWeatherWidget(content, weatherSettings(element), WEATHER_SAMPLE);
     return;
   }
   updateMedia(content, element, playbackAllowed);
@@ -295,12 +347,11 @@ function applyGeometry(node, element) {
 }
 
 export class SceneElementRenderer {
-  constructor(layer, { activityTarget = null, autoplay = true, weatherPreview = false } = {}) {
+  constructor(layer, { activityTarget = null, autoplay = true } = {}) {
     if (!(layer instanceof HTMLElement)) throw new TypeError('SceneElementRenderer requires an HTMLElement layer.');
     this.layer = layer;
     this.activityTarget = activityTarget instanceof HTMLElement ? activityTarget : null;
     this.autoplay = autoplay !== false;
-    this.weatherPreview = weatherPreview === true;
     this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
     this.sceneVisible = this.activityTarget?.dataset.scenePlaylistFullscreen !== 'true';
     this.entries = new Map();
@@ -360,16 +411,15 @@ export class SceneElementRenderer {
 
       const fingerprint = JSON.stringify(element);
       applyGeometry(entry.node, element);
+      this.layer.append(entry.node);
       entry.element = element;
       if (entry.fingerprint !== fingerprint) {
-        updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview);
+        updateContent(entry.content, element, this.playbackAllowed());
         entry.fingerprint = fingerprint;
       } else if (entry.content instanceof HTMLVideoElement) {
         syncVideo(entry.content, element, this.playbackAllowed());
       }
-      applyContentGeometry(entry.content, element);
-
-      this.layer.append(entry.node);
+      applyContentGeometry(entry.node, entry.content, element);
     }
 
     for (const [id, entry] of this.entries) {
@@ -378,6 +428,12 @@ export class SceneElementRenderer {
       entry.node.remove();
       this.entries.delete(id);
     }
+  }
+
+  refreshContentGeometry(elementId) {
+    const entry = this.entries.get(String(elementId || ''));
+    if (!entry?.element || !(entry.content instanceof HTMLElement)) return;
+    applyContentGeometry(entry.node, entry.content, entry.element);
   }
 
   contentFor(elementId) {

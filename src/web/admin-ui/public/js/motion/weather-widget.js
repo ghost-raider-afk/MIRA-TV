@@ -49,6 +49,12 @@ function clamp(value, min, max, fallback) {
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 }
 
+function nullableCoordinate(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 export function normaliseWeatherWidget(source = {}) {
   const value = source && typeof source === 'object' ? source : {};
   const position = POSITIONS.has(value.position) ? value.position : 'top-right';
@@ -58,8 +64,8 @@ export function normaliseWeatherWidget(source = {}) {
     embedded: value.embedded === true,
     show_location: value.show_location !== false,
     location_name: String(value.location_name || '').trim().slice(0, 120),
-    latitude: Number.isFinite(Number(value.latitude)) ? Number(value.latitude) : null,
-    longitude: Number.isFinite(Number(value.longitude)) ? Number(value.longitude) : null,
+    latitude: nullableCoordinate(value.latitude),
+    longitude: nullableCoordinate(value.longitude),
     timezone: String(value.timezone || 'auto'),
     preset: 'adaptive',
     position,

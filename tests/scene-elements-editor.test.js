@@ -40,7 +40,8 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(scenePage, /renderSceneLayerList/);
   assert.match(scenePage, /\/scene-asset/);
   assert.match(scenePage, /SCENE_WIDTH \/ Math\.max\(1, rect\.width\)/);
-  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 238px/);
+  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 284px/);
+  assert.match(css, /grid-template-columns:150px minmax\(0,1fr\) 270px/);
   assert.match(css, /@media\(min-width:1101px\)/);
   assert.doesNotMatch(css, /scene-editor-inspector-tabs|@media\(min-width:961px\)/);
   assert.match(css, /overflow:hidden/);

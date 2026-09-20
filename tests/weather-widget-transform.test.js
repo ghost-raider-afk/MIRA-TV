@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { completeWeatherWidget, weatherWidgetInput } from '../src/contracts/weather.js';
+import { normaliseWeatherWidget } from '../src/web/admin-ui/public/js/motion/weather-widget.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -27,6 +28,12 @@ test('weather widget stores canonical transform and motion controls', () => {
   assert.equal(value.animation_speed, 1.6);
   assert.equal(value.animation_intensity, 1.4);
   assert.equal(value.widget_motion_enabled, false);
+});
+
+test('browser weather model preserves empty coordinates as null', () => {
+  const value = normaliseWeatherWidget({ enabled:true, latitude:null, longitude:'' });
+  assert.equal(value.latitude, null);
+  assert.equal(value.longitude, null);
 });
 
 test('legacy weather settings keep animation enabled with safe defaults', () => {
@@ -118,4 +125,19 @@ test('weather runtime changes rotate only the offline shell cache and preserve d
   assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v23'/);
   assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v25'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
+});
+
+
+test('Scene weather preview invalidates stale source data and uses protected preview endpoint', async () => {
+  const [runtime, renderer] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/weather-bootstrap.js'),
+    read('src/web/admin-ui/public/js/player/player-scene-renderer.js')
+  ]);
+  assert.match(runtime, /function weatherSourceKey\(settings\)/);
+  assert.match(runtime, /sourceChanged = nextSourceKey !== this\.sourceKey/);
+  assert.match(runtime, /hasWeatherCoordinates\(this\.settings\)/);
+  assert.match(runtime, /url\.searchParams\.set\('latitude'/);
+  assert.match(runtime, /url\.searchParams\.set\('longitude'/);
+  assert.match(runtime, /if \(this\.preview\)/);
+  assert.match(renderer, /weatherPreviewEndpoint = '\/api\/weather\/preview'/);
 });

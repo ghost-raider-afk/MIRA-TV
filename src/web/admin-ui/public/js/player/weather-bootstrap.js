@@ -17,23 +17,44 @@ function cachedRecord(key) {
   }
 }
 
+function weatherSourceKey(settings) {
+  return JSON.stringify([
+    String(settings?.location_name || '').trim(),
+    settings?.latitude !== null && settings?.latitude !== '' && Number.isFinite(Number(settings?.latitude)) ? Number(settings.latitude) : null,
+    settings?.longitude !== null && settings?.longitude !== '' && Number.isFinite(Number(settings?.longitude)) ? Number(settings.longitude) : null,
+    String(settings?.timezone || 'auto')
+  ]);
+}
+
+function hasWeatherCoordinates(settings) {
+  return settings?.latitude !== null
+    && settings?.latitude !== ''
+    && settings?.longitude !== null
+    && settings?.longitude !== ''
+    && Number.isFinite(Number(settings.latitude))
+    && Number.isFinite(Number(settings.longitude));
+}
+
 export class PlayerWeatherRuntime {
-  constructor(stage, { layer = null, endpoint = '/api/device/weather' } = {}) {
+  constructor(stage, { layer = null, endpoint = '/api/device/weather', preview = false, onRender = null } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Weather runtime requires an HTMLElement stage.');
     this.stage = stage;
     this.layer = layer instanceof HTMLElement ? layer : stage.querySelector('[data-weather-layer]');
     this.settings = normaliseWeatherWidget();
     this.endpoint = String(endpoint || '/api/device/weather');
+    this.preview = preview === true;
+    this.onRender = typeof onRender === 'function' ? onRender : null;
     this.snapshot = null;
     this.timer = null;
     this.generation = 0;
     this.screenId = null;
-    this.active = stage.dataset.playerActive === 'true';
+    this.sourceKey = '';
+    this.active = this.preview || stage.dataset.playerActive === 'true';
     this.visible = document.visibilityState !== 'hidden';
     this.destroyed = false;
 
     this.handlePlayerActivity = (event) => {
-      this.active = event?.detail?.active === true;
+      this.active = this.preview || event?.detail?.active === true;
       if (this.active) this.schedule(1000);
       else this.clearTimer();
     };
@@ -90,9 +111,11 @@ export class PlayerWeatherRuntime {
     if (!target) return;
     if (this.settings.enabled && this.snapshot) renderWeatherWidget(target, this.settings, this.snapshot);
     else target.replaceChildren();
+    this.onRender?.(target);
   }
 
-  loadCachedWeather() {
+  loadCachedWeather(expectedSettings = this.settings) {
+    if (this.preview) return;
     const key = this.cacheKey();
     if (!key) return;
     let record = cachedRecord(key);
@@ -105,11 +128,12 @@ export class PlayerWeatherRuntime {
       }
       try { localStorage.removeItem(LEGACY_CACHE_KEY); } catch {}
     }
-    if (!record) return;
+    if (!record || weatherSourceKey(record.settings) !== weatherSourceKey(expectedSettings)) return;
     this.snapshot = record.snapshot && typeof record.snapshot === 'object' ? record.snapshot : null;
   }
 
   saveCachedWeather() {
+    if (this.preview) return;
     const key = this.cacheKey();
     if (!key) return;
     try {
@@ -128,7 +152,6 @@ export class PlayerWeatherRuntime {
     if (!next || next === this.screenId) return false;
     this.screenId = next;
     this.snapshot = null;
-    this.loadCachedWeather();
     return true;
   }
 
@@ -139,19 +162,30 @@ export class PlayerWeatherRuntime {
 
   schedule(delay) {
     this.clearTimer();
-    if (this.destroyed || !this.settings.enabled || !this.active || !this.visible || !navigator.onLine) return;
+    if (this.destroyed || !this.settings.enabled || !hasWeatherCoordinates(this.settings) || !this.active || !this.visible || !navigator.onLine) return;
     const wait = Number.isFinite(Number(delay)) ? Number(delay) : this.settings.refresh_minutes * 60_000;
+    const minimumDelay = this.preview ? 200 : 1000;
     this.timer = setTimeout(() => {
       this.timer = null;
       void this.refresh();
-    }, Math.max(1000, wait));
+    }, Math.max(minimumDelay, wait));
+  }
+
+  requestUrl() {
+    if (!this.preview) return this.endpoint;
+    const url = new URL(this.endpoint, window.location.origin);
+    url.searchParams.set('name', this.settings.location_name || '');
+    url.searchParams.set('latitude', String(this.settings.latitude));
+    url.searchParams.set('longitude', String(this.settings.longitude));
+    url.searchParams.set('timezone', this.settings.timezone || 'auto');
+    return url.href;
   }
 
   async refresh({ configurationChanged = false } = {}) {
-    if (this.destroyed || !this.active || !this.visible || !navigator.onLine || !this.settings.enabled) return;
+    if (this.destroyed || !this.active || !this.visible || !navigator.onLine || !this.settings.enabled || !hasWeatherCoordinates(this.settings)) return;
     const currentGeneration = ++this.generation;
     try {
-      const response = await fetch(this.endpoint, { cache: 'no-store', credentials: 'same-origin' });
+      const response = await fetch(this.requestUrl(), { cache: 'no-store', credentials: 'same-origin' });
       if (response.status === 204) {
         this.snapshot = null;
         this.render();
@@ -163,10 +197,14 @@ export class PlayerWeatherRuntime {
       if (!response.ok) throw new Error(`Weather HTTP ${response.status}`);
       const body = await response.json();
       if (currentGeneration !== this.generation || this.destroyed) return;
-      const responseScreenId = validScreenId(body?.settings?.screen_id);
-      if (responseScreenId) this.switchScreen(responseScreenId);
-      // SceneElement is the only configuration owner. The weather endpoint supplies data, not UI settings.
-      this.snapshot = body?.snapshot || this.snapshot;
+      if (this.preview) {
+        this.snapshot = body && typeof body === 'object' ? body : null;
+      } else {
+        const responseScreenId = validScreenId(body?.settings?.screen_id);
+        if (responseScreenId) this.switchScreen(responseScreenId);
+        // SceneElement is the only configuration owner. The weather endpoint supplies data, not UI settings.
+        this.snapshot = body?.snapshot || this.snapshot;
+      }
       this.render();
       this.saveCachedWeather();
       this.schedule(configurationChanged ? Math.min(this.settings.refresh_minutes * 60_000, 60_000) : undefined);
@@ -178,19 +216,31 @@ export class PlayerWeatherRuntime {
 
   applyContext(settings, screenId, { configurationChanged = false, menuChanged = false } = {}) {
     if (this.destroyed) return;
+    const nextSettings = normaliseWeatherWidget(settings);
+    const nextSourceKey = weatherSourceKey(nextSettings);
     const screenChanged = this.switchScreen(screenId);
-    this.settings = normaliseWeatherWidget(settings);
-    if (!this.settings.enabled) {
+    const sourceChanged = nextSourceKey !== this.sourceKey;
+    this.settings = nextSettings;
+    this.sourceKey = nextSourceKey;
+
+    if (screenChanged || sourceChanged) {
+      this.generation += 1;
+      this.clearTimer();
+      this.snapshot = null;
+      if (screenChanged) this.loadCachedWeather(this.settings);
+    }
+
+    if (!this.settings.enabled || !hasWeatherCoordinates(this.settings)) {
       this.snapshot = null;
       this.clearTimer();
       this.render();
       this.saveCachedWeather();
       return;
     }
-    if (screenChanged) this.loadCachedWeather();
-    if (menuChanged || screenChanged || configurationChanged) this.render();
-    if (navigator.onLine && this.active && this.visible && (screenChanged || configurationChanged || !this.snapshot)) {
-      this.schedule(configurationChanged ? 250 : 1000);
+
+    if (menuChanged || screenChanged || sourceChanged || configurationChanged) this.render();
+    if (navigator.onLine && this.active && this.visible && (screenChanged || sourceChanged || !this.snapshot)) {
+      this.schedule(sourceChanged ? 250 : 1000);
     } else {
       this.schedule();
     }
@@ -208,5 +258,6 @@ export class PlayerWeatherRuntime {
     this.layer?.replaceChildren();
     this.layer = null;
     this.snapshot = null;
+    this.onRender = null;
   }
 }
