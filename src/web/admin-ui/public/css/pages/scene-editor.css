@@ -189,9 +189,14 @@
 .scene-editor-table-row-inspector .editor-preview-row-action{min-height:23px;padding:2px 5px;font-size:7px}
 .scene-editor-table-row-inspector .editor-preview-promotion-editor{display:grid;gap:3px;margin-top:4px}
 .scene-editor-table-row-inspector .editor-preview-promotion-editor input[type="text"]{min-height:24px;font-size:8px}
-.scene-editor-table-row-inspector .editor-preview-promotion-motion-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.scene-editor-table-row-inspector .editor-preview-promotion-motion-grid label{display:grid;gap:2px;min-width:0;color:var(--ui-text-muted);font-size:7px}
-.scene-editor-table-row-inspector .editor-preview-promotion-motion-grid select{width:100%;min-width:0;min-height:24px;padding:2px 5px;border-radius:5px;font-size:8px}
+.scene-editor-table-row-inspector .editor-preview-promotion-motion-grid{display:grid;gap:5px}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset-field{display:grid;gap:3px;min-width:0;color:var(--ui-text-muted);font-size:7px}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset-group{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset-field:last-child .editor-preview-promotion-preset-group{grid-template-columns:repeat(2,minmax(0,1fr))}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset{min-width:0;min-height:24px;padding:2px 4px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised);color:var(--ui-text-muted);font:750 7px/1.1 inherit;cursor:pointer}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset:hover:not(:disabled){border-color:color-mix(in srgb,var(--ui-accent) 45%,var(--ui-border));color:var(--ui-text)}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset.is-selected{border-color:color-mix(in srgb,var(--ui-accent) 72%,var(--ui-border));background:color-mix(in srgb,var(--ui-accent) 11%,var(--ui-panel-raised));color:var(--ui-accent)}
+.scene-editor-table-row-inspector .editor-preview-promotion-preset:disabled{opacity:.42;cursor:default}
 .scene-editor-table-row-inspector .editor-preview-inspector-help{margin:0;color:var(--ui-text-muted);font-size:7px;line-height:1.35}
 
 @media(max-width:1100px){
