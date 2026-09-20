@@ -943,7 +943,7 @@ export function initialiseSceneEditor() {
   async function renderFullPreview() {
     renderer?.destroy();
     stage.replaceChildren();
-    stage.dataset.playerActive = 'false';
+    stage.dataset.playerActive = 'true';
     renderer = new PlayerSceneRenderer(stage, { autoplay: false, weatherPreview: true });
     await renderer.render(sceneContext(), ['screen', 'menu', 'scene']);
     fitPreviewShell();
