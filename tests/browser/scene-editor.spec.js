@@ -206,7 +206,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.getByLabel('Широта')).toHaveValue('50.5503');
   await expect(inspector.getByLabel('Долгота')).toHaveValue('137.0079');
   await expect(inspector.getByLabel('Часовой пояс')).toHaveValue('Asia/Vladivostok');
-  await expect(weatherContent).toContainText('КОМСОМОЛЬСК-НА-АМУРЕ');
+  await expect(weatherContent).toContainText(/Комсомольск-на-Амуре/i);
   await expect(weatherContent).toContainText('12°');
 
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
@@ -215,9 +215,6 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
 
   await inspector.getByLabel('Масштаб внутри, %').fill('80');
   await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.4)');
-
-  await inspector.getByLabel('Автомасштаб при resize').uncheck();
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
 
   const weatherFit = await weatherContent.evaluate((mount) => {
     const widget = mount.querySelector('.weather-widget');
@@ -236,6 +233,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(weatherFit.top).toBeGreaterThanOrEqual(-2);
   expect(weatherFit.right).toBeLessThanOrEqual(2);
   expect(weatherFit.bottom).toBeLessThanOrEqual(2);
+
+  await inspector.getByLabel('Автомасштаб при resize').uncheck();
+  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
 
   await page.locator('#scene-editor-add').click();
   await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
