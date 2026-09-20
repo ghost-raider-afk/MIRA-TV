@@ -25,7 +25,11 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(monitorHtml, /id="editor-scene-link"/);
 
   for (const label of ['Текстовое поле','Погода','Картинка','Видео','Логотип']) assert.ok(elements.includes(label));
-  for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение']) assert.ok(elements.includes(photoshopControl));
+  for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение','Автомасштаб при resize','Масштаб внутри, %']) assert.ok(elements.includes(photoshopControl));
+  assert.match(sceneHtml, /scene-editor-background-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
+  assert.match(sceneHtml, /scene-editor-table-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
+  assert.match(css, /scene-editor-system-layer\{[^}]*min-height:25px/);
+  assert.match(css, /scene-editor-system-icon svg/);
   assert.match(elements, /export function renderSceneLayerList/);
   assert.match(elements, /export function renderSceneElementInspector/);
   assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
