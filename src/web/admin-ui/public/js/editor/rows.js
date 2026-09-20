@@ -157,9 +157,17 @@ function choiceControl({
     search.value = '';
     render();
     popup.hidden = false;
+    popup.classList.remove('is-above');
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocumentPointerDown, true);
-    requestAnimationFrame(() => search.focus());
+    requestAnimationFrame(() => {
+      const boundary = shell.closest('.scene-editor-stage-shell, .editor-menu-preview')?.getBoundingClientRect();
+      const popupRect = popup.getBoundingClientRect();
+      if (boundary && popupRect.bottom > boundary.bottom - 4 && popupRect.top - boundary.top > popupRect.height + 4) {
+        popup.classList.add('is-above');
+      }
+      search.focus();
+    });
   };
 
   trigger.addEventListener('click', () => popup.hidden ? open() : close());
