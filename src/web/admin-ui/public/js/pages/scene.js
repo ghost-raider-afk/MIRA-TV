@@ -207,18 +207,15 @@ export function initialiseSceneEditor() {
   function fitPreviewShell() {
     if (!state.screen) return;
     const resolution = resolutionOf(state.screen);
-    const widthLimit = Math.max(360, canvasPane.clientWidth * .9);
-    const heightLimit = Math.max(240, canvasPane.clientHeight * .82);
-    const scale = Math.min(widthLimit / resolution.width, heightLimit / resolution.height);
-    const width = Math.max(360, Math.floor(resolution.width * scale));
-    const height = Math.max(203, Math.floor(resolution.height * scale));
-    const previewScale = Math.min(width / resolution.width, height / resolution.height);
+    const widthLimit = Math.max(1, canvasPane.clientWidth * .9);
+    const heightLimit = Math.max(1, canvasPane.clientHeight * .82);
+    const previewScale = Math.max(.01, Math.min(widthLimit / resolution.width, heightLimit / resolution.height));
+    const width = Math.max(1, Math.floor(resolution.width * previewScale));
+    const height = Math.max(1, Math.floor(resolution.height * previewScale));
     shell.style.width = `${width}px`;
     shell.style.height = `${height}px`;
     shell.style.aspectRatio = `${resolution.width} / ${resolution.height}`;
-    stage.style.setProperty('--scene-preview-width', `${resolution.width}px`);
-    stage.style.setProperty('--scene-preview-height', `${resolution.height}px`);
-    stage.style.setProperty('--scene-preview-scale', String(previewScale));
+    renderer?.fitViewport?.(resolution);
     const zoom = element('scene-editor-zoom');
     if (zoom) zoom.textContent = `${Math.max(1, Math.round(previewScale * 100))}%`;
   }

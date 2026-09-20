@@ -40,11 +40,10 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.match(elements, /export function renderSceneElementInspector/);
   assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
   assert.match(scenePage, /new PlayerSceneRenderer\(stage, \{ autoplay: false, weatherPreview: true \}\)/);
-  assert.match(scenePage, /--scene-preview-width/);
-  assert.match(scenePage, /--scene-preview-height/);
-  assert.match(scenePage, /--scene-preview-scale/);
-  assert.match(css, /width:var\(--scene-preview-width,1920px\)!important/);
-  assert.match(css, /transform:scale\(var\(--scene-preview-scale,1\)\)!important/);
+  assert.match(scenePage, /renderer\?\.fitViewport\?\.\(resolution\)/);
+  assert.doesNotMatch(scenePage, /--scene-preview-width|--scene-preview-height|--scene-preview-scale/);
+  assert.doesNotMatch(css, /--scene-preview-width|--scene-preview-height|--scene-preview-scale/);
+  assert.match(scenePage, /const previewScale = Math\.max\(\.01, Math\.min\(widthLimit \/ resolution\.width, heightLimit \/ resolution\.height\)\)/);
   assert.match(scenePage, /renderSceneElementInspector/);
   assert.match(scenePage, /renderSceneLayerList/);
   assert.match(scenePage, /\/scene-asset/);
