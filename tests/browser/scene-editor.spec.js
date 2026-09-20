@@ -114,7 +114,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(geometry.documentScroll).toBeLessThanOrEqual(geometry.documentClient + 2);
   expect(geometry.layersScroll).toBeLessThanOrEqual(geometry.layersClient + 2);
   expect(geometry.propertiesScroll).toBeLessThanOrEqual(geometry.propertiesClient + 2);
-  expect(geometry.propertiesWidth).toBeLessThanOrEqual(250);
+  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(270);
+  expect(geometry.propertiesWidth).toBeLessThanOrEqual(290);
 
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
@@ -288,7 +289,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect(page.locator('.scene-weather-location-results')).toBeVisible();
   await page.locator('.scene-weather-location-results .weather-location-option', { hasText:'Турку' }).click();
 
-  const weatherNode = page.locator('[data-scene-element-type="weather"]');
+  const weatherNode = page.locator('div[data-scene-element-type="weather"][data-scene-element-id]');
   await expect(weatherNode.locator('.weather-widget-location')).toHaveText('Турку');
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
