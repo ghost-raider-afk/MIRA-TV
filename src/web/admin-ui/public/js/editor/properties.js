@@ -38,9 +38,9 @@ function syncFontScaleInputs(value) {
 export function readEditorSettings(baseSettings = {}) {
   return normaliseEditorSettings({
     ...baseSettings,
-    background_color: element('editor-background-color').value,
-    accent_color: element('editor-accent-color').value,
-    text_color: element('editor-text-color').value,
+    background_color: element('editor-background-color')?.value ?? baseSettings.background_color,
+    accent_color: element('editor-accent-color')?.value ?? baseSettings.accent_color,
+    text_color: element('editor-text-color')?.value ?? baseSettings.text_color,
     font_scale_percent: fontScaleValue(),
     font_family: element('editor-font-family').value,
     table_x: element('editor-table-x').value,
@@ -52,9 +52,12 @@ export function readEditorSettings(baseSettings = {}) {
 
 export function writeEditorSettings(settings) {
   const normalized = normaliseEditorSettings(settings);
-  element('editor-background-color').value = normalized.background_color;
-  element('editor-accent-color').value = normalized.accent_color;
-  element('editor-text-color').value = normalized.text_color;
+  const backgroundColor = element('editor-background-color');
+  const accentColor = element('editor-accent-color');
+  const textColor = element('editor-text-color');
+  if (backgroundColor) backgroundColor.value = normalized.background_color;
+  if (accentColor) accentColor.value = normalized.accent_color;
+  if (textColor) textColor.value = normalized.text_color;
   element('editor-font-family').value = normalized.font_family;
   element('editor-table-x').value = String(normalized.table_x);
   element('editor-table-y').value = String(normalized.table_y);
