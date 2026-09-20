@@ -395,7 +395,12 @@ function promotionControls(editorState, row, options) {
 
   checkbox.addEventListener('change', () => {
     options.onBeforeMutate?.();
-    updateRow(editorState, row.id, { promotion: checkbox.checked });
+    const promotionText = checkbox.checked && !text.value.trim() ? 'АКЦИЯ' : text.value;
+    if (promotionText !== text.value) text.value = promotionText;
+    updateRow(editorState, row.id, {
+      promotion: checkbox.checked,
+      promotion_text: promotionText
+    });
     text.disabled = !checkbox.checked;
     options.onVisualChange?.();
   });
