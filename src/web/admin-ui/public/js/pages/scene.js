@@ -115,6 +115,7 @@ export function initialiseSceneEditor() {
   let currentScreenId = null;
   let disposed = false;
   let previewFrame = 0;
+  let documentPreviewFrame = 0;
   let resizeObserver = null;
   let interactionActive = false;
   let selectedOwner = 'table';
@@ -220,7 +221,15 @@ export function initialiseSceneEditor() {
     if (!renderer || !active()) return;
     await renderer.render(sceneContext(), ['screen', 'menu']);
     if (!active()) return;
-    refreshSelectionOverlay();
+    if (!interactionActive) refreshSelectionOverlay();
+  }
+
+  function scheduleDocumentRender() {
+    if (documentPreviewFrame) return;
+    documentPreviewFrame = requestAnimationFrame(() => {
+      documentPreviewFrame = 0;
+      void renderDocumentPreview();
+    });
   }
 
   function patchMenuSettings(patch) {
@@ -228,7 +237,7 @@ export function initialiseSceneEditor() {
     state.dirty = true;
     setDirty();
     setSelectionStatus();
-    void renderDocumentPreview();
+    scheduleDocumentRender();
   }
 
   function makeField(labelText, control) {
@@ -437,12 +446,131 @@ export function initialiseSceneEditor() {
   function refreshSelectionOverlay() {
     selectionLayer.replaceChildren();
     const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+
+    const tableBox = document.createElement('button');
+    tableBox.type = 'button';
+    tableBox.className = 'scene-editor-table-selection-box';
+    tableBox.classList.toggle('is-selected', selectedOwner === 'table');
+    tableBox.setAttribute('aria-label', 'Выбрать таблицу меню');
+    const applyTableGeometry = () => {
+      tableBox.style.left = `${(Number(state.settings.table_x || 0) / SCENE_WIDTH) * 100}%`;
+      tableBox.style.top = `${(Number(state.settings.table_y || 0) / SCENE_HEIGHT) * 100}%`;
+      tableBox.style.width = `${(Number(state.settings.table_width_px || 1) / SCENE_WIDTH) * 100}%`;
+      tableBox.style.height = `${(Number(state.settings.table_height_px || 1) / SCENE_HEIGHT) * 100}%`;
+    };
+    applyTableGeometry();
+    const tableLabel = document.createElement('span');
+    tableLabel.className = 'scene-editor-selection-label';
+    tableLabel.textContent = 'Таблица меню';
+    tableBox.append(tableLabel);
+
+    if (selectedOwner === 'table') {
+      for (const direction of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+        const resize = document.createElement('span');
+        resize.className = 'scene-editor-resize-handle';
+        resize.dataset.direction = direction;
+        resize.setAttribute('aria-hidden', 'true');
+        resize.addEventListener('pointerdown', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          interactionActive = true;
+          const pointerStartX = event.clientX;
+          const pointerStartY = event.clientY;
+          const startLeft = Number(state.settings.table_x || 0);
+          const startTop = Number(state.settings.table_y || 0);
+          const startRight = startLeft + Math.max(1, Number(state.settings.table_width_px || 1));
+          const startBottom = startTop + Math.max(1, Number(state.settings.table_height_px || 1));
+          const rect = shell.getBoundingClientRect();
+          resize.setPointerCapture?.(event.pointerId);
+
+          const move = (moveEvent) => {
+            const deltaX = (moveEvent.clientX - pointerStartX) * (SCENE_WIDTH / Math.max(1, rect.width));
+            const deltaY = (moveEvent.clientY - pointerStartY) * (SCENE_HEIGHT / Math.max(1, rect.height));
+            let left = startLeft;
+            let top = startTop;
+            let right = startRight;
+            let bottom = startBottom;
+            if (direction.includes('w')) left = clamp(startLeft + deltaX, 0, right - 40);
+            if (direction.includes('e')) right = clamp(startRight + deltaX, left + 40, SCENE_WIDTH);
+            if (direction.includes('n')) top = clamp(startTop + deltaY, 0, bottom - 40);
+            if (direction.includes('s')) bottom = clamp(startBottom + deltaY, top + 40, SCENE_HEIGHT);
+            state.settings = {
+              ...state.settings,
+              table_x:Math.round(left),
+              table_y:Math.round(top),
+              table_width_px:Math.round(right - left),
+              table_height_px:Math.round(bottom - top)
+            };
+            state.dirty = true;
+            setDirty();
+            setSelectionStatus();
+            applyTableGeometry();
+            scheduleDocumentRender();
+          };
+          const end = () => {
+            interactionActive = false;
+            resize.removeEventListener('pointermove', move);
+            resize.removeEventListener('pointerup', end);
+            resize.removeEventListener('pointercancel', end);
+            renderSelectionOwners();
+            scheduleDocumentRender();
+          };
+          resize.addEventListener('pointermove', move);
+          resize.addEventListener('pointerup', end);
+          resize.addEventListener('pointercancel', end);
+        });
+        tableBox.append(resize);
+      }
+    }
+
+    tableBox.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('.scene-editor-resize-handle')) return;
+      event.preventDefault();
+      selectOwner('table');
+      interactionActive = true;
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startTableX = Number(state.settings.table_x || 0);
+      const startTableY = Number(state.settings.table_y || 0);
+      const width = Math.max(1, Number(state.settings.table_width_px || 1));
+      const height = Math.max(1, Number(state.settings.table_height_px || 1));
+      const rect = shell.getBoundingClientRect();
+      tableBox.setPointerCapture?.(event.pointerId);
+
+      const move = (moveEvent) => {
+        const deltaX = (moveEvent.clientX - startX) * (SCENE_WIDTH / Math.max(1, rect.width));
+        const deltaY = (moveEvent.clientY - startY) * (SCENE_HEIGHT / Math.max(1, rect.height));
+        state.settings = {
+          ...state.settings,
+          table_x:Math.round(clamp(startTableX + deltaX, 0, SCENE_WIDTH - width)),
+          table_y:Math.round(clamp(startTableY + deltaY, 0, SCENE_HEIGHT - height))
+        };
+        state.dirty = true;
+        setDirty();
+        setSelectionStatus();
+        applyTableGeometry();
+        scheduleDocumentRender();
+      };
+      const end = () => {
+        interactionActive = false;
+        tableBox.removeEventListener('pointermove', move);
+        tableBox.removeEventListener('pointerup', end);
+        tableBox.removeEventListener('pointercancel', end);
+        renderSelectionOwners();
+        scheduleDocumentRender();
+      };
+      tableBox.addEventListener('pointermove', move);
+      tableBox.addEventListener('pointerup', end);
+      tableBox.addEventListener('pointercancel', end);
+    });
+    selectionLayer.append(tableBox);
+
     elements.forEach((sceneElement, index) => {
       if (sceneElement.enabled === false) return;
       const box = document.createElement('button');
       box.type = 'button';
       box.className = 'scene-editor-selection-box';
-      box.classList.toggle('is-selected', sceneElement.id === state.selectedElementId);
+      box.classList.toggle('is-selected', selectedOwner === 'element' && sceneElement.id === state.selectedElementId);
       box.dataset.sceneElementId = sceneElement.id;
       applyBoxGeometry(box, sceneElement);
       box.setAttribute('aria-label', `Выбрать Элемент ${index + 1}`);
@@ -451,7 +579,7 @@ export function initialiseSceneEditor() {
       label.textContent = `Элемент ${index + 1}`;
       box.append(label);
 
-      if (sceneElement.id === state.selectedElementId) {
+      if (selectedOwner === 'element' && sceneElement.id === state.selectedElementId) {
         for (const direction of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const resize = document.createElement('span');
           resize.className = 'scene-editor-resize-handle';
@@ -613,7 +741,11 @@ export function initialiseSceneEditor() {
         renderSelectionOwners();
         scheduleSceneRender();
       },
-      onSelect: () => renderSelectionOwners()
+      onSelect: () => {
+        selectedOwner = 'element';
+        renderSelectionOwners();
+        if (window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel = 'properties';
+      }
     });
   }
 
@@ -852,6 +984,7 @@ export function initialiseSceneEditor() {
       disposed = true;
       generation += 1;
       if (previewFrame) cancelAnimationFrame(previewFrame);
+      if (documentPreviewFrame) cancelAnimationFrame(documentPreviewFrame);
       resizeObserver?.disconnect();
       renderer?.destroy();
       renderer = null;
