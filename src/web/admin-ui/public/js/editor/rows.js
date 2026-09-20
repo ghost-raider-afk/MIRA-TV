@@ -1,5 +1,7 @@
 import { addRow, moveRow, removeRow, selectRow, sortSectionItems, updateRow } from './commands.js';
 
+let openChoice = null;
+
 export function createEditorRow(kind) {
   return {
     id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -36,13 +38,153 @@ function packagingById(packaging, id) {
   return packaging.find((item) => Number(item.id) === Number(id));
 }
 
-function activeOptions(records, selectedId, placeholder) {
-  return [
-    new Option(placeholder, ''),
-    ...records
-      .filter((item) => item.active || Number(item.id) === Number(selectedId))
-      .map((item) => new Option(item.name, String(item.id)))
-  ];
+function activeRecords(records, selectedId) {
+  return records
+    .filter((item) => item.active || Number(item.id) === Number(selectedId))
+    .toSorted((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'ru', { sensitivity:'base' }));
+}
+
+function choiceControl({
+  records,
+  selectedId,
+  placeholder,
+  ariaLabel,
+  datasetName,
+  className,
+  optionMeta,
+  onOpen,
+  onChange
+}) {
+  const shell = document.createElement('div');
+  shell.className = `editor-preview-choice ${className}`;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'editor-preview-inline-control editor-preview-choice-trigger';
+  trigger.setAttribute('role', 'combobox');
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-label', ariaLabel);
+  trigger.dataset[datasetName] = String(selectedId || '');
+
+  const selected = records.find((item) => Number(item.id) === Number(selectedId));
+  const triggerText = document.createElement('span');
+  triggerText.className = 'editor-preview-choice-trigger-text';
+  triggerText.textContent = selected?.name || placeholder;
+  trigger.append(triggerText);
+
+  const popup = document.createElement('div');
+  popup.className = 'editor-preview-choice-popup';
+  popup.hidden = true;
+
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'editor-preview-choice-search';
+  search.placeholder = 'Поиск…';
+  search.autocomplete = 'off';
+  search.setAttribute('aria-label', `Поиск: ${ariaLabel}`);
+
+  const list = document.createElement('div');
+  list.className = 'editor-preview-choice-list';
+  list.setAttribute('role', 'listbox');
+  const listId = `choice-${Math.random().toString(36).slice(2, 10)}`;
+  list.id = listId;
+  trigger.setAttribute('aria-controls', listId);
+
+  const empty = document.createElement('div');
+  empty.className = 'editor-preview-choice-empty';
+  empty.textContent = 'Ничего не найдено';
+  empty.hidden = true;
+
+  const source = activeRecords(records, selectedId);
+  const render = (query = '') => {
+    const needle = query.trim().toLocaleLowerCase('ru');
+    list.replaceChildren();
+    const matches = source.filter((item) => {
+      if (!needle) return true;
+      const haystack = [item.name, item.producer, item.strength, item.characteristics]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('ru');
+      return haystack.includes(needle);
+    });
+    empty.hidden = matches.length > 0;
+    for (const item of matches) {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'editor-preview-choice-option';
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', Number(item.id) === Number(selectedId) ? 'true' : 'false');
+      option.dataset.value = String(item.id);
+
+      const title = document.createElement('strong');
+      title.textContent = item.name || 'Без названия';
+      option.append(title);
+
+      const metaText = optionMeta?.(item) || '';
+      if (metaText) {
+        const meta = document.createElement('small');
+        meta.textContent = metaText;
+        option.append(meta);
+      }
+
+      option.addEventListener('click', () => {
+        close();
+        onChange?.(String(item.id));
+      });
+      list.append(option);
+    }
+  };
+
+  const onDocumentPointerDown = (event) => {
+    if (!shell.contains(event.target)) close();
+  };
+
+  const close = () => {
+    if (popup.hidden) return;
+    popup.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+    if (openChoice?.close === close) openChoice = null;
+  };
+
+  const open = () => {
+    if (!popup.hidden) return;
+    openChoice?.close?.();
+    openChoice = { close };
+    onOpen?.();
+    search.value = '';
+    render();
+    popup.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', onDocumentPointerDown, true);
+    requestAnimationFrame(() => search.focus());
+  };
+
+  trigger.addEventListener('click', () => popup.hidden ? open() : close());
+  trigger.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      open();
+    }
+    if (event.key === 'Escape') close();
+  });
+  search.addEventListener('input', () => render(search.value));
+  search.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      trigger.focus();
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      list.querySelector('[role="option"]')?.focus();
+    }
+  });
+
+  popup.append(search, list, empty);
+  shell.append(trigger, popup);
+  render();
+  return shell;
 }
 
 function rowLabel(row, products, packaging) {
@@ -102,18 +244,20 @@ function sectionInlineControl(editorState, row, options) {
 }
 
 function itemInlineControl(editorState, row, options) {
-  const select = document.createElement('select');
-  select.className = 'editor-preview-inline-control editor-preview-product-select';
-  select.dataset.previewProductSelect = row.id;
-  select.setAttribute('aria-label', 'Продукция из общей базы');
-  select.append(...activeOptions(options.products, row.product_id, 'Выберите продукцию'));
-  select.value = row.product_id ? String(row.product_id) : '';
-  select.addEventListener('focus', () => activateRow(editorState, row.id, options));
-  select.addEventListener('change', () => {
-    updateRow(editorState, row.id, { product_id: select.value });
-    options.onVisualChange?.();
+  return choiceControl({
+    records:options.products,
+    selectedId:row.product_id,
+    placeholder:'Выберите продукцию',
+    ariaLabel:'Продукция из общей базы',
+    datasetName:'previewProductSelect',
+    className:'editor-preview-product-choice',
+    optionMeta:(item) => [item.producer, item.strength].filter(Boolean).join(' · '),
+    onOpen:() => activateRow(editorState, row.id, options),
+    onChange:(value) => {
+      updateRow(editorState, row.id, { product_id:value });
+      options.onVisualChange?.();
+    }
   });
-  return select;
 }
 
 function packagingInlineControls(editorState, rowIds, options) {
@@ -122,19 +266,21 @@ function packagingInlineControls(editorState, rowIds, options) {
   rowIds.forEach((rowId, index) => {
     const row = editorState.rows.find((item) => item.id === rowId);
     if (!row) return;
-    const select = document.createElement('select');
-    select.className = 'editor-preview-inline-control editor-preview-packaging-select';
-    select.dataset.previewPackagingSelect = row.id;
-    select.dataset.previewPackagingSlot = String(index + 1);
-    select.setAttribute('aria-label', `Тара из общей базы, позиция ${index + 1}`);
-    select.append(...activeOptions(options.packaging, row.packaging_id, 'Выберите тару'));
-    select.value = row.packaging_id ? String(row.packaging_id) : '';
-    select.addEventListener('focus', () => activateRow(editorState, row.id, options));
-    select.addEventListener('change', () => {
-      updateRow(editorState, row.id, { packaging_id: select.value });
-      options.onVisualChange?.();
+    const choice = choiceControl({
+      records:options.packaging,
+      selectedId:row.packaging_id,
+      placeholder:'Выберите тару',
+      ariaLabel:`Тара из общей базы, позиция ${index + 1}`,
+      datasetName:'previewPackagingSelect',
+      className:'editor-preview-packaging-choice',
+      onOpen:() => activateRow(editorState, row.id, options),
+      onChange:(value) => {
+        updateRow(editorState, row.id, { packaging_id:value });
+        options.onVisualChange?.();
+      }
     });
-    shell.append(select);
+    choice.dataset.previewPackagingSlot = String(index + 1);
+    shell.append(choice);
   });
   return shell;
 }
