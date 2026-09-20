@@ -104,6 +104,13 @@ export function initialiseScreenEditor() {
 
   setEditorLoading(form, true);
 
+  const syncPreviewFrame = (screenOverride = editorState.screen || screen) => {
+    const resolution = parseResolution(screenOverride?.resolution);
+    previewTarget.style.aspectRatio = resolution ? `${resolution.width} / ${resolution.height}` : '16 / 9';
+    setResolutionWarning(screenOverride);
+    return resolution;
+  };
+
   const previewContext = (screenOverride = editorState.screen || screen) => ({
     screen:screenOverride,
     draft:{ rows:editorState.rows, settings:editorState.settings },
@@ -116,9 +123,7 @@ export function initialiseScreenEditor() {
 
   const renderPlayerPreview = async (screenOverride = editorState.screen || screen, changed = ['screen','menu']) => {
     if (!isMounted() || !screenOverride) return;
-    const resolution = parseResolution(screenOverride.resolution);
-    previewTarget.style.aspectRatio = resolution ? `${resolution.width} / ${resolution.height}` : '16 / 9';
-    setResolutionWarning(screenOverride);
+    syncPreviewFrame(screenOverride);
     if (!renderer) renderer = new PlayerSceneRenderer(previewTarget, { autoplay:false, weatherPreview:true });
     await renderer.render(previewContext(screenOverride), changed);
   };
@@ -134,7 +139,7 @@ export function initialiseScreenEditor() {
   const refreshEditorView = () => {
     if (!isMounted()) return;
     const activeScreen = editorState.screen || screen;
-    setResolutionWarning(activeScreen);
+    syncPreviewFrame(activeScreen);
     setDirtyState(editorState);
     schedulePlayerPreview(activeScreen);
   };
