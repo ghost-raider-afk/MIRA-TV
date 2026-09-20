@@ -216,7 +216,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
   await inspector.getByLabel('Высота', { exact:true }).fill('180');
 
-  const resizeScale = await expect.poll(async () => Number(await weatherContent.getAttribute('data-scene-content-scale'))).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await weatherContent.getAttribute('data-scene-content-scale'))).toBeGreaterThan(0);
   const scaleAt100 = Number(await weatherContent.getAttribute('data-scene-content-scale'));
   const intrinsicFit = Number(await weatherContent.getAttribute('data-scene-intrinsic-fit'));
   expect(intrinsicFit).toBeGreaterThan(0);
@@ -227,10 +227,10 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const widgetBounds = await weatherContent.locator('.weather-widget-content').boundingBox();
   expect(weatherBounds).not.toBeNull();
   expect(widgetBounds).not.toBeNull();
-  expect(widgetBounds.left).toBeGreaterThanOrEqual(weatherBounds.left - 2);
-  expect(widgetBounds.top).toBeGreaterThanOrEqual(weatherBounds.top - 2);
-  expect(widgetBounds.right).toBeLessThanOrEqual(weatherBounds.right + 2);
-  expect(widgetBounds.bottom).toBeLessThanOrEqual(weatherBounds.bottom + 2);
+  expect(widgetBounds.x).toBeGreaterThanOrEqual(weatherBounds.x - 2);
+  expect(widgetBounds.y).toBeGreaterThanOrEqual(weatherBounds.y - 2);
+  expect(widgetBounds.x + widgetBounds.width).toBeLessThanOrEqual(weatherBounds.x + weatherBounds.width + 2);
+  expect(widgetBounds.y + widgetBounds.height).toBeLessThanOrEqual(weatherBounds.y + weatherBounds.height + 2);
 
   await inspector.getByLabel('Масштаб внутри, %').fill('80');
   await expect.poll(async () => Number(await weatherContent.getAttribute('data-scene-content-scale'))).toBeLessThan(scaleAt100);
