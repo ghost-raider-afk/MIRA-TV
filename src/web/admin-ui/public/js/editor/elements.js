@@ -537,6 +537,18 @@ function weatherSettings(state, element, options) {
   });
   location.addEventListener('blur', () => setTimeout(closeLocations, 120));
 
+  const hasConfiguredCoordinates = weather.latitude !== null
+    && weather.latitude !== ''
+    && weather.longitude !== null
+    && weather.longitude !== ''
+    && Number.isFinite(Number(weather.latitude))
+    && Number.isFinite(Number(weather.longitude));
+  if (location.value.trim().length >= 2 && !hasConfiguredCoordinates) {
+    queueMicrotask(() => {
+      if (location.isConnected) searchLocations(location.value);
+    });
+  }
+
   for (const [caption, key, control, read] of [
     ['Широта', 'latitude', latitude, (field) => field.value === '' ? null : numberValue(field, null)],
     ['Долгота', 'longitude', longitude, (field) => field.value === '' ? null : numberValue(field, null)],
