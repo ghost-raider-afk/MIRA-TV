@@ -92,8 +92,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
   const areaShare = (shellBox.width * shellBox.height) / (1600 * 900);
-  expect(areaShare).toBeGreaterThan(.12);
-  expect(areaShare).toBeLessThan(.34);
+  expect(areaShare).toBeGreaterThan(.25);
+  expect(areaShare).toBeLessThan(.55);
 
   await page.locator('#scene-editor-add').click();
   const addMenu = page.locator('#scene-editor-add-menu');
