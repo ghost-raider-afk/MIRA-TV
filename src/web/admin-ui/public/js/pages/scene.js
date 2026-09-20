@@ -123,6 +123,20 @@ export function initialiseSceneEditor() {
     if (zoom) zoom.textContent = `${Math.max(1, Math.round(scale * 100))}%`;
   }
 
+  function syncOverlaySelection() {
+    selectionLayer.querySelectorAll('.scene-editor-selection-box').forEach((node) => {
+      node.classList.toggle('is-selected', node.dataset.sceneElementId === state.selectedElementId);
+    });
+    setSelectionStatus();
+  }
+
+  function selectInCanvas(elementId) {
+    selectSceneElement(state, elementId);
+    renderLayers();
+    renderInspector();
+    syncOverlaySelection();
+  }
+
   function refreshSelectionOverlay() {
     selectionLayer.replaceChildren();
     const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
@@ -144,10 +158,47 @@ export function initialiseSceneEditor() {
       label.textContent = `Элемент ${index + 1}`;
       box.append(label);
 
+      if (sceneElement.id === state.selectedElementId) {
+        const resize = document.createElement('span');
+        resize.className = 'scene-editor-resize-handle';
+        resize.setAttribute('aria-hidden', 'true');
+        resize.addEventListener('pointerdown', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const startWidth = Math.max(1, Number(sceneElement.width || 1));
+          const startHeight = Math.max(1, Number(sceneElement.height || 1));
+          const rect = shell.getBoundingClientRect();
+          resize.setPointerCapture?.(event.pointerId);
+
+          const move = (moveEvent) => {
+            const deltaX = (moveEvent.clientX - startX) * (SCENE_WIDTH / Math.max(1, rect.width));
+            const deltaY = (moveEvent.clientY - startY) * (SCENE_HEIGHT / Math.max(1, rect.height));
+            updateSceneElement(state, sceneElement.id, {
+              width: Math.round(clamp(startWidth + deltaX, 20, SCENE_WIDTH - Number(sceneElement.x || 0))),
+              height: Math.round(clamp(startHeight + deltaY, 20, SCENE_HEIGHT - Number(sceneElement.y || 0)))
+            });
+            setDirty();
+            scheduleSceneRender();
+          };
+          const end = () => {
+            resize.removeEventListener('pointermove', move);
+            resize.removeEventListener('pointerup', end);
+            resize.removeEventListener('pointercancel', end);
+            renderSelectionOwners();
+          };
+          resize.addEventListener('pointermove', move);
+          resize.addEventListener('pointerup', end);
+          resize.addEventListener('pointercancel', end);
+        });
+        box.append(resize);
+      }
+
       box.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('.scene-editor-resize-handle')) return;
         event.preventDefault();
-        selectSceneElement(state, sceneElement.id);
-        renderSelectionOwners();
+        selectInCanvas(sceneElement.id);
 
         const startX = event.clientX;
         const startY = event.clientY;
