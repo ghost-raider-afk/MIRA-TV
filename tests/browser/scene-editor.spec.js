@@ -52,12 +52,16 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-screen')).toHaveValue(String(screen.id));
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
   const backgroundLayer = page.locator('#scene-editor-background-layer');
+  const animationLayer = page.locator('#scene-editor-animation-layer');
   const tableLayer = page.locator('#scene-editor-table-layer');
   await expect(backgroundLayer).toBeVisible();
+  await expect(animationLayer).toBeVisible();
   await expect(tableLayer).toBeVisible();
   await expect(backgroundLayer.locator('svg')).toHaveCount(1);
+  await expect(animationLayer.locator('svg')).toHaveCount(1);
   await expect(tableLayer.locator('svg')).toHaveCount(1);
   expect((await backgroundLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
+  expect((await animationLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   expect((await tableLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
   const inspectorWidth1600 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
@@ -105,6 +109,17 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'gloss');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
+
+  await animationLayer.click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация');
+  const animationInspector = page.locator('#scene-editor-properties');
+  await expect(animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Gloss-перелив' })).toHaveAttribute('aria-checked', 'true');
+  await expect(animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Breathing Glow' })).toHaveAttribute('aria-checked', 'true');
+  await animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Заполнение' }).click();
+  await animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Gloss Shine' }).click();
+  await animationInspector.getByLabel('Характер').selectOption('wave');
+  await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'fill');
+  await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
 
   await page.locator('#scene-editor-background-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
@@ -218,8 +233,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[1].type).toBe('weather');
   const storedPromotion = stored.draft.rows.find((row) => row.kind === 'item');
   expect(storedPromotion.promotion).toBe(true);
-  expect(storedPromotion.promotion_animation).toBe('gloss');
-  expect(storedPromotion.promotion_badge_animation).toBe('breathe');
+  expect(storedPromotion.promotion_animation).toBe('fill');
+  expect(storedPromotion.promotion_badge_animation).toBe('shine');
+  expect(stored.animation.profile.pattern).toBe('wave');
 
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
@@ -271,7 +287,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
     await route.fulfill({
       status:200,
       contentType:'application/json',
-      body:JSON.stringify([{ name:'Турку', admin1:'Varsinais-Suomi', country:'Финляндия', latitude:60.4518, longitude:22.2666, timezone:'Europe/Helsinki' }])
+      body:JSON.stringify([{ name:'Турку', admin1:'Varsinais-Suomi', country:'Финляндия', latitude:60.451753, longitude:22.266643, timezone:'Europe/Helsinki' }])
     });
   });
   const previewRequests = [];
@@ -310,8 +326,14 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
 
   const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
   await location.fill('Турку');
-  await expect(page.locator('#scene-editor-properties').getByLabel('Широта')).toHaveValue('60.4518');
-  await expect(page.locator('#scene-editor-properties').getByLabel('Долгота')).toHaveValue('22.2666');
+  const latitudeField = page.locator('#scene-editor-properties').getByLabel('Широта');
+  const longitudeField = page.locator('#scene-editor-properties').getByLabel('Долгота');
+  await expect(latitudeField).toHaveValue('60.451753');
+  await expect(longitudeField).toHaveValue('22.266643');
+  await expect(latitudeField).toHaveAttribute('step', 'any');
+  await expect(longitudeField).toHaveAttribute('step', 'any');
+  expect(await latitudeField.evaluate((field) => field.validity.valid)).toBe(true);
+  expect(await longitudeField.evaluate((field) => field.validity.valid)).toBe(true);
   await expect(page.locator('#scene-editor-properties').getByLabel('Часовой пояс')).toHaveValue('Europe/Helsinki');
 
   const weatherNode = page.locator('div[data-scene-element-type="weather"][data-scene-element-id]');
@@ -332,8 +354,8 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
   expect(previewRequests.at(-1)).toMatchObject({
     name:'Турку',
-    latitude:'60.4518',
-    longitude:'22.2666',
+    latitude:'60.451753',
+    longitude:'22.266643',
     timezone:'Europe/Helsinki'
   });
 
@@ -345,19 +367,21 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect.poll(async () => weatherNode.evaluate((node) => {
     const outer = node.getBoundingClientRect();
     const widget = node.querySelector('.weather-widget');
-    if (!(widget instanceof HTMLElement)) return false;
-    const rects = [widget, ...widget.querySelectorAll('*')]
-      .filter((item) => item instanceof Element)
-      .map((item) => item.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 || rect.height > 0);
-    const left = Math.min(...rects.map((rect) => rect.left));
-    const top = Math.min(...rects.map((rect) => rect.top));
-    const right = Math.max(...rects.map((rect) => rect.right));
-    const bottom = Math.max(...rects.map((rect) => rect.bottom));
-    return left >= outer.left - 1 && top >= outer.top - 1 && right <= outer.right + 1 && bottom <= outer.bottom + 1;
+    const visual = node.querySelector('.weather-widget-visual');
+    if (!(widget instanceof HTMLElement) || !(visual instanceof HTMLElement)) return false;
+    const widgetRect = widget.getBoundingClientRect();
+    const visualRect = visual.getBoundingClientRect();
+    const visibleWidgetInside =
+      widgetRect.left >= outer.left - 1 && widgetRect.top >= outer.top - 1
+      && widgetRect.right <= outer.right + 1 && widgetRect.bottom <= outer.bottom + 1;
+    const visualInsideWidget =
+      visualRect.left >= widgetRect.left - 1 && visualRect.top >= widgetRect.top - 1
+      && visualRect.right <= widgetRect.right + 1 && visualRect.bottom <= widgetRect.bottom + 1;
+    return visibleWidgetInside && visualInsideWidget && getComputedStyle(visual).overflow === 'hidden';
   })).toBe(true);
 
   await expect(weatherNode).toHaveCSS('overflow', 'hidden');
+  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCSS('overflow', 'hidden');
   const effectiveScale = Number(await weatherNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
   expect(effectiveScale).toBeGreaterThan(0);
   expect(effectiveScale).toBeLessThan(1);

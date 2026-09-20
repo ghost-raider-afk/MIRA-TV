@@ -14,7 +14,7 @@
 .player-scene-stage .tv-player-gpu-effect.is-sweep{background:linear-gradient(100deg,transparent 32%,rgba(246,201,14,.08) 47%,rgba(246,201,14,.16) 50%,rgba(246,201,14,.08) 53%,transparent 68%)}
 .player-scene-stage .tv-player-gpu-effect.is-spark{background:linear-gradient(100deg,transparent 38%,rgba(246,201,14,.12) 48%,rgba(246,201,14,.22) 50%,rgba(246,201,14,.12) 52%,transparent 62%)}
 .player-scene-stage .tv-player-gpu-effect.is-pulse,
-.player-scene-stage .tv-player-gpu-effect.is-focus{background:radial-gradient(ellipse at center,rgba(246,201,14,.12),rgba(246,201,14,.08) 34%,transparent 68%)}
+.player-scene-stage .tv-player-gpu-effect.is-focus{background:none}
 .player-scene-stage [data-motion]{opacity:1;transform-box:fill-box;transform-origin:center}
 
 .player-scene-stage[data-scene-playlist-fullscreen="true"] .tv-player-scene-elements-layer{opacity:0;visibility:hidden}

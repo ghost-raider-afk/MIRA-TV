@@ -31,6 +31,22 @@ test('weather widget stores canonical transform and motion controls', () => {
   assert.equal(value.widget_motion_enabled, false);
 });
 
+test('weather coordinates preserve provider precision without artificial step rounding', async () => {
+  const [elements] = await Promise.all([
+    read('src/web/admin-ui/public/js/editor/elements.js')
+  ]);
+  const input = weatherWidgetInput({
+    enabled:true,
+    latitude:60.451753,
+    longitude:22.266643,
+    timezone:'Europe/Helsinki'
+  });
+  assert.equal(input.latitude, 60.451753);
+  assert.equal(input.longitude, 22.266643);
+  assert.match(elements, /latitude = input\('number',[\s\S]*step: 'any'/);
+  assert.match(elements, /longitude = input\('number',[\s\S]*step: 'any'/);
+});
+
 test('browser and server weather models preserve empty coordinates as unconfigured', () => {
   const value = normaliseWeatherWidget({ enabled:true, latitude:null, longitude:'' });
   assert.equal(value.latitude, null);
@@ -116,7 +132,9 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.match(widget, /if \(!config\.animation_enabled\) return atmosphere/);
   assert.match(widget, /layer\.dataset\.weatherAnimation/);
   assert.match(widget, /--weather-atmosphere-opacity/);
-  assert.match(widget, /layer\.append\(atmosphere, widget\)/);
+  assert.match(widget, /visual\.append\(createAtmosphere\(state, config\)\)/);
+  assert.match(widget, /layer\.append\(widget\)/);
+  assert.doesNotMatch(widget, /layer\.append\(atmosphere, widget\)/);
   assert.match(widget, /export const WEATHER_SCENE_WIDTH = 1920/);
   assert.match(widget, /export const WEATHER_SCENE_HEIGHT = 1080/);
   assert.match(widget, /timeLabel\(item\.time, data\.timezone \|\| config\.timezone\)/);
@@ -126,26 +144,30 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.doesNotMatch(css, /weather-rays-rotate/);
   assert.match(css, /\.weather-widget-facts\s*\{[\s\S]*font-size:\s*13px/);
   assert.match(css, /\.weather-widget-forecast-item > span\s*\{[\s\S]*font-size:\s*12px/);
+  assert.match(css, /\.weather-widget-main\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,46%\) minmax\(0,54%\)/);
+  assert.match(css, /\.weather-widget-visual\s*\{[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /\.weather-widget-visual \.weather-atmosphere/);
   assert.match(css, /weather-atmosphere/);
   assert.doesNotMatch(preview, /SceneElementRenderer|weatherPreview|data-scene-elements-layer/);
 });
-test('animation apply changes only motion and Scene Playlist; weather is owned by monitor scene', async () => {
+test('Playlist apply changes only Scene Playlist; weather and motion profile stay owned elsewhere', async () => {
   const [playlist, settingsRoutes] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/playlist.js'),
     read('src/api/settings/routes.js')
   ]);
 
-  assert.match(playlist, /API\.animationApply/);
+  assert.match(playlist, /animationSettings\}\/playlist\/apply/);
   assert.match(playlist, /screen_ids:\s*ids/);
-  assert.doesNotMatch(playlist, /weatherStudioSettings|weatherSnapshot|settings:\s*desired,\s*weather/);
+  assert.doesNotMatch(playlist, /readMotionProfile|bindMotionProfileControls|weatherStudioSettings|weatherSnapshot/);
 
-  const applyStart = settingsRoutes.indexOf("router.put('/animation/apply'");
-  const applyEnd = settingsRoutes.indexOf("router.put('/site/logo'", applyStart);
+  const applyStart = settingsRoutes.indexOf("router.put('/animation/playlist/apply'");
+  const applyEnd = settingsRoutes.indexOf("router.put('/animation/apply'", applyStart);
   const applyRoute = settingsRoutes.slice(applyStart, applyEnd);
   assert.ok(applyStart >= 0 && applyEnd > applyStart);
   assert.match(applyRoute, /applyAnimationSettingsToScreens/);
   assert.doesNotMatch(applyRoute, /applyWeatherSettingsToScreens|weatherWidgetInput|getWeatherSettings/);
-  assert.match(applyRoute, /\['animation', 'scene_playlist'\]/);
+  assert.match(applyRoute, /\['scene_playlist'\]/);
+  assert.doesNotMatch(applyRoute, /\['animation', 'scene_playlist'\]/);
   assert.match(applyRoute, /markScreenRenderChanged/);
   assert.match(applyRoute, /applied_screens/);
   assert.doesNotMatch(settingsRoutes, /animation\/entity-asset|replaceEntityAssetStream/);

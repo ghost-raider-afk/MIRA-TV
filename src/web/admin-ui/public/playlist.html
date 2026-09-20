@@ -16,13 +16,9 @@
             <div>
               <p class="eyebrow">PLAYLIST STUDIO</p>
               <h1>Плейлист</h1>
-              <p>Движение таблицы и последовательность временных сцен. Текст, погода, изображения, видео и логотипы редактируются в мониторе как обычные элементы сцены.</p>
+              <p>Последовательность временных сцен. Движение меню и акций теперь настраивается в редакторе сцены.</p>
             </div>
-            <div class="animation-heading-actions">
-              <input class="is-hidden" id="animation-enabled" type="checkbox" aria-hidden="true" tabindex="-1" />
-              <input class="is-hidden" id="animation-menu-visible" type="checkbox" checked aria-hidden="true" tabindex="-1" />
-              <input class="is-hidden" id="animation-promotion-visible" type="checkbox" checked aria-hidden="true" tabindex="-1" />
-            </div>
+
           </div>
           <p class="form-message is-hidden" id="animation-message" role="status" aria-live="polite"></p>
 
@@ -42,52 +38,9 @@
             </div>
 
             <aside class="animation-inspector playlist-inspector" aria-label="Настройки плейлиста">
-              <div class="animation-inspector-head"><div><p class="eyebrow">SCENE CONTROLS</p><h2>Настройки</h2></div></div>
-              <div class="animation-inspector-tabs" role="tablist">
-                <button type="button" class="active" data-animation-inspector-tab="menu">Меню</button>
-                <button type="button" data-animation-inspector-tab="playlist">Плейлист</button>
-              </div>
+              <div class="animation-inspector-head"><div><p class="eyebrow">PLAYLIST</p><h2>Сцены</h2></div></div>
               <div class="animation-inspector-panels">
-                <div data-animation-inspector-panel="menu">
-                  <section class="animation-motion-grid" aria-label="Настройки движения меню">
-                    <div class="settings-card animation-motion-card">
-                      <div class="card-heading"><div><p class="eyebrow">MIRA MOTION</p><h2>Основное меню</h2><p>Текст и цены остаются на месте; двигается только световая поверхность.</p></div></div>
-                      <div class="animation-control-grid">
-                        <label class="field"><span>Характер</span><select id="animation-pattern"><option value="cinematic">Cinematic light</option><option value="ambient">Ambient Glow</option><option value="wave">Light Drift</option><option value="focus">Focus Pulse</option><option value="pulse">Soft Pulse</option><option value="spark">Neon Spark</option><option value="parallax">Depth Light</option></select></label>
-                        <label class="field"><span>Направление</span><select id="animation-flow-direction"><option value="alternate">Встречное</option><option value="left-to-right">Слева направо</option><option value="right-to-left">Справа налево</option><option value="top-to-bottom">Сверху вниз</option><option value="bottom-to-top">Снизу вверх</option><option value="none">Без направления</option></select></label>
-                        <label class="field"><span>Пластика</span><select id="animation-easing"><option value="cinematic">Киношная</option><option value="smooth">Очень плавная</option><option value="standard">Стандартная</option><option value="snappy">Энергичная</option><option value="elastic">Упругая</option></select></label>
-                        <label class="field"><span>Разделы</span><select id="animation-section-effect"><option value="cinematic">Cinematic</option><option value="wave">Волна света</option><option value="lift">Световой подъём</option><option value="glow">Свечение</option><option value="pulse">Пульс</option><option value="shimmer">Блик</option><option value="none">Без движения</option></select></label>
-                        <label class="field"><span>Строки продукции</span><select id="animation-item-effect"><option value="cinematic">Cinematic</option><option value="wave">Light Drift</option><option value="lift">Световой подъём</option><option value="focus">Focus</option><option value="breathe">Дыхание света</option><option value="none">Без движения</option></select></label>
-                        <input id="animation-price-effect" type="hidden" value="none" />
-                      </div>
-                      <div class="animation-slider-grid">
-                        <label class="field animation-range-field"><span>Выразительность</span><div><input id="animation-intensity" type="range" min="0" max="100" step="1" /><output id="animation-intensity-output">80%</output></div></label>
-                        <label class="field animation-range-field"><span>Ход света</span><div><input id="animation-travel" type="range" min="0" max="48" step="1" /><output id="animation-travel-output">28 px</output></div></label>
-                        <label class="field animation-range-field"><span>Масштаб</span><div><input id="animation-scale" type="range" min="0" max="0.12" step="0.001" /><output id="animation-scale-output">4.2%</output></div></label>
-                        <label class="field animation-range-field"><span>Яркость</span><div><input id="animation-brightness" type="range" min="0" max="0.7" step="0.01" /><output id="animation-brightness-output">26%</output></div></label>
-                        <label class="field animation-range-field"><span>Период</span><div><input id="animation-cycle" type="range" min="4" max="30" step="0.5" /><output id="animation-cycle-output">8.5 с</output></div></label>
-                        <label class="field animation-range-field"><span>Фаза строк</span><div><input id="animation-stagger" type="range" min="0" max="600" step="10" /><output id="animation-stagger-output">180 мс</output></div></label>
-                        <label class="field animation-range-field"><span>Длительность</span><div><input id="animation-event-duration" type="range" min="400" max="10000" step="100" /><output id="animation-event-duration-output">6900 мс</output></div></label>
-                      </div>
-                    </div>
-                    <div class="settings-card animation-promotion-card">
-                      <div class="card-heading"><div><p class="eyebrow">PROMO</p><h2>«Акция»</h2><p>Подсветка акционной строки без смещения текста.</p></div></div>
-                      <div class="animation-control-grid">
-                        <label class="field"><span>Эффект</span><select id="animation-promotion-effect"><option value="cinematic">Glow pulse</option><option value="none">Выключен</option></select></label>
-                        <label class="field"><span>Пластика</span><select id="animation-promotion-easing"><option value="smooth">Плавная</option><option value="cinematic">Киношная</option></select></label>
-                      </div>
-                      <div class="animation-slider-grid">
-                        <label class="field animation-range-field"><span>Сила</span><div><input id="animation-promotion-intensity" type="range" min="0" max="100" step="1" /><output id="animation-promotion-intensity-output">96%</output></div></label>
-                        <label class="field animation-range-field"><span>Яркость</span><div><input id="animation-promotion-brightness" type="range" min="0" max="0.8" step="0.01" /><output id="animation-promotion-brightness-output">35%</output></div></label>
-                        <label class="field animation-range-field"><span>Glow</span><div><input id="animation-promotion-glow" type="range" min="0" max="48" step="1" /><output id="animation-promotion-glow-output">28 px</output></div></label>
-                        <label class="field animation-range-field"><span>Период</span><div><input id="animation-promotion-cycle" type="range" min="2" max="15" step="0.5" /><output id="animation-promotion-cycle-output">4.8 с</output></div></label>
-                        <label class="field animation-range-field"><span>Длительность</span><div><input id="animation-promotion-duration" type="range" min="700" max="4000" step="100" /><output id="animation-promotion-duration-output">1800 мс</output></div></label>
-                        <input id="animation-promotion-travel" type="hidden" value="0" />
-                      </div>
-                    </div>
-                  </section>
-                </div>
-                <div data-animation-inspector-panel="playlist" hidden id="animation-playlist-panel"></div>
+                <div data-animation-inspector-panel="playlist" id="animation-playlist-panel"></div>
               </div>
               <details class="animation-targets">
                 <summary><strong>Мониторы</strong><small id="animation-target-summary">Мониторы не выбраны</small></summary>
@@ -95,7 +48,7 @@
                 <div class="animation-target-list" id="animation-target-list"></div>
               </details>
               <div class="animation-inspector-actions">
-                <button class="button button-secondary" id="animation-save" type="button">Сохранить черновик</button>
+                <button class="button button-secondary" id="animation-save" type="button">Сохранить плейлист</button>
                 <button class="button button-primary" id="animation-apply-screens" type="button">Применить на ТВ</button>
               </div>
             </aside>

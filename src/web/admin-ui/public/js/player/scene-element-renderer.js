@@ -37,7 +37,7 @@ function referenceGeometry(element) {
 function visualMeasurementNodes(content, element) {
   if (element?.type === 'weather') {
     const widget = content.querySelector('.weather-widget');
-    return widget ? [widget, ...widget.querySelectorAll('*')] : [content];
+    return widget ? [widget] : [content];
   }
   if (element?.type === 'text') {
     const flow = content.querySelector('[data-scene-text-flow]');

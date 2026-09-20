@@ -26,6 +26,35 @@ function resolutionOf(screen) {
   return { width: Number(match?.[1]) || 1920, height: Number(match?.[2]) || 1080 };
 }
 
+function fitCanonicalStage(stage, viewport) {
+  const width = Math.max(1, Number(viewport?.width) || 1920);
+  const height = Math.max(1, Number(viewport?.height) || 1080);
+  const container = stage.parentElement;
+  const containerWidth = Math.max(1, Number(container?.clientWidth) || width);
+  const containerHeight = Math.max(1, Number(container?.clientHeight) || height);
+  const scale = Math.min(containerWidth / width, containerHeight / height);
+  const renderedWidth = width * scale;
+  const renderedHeight = height * scale;
+  const offsetX = (containerWidth - renderedWidth) / 2;
+  const offsetY = (containerHeight - renderedHeight) / 2;
+
+  stage.style.position = 'absolute';
+  stage.style.top = '0';
+  stage.style.left = '0';
+  stage.style.right = 'auto';
+  stage.style.bottom = 'auto';
+  stage.style.width = `${width}px`;
+  stage.style.height = `${height}px`;
+  stage.style.transformOrigin = 'top left';
+  stage.style.transform = `translate3d(${offsetX}px,${offsetY}px,0) scale(${scale})`;
+  stage.dataset.sceneViewportWidth = String(width);
+  stage.dataset.sceneViewportHeight = String(height);
+  stage.dataset.sceneViewportScale = String(scale);
+  stage.dataset.sceneViewportOffsetX = String(offsetX);
+  stage.dataset.sceneViewportOffsetY = String(offsetY);
+  return { width, height, scale, offsetX, offsetY };
+}
+
 function sceneWeatherElement(scene) {
   return Array.isArray(scene?.elements)
     ? scene.elements.find((element) => element?.enabled !== false && element?.type === 'weather') || null
@@ -73,6 +102,13 @@ export class PlayerSceneRenderer {
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.sceneMotionRuntime = new SceneMotionRuntime(stage, { activityControlled: true });
     this.scenePlaylistRuntime = new ScenePlaylistRuntime();
+    this.viewport = Object.freeze({ width: 1920, height: 1080 });
+    this.viewportObserver = typeof ResizeObserver === 'function' && stage.parentElement
+      ? new ResizeObserver(() => this.fitViewport())
+      : null;
+    this.viewportObserver?.observe(stage.parentElement);
+    this.fitViewport();
+
     this.weatherElementId = null;
     this.weatherRuntime = new PlayerWeatherRuntime(stage, {
       endpoint: this.weatherPreview ? weatherPreviewEndpoint : weatherEndpoint,
@@ -85,8 +121,19 @@ export class PlayerSceneRenderer {
     this.destroyed = false;
   }
 
+  fitViewport(viewport = this.viewport) {
+    if (this.destroyed) return null;
+    this.viewport = Object.freeze({
+      width: Math.max(1, Number(viewport?.width) || 1920),
+      height: Math.max(1, Number(viewport?.height) || 1080)
+    });
+    return fitCanonicalStage(this.stage, this.viewport);
+  }
+
   async render(context, changedNames = ALL_PLAYER_COMPONENTS) {
     if (this.destroyed) return;
+    const canonicalViewport = resolutionOf(context.screen);
+    this.fitViewport(canonicalViewport);
     const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
     const {
       menu: menuLayer,
@@ -103,7 +150,7 @@ export class PlayerSceneRenderer {
     let renderMode = null;
 
     if (menuDirty || motionDirty) {
-      viewport = resolutionOf(context.screen);
+      viewport = canonicalViewport;
       model = buildRenderModel(context.draft, viewport);
       renderMode = playerMenuRenderMode(context);
     }
@@ -190,6 +237,8 @@ export class PlayerSceneRenderer {
     this.sceneElementRenderer.destroy();
     this.flatMenuRenderer.destroy();
     this.weatherRuntime.destroy();
+    this.viewportObserver?.disconnect();
+    this.viewportObserver = null;
     this.weatherElementId = null;
     this.stage = null;
   }

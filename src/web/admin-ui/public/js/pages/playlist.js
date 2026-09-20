@@ -3,9 +3,7 @@ import { api } from '../core/api.js';
 import { element, setMessage, setPending } from '../core/dom.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 import { ScenePlaylistEditor } from '../motion/scene-playlist-editor.js';
-import { DEFAULT_LIVE_PROFILE, bindMotionProfileControls, readMotionProfile, writeMotionProfile } from '../motion/profile-editor.js';
 
-const PROFILE_ID = 'cinematic-live-menu';
 let renderer = null;
 let scenePlaylistEditor = null;
 let currentContext = null;
@@ -16,27 +14,24 @@ let generation = 0;
 const selectedTargets = new Set();
 
 function active(token) { return token === generation && document.body.dataset.page !== 'signin'; }
-function menuMotionEnabled(profile) { return profile.section_effect !== 'none' || profile.item_effect !== 'none' || profile.promotion_effect !== 'none'; }
 function label(screen) { return `${screen.location_name || 'Без точки'} — ${screen.name}`; }
+
+function screenAspectRatio(screen) {
+  const match = String(screen?.resolution || '').match(/(\d+)\D+(\d+)/);
+  const width = Math.max(1, Number(match?.[1]) || 1920);
+  const height = Math.max(1, Number(match?.[2]) || 1080);
+  return `${width} / ${height}`;
+}
 
 function setStageActive(stage, value) {
   stage.dataset.playerActive = value ? 'true' : 'false';
   stage.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: value } }));
 }
 
-function settingsPayload() {
-  const profile = readMotionProfile();
+function playlistPayload() {
   return {
-    enabled: menuMotionEnabled(profile),
-    preset_id: PROFILE_ID,
-    profile,
     scene_playlist: scenePlaylistEditor?.value() || { enabled:false, animation_enabled:true, menu_duration_seconds:40, scenes:[] }
   };
-}
-
-function setInspectorTab(name) {
-  document.querySelectorAll('[data-animation-inspector-tab]').forEach((button) => button.classList.toggle('active', button.dataset.animationInspectorTab === name));
-  document.querySelectorAll('[data-animation-inspector-panel]').forEach((panel) => { panel.hidden = panel.dataset.animationInspectorPanel !== name; });
 }
 
 function screenFromUrl() {
@@ -99,14 +94,15 @@ async function renderScreen(screen, token) {
     ]);
     if (!active(token)) return;
     currentSettings = applied || await api.get(API.animationSettings);
-    writeMotionProfile(currentSettings?.profile || DEFAULT_LIVE_PROFILE);
+    const shell = stage.closest('.animation-player-shell');
+    if (shell instanceof HTMLElement) shell.style.aspectRatio = screenAspectRatio(bundle.screen);
     currentContext = {
       screen: bundle.screen,
       draft: bundle.draft,
       products: bundle.products || [],
       packaging: bundle.packaging || [],
       scene: bundle.draft?.scene || { version:1, elements:[] },
-      animation: { enabled: currentSettings?.enabled === true, profile: currentSettings?.profile || DEFAULT_LIVE_PROFILE },
+      animation: { enabled: currentSettings?.enabled === true, profile: currentSettings?.profile || {} },
       scene_playlist: currentSettings?.scene_playlist || null
     };
 
@@ -127,13 +123,6 @@ async function renderScreen(screen, token) {
   }
 }
 
-async function refreshMotion() {
-  if (!renderer || !currentContext) return;
-  const profile = readMotionProfile();
-  currentContext = { ...currentContext, animation:{ enabled:menuMotionEnabled(profile), profile } };
-  await renderer.render(currentContext, ['animation']);
-}
-
 async function loadScreens(token) {
   const select = element('animation-screen-select');
   availableScreens = await api.get(API.screens);
@@ -144,7 +133,6 @@ async function loadScreens(token) {
     select.disabled = true;
     element('animation-stage')?.replaceChildren(Object.assign(document.createElement('p'), { className:'animation-screen-empty', textContent:'Создайте монитор.' }));
     currentSettings = await api.get(API.animationSettings);
-    writeMotionProfile(currentSettings?.profile || DEFAULT_LIVE_PROFILE);
     scenePlaylistEditor?.set(currentSettings?.scene_playlist);
     return;
   }
@@ -170,7 +158,7 @@ async function save(token) {
   const button = element('animation-save');
   setPending(button, true, 'Сохраняем…');
   try {
-    currentSettings = await api.put(API.animationSettings, settingsPayload());
+    currentSettings = await api.put(`${API.animationSettings}/playlist`, playlistPayload());
     if (!active(token)) return;
     setMessage('animation-message', 'Плейлист сохранён. Мониторы не изменены.', 'success');
   } catch (error) {
@@ -186,7 +174,7 @@ async function apply(token) {
   const button = element('animation-apply-screens');
   setPending(button, true, 'Применяем…');
   try {
-    const result = await api.put(API.animationApply, { screen_ids:ids, settings:settingsPayload() });
+    const result = await api.put(`${API.animationSettings}/playlist/apply`, { screen_ids:ids, ...playlistPayload() });
     if (!active(token)) return;
     setMessage('animation-message', `Применено на ТВ: ${result.applied_screen_ids?.length || ids.length}.`, 'success');
     if (activeScreenId && ids.includes(activeScreenId)) {
@@ -207,8 +195,6 @@ export function initialisePlaylistStudio() {
   stage.dataset.playerActive = 'true';
   scenePlaylistEditor = new ScenePlaylistEditor({ stage });
   scenePlaylistEditor.mount(element('animation-playlist-panel'));
-  bindMotionProfileControls(() => { void refreshMotion(); });
-  document.querySelectorAll('[data-animation-inspector-tab]').forEach((button) => button.addEventListener('click', () => setInspectorTab(button.dataset.animationInspectorTab)));
   element('animation-target-all')?.addEventListener('click', () => { availableScreens.forEach((screen) => selectedTargets.add(Number(screen.id))); renderTargets(); });
   element('animation-target-none')?.addEventListener('click', () => { selectedTargets.clear(); renderTargets(); });
   element('animation-save')?.addEventListener('click', () => { void save(token); });

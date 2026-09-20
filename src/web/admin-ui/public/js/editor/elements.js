@@ -425,8 +425,8 @@ function weatherSettings(state, element, options) {
   bind(mode, 'change', () => mutateWeather(state, element.id, (next) => { next.mode = mode.value; }), options);
   grid.append(label('Режим', mode));
 
-  const latitude = input('number', weather.latitude, { min: -90, max: 90, step: .0001 });
-  const longitude = input('number', weather.longitude, { min: -180, max: 180, step: .0001 });
+  const latitude = input('number', weather.latitude, { min: -90, max: 90, step: 'any' });
+  const longitude = input('number', weather.longitude, { min: -180, max: 180, step: 'any' });
   const timezone = input('text', weather.timezone || 'auto');
   const location = input('text', weather.location_name, { placeholder: 'Начните вводить город' });
   location.autocomplete = 'off';

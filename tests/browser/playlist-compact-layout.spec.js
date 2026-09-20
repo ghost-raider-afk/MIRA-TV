@@ -14,21 +14,19 @@ for (const viewport of [
   { width: 1600, height: 900 },
   { width: 1920, height: 1080 }
 ]) {
-  test(`Playlist keeps canonical five-row inspector inside ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`Playlist keeps compact Playlist-only inspector inside ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await login(page);
     await page.goto('/playlist');
 
     const inspector = page.locator('.animation-inspector');
     const preview = page.locator('.animation-preview-pane');
-    const tabs = inspector.locator('.animation-inspector-tabs');
     const panels = inspector.locator('.animation-inspector-panels');
     const targets = inspector.locator('.animation-targets');
     const actions = inspector.locator('.animation-inspector-actions');
 
     await expect(inspector).toBeVisible();
     await expect(preview).toBeVisible();
-    await expect(tabs).toBeVisible();
     await expect(panels).toBeVisible();
     await expect(targets).toBeVisible();
     await expect(actions).toBeVisible();
@@ -69,7 +67,7 @@ for (const viewport of [
     expect(layout.bodyOverflow).toBeLessThanOrEqual(2);
     expect(layout.inspectorOverflow).toBeLessThanOrEqual(2);
     expect(layout.previewOverflow).toBeLessThanOrEqual(2);
-    expect(layout.directClasses).toHaveLength(5);
+    expect(layout.directClasses).toHaveLength(4);
     expect(layout.preview.width).toBeGreaterThan(layout.inspectorBox.width);
     expect(layout.workspace.bottom).toBeLessThanOrEqual(viewport.height);
     expect(layout.actions.bottom).toBeLessThanOrEqual(viewport.height);
@@ -79,13 +77,9 @@ for (const viewport of [
     expect(layout.panelsOverflowY).toBe('hidden');
     expect(['auto','scroll']).toContain(layout.activePanelOverflowY);
 
-    await inspector.locator('[data-animation-inspector-tab="playlist"]').click();
     const playlistPanel = inspector.locator('[data-animation-inspector-panel="playlist"]');
     await expect(playlistPanel).toBeVisible();
     await expect(playlistPanel.locator('.playlist-scene-editor')).toBeVisible();
     expect(['auto','scroll']).toContain(await playlistPanel.evaluate((node) => getComputedStyle(node).overflowY));
-
-    await inspector.locator('[data-animation-inspector-tab="menu"]').click();
-    await expect(inspector.locator('[data-animation-inspector-panel="menu"]')).toBeVisible();
   });
 }
