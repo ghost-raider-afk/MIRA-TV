@@ -22,6 +22,7 @@ import { migrateManagerRole } from './migrations/manager-role.js';
 import { migrateSceneElementsStorage } from './migrations/scene-elements.js';
 import { migrateLegacySceneOwnership } from './migrations/scene-element-ownership.js';
 import { retireLegacySceneOwnership } from './migrations/scene-ownership-cleanup.js';
+import { removeLegacySceneElements } from './migrations/scene-legacy-elements-cleanup.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -59,7 +60,8 @@ const MIGRATIONS = Object.freeze([
   { name: '020-manager-role', run: migrateManagerRole },
   { name: '021-scene-elements', run: migrateSceneElementsStorage },
   { name: '022-scene-element-ownership', run: migrateLegacySceneOwnership },
-  { name: '023-scene-ownership-cleanup', run: retireLegacySceneOwnership }
+  { name: '023-scene-ownership-cleanup', run: retireLegacySceneOwnership },
+  { name: '024-scene-legacy-elements-cleanup', run: removeLegacySceneElements }
 ]);
 
 function createRepositories(queryable) {

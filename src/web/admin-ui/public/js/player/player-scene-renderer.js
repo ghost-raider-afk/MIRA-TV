@@ -59,15 +59,17 @@ function sameOriginAsset(value) {
 }
 
 export class PlayerSceneRenderer {
-  constructor(stage, { weatherEndpoint = '/api/device/weather', autoplay = true } = {}) {
+  constructor(stage, { weatherEndpoint = '/api/device/weather', autoplay = true, weatherPreview = false } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Player scene renderer requires an HTMLElement stage.');
     this.stage = stage;
     this.stage.classList.add('player-scene-stage');
     this.autoplay = autoplay !== false;
+    this.weatherPreview = weatherPreview === true;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
     this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }), {
       activityTarget: stage,
-      autoplay: this.autoplay
+      autoplay: this.autoplay,
+      weatherPreview: this.weatherPreview
     });
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.sceneMotionRuntime = new SceneMotionRuntime(stage, { activityControlled: true });
@@ -137,11 +139,15 @@ export class PlayerSceneRenderer {
 
     if (dirty.has('scene') || dirty.has('screen') || menuDirty) {
       const weatherElement = sceneWeatherElement(context.scene);
-      this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
-      this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
-        configurationChanged: dirty.has('scene') || dirty.has('screen'),
-        menuChanged: menuDirty
-      });
+      if (this.weatherPreview) {
+        this.weatherRuntime.setLayer(null);
+      } else {
+        this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
+        this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
+          configurationChanged: dirty.has('scene') || dirty.has('screen'),
+          menuChanged: menuDirty
+        });
+      }
     }
 
     if (motionDirty) {

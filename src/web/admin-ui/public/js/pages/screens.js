@@ -87,6 +87,11 @@ function renderScreens() {
 
       const actions = document.createElement('div');
       actions.className = 'screen-location-actions';
+      const scene = document.createElement('a');
+      scene.className = 'button button-secondary';
+      scene.href = `/scene?screen=${screen.id}`;
+      scene.textContent = 'Сцена';
+      actions.append(scene);
       if (binding) {
         const unbind = makeButton('Отвязать ТВ', 'secondary', () => void unbindScreen(screen));
         unbind.classList.add('screen-tv-unbind');

@@ -2,7 +2,7 @@ import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
-import { createSceneAssetStream } from '../../services/scene-assets-service.js';
+import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 function settingsOptions(config) {
@@ -36,6 +36,13 @@ async function cloneScreen(tx, sourceId, targetLocationId, config, updatedBy) {
 
 function draftRevisionHeader(request) {
   return positiveId(request.get('x-draft-revision'), 'x-draft-revision');
+}
+
+function sceneAssetUrls(scene) {
+  if (!Array.isArray(scene?.elements)) return [];
+  return scene.elements
+    .map((element) => String(element?.media?.source_url || ''))
+    .filter((url) => url.startsWith('/site-assets/scene/'));
 }
 
 function sameJson(left, right) {
@@ -110,6 +117,7 @@ export function createScreensRouter({ store, config, realtime }) {
       const current = await tx.getScreen(id);
       if (!current) throw notFound();
       const currentDraft = await tx.getScreenDraft(id);
+      const previousSceneAssets = new Set(sceneAssetUrls(currentDraft?.scene));
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
       let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: current.status, active: current.active };
@@ -126,8 +134,11 @@ export function createScreensRouter({ store, config, realtime }) {
       const revisions = changedComponents.length
         ? await tx.markScreenRenderChanged([id], changedComponents, 'screen.state.saved', request.session.sub)
         : [];
-      return { screen: await tx.getScreen(id), draft: saved, revisions };
+      const nextSceneAssets = new Set(sceneAssetUrls(saved.scene));
+      const droppedSceneAssets = [...previousSceneAssets].filter((url) => !nextSceneAssets.has(url));
+      return { screen: await tx.getScreen(id), draft: saved, revisions, droppedSceneAssets };
     });
+    await Promise.all((result.droppedSceneAssets || []).map((url) => deleteSceneAsset(url, { store, config })));
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
     notifyRevisions(realtime, result.revisions);
     response.json({ screen: result.screen, draft: result.draft });
@@ -206,9 +217,11 @@ export function createScreensRouter({ store, config, realtime }) {
     if (!current) throw notFound();
     const draft = await store.getScreenDraft(id);
     const backgroundUrl = draft?.settings?.background_image_url || '';
+    const sceneAssets = sceneAssetUrls(draft?.scene);
     if (!await store.deleteScreen(id)) throw notFound();
     realtime?.disconnectScreen(id);
     if (backgroundUrl) await deleteScreenBackground(backgroundUrl, { store, config });
+    await Promise.all(sceneAssets.map((url) => deleteSceneAsset(url, { store, config })));
     await activity(store, request, { action: 'screen.deleted', entity_type: 'screen', entity_id: id, message: `Удалён монитор «${current.name}».` });
     response.status(204).end();
   });

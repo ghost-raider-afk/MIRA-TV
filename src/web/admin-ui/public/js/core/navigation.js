@@ -6,6 +6,7 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Редактор меню', prefetch: true }),
+  Object.freeze({ path: '/scene', page: 'scene', section: 'monitors', title: 'Сцена', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
   Object.freeze({ path: '/playlist', page: 'playlist', section: 'playlist', title: 'Плейлист', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
@@ -37,7 +38,7 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([['Обзор', '/']]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Подключить ТВ', '/connect-tv']]),
+  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   playlist: Object.freeze([['Плейлист', '/playlist']]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])

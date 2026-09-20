@@ -12,6 +12,7 @@ import { hashPassword } from './services/password-service.js';
 import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
+import { cleanupUnreferencedSceneAssets } from './services/scene-assets-service.js';
 import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, MANAGER_PAGE, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
@@ -85,10 +86,22 @@ async function cleanupPlayerLogs(store, config) {
   }
 }
 
+async function cleanupSceneAssets(store, config) {
+  try {
+    const removed = await cleanupUnreferencedSceneAssets({ store, config });
+    if (removed) logger.info('Unreferenced scene assets removed', { removed });
+    return removed;
+  } catch (error) {
+    logger.warn('Unreferenced scene assets could not be removed', { error });
+    return 0;
+  }
+}
+
 async function recoverRuntimeState(store, config) {
   await cleanupDeviceActivations(store, config);
   await cleanupEvents(store, config);
   await cleanupPlayerLogs(store, config);
+  await cleanupSceneAssets(store, config);
 }
 
 function configureSecurity(app, config) {
@@ -214,6 +227,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     void cleanupDeviceActivations(service.store, service.config);
     void cleanupEvents(service.store, service.config);
     void cleanupPlayerLogs(service.store, service.config);
+    void cleanupSceneAssets(service.store, service.config);
   }, service.config.deviceActivationCleanupMinutes * 60 * 1000);
   maintenanceTimer.unref();
   for (const signal of ['SIGINT', 'SIGTERM']) {

@@ -63,6 +63,10 @@ async function initialisePage(name) {
       const { initialiseScreenEditor } = await import('./editor/editor.js');
       return initialiseScreenEditor();
     }
+    case 'scene': {
+      const { initialiseSceneEditor } = await import('./pages/scene.js');
+      return initialiseSceneEditor();
+    }
     case 'catalog': {
       const { initialiseCatalog } = await import('./pages/catalog.js');
       return initialiseCatalog();

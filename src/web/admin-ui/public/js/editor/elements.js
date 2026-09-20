@@ -131,7 +131,11 @@ function input(type, value, options = {}) {
 
 function select(value, options) {
   const node = document.createElement('select');
-  options.forEach(([optionValue, title]) => node.append(new Option(title, optionValue)));
+  options.forEach(([optionValue, title, disabled = false]) => {
+    const option = new Option(title, optionValue);
+    option.disabled = disabled === true;
+    node.append(option);
+  });
   node.value = String(value ?? '');
   return node;
 }
@@ -509,7 +513,11 @@ function renderElementCard(state, element, index, options) {
   const identity = section('Тип элемента');
   const typeRow = document.createElement('div');
   typeRow.className = 'editor-element-type-row';
-  const type = select(element.type, SCENE_ELEMENT_TYPE_OPTIONS);
+  const hasOtherWeather = Boolean(options.weatherOwnerId && options.weatherOwnerId !== element.id);
+  const typeOptions = hasOtherWeather && element.type !== 'weather'
+    ? SCENE_ELEMENT_TYPE_OPTIONS.filter(([value]) => value !== 'weather')
+    : SCENE_ELEMENT_TYPE_OPTIONS;
+  const type = select(element.type, typeOptions);
   type.setAttribute('aria-label', `Тип элемента ${index + 1}`);
   begin(type, options.onBeforeMutate);
   type.addEventListener('change', () => {
@@ -544,6 +552,12 @@ function renderElementCard(state, element, index, options) {
   });
   typeRow.append(label('Тип элемента', type), label('Показывать', enabled, 'editor-element-check'), remove);
   identity.append(typeRow);
+  if (hasOtherWeather && element.type !== 'weather') {
+    const hint = document.createElement('small');
+    hint.className = 'editor-element-type-hint';
+    hint.textContent = 'Погода уже добавлена в сцену.';
+    identity.append(hint);
+  }
   body.append(identity, commonSettings(state, element, options));
 
   const specific = element.type === 'text'
@@ -584,6 +598,189 @@ export function renderSceneElements(state, {
     return;
   }
 
-  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload };
+  const weatherOwnerId = elements.find((element) => element?.type === 'weather')?.id || null;
+  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
   elements.forEach((element, index) => container.append(renderElementCard(state, element, index, options)));
+}
+
+
+function sceneLayerSubtitle(element) {
+  if (element?.type === 'text') {
+    const value = String(element?.text?.runs?.[0]?.value || '').trim().replace(/\s+/g, ' ');
+    if (value) return value.slice(0, 42);
+  }
+  if (element?.type === 'weather') {
+    const place = String(element?.weather?.location_name || '').trim();
+    if (place) return place;
+  }
+  const source = String(element?.media?.source_url || '').trim();
+  if (source) return source.split('/').pop() || typeLabel(element.type);
+  return typeLabel(element?.type);
+}
+
+export function renderSceneLayerList(state, {
+  container,
+  onBeforeMutate,
+  onVisualChange,
+  onStructureChange,
+  onSelect
+} = {}) {
+  if (!(container instanceof HTMLElement)) return;
+  const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+  container.replaceChildren();
+
+  if (!elements.length) {
+    const empty = document.createElement('p');
+    empty.className = 'scene-editor-empty';
+    empty.textContent = 'Сцена пустая. Добавьте первый элемент.';
+    container.append(empty);
+    return;
+  }
+
+  const indexed = elements.map((element, index) => ({ element, index }))
+    .sort((left, right) => Number(right.element?.z_index || 0) - Number(left.element?.z_index || 0) || right.index - left.index);
+
+  for (const { element, index } of indexed) {
+    const row = document.createElement('div');
+    row.className = 'scene-editor-layer';
+    row.classList.toggle('is-selected', state.selectedElementId === element.id);
+    row.dataset.sceneLayerId = element.id;
+
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'scene-editor-layer-eye';
+    eye.textContent = element.enabled === false ? '○' : '●';
+    eye.title = element.enabled === false ? 'Показать элемент' : 'Скрыть элемент';
+    eye.setAttribute('aria-label', eye.title);
+    eye.addEventListener('click', () => {
+      onBeforeMutate?.();
+      patch(state, element.id, { enabled: element.enabled === false });
+      onVisualChange?.();
+      onStructureChange?.();
+    });
+
+    const selectButton = document.createElement('button');
+    selectButton.type = 'button';
+    selectButton.className = 'scene-editor-layer-select';
+    selectButton.setAttribute('aria-label', `Выбрать Элемент ${index + 1}`);
+    const title = document.createElement('strong');
+    title.textContent = `Элемент ${index + 1} · ${typeLabel(element.type)}`;
+    const subtitle = document.createElement('span');
+    subtitle.textContent = sceneLayerSubtitle(element);
+    selectButton.append(title, subtitle);
+    selectButton.addEventListener('click', () => {
+      selectSceneElement(state, element.id);
+      onSelect?.(element.id);
+    });
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'scene-editor-layer-delete';
+    remove.textContent = '×';
+    remove.title = `Удалить Элемент ${index + 1}`;
+    remove.setAttribute('aria-label', remove.title);
+    remove.addEventListener('click', () => {
+      onBeforeMutate?.();
+      removeSceneElement(state, element.id);
+      onStructureChange?.();
+    });
+
+    row.append(eye, selectButton, remove);
+    container.append(row);
+  }
+}
+
+function inspectorGroups(element, sections) {
+  if (element.type === 'text') {
+    return [
+      ['Основное', sections.slice(0, 3)],
+      ['Шрифт', sections.slice(3, 5)],
+      ['Эффекты', sections.slice(5)]
+    ];
+  }
+  if (element.type === 'weather') {
+    return [
+      ['Основное', sections.slice(0, 2)],
+      ['Погода', sections.slice(2, 4)],
+      ['Анимация', sections.slice(4)]
+    ];
+  }
+  return [
+    ['Основное', sections.slice(0, 2)],
+    ['Медиа', sections.slice(2)]
+  ];
+}
+
+export function renderSceneElementInspector(state, {
+  container,
+  onBeforeMutate,
+  onVisualChange,
+  onStructureChange,
+  onUpload
+} = {}) {
+  if (!(container instanceof HTMLElement)) return null;
+  container.replaceChildren();
+
+  const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+  const element = elements.find((item) => item.id === state.selectedElementId) || null;
+  if (!element) {
+    const empty = document.createElement('p');
+    empty.className = 'scene-editor-empty';
+    empty.textContent = 'Выберите элемент слева или на рабочем экране.';
+    container.append(empty);
+    return null;
+  }
+
+  const index = elements.indexOf(element);
+  const weatherOwnerId = elements.find((item) => item?.type === 'weather')?.id || null;
+  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
+  const card = renderElementCard(state, element, index, options);
+  card.open = true;
+
+  const body = card.querySelector(':scope > .editor-element-card-body');
+  const sections = body ? [...body.children].filter((node) => node.classList?.contains('editor-element-settings-section')) : [];
+  const groups = inspectorGroups(element, sections).filter(([, nodes]) => nodes.length);
+
+  const tabs = document.createElement('div');
+  tabs.className = 'scene-editor-inspector-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Разделы свойств элемента');
+  tabs.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0,1fr))`;
+  const panels = [];
+
+  groups.forEach(([name, nodes], groupIndex) => {
+    const tab = document.createElement('button');
+    const tabId = `scene-inspector-tab-${element.id}-${groupIndex}`;
+    const panelId = `scene-inspector-panel-${element.id}-${groupIndex}`;
+    tab.type = 'button';
+    tab.id = tabId;
+    tab.textContent = name;
+    tab.classList.toggle('active', groupIndex === 0);
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', panelId);
+    tab.setAttribute('aria-selected', groupIndex === 0 ? 'true' : 'false');
+
+    const panel = document.createElement('div');
+    panel.id = panelId;
+    panel.className = 'scene-editor-inspector-panel';
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', tabId);
+    panel.hidden = groupIndex !== 0;
+    nodes.forEach((node) => panel.append(node));
+    panels.push(panel);
+
+    tab.addEventListener('click', () => {
+      [...tabs.children].forEach((button) => {
+        const active = button === tab;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
+    });
+    tabs.append(tab);
+  });
+
+  if (body) body.replaceChildren(tabs, ...panels);
+  container.append(card);
+  return element;
 }

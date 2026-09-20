@@ -45,7 +45,8 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
   assert.match(sync, /fetch\('\/api\/device\/player-delta'/);
   assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
-  assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
+  assert.match(sync, /function enabledSceneMedia\(context\)[\s\S]*?element\?\.enabled !== false[\s\S]*?\['image', 'logo', 'video'\]\.includes/);
+  assert.match(sync, /enabledSceneMedia\(context\)\.map\(\(element\) => element\.media\.source_url\)/);
   assert.doesNotMatch(sync, /context\?\.entity|context\?\.brand|context\?\.announcement|context\?\.environment/);
   assert.match(realtimeClient, /new WebSocket\(/);
 
@@ -96,9 +97,12 @@ test('Player Context has no specialized Entity field', async () => {
 test('offline player caches generic scene media without JavaScript Range copies', async () => {
   const [worker, sync] = await Promise.all([read('src/web/admin-ui/public/player-sw.js'), read('src/web/admin-ui/public/js/player/player-state-sync.js')]);
   assert.match(sync, /activeAssetManifest/);
-  assert.match(sync, /context\.scene\.elements\.map\(\(element\) => element\?\.media\?\.source_url\)/);
+  assert.match(sync, /function enabledSceneMedia\(context\)[\s\S]*?element\?\.enabled !== false[\s\S]*?\['image', 'logo', 'video'\]\.includes/);
+  assert.match(sync, /enabledSceneMedia\(context\)\.map\(\(element\) => element\.media\.source_url\)/);
   assert.doesNotMatch(sync, /context\?\.entity/);
   assert.match(sync, /mira:player-active-assets/);
+  assert.match(sync, /requireAsset\(url, \{ video: element\.type === 'video' \}\)/);
+  assert.match(sync, /Range: 'bytes=0-65535'/);
   assert.match(worker, /async function ensureActiveAssets/);
   assert.match(worker, /for \(const href of active\)/);
   assert.match(worker, /fetch\(request, \{ cache: 'force-cache' \}\)/);
@@ -107,8 +111,9 @@ test('offline player caches generic scene media without JavaScript Range copies'
   assert.match(worker, /async function cachedAsset/);
   assert.match(worker, /async function videoRequest/);
   assert.match(worker, /const fullRequest = new Request\(request\.url/);
-  assert.match(worker, /const cached = await cache\.match\(fullRequest\);[\s\S]*?return cached;/);
-  assert.match(worker, /if \(!request\.headers\.has\('range'\)\) return cachedAsset\(request\)/);
+  assert.match(worker, /if \(!request\.headers\.has\('range'\)\) return cached \|\| cachedAsset\(request\)/);
+  assert.match(worker, /const ranged = await networkWithTimeout\(request, 8000\)/);
+  assert.match(worker, /return cached \|\| Response\.error\(\)/);
   assert.doesNotMatch(worker, /cachedVideoRange|arrayBuffer\s*\(|Content-Range|Partial Content/);
   assert.match(worker, /mp4\|webm/);
 });

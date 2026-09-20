@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="scene">
+    <div class="app-shell">
+      <div class="app-content">
+        <main class="main-content scene-editor-content">
+          <form id="scene-editor-form" class="scene-editor-form" aria-busy="true">
+            <section class="scene-editor-commandbar" aria-label="Редактор сцены">
+              <div class="scene-editor-commandbar-main">
+                <a class="scene-editor-back" href="/screens" aria-label="К мониторам">←</a>
+                <div class="scene-editor-title">
+                  <strong>Сцена</strong>
+                  <span id="scene-editor-dirty-state">Загрузка…</span>
+                </div>
+                <label class="scene-editor-screen-picker">
+                  <span>Монитор</span>
+                  <select id="scene-editor-screen" aria-label="Монитор сцены" disabled>
+                    <option value="">Загрузка мониторов…</option>
+                  </select>
+                </label>
+              </div>
+              <div class="scene-editor-command-actions">
+                <span id="scene-editor-resolution" class="scene-editor-resolution">—</span>
+                <a id="scene-editor-menu-link" class="button button-secondary" href="/screens">Меню</a>
+                <button id="scene-editor-save" class="button button-primary" type="submit" disabled>Сохранить</button>
+              </div>
+            </section>
+
+            <p class="form-message is-hidden scene-editor-message" id="scene-editor-message" role="status" aria-live="polite"></p>
+
+            <div class="scene-editor-workspace">
+              <aside class="scene-editor-panel scene-editor-layers-panel" aria-label="Слои сцены">
+                <div class="scene-editor-panel-head">
+                  <div><span class="scene-editor-kicker">СЛОИ</span><strong>Элементы</strong></div>
+                  <button id="scene-editor-add" class="button button-secondary" type="button" disabled>+ Элемент</button>
+                </div>
+                <div id="scene-editor-layers" class="scene-editor-layers" aria-label="Список элементов"></div>
+                <div class="scene-editor-layer-hint">Выберите слой или объект на рабочем экране.</div>
+              </aside>
+
+              <section class="scene-editor-canvas-panel" aria-label="Рабочее окно сцены">
+                <div class="scene-editor-canvas-toolbar">
+                  <div>
+                    <strong id="scene-editor-preview-title">Рабочий экран</strong>
+                    <span>Player renderer · точное соотношение сторон</span>
+                  </div>
+                  <span id="scene-editor-zoom">Вписано</span>
+                </div>
+                <div id="scene-editor-canvas-pane" class="scene-editor-canvas-pane">
+                  <div id="scene-editor-stage-shell" class="scene-editor-stage-shell">
+                    <div id="scene-editor-stage" class="scene-editor-stage" aria-label="Предпросмотр сцены"></div>
+                    <div id="scene-editor-selection-layer" class="scene-editor-selection-layer" role="group" aria-label="Объекты сцены"></div>
+                  </div>
+                </div>
+                <div class="scene-editor-canvas-footer">
+                  <span>Перетаскивайте выбранный объект мышью. Размер и точные координаты — справа.</span>
+                  <span id="scene-editor-selection-status">Элемент не выбран</span>
+                </div>
+              </section>
+
+              <aside class="scene-editor-panel scene-editor-properties-panel" aria-label="Свойства элемента">
+                <div class="scene-editor-panel-head scene-editor-properties-head">
+                  <div><span class="scene-editor-kicker">СВОЙСТВА</span><strong id="scene-editor-properties-title">Элемент не выбран</strong></div>
+                </div>
+                <div id="scene-editor-properties" class="scene-editor-properties">
+                  <p class="scene-editor-empty">Выберите элемент слева или на рабочем экране.</p>
+                </div>
+              </aside>
+            </div>
+          </form>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

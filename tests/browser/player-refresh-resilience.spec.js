@@ -175,6 +175,50 @@ test('failed critical background never replaces the previous Last Known Good sta
 });
 
 
+test('failed critical scene image never replaces the previous Last Known Good state', async ({ page }) => {
+  const previous = playerContext({ revision: 'revision-scene-lkg', hashSuffix: 'scene-lkg' });
+  previous.draft.settings.background_color = '#123456';
+  const candidate = playerContext({
+    revision: 'revision-scene-candidate',
+    hashSuffix: 'scene-candidate',
+    scene: {
+      version: 1,
+      elements: [{
+        id: 'critical-image',
+        type: 'image',
+        enabled: true,
+        x: 100,
+        y: 100,
+        width: 400,
+        height: 300,
+        z_index: 2,
+        opacity: 1,
+        rotation_deg: 0,
+        media: { source_url: '/site-assets/scene/critical-missing.png', fit: 'contain', position_x_percent: 50, position_y_percent: 50 }
+      }]
+    }
+  });
+  await seedLastKnownGood(page, previous);
+  await installFailingWebSocket(page);
+  await mockAuthorizedSession(page);
+  await page.route('**/site-assets/scene/critical-missing.png', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+  await page.route('**/api/device/player-delta', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ full_snapshot_required: true, context: candidate })
+  }));
+
+  await page.goto('/player');
+  await expect(menuVector(page)).toHaveCount(1);
+  await expect(page.locator('[data-player-stage]')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
+  await expect(page.locator('[data-scene-element-id="critical-image"]')).toHaveCount(0);
+  const lkg = await page.evaluate(async () => {
+    const store = await import('/js/player/player-store.js');
+    return store.loadLastKnownGood();
+  });
+  expect(lkg?.revision).toBe('revision-scene-lkg');
+});
+
 test('runtime app_version mismatch updates Service Worker and reloads only once per target version', async ({ page }) => {
   await page.addInitScript(() => {
     const activeWorker = new EventTarget();

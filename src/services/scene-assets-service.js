@@ -2,12 +2,14 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
+import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/promises';
 import { PayloadTooLargeError, ValidationError } from '../shared/errors.js';
 import { validateImage } from './image-validation.js';
 
 const execFileAsync = promisify(execFile);
 const SCENE_DIR = 'scene';
+const SCENE_ASSET_PREFIX = '/site-assets/scene/';
+const SAFE_SCENE_ASSET = /^scene-[0-9a-f-]{36}\.(?:jpg|png|webp|mp4|webm)$/i;
 const MEDIA = Object.freeze({
   'image/png': { kind: 'image', extension: 'png' },
   'image/jpeg': { kind: 'image', extension: 'jpg' },
@@ -15,6 +17,13 @@ const MEDIA = Object.freeze({
   'video/mp4': { kind: 'video', extension: 'mp4' },
   'video/webm': { kind: 'video', extension: 'webm' }
 });
+
+function localPathForUrl(url, config) {
+  if (typeof url !== 'string' || !url.startsWith(SCENE_ASSET_PREFIX)) return null;
+  const filename = url.slice(SCENE_ASSET_PREFIX.length);
+  if (!SAFE_SCENE_ASSET.test(filename)) return null;
+  return path.join(config.siteAssetsRoot, SCENE_DIR, filename);
+}
 
 function normalizedContentType(value) {
   return String(value || '').split(';', 1)[0].trim().toLowerCase();
@@ -51,6 +60,11 @@ function videoContainerMatches(mime, formatName) {
   if(mime==='video/webm') return formats.includes('webm');
   return formats.includes('mp4')||formats.includes('mov');
 }
+function videoCodecMatches(mime, codecName) {
+  const codec = String(codecName || '').toLowerCase();
+  if (mime === 'video/webm') return codec === 'vp8' || codec === 'vp9';
+  return codec === 'h264';
+}
 async function inspectVideo(file, config, mime) {
   let stdout;
   try {
@@ -62,6 +76,7 @@ async function inspectVideo(file, config, mime) {
   const stream=probe?.streams?.[0], width=Number(stream?.width), height=Number(stream?.height);
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1) throw new ValidationError('Видео элемента не содержит корректного видеопотока.');
   if(!videoContainerMatches(mime,probe?.format?.format_name)) throw new ValidationError('MIME-тип видео не соответствует контейнеру.');
+  if(!videoCodecMatches(mime,stream.codec_name)) throw new ValidationError('Для совместимости с ТВ используйте H.264 в MP4 либо VP8/VP9 в WebM.');
   if(width>config.screenMaxWidth||height>config.screenMaxHeight||width*height>config.imageMaxPixels) throw new ValidationError(`Видео элемента превышает допустимое разрешение ${config.screenMaxWidth}×${config.screenMaxHeight}.`);
   return {width,height,codec:String(stream.codec_name||'')};
 }
@@ -104,4 +119,45 @@ export async function createSceneAssetStream({stream,contentLength,contentType,c
     await unlink(paths.temporary).catch(()=>undefined);
     throw error;
   }
+}
+
+
+export async function deleteSceneAsset(url, { store, config, force = false } = {}) {
+  const localPath = localPathForUrl(url, config);
+  if (!localPath) return false;
+  if (!force && await store.isSceneAssetReferenced(url)) return false;
+  await unlink(localPath).catch(() => undefined);
+  return true;
+}
+
+export async function cleanupUnreferencedSceneAssets({
+  store,
+  config,
+  olderThanMs = 24 * 60 * 60 * 1000,
+  now = Date.now()
+} = {}) {
+  if (typeof store?.listSceneAssetReferences !== 'function') return 0;
+  const directory = path.join(config.siteAssetsRoot, SCENE_DIR);
+  const referenced = new Set(await store.listSceneAssetReferences());
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !SAFE_SCENE_ASSET.test(entry.name)) continue;
+    const publicUrl = SCENE_ASSET_PREFIX + entry.name;
+    if (referenced.has(publicUrl)) continue;
+    const file = path.join(directory, entry.name);
+    try {
+      const info = await stat(file);
+      if (now - info.mtimeMs < olderThanMs) continue;
+      await unlink(file);
+      removed += 1;
+    } catch {}
+  }
+  return removed;
 }

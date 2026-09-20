@@ -26,6 +26,7 @@ const modules = [
   '../src/web/admin-ui/public/js/pages/profile.js',
   '../src/web/admin-ui/public/js/pages/settings.js',
   '../src/web/admin-ui/public/js/pages/playlist.js',
+  '../src/web/admin-ui/public/js/pages/scene.js',
   '../src/web/admin-ui/public/js/motion/scene-playlist-runtime.js',
   '../src/web/admin-ui/public/js/motion/scene-playlist-editor.js',
   '../src/web/admin-ui/public/js/editor/state.js',

@@ -22,6 +22,7 @@
 @import url('./pages/manager.css');
 @import url('./connect-tv.css');
 @import url('./editor/editor.css');
+@import url('./pages/scene-editor.css');
 @import url('./auth/signin.css');
 @import url('./notifications.css');
 @import url('./mobile.css');

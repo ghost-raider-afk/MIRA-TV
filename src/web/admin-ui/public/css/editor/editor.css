@@ -37,3 +37,5 @@
 .editor-element-media-state{overflow:hidden;color:var(--ui-text-muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:1250px){.editor-elements-stack{grid-template-columns:repeat(2,minmax(0,1fr))}.editor-element-card[open]{grid-column:1/-1}}
 @media(max-width:900px){.editor-elements-stack{grid-template-columns:1fr}.editor-element-card[open]{grid-column:auto}}
+
+.editor-element-type-hint{color:var(--ui-text-muted);font-size:8px;line-height:1.3}

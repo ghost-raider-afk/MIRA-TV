@@ -113,7 +113,7 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
       products:[], packaging:[], scene,
       animation:{enabled:false,profile:null},
       scene_playlist:{enabled:false,animation_enabled:true,menu_duration_seconds:40,scenes:[]},
-      app_version:'1.10.2', fallback_poll_interval_ms:60000, log_batch_size:100,
+      app_version:process.env.MIRA_TV_VERSION || '1.11.1', fallback_poll_interval_ms:60000, log_batch_size:100,
       log_local_max_entries:5000, log_local_max_bytes:10485760
     };
     const snapshot={

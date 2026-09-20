@@ -22,10 +22,10 @@ test('Scene Playlist runtime preserves an active timeline when Player Context is
 });
 
 test('Scene Playlist owns only content and its FX subhost while MenuScene remains an external base layer', async () => {
-  const [runtime, sceneMotion, preview] = await Promise.all([
+  const [runtime, sceneMotion, composer] = await Promise.all([
     read('js/motion/scene-playlist-runtime.js'),
     read('js/motion/scene-motion-runtime.js'),
-    read('js/motion/screen-preview.js')
+    read('js/player/scene-layer-composer.js')
   ]);
 
   assert.match(runtime, /data-scene-playlist-fx-host/);
@@ -34,7 +34,8 @@ test('Scene Playlist owns only content and its FX subhost while MenuScene remain
   assert.doesNotMatch(runtime, /menuLayer\.replaceChildren/);
   assert.match(sceneMotion, /buildDomMotionScene/);
   assert.match(sceneMotion, /DEFAULT_SCENE_COMPILERS/);
-  assert.match(preview, /data-scene-menu-layer/);
-  assert.match(preview, /data-scene-fx-layer/);
-  assert.match(preview, /data-scene-content-layer/);
+  assert.match(composer, /data-player-menu-layer/);
+  assert.match(composer, /data-player-fx-layer/);
+  assert.match(composer, /data-player-content-layer/);
+  assert.doesNotMatch(composer, /environment|entity|weather|brand|announcement|aquarium/);
 });

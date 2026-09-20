@@ -12,14 +12,51 @@ function standaloneSvg(markup) {
 
 const observers = new WeakMap();
 
+function releaseStage(stage) {
+  const resize = stage instanceof HTMLElement ? observers.get(stage) : null;
+  resize?.disconnect();
+  if (stage instanceof HTMLElement) observers.delete(stage);
+}
+
 function fitStage(stage, width, height) {
   if (!(stage instanceof HTMLElement)) return;
+  stage.dataset.sceneWidth = String(width);
+  stage.dataset.sceneHeight = String(height);
+  stage.style.aspectRatio = `${width} / ${height}`;
+
+  const fullscreenHost = stage.matches('[data-player-stage], .manager-fullscreen-stage');
+  if (!fullscreenHost) {
+    releaseStage(stage);
+    stage.style.left = 'auto';
+    stage.style.top = 'auto';
+    stage.style.right = 'auto';
+    stage.style.bottom = 'auto';
+    stage.style.transform = 'none';
+
+    const managerShell = stage.closest('.manager-screen-preview-shell');
+    if (managerShell instanceof HTMLElement) {
+      managerShell.style.aspectRatio = `${width} / ${height}`;
+      stage.style.position = 'absolute';
+      stage.style.inset = '0';
+      stage.style.width = '100%';
+      stage.style.height = '100%';
+    } else {
+      stage.style.position = 'relative';
+      stage.style.inset = 'auto';
+      stage.style.width = '100%';
+      stage.style.height = 'auto';
+    }
+    return;
+  }
+
+  const host = stage.parentElement;
   const apply = () => {
-    const viewportWidth = Math.max(1, window.innerWidth || stage.parentElement?.clientWidth || width);
-    const viewportHeight = Math.max(1, window.innerHeight || stage.parentElement?.clientHeight || height);
+    const viewportWidth = Math.max(1, host?.clientWidth || window.innerWidth || width);
+    const viewportHeight = Math.max(1, host?.clientHeight || window.innerHeight || height);
     const scale = Math.min(viewportWidth / width, viewportHeight / height);
     const outputWidth = Math.max(1, Math.floor(width * scale));
     const outputHeight = Math.max(1, Math.floor(height * scale));
+    stage.style.position = 'absolute';
     stage.style.width = `${outputWidth}px`;
     stage.style.height = `${outputHeight}px`;
     stage.style.left = '50%';
@@ -27,13 +64,12 @@ function fitStage(stage, width, height) {
     stage.style.right = 'auto';
     stage.style.bottom = 'auto';
     stage.style.transform = 'translate(-50%, -50%)';
-    stage.dataset.sceneWidth = String(width);
-    stage.dataset.sceneHeight = String(height);
   };
+
   apply();
-  if (observers.has(stage)) return;
+  releaseStage(stage);
   const resize = new ResizeObserver(apply);
-  resize.observe(document.documentElement);
+  resize.observe(host || document.documentElement);
   observers.set(stage, resize);
 }
 
@@ -46,10 +82,13 @@ export class FlatMenuRenderer {
   constructor() {
     this.generation = 0;
     this.layer = null;
+    this.stage = null;
   }
 
   destroy() {
     this.generation += 1;
+    releaseStage(this.stage);
+    this.stage = null;
     this.layer = null;
   }
 
@@ -68,8 +107,9 @@ export class FlatMenuRenderer {
     // avoiding SVG-to-bitmap conversion while remaining sharp on 4K and HiDPI displays.
     layer.innerHTML = svg;
     layer.dataset.vectorMenu = 'true';
-    const stage = layer.closest('[data-player-stage]');
-    fitStage(stage, width, height);
+    const stage = layer.closest('.player-scene-stage');
+    this.stage = stage instanceof HTMLElement ? stage : null;
+    fitStage(this.stage, width, height);
     return generation === this.generation && layer === this.layer;
   }
 }
