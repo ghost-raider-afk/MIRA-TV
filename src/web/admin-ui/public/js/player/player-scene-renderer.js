@@ -109,6 +109,9 @@ export class PlayerSceneRenderer {
       });
       const layout = buildRenderLayout(model, lines);
       const menuSvg = buildTableSvg(model, lines, layout);
+      this.stage.dataset.menuFits = layout.vertical.fits ? 'true' : 'false';
+      this.stage.dataset.fontScaleEffective = String(layout.vertical.effectivePercent);
+      this.stage.dataset.fontKey = layout.typography.key;
       menuLayer.dataset.renderMode = renderMode;
       try {
         await this.flatMenuRenderer.render(menuLayer, menuSvg, viewport);

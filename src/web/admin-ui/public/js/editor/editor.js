@@ -4,22 +4,13 @@ import { element, setMessage, setPending } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
 import { navigate } from '../core/router.js';
 import { createEditorState, markEditorSaved, replaceEditorState } from './state.js';
-import { updateSettings } from './commands.js';
-import { createEditorHistory } from './history.js';
-import { normaliseEditorSettings } from './settings.js';
-import { appendRow, renderPreviewRows } from './rows.js';
-import { bindScreenProperties, bindSettingsProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
-import { renderPreview } from './preview.js';
+import { normaliseEditorSettings, parseResolution } from './settings.js';
+import { bindScreenProperties, readScreenProperties, writeScreenProperties } from './properties.js';
 import { serializeDraft } from './serializer.js';
+import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 
 const EDITOR_LOADING_CONTROLS = Object.freeze([
-  'editor-name', 'editor-resolution', 'editor-status', 'editor-active',
-  'editor-background-color', 'editor-accent-color', 'editor-text-color',
-  'editor-font-scale', 'editor-font-scale-number', 'editor-font-family',
-  'editor-table-x', 'editor-table-y', 'editor-table-width', 'editor-table-height',
-  'editor-background-file', 'editor-background-upload', 'editor-background-remove',
-  'editor-add-section', 'editor-add-item', 'editor-add-packaging',
-  'editor-save'
+  'editor-name', 'editor-resolution', 'editor-status', 'editor-active', 'editor-save'
 ]);
 
 function editorScreenId() {
@@ -67,9 +58,8 @@ function setEditorLoading(form, loading) {
   });
 }
 
-function populateEditor(screen, editorState) {
+function populateEditor(screen) {
   writeScreenProperties(screen);
-  writeEditorSettings(editorState.settings);
 }
 
 function setDirtyState(editorState) {
@@ -79,34 +69,12 @@ function setDirtyState(editorState) {
   target.classList.toggle('is-dirty', editorState.dirty);
 }
 
-function setFontScaleState(preview) {
-  const target = element('editor-font-scale-effective');
-  if (!target) return;
-  const vertical = preview?.layout?.vertical;
-  if (!vertical) {
-    target.textContent = 'Фактический масштаб будет рассчитан после загрузки меню.';
-    target.classList.remove('is-auto-reduced');
-    return;
-  }
-  target.textContent = vertical.autoReduced
-    ? `Задано ${vertical.requestedPercent}%, применено ${vertical.effectivePercent}% для вмещения.`
-    : `Фактически ${vertical.effectivePercent}%.`;
-  target.classList.toggle('is-auto-reduced', vertical.autoReduced);
-}
-
-function setLayoutWarning(preview, screen) {
+function setResolutionWarning(screen) {
   const target = element('editor-layout-warning');
   if (!target) return;
-  if (preview?.invalidResolution) {
-    target.classList.remove('is-hidden');
-    target.textContent = 'Укажите разрешение в формате 1920×1080.';
-    return;
-  }
-  const overflowing = preview?.layout?.vertical?.fits === false;
-  target.classList.toggle('is-hidden', !overflowing);
-  target.textContent = overflowing
-    ? `Таблица не помещается в заданную высоту на ${screen?.resolution || 'экране'}. Увеличьте высоту области или сократите строки.`
-    : '';
+  const valid = Boolean(parseResolution(screen?.resolution));
+  target.classList.toggle('is-hidden', valid);
+  target.textContent = valid ? '' : 'Укажите разрешение в формате 1920×1080.';
 }
 
 export function initialiseScreenEditor() {
@@ -122,45 +90,58 @@ export function initialiseScreenEditor() {
   const isMounted = () => !disposed && document.getElementById('screen-editor-form') === form;
 
   const editorState = createEditorState();
-  const history = createEditorHistory(editorState);
   let screen = null;
   let products = [];
   let packaging = [];
+  let renderer = null;
+  let previewFrame = 0;
 
   const previewTarget = element('editor-menu-preview');
-  const inspectorTarget = element('editor-preview-row-inspector');
+  if (!(previewTarget instanceof HTMLElement)) {
+    void navigate('/screens.html', { replace:true });
+    return undefined;
+  }
 
   setEditorLoading(form, true);
 
-  const refreshPreview = (screenOverride = editorState.screen || screen) => renderPreview(editorState, {
-    screen: screenOverride,
+  const syncPreviewFrame = (screenOverride = editorState.screen || screen) => {
+    const resolution = parseResolution(screenOverride?.resolution);
+    previewTarget.style.aspectRatio = resolution ? `${resolution.width} / ${resolution.height}` : '16 / 9';
+    setResolutionWarning(screenOverride);
+    return resolution;
+  };
+
+  const previewContext = (screenOverride = editorState.screen || screen) => ({
+    screen:screenOverride,
+    draft:{ rows:editorState.rows, settings:editorState.settings },
     products,
     packaging,
-    target: previewTarget
+    scene:editorState.scene,
+    animation:{ enabled:false, profile:null },
+    scene_playlist:null
   });
 
-  const refreshEditorView = ({ syncRows = true } = {}) => {
-    if (!isMounted()) return null;
+  const renderPlayerPreview = async (screenOverride = editorState.screen || screen, changed = ['screen','menu']) => {
+    if (!isMounted() || !screenOverride) return;
+    syncPreviewFrame(screenOverride);
+    if (!renderer) renderer = new PlayerSceneRenderer(previewTarget, { autoplay:false, weatherPreview:true });
+    await renderer.render(previewContext(screenOverride), changed);
+  };
+
+  const schedulePlayerPreview = (screenOverride = editorState.screen || screen) => {
+    if (previewFrame) cancelAnimationFrame(previewFrame);
+    previewFrame = requestAnimationFrame(() => {
+      previewFrame = 0;
+      void renderPlayerPreview(screenOverride);
+    });
+  };
+
+  const refreshEditorView = () => {
+    if (!isMounted()) return;
     const activeScreen = editorState.screen || screen;
-    const preview = refreshPreview(activeScreen);
-    if (syncRows && preview?.editorLayer) {
-      renderPreviewRows(editorState, {
-        target: preview.editorLayer,
-        inspector: inspectorTarget,
-        model: preview.model,
-        lines: preview.lines,
-        layout: preview.layout,
-        products,
-        packaging,
-        onBeforeMutate: () => history.checkpoint(),
-        onVisualChange: () => refreshEditorView({ syncRows: false }),
-        onStructureChange: () => refreshEditorView({ syncRows: true })
-      });
-    }
-    setLayoutWarning(preview, activeScreen);
-    setFontScaleState(preview);
+    syncPreviewFrame(activeScreen);
     setDirtyState(editorState);
-    return preview;
+    schedulePlayerPreview(activeScreen);
   };
 
   const load = async () => {
@@ -178,33 +159,26 @@ export function initialiseScreenEditor() {
       revision: 0,
       draftRevision: Number(editor.draft?.revision || 0)
     });
-    history.clear();
-    populateEditor(screen, editorState);
+    populateEditor(screen);
     const sceneLink = element('editor-scene-link');
+    const previewSceneLink = element('editor-preview-scene-link');
     if (sceneLink instanceof HTMLAnchorElement) sceneLink.href = `/scene?screen=${screenId}`;
+    if (previewSceneLink instanceof HTMLAnchorElement) previewSceneLink.href = `/scene?screen=${screenId}`;
     setEditorLoading(form, false);
-    refreshEditorView();
+    setDirtyState(editorState);
+    await renderPlayerPreview(screen, ['screen','menu','scene']);
   };
   void load().catch((error) => { if (isMounted()) setEditorMessage(error.message); });
 
-  bindSettingsProperties(editorState, refreshEditorView);
   bindScreenProperties(editorState, refreshEditorView);
-  element('editor-add-section')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'section'); refreshEditorView(); });
-  element('editor-add-item')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'item'); refreshEditorView(); });
-  element('editor-add-packaging')?.addEventListener('click', () => { history.checkpoint(); appendRow(editorState, 'packaging'); refreshEditorView(); });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = element('editor-save');
     setPending(submit, true, 'Сохраняем…');
     try {
-      updateSettings(editorState, readEditorSettings(editorState.settings));
       const screenPayload = readScreenProperties(editorState.screen || screen);
-      const preview = refreshPreview(screenPayload);
-      setLayoutWarning(preview, screenPayload);
-      setFontScaleState(preview);
-      if (preview?.invalidResolution) throw new Error('Укажите разрешение в формате 1920×1080.');
-      if (!preview?.layout?.vertical?.fits) throw new Error('Таблица не помещается в заданную область. Измените высоту, масштаб или количество строк.');
+      if (!parseResolution(screenPayload.resolution)) throw new Error('Укажите разрешение в формате 1920×1080.');
 
       const saved = await api.put(`${API.screens}/${screenId}/draft`, serializeDraft(editorState, screenPayload));
       if (!isMounted()) return;
@@ -219,74 +193,15 @@ export function initialiseScreenEditor() {
       });
       screen = saved.screen;
       markEditorSaved(editorState);
-      history.clear();
-      populateEditor(screen, editorState);
-      refreshEditorView();
+      populateEditor(screen);
+      setDirtyState(editorState);
+      await renderPlayerPreview(screen, ['screen','menu','scene']);
       await loadNotifications();
       setEditorMessage('Состояние сохранено и доступно TV Player.', 'success');
     } catch (error) {
       if (isMounted()) setEditorMessage(error.message);
     } finally {
       if (isMounted()) setPending(submit, false, 'Сохраняем…');
-    }
-  });
-
-  element('editor-background-upload')?.addEventListener('click', async () => {
-    if (editorState.dirty) return setEditorMessage('Сначала сохраните текущие изменения, затем загрузите фон.');
-    const file = element('editor-background-file')?.files?.[0];
-    if (!file) return setEditorMessage('Выберите PNG, JPEG или WebP.');
-    const button = element('editor-background-upload');
-    setPending(button, true, 'Загружаем…');
-    try {
-      const result = await api.put(`${API.screens}/${screenId}/background`, file, {
-        headers: { 'Content-Type': file.type || 'application/octet-stream', 'X-Draft-Revision': String(editorState.draftRevision) }
-      });
-      if (!isMounted()) return;
-      screen = result.screen;
-      replaceEditorState(editorState, {
-        screen,
-        rows: result.draft.rows || [],
-        settings: normaliseEditorSettings(result.draft.settings || {}),
-        scene: structuredClone(result.draft.scene || { version: 1, elements: [] }),
-        dirty: false,
-        revision: editorState.revision,
-        draftRevision: Number(result.draft.revision || 0)
-      });
-      history.clear();
-      populateEditor(screen, editorState);
-      refreshEditorView();
-      setEditorMessage('Фон монитора загружен.', 'success');
-    } catch (error) {
-      if (isMounted()) setEditorMessage(error.message);
-    } finally {
-      if (isMounted()) setPending(button, false, 'Загружаем…');
-    }
-  });
-
-  element('editor-background-remove')?.addEventListener('click', async () => {
-    if (editorState.dirty) return setEditorMessage('Сначала сохраните текущие изменения.');
-    if (!editorState.settings.background_image_url) return;
-    try {
-      const result = await api.delete(`${API.screens}/${screenId}/background`, {
-        headers: { 'X-Draft-Revision': String(editorState.draftRevision) }
-      });
-      if (!isMounted()) return;
-      screen = result.screen;
-      replaceEditorState(editorState, {
-        screen,
-        rows: result.draft.rows || [],
-        settings: normaliseEditorSettings(result.draft.settings || {}),
-        scene: structuredClone(result.draft.scene || { version: 1, elements: [] }),
-        dirty: false,
-        revision: editorState.revision,
-        draftRevision: Number(result.draft.revision || 0)
-      });
-      history.clear();
-      populateEditor(screen, editorState);
-      refreshEditorView();
-      setEditorMessage('Фон удалён.', 'success');
-    } catch (error) {
-      if (isMounted()) setEditorMessage(error.message);
     }
   });
 
@@ -303,6 +218,9 @@ export function initialiseScreenEditor() {
     },
     dispose() {
       disposed = true;
+      if (previewFrame) cancelAnimationFrame(previewFrame);
+      renderer?.destroy();
+      renderer = null;
       unbindToolMenus();
       window.removeEventListener('beforeunload', onBeforeUnload);
     }

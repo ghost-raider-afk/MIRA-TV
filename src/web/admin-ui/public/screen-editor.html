@@ -13,15 +13,15 @@
       <div class="app-content">
         <main class="main-content editor-content">
           <form id="screen-editor-form" class="editor-workspace" aria-busy="true">
-            <section class="editor-commandbar" aria-label="Редактор монитора">
+            <section class="editor-commandbar" aria-label="Настройки монитора">
               <div class="editor-commandbar-identity">
                 <a class="editor-back" href="/screens" aria-label="К мониторам">←</a>
                 <div class="editor-commandbar-identity-copy">
-                  <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка монитора…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
+                  <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка настроек…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
                 </div>
               </div>
               <div class="editor-primary-actions" aria-label="Действия редактора">
-                <a class="button button-secondary" id="editor-scene-link" href="/scene">Сцена</a>
+                <a class="button button-secondary" id="editor-scene-link" href="/scene">Редактировать сцену</a>
                 <button class="button button-primary editor-save" id="editor-save" type="submit" disabled>Сохранить</button>
               </div>
             </section>
@@ -44,47 +44,15 @@
                   </div>
                 </details>
 
-                <details class="editor-settings-section editor-tool-menu" open>
-                  <summary>Таблица</summary>
-                  <div class="editor-settings-body">
-                    <div class="geometry-grid">
-                      <label class="field"><span>X</span><input id="editor-table-x" type="number" min="0" step="1" disabled /></label>
-                      <label class="field"><span>Y</span><input id="editor-table-y" type="number" min="0" step="1" disabled /></label>
-                      <label class="field"><span>Ширина</span><input id="editor-table-width" type="number" min="1" step="1" disabled /></label>
-                      <label class="field"><span>Высота</span><input id="editor-table-height" type="number" min="1" step="1" disabled /></label>
-                    </div>
-                    <label class="field"><span>Шрифт таблицы</span><select id="editor-font-family" disabled><option value="arial-narrow">Arial Narrow</option><option value="tahoma-bold">Tahoma Bold</option><option value="arial">Arial</option><option value="dejavu-condensed">DejaVu Sans Condensed</option><option value="liberation-narrow">Liberation Sans Narrow</option><option value="system-sans">Системный sans-serif</option></select></label>
-                    <div class="field font-scale-field"><span>Масштаб шрифта</span><div class="font-scale-control"><input id="editor-font-scale" type="range" min="55" max="130" step="1" value="100" disabled aria-label="Масштаб шрифта таблицы" /><label class="font-scale-number"><input id="editor-font-scale-number" type="number" min="55" max="130" step="1" value="100" disabled aria-label="Масштаб шрифта таблицы в процентах" /><span>%</span></label></div><small id="editor-font-scale-effective">Фактически 100%.</small></div>
-                  </div>
-                </details>
-
-                <details class="editor-settings-section editor-tool-menu">
-                  <summary>Оформление</summary>
-                  <div class="editor-settings-body">
-                    <div class="compact-form-grid compact-colors">
-                      <label class="field"><span>Фон</span><input id="editor-background-color" type="color" disabled /></label>
-                      <label class="field"><span>Акцент</span><input id="editor-accent-color" type="color" disabled /></label>
-                      <label class="field"><span>Текст</span><input id="editor-text-color" type="color" disabled /></label>
-                    </div>
-                    <div class="background-upload-block">
-                      <div><strong>Фоновое изображение</strong><small id="editor-background-state">Без изображения</small></div>
-                      <input id="editor-background-file" type="file" accept="image/png,image/jpeg,image/webp" disabled aria-label="Фоновое изображение монитора" />
-                      <div class="inline-actions"><button class="button button-secondary" id="editor-background-upload" type="button" disabled>Загрузить</button><button class="button button-danger" id="editor-background-remove" type="button" disabled>Удалить</button></div>
-                      <small data-screen-background-limit>Лимит загрузки задаётся сервером.</small>
-                    </div>
-                  </div>
-                </details>
               </aside>
 
               <div class="editor-main-column">
                 <section class="settings-card editor-preview-card" aria-labelledby="editor-preview-title">
                   <div class="editor-section-line editor-preview-toolbar">
-                    <div class="editor-section-copy"><p class="eyebrow">СОДЕРЖИМОЕ</p><h2 id="editor-preview-title">Предпросмотр и редактирование</h2><span class="muted-copy">Разделы и позиции редактируются прямо в Preview. Цены и характеристики — только из каталога.</span></div>
-                    <div class="editor-add-actions" aria-label="Добавить строку"><button class="button button-secondary" id="editor-add-section" type="button" disabled>+ Раздел</button><button class="button button-secondary" id="editor-add-item" type="button" disabled>+ Продукция</button><button class="button button-secondary" id="editor-add-packaging" type="button" disabled>+ Тара</button></div>
+                    <div class="editor-section-copy"><p class="eyebrow">TV PREVIEW</p><h2 id="editor-preview-title">Экран монитора</h2><span class="muted-copy">Только просмотр. Фон, таблица и элементы редактируются на странице «Сцена».</span></div>
+                    <a class="button button-primary" id="editor-preview-scene-link" href="/scene">Редактировать сцену</a>
                   </div>
-                  <div class="editor-preview-head"><strong>Экран монитора</strong><span>Режим редактирования: фон + таблица · элементы настраиваются на странице «Сцена»</span></div>
-                  <div class="editor-menu-preview" id="editor-menu-preview"></div>
-                  <div class="editor-preview-row-inspector" id="editor-preview-row-inspector" aria-live="polite"></div>
+                  <div class="editor-menu-preview" id="editor-menu-preview" aria-label="Предпросмотр экрана монитора"></div>
                   <p class="editor-layout-warning is-hidden" id="editor-layout-warning" role="status" aria-live="polite"></p>
                 </section>
               </div>

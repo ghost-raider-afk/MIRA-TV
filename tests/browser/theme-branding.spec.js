@@ -67,21 +67,21 @@ test('light theme uses light semantic chrome and editor surfaces', async ({ page
   expect(screenResponse.status()).toBe(201);
   const screen = await screenResponse.json();
 
-  await page.goto(`/screen-editor?id=${screen.id}`);
+  await page.goto(`/scene?screen=${screen.id}`);
   await waitForRouteReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await expect(page.locator('.editor-commandbar')).toBeVisible();
-  await expect(page.locator('.editor-preview-card')).toBeVisible();
-  await expect(page.locator('#editor-preview-row-inspector')).toBeVisible();
+  await expect(page.locator('.scene-editor-commandbar')).toBeVisible();
+  await expect(page.locator('.scene-editor-canvas-panel')).toBeVisible();
+  await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
 
   const colors = await page.evaluate(() => {
     const css = (selector) => getComputedStyle(document.querySelector(selector)).backgroundColor;
     return {
       rail: css('.ui-rail'),
       context: css('.ui-context'),
-      commandbar: css('.editor-commandbar'),
-      editorSurface: css('.editor-preview-card'),
-      inspector: css('#editor-preview-row-inspector'),
+      commandbar: css('.scene-editor-commandbar'),
+      editorSurface: css('.scene-editor-canvas-panel'),
+      inspector: css('.scene-editor-properties-panel'),
       page: getComputedStyle(document.body).backgroundColor
     };
   });

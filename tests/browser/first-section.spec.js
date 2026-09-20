@@ -71,29 +71,33 @@ test('first section is a real editable row and never inherits the monitor name',
   });
   expect(saveLegacyShape.status()).toBe(200);
 
-  await page.goto(`/screen-editor.html?id=${screen.id}`);
+  await page.goto(`/scene?screen=${screen.id}`);
+  const tableLayer = page.locator('#scene-editor-table-layer');
+  await expect(tableLayer).toBeEnabled();
+  await tableLayer.click();
 
-  const preview = page.locator('#editor-menu-preview');
-  const firstRow = preview.locator('[data-editor-preview-row-control="section"]').first();
+  const preview = page.locator('#scene-editor-stage');
+  const editLayer = page.locator('#scene-editor-table-edit-layer');
+  const firstRow = editLayer.locator('[data-editor-preview-row-control="section"]').first();
   await expect(firstRow).toBeVisible();
   await expect(firstRow).toHaveAttribute('data-source-row-ids', /section-primary/);
   const sectionName = firstRow.locator('[data-preview-section-input]');
   await expect(sectionName).toHaveValue('Новый раздел');
   await sectionName.focus();
-  const inspector = page.locator('#editor-preview-row-inspector');
+  const inspector = page.locator('[data-scene-table-row-inspector]');
   await expect(inspector.getByRole('button', { name: 'Переместить выше' })).toBeDisabled();
   await expect(inspector.getByRole('button', { name: 'Удалить строку' })).toBeDisabled();
-  await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
 
   await expect(preview.locator('.section-title').first()).toHaveText('Новый раздел');
   await expect(preview.locator('.section-title', { hasText: monitorName })).toHaveCount(0);
 
   await sectionName.fill('ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ');
+  await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
   await expect(preview.locator('.section-title').first()).toHaveText('ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ');
   await expect(preview.locator('.price-label')).toHaveCount(2);
 
-  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.locator('#screen-editor-message')).toContainText(/сохранено/i);
+  await page.locator('#scene-editor-save').click();
+  await expect(page.locator('#scene-editor-message')).toContainText(/сохранена/i);
 
   const persisted = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
   expect(persisted.draft.rows[0]).toMatchObject({ kind: 'section', name: 'ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ', enabled: true });

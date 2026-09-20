@@ -29,7 +29,9 @@
               </div>
               <div class="scene-editor-command-actions">
                 <span id="scene-editor-resolution" class="scene-editor-resolution">—</span>
-                <a id="scene-editor-menu-link" class="button button-secondary" href="/screens">Меню</a>
+                <button id="scene-editor-undo" class="scene-editor-history-button" type="button" title="Отменить · Ctrl+Z" aria-label="Отменить" disabled>↶</button>
+                <button id="scene-editor-redo" class="scene-editor-history-button" type="button" title="Повторить · Ctrl+Shift+Z" aria-label="Повторить" disabled>↷</button>
+                <a id="scene-editor-menu-link" class="button button-secondary" href="/screens">Настройки</a>
                 <button id="scene-editor-save" class="button button-primary" type="submit" disabled>Сохранить</button>
               </div>
             </section>
@@ -40,10 +42,29 @@
               <aside class="scene-editor-panel scene-editor-layers-panel" aria-label="Слои сцены">
                 <div class="scene-editor-panel-head">
                   <div><span class="scene-editor-kicker">СЛОИ</span><strong>Элементы</strong></div>
-                  <button id="scene-editor-add" class="button button-secondary" type="button" disabled>+ Элемент</button>
+                  <div class="scene-editor-add-wrap">
+                    <button id="scene-editor-add" class="button button-secondary" type="button" aria-haspopup="menu" aria-expanded="false" disabled>+ Элемент</button>
+                    <div id="scene-editor-add-menu" class="scene-editor-add-menu" role="menu" aria-label="Добавить элемент" hidden>
+                      <button type="button" role="menuitem" data-scene-element-type="text"><span class="scene-editor-type-icon" aria-hidden="true">T</span><span class="scene-editor-add-copy"><strong>Текстовое поле</strong><small>Надпись и типографика</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="logo"><span class="scene-editor-type-icon" aria-hidden="true">◈</span><span class="scene-editor-add-copy"><strong>Логотип</strong><small>Логотип бренда</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="image"><span class="scene-editor-type-icon" aria-hidden="true">▧</span><span class="scene-editor-add-copy"><strong>Картинка</strong><small>Изображение на сцене</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="video"><span class="scene-editor-type-icon" aria-hidden="true">▶</span><span class="scene-editor-add-copy"><strong>Видео</strong><small>MP4 / WebM, до двух</small></span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="weather"><span class="scene-editor-type-icon" aria-hidden="true">☁</span><span class="scene-editor-add-copy"><strong>Погода</strong><small>Один виджет на сцену</small></span></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="scene-editor-system-layers" aria-label="Основные слои сцены">
+                  <button id="scene-editor-background-layer" class="scene-editor-system-layer" type="button" data-scene-owner="background" disabled>
+                    <span class="scene-editor-system-icon" aria-hidden="true">▧</span>
+                    <span><strong>Фон</strong><small>Цвет и изображение</small></span>
+                  </button>
+                  <button id="scene-editor-table-layer" class="scene-editor-system-layer" type="button" data-scene-owner="table" disabled>
+                    <span class="scene-editor-system-icon" aria-hidden="true">▦</span>
+                    <span><strong>Таблица меню</strong><small>Содержимое и оформление</small></span>
+                  </button>
                 </div>
                 <div id="scene-editor-layers" class="scene-editor-layers" aria-label="Список элементов"></div>
-                <div class="scene-editor-layer-hint">Выберите слой или объект на рабочем экране.</div>
+                <div class="scene-editor-layer-hint">Фон и таблица — системные объекты. Элементы располагаются поверх.</div>
               </aside>
 
               <section class="scene-editor-canvas-panel" aria-label="Рабочее окно сцены">
@@ -57,6 +78,7 @@
                 <div id="scene-editor-canvas-pane" class="scene-editor-canvas-pane">
                   <div id="scene-editor-stage-shell" class="scene-editor-stage-shell">
                     <div id="scene-editor-stage" class="scene-editor-stage" aria-label="Предпросмотр сцены"></div>
+                    <div id="scene-editor-table-edit-layer" class="scene-editor-table-edit-layer" aria-label="Редактирование таблицы меню" hidden></div>
                     <div id="scene-editor-selection-layer" class="scene-editor-selection-layer" role="group" aria-label="Объекты сцены"></div>
                   </div>
                 </div>
@@ -69,12 +91,19 @@
               <aside class="scene-editor-panel scene-editor-properties-panel" aria-label="Свойства элемента">
                 <div class="scene-editor-panel-head scene-editor-properties-head">
                   <div><span class="scene-editor-kicker">СВОЙСТВА</span><strong id="scene-editor-properties-title">Элемент не выбран</strong></div>
+                  <span id="scene-editor-properties-kind" class="scene-editor-properties-kind" role="img" tabindex="0" aria-label="Тип элемента не выбран">—</span>
                 </div>
                 <div id="scene-editor-properties" class="scene-editor-properties">
                   <p class="scene-editor-empty">Выберите элемент слева или на рабочем экране.</p>
                 </div>
               </aside>
             </div>
+
+            <nav class="scene-editor-mobile-toolbar" aria-label="Инструменты сцены">
+              <button type="button" data-scene-mobile-panel="layers" aria-controls="scene-editor-layers">☷<span>Слои</span></button>
+              <button type="button" data-scene-mobile-panel="add">＋<span>Элемент</span></button>
+              <button type="button" data-scene-mobile-panel="properties" aria-controls="scene-editor-properties">⚙<span>Свойства</span></button>
+            </nav>
           </form>
         </main>
       </div>

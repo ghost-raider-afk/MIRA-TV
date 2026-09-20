@@ -5,7 +5,7 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/locations', page: 'locations', section: 'monitors', title: 'Торговые точки', prefetch: true }),
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
-  Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Редактор меню', prefetch: true }),
+  Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Настройки монитора', prefetch: true }),
   Object.freeze({ path: '/scene', page: 'scene', section: 'monitors', title: 'Сцена', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
   Object.freeze({ path: '/playlist', page: 'playlist', section: 'playlist', title: 'Плейлист', prefetch: true }),

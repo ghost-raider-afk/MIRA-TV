@@ -101,8 +101,13 @@ export function createSceneElement(type = 'text', index = 0) {
   return { ...common, media: defaultMedia(false) };
 }
 
-export function appendSceneElement(state) {
-  const element = createSceneElement('text', state.scene?.elements?.length || 0);
+export function appendSceneElement(state, type = 'text') {
+  const allowed = new Set(SCENE_ELEMENT_TYPE_OPTIONS.map(([value]) => value));
+  const nextType = allowed.has(type) ? type : 'text';
+  const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+  if (nextType === 'weather' && elements.some((item) => item?.type === 'weather')) return null;
+  if (nextType === 'video' && elements.filter((item) => item?.type === 'video' && item.enabled !== false).length >= 2) return null;
+  const element = createSceneElement(nextType, elements.length);
   addSceneElement(state, element);
   return element;
 }
@@ -219,7 +224,7 @@ function typeLabel(type) {
 }
 
 function commonSettings(state, element, options) {
-  const block = section('Положение и отображение', 'Координаты сцены 1920×1080');
+  const block = section('Трансформация', 'Координаты сцены 1920×1080');
   const grid = document.createElement('div');
   grid.className = 'geometry-grid';
 
@@ -693,21 +698,22 @@ export function renderSceneLayerList(state, {
 function inspectorGroups(element, sections) {
   if (element.type === 'text') {
     return [
-      ['Основное', sections.slice(0, 3)],
-      ['Шрифт', sections.slice(3, 5)],
-      ['Эффекты', sections.slice(5)]
+      ['Трансформация', sections.slice(0, 1), true],
+      ['Содержимое', sections.slice(1, 2), true],
+      ['Шрифт и абзац', sections.slice(2, 4), false],
+      ['Эффекты', sections.slice(4), false]
     ];
   }
   if (element.type === 'weather') {
     return [
-      ['Основное', sections.slice(0, 2)],
-      ['Погода', sections.slice(2, 4)],
-      ['Анимация', sections.slice(4)]
+      ['Трансформация', sections.slice(0, 1), true],
+      ['Погода', sections.slice(1, 3), true],
+      ['Анимация', sections.slice(3), false]
     ];
   }
   return [
-    ['Основное', sections.slice(0, 2)],
-    ['Медиа', sections.slice(2)]
+    ['Трансформация', sections.slice(0, 1), true],
+    ['Медиа', sections.slice(1), true]
   ];
 }
 
@@ -726,7 +732,7 @@ export function renderSceneElementInspector(state, {
   if (!element) {
     const empty = document.createElement('p');
     empty.className = 'scene-editor-empty';
-    empty.textContent = 'Выберите элемент слева или на рабочем экране.';
+    empty.textContent = 'Выберите объект на рабочем поле или в слоях.';
     container.append(empty);
     return null;
   }
@@ -739,48 +745,31 @@ export function renderSceneElementInspector(state, {
 
   const body = card.querySelector(':scope > .editor-element-card-body');
   const sections = body ? [...body.children].filter((node) => node.classList?.contains('editor-element-settings-section')) : [];
+  const identity = sections.shift();
+  identity?.remove();
   const groups = inspectorGroups(element, sections).filter(([, nodes]) => nodes.length);
 
-  const tabs = document.createElement('div');
-  tabs.className = 'scene-editor-inspector-tabs';
-  tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Разделы свойств элемента');
-  tabs.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0,1fr))`;
-  const panels = [];
+  const stack = document.createElement('div');
+  stack.className = 'scene-editor-inspector-stack';
 
-  groups.forEach(([name, nodes], groupIndex) => {
-    const tab = document.createElement('button');
-    const tabId = `scene-inspector-tab-${element.id}-${groupIndex}`;
-    const panelId = `scene-inspector-panel-${element.id}-${groupIndex}`;
-    tab.type = 'button';
-    tab.id = tabId;
-    tab.textContent = name;
-    tab.classList.toggle('active', groupIndex === 0);
-    tab.setAttribute('role', 'tab');
-    tab.setAttribute('aria-controls', panelId);
-    tab.setAttribute('aria-selected', groupIndex === 0 ? 'true' : 'false');
+  groups.forEach(([name, nodes, open]) => {
+    const group = document.createElement('details');
+    group.className = 'scene-editor-inspector-group';
+    group.open = open === true;
+
+    const summary = document.createElement('summary');
+    summary.textContent = name;
+    summary.setAttribute('aria-label', `${name}: свойства Элемента ${index + 1}`);
 
     const panel = document.createElement('div');
-    panel.id = panelId;
     panel.className = 'scene-editor-inspector-panel';
-    panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', tabId);
-    panel.hidden = groupIndex !== 0;
     nodes.forEach((node) => panel.append(node));
-    panels.push(panel);
 
-    tab.addEventListener('click', () => {
-      [...tabs.children].forEach((button) => {
-        const active = button === tab;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
-    });
-    tabs.append(tab);
+    group.append(summary, panel);
+    stack.append(group);
   });
 
-  if (body) body.replaceChildren(tabs, ...panels);
+  if (body) body.replaceChildren(stack);
   container.append(card);
   return element;
 }

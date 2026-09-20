@@ -37,13 +37,13 @@ async function fixture(page) {
     screen:{ location_id:screen.location_id, name:screen.name, resolution:'1920×1080', status:'draft', active:true }
   } });
   expect(saved.ok()).toBeTruthy();
-  return { screen };
+  return { screen, product };
 }
 
 test('Scene editor keeps layers, shared Player preview and contextual properties on one desktop page', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
-  const { screen } = await fixture(page);
+  const { screen, product } = await fixture(page);
   await page.goto(`/scene?screen=${screen.id}`);
 
   await expect(page.locator('#scene-editor-layers')).toBeVisible();
@@ -51,6 +51,40 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-properties')).toBeVisible();
   await expect(page.locator('#scene-editor-screen')).toHaveValue(String(screen.id));
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
+  await expect(page.locator('#scene-editor-background-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-table-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await expect(page.locator('#scene-editor-undo')).toBeDisabled();
+  await expect(page.locator('#scene-editor-redo')).toBeDisabled();
+
+  await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(2);
+  const tableProductSelect = page.locator('#scene-editor-table-edit-layer [data-preview-product-select]').first();
+  await expect(tableProductSelect).toBeVisible();
+  await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
+  expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeLessThanOrEqual(10);
+  await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
+  await tableProductSelect.click();
+  await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeVisible();
+  const productSearch = page.locator('#scene-editor-table-edit-layer .editor-preview-choice-search');
+  await expect(productSearch).toBeFocused();
+  await productSearch.fill(product.name);
+  await expect(page.locator('#scene-editor-table-edit-layer [role="option"]')).toHaveCount(1);
+  await expect(page.locator('#scene-editor-table-edit-layer [role="option"]').first()).toContainText(product.name);
+  await productSearch.press('Escape');
+  await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeHidden();
+
+  await page.locator('#scene-editor-background-layer').click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Цвет фона')).toHaveValue('#101828');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Фоновое изображение')).toBeVisible();
+
+  await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
 
   const geometry = await page.evaluate(() => ({
     documentClient:document.documentElement.clientHeight,
@@ -58,43 +92,65 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     layersClient:document.querySelector('.scene-editor-layers-panel')?.clientHeight || 0,
     layersScroll:document.querySelector('.scene-editor-layers-panel')?.scrollHeight || 0,
     propertiesClient:document.querySelector('.scene-editor-properties-panel')?.clientHeight || 0,
-    propertiesScroll:document.querySelector('.scene-editor-properties-panel')?.scrollHeight || 0
+    propertiesScroll:document.querySelector('.scene-editor-properties-panel')?.scrollHeight || 0,
+    propertiesWidth:document.querySelector('.scene-editor-properties-panel')?.getBoundingClientRect().width || 0
   }));
   expect(geometry.documentScroll).toBeLessThanOrEqual(geometry.documentClient + 2);
   expect(geometry.layersScroll).toBeLessThanOrEqual(geometry.layersClient + 2);
   expect(geometry.propertiesScroll).toBeLessThanOrEqual(geometry.propertiesClient + 2);
+  expect(geometry.propertiesWidth).toBeLessThanOrEqual(250);
 
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
   const areaShare = (shellBox.width * shellBox.height) / (1600 * 900);
-  expect(areaShare).toBeGreaterThan(.12);
-  expect(areaShare).toBeLessThan(.34);
+  expect(areaShare).toBeGreaterThan(.25);
+  expect(areaShare).toBeLessThan(.55);
 
   await page.locator('#scene-editor-add').click();
+  const addMenu = page.locator('#scene-editor-add-menu');
+  await expect(addMenu).toBeVisible();
+  await expect(addMenu.getByRole('menuitem')).toHaveCount(5);
+  await addMenu.getByRole('menuitem', { name:/Текстовое поле/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(1);
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент 1');
+  await expect(page.locator('#scene-editor-properties-kind')).toHaveText('T');
+  await expect(page.locator('#scene-editor-properties-kind')).toHaveAttribute('aria-label', 'Текстовое поле');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toHaveCount(1);
 
   const inspector = page.locator('#scene-editor-properties');
   await inspector.getByLabel('Текст', { exact:true }).fill('бар маяк');
   await inspector.getByLabel('X', { exact:true }).fill('300');
   await inspector.getByLabel('Y', { exact:true }).fill('160');
-  await inspector.getByRole('tab', { name:'Шрифт', exact:true }).click();
+  await inspector.getByText('Шрифт и абзац', { exact:true }).click();
   await inspector.getByLabel('Размер, px', { exact:true }).fill('96');
   await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toContainText('бар маяк');
+  await expect(page.locator('#scene-editor-undo')).toBeEnabled();
+
+  const seHandle = page.locator('.scene-editor-resize-handle[data-direction="se"]');
+  await expect(seHandle).toBeVisible();
+  await expect(page.locator('.scene-editor-resize-handle')).toHaveCount(8);
+  const handleBox = await seHandle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox.x + 34, handleBox.y + 20);
+  await page.mouse.up();
+  expect(Number(await inspector.getByLabel('Ширина', { exact:true }).inputValue())).toBeGreaterThan(720);
+  expect(Number(await inspector.getByLabel('Высота', { exact:true }).inputValue())).toBeGreaterThan(220);
 
   await page.locator('#scene-editor-add').click();
+  await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
-  await inspector.getByLabel('Тип элемента 2').selectOption('weather');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="weather"]')).toHaveCount(1);
-  await expect(inspector.getByRole('tab', { name:'Погода', exact:true })).toBeVisible();
+  await expect(inspector.locator('summary[aria-label^="Погода:"]')).toBeVisible();
 
   await page.locator('#scene-editor-add').click();
+  await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
+  await addMenu.getByRole('menuitem', { name:/Логотип/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(3);
-  await expect(inspector.getByLabel('Тип элемента 3').locator('option[value="weather"]')).toHaveCount(0);
-  await expect(inspector).toContainText('Погода уже добавлена в сцену.');
+  await expect(page.locator('#scene-editor-stage [data-scene-element-type="logo"]')).toHaveCount(1);
 
   const saveResponse = page.waitForResponse((response) =>
     response.url().endsWith(`/api/screens/${screen.id}/draft`) && response.request().method() === 'PUT'
@@ -112,6 +168,39 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
   await expect(page.locator('#editor-add-element')).toHaveCount(0);
-  await expect(page.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(0);
+  await expect(page.locator('#editor-background-file')).toHaveCount(0);
+  await expect(page.locator('#editor-table-x')).toHaveCount(0);
+  await expect(page.locator('#editor-menu-preview [data-editor-preview-row-control]')).toHaveCount(0);
+  await expect(page.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(1);
+  await expect(page.locator('#editor-menu-preview [data-scene-element-type]')).toHaveCount(3);
   await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+  await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+});
+
+test('Scene editor stays a single-page touch workspace on mobile', async ({ page }) => {
+  await page.setViewportSize({ width:390, height:844 });
+  await login(page);
+  const { screen } = await fixture(page);
+  await page.goto(`/scene?screen=${screen.id}`);
+
+  await expect(page.locator('.scene-editor-mobile-toolbar')).toBeVisible();
+  const size = await page.evaluate(() => ({
+    clientHeight:document.documentElement.clientHeight,
+    scrollHeight:document.documentElement.scrollHeight,
+    clientWidth:document.documentElement.clientWidth,
+    scrollWidth:document.documentElement.scrollWidth
+  }));
+  expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 2);
+  expect(size.scrollWidth).toBeLessThanOrEqual(size.clientWidth + 2);
+
+  await page.getByRole('button', { name:/Слои/ }).click();
+  await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
+  await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
+
+  await page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Элемент/ }).click();
+  await expect(page.locator('#scene-editor-add-menu')).toBeVisible();
+  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Текстовое поле/ }).click();
+  await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
+  await expect(page.locator('.scene-editor-resize-handle')).toHaveCount(8);
 });
