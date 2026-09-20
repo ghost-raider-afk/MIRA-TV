@@ -11,12 +11,16 @@ test('scene weather element maps to embedded runtime settings', () => {
   assert.equal(settings.location_name, 'Хельсинки');
 });
 
-test('monitor editor Preview excludes scene elements while Player keeps generic weather ownership', async () => {
-  const [renderer, preview] = await Promise.all([
+test('monitor editor Preview excludes scene elements while Scene preview uses canonical weather runtime', async () => {
+  const [renderer, playerRenderer, preview] = await Promise.all([
     readFile(new URL('../src/web/admin-ui/public/js/player/scene-element-renderer.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/web/admin-ui/public/js/player/player-scene-renderer.js', import.meta.url), 'utf8'),
     readFile(new URL('../src/web/admin-ui/public/js/editor/preview.js', import.meta.url), 'utf8')
   ]);
-  assert.match(renderer, /renderWeatherWidget/);
-  assert.match(renderer, /contentFor\(elementId\)/);
+  assert.match(renderer, /refreshContentGeometry\(elementId\)/);
+  assert.doesNotMatch(renderer, /WEATHER_SAMPLE|renderWeatherWidget/);
+  assert.match(playerRenderer, /weatherPreviewEndpoint = '\/api\/weather\/preview'/);
+  assert.match(playerRenderer, /preview: this\.weatherPreview/);
+  assert.match(playerRenderer, /refreshContentGeometry\(elementId\)/);
   assert.doesNotMatch(preview, /SceneElementRenderer|weatherPreview|data-scene-elements-layer/);
 });
