@@ -28,7 +28,7 @@ test.describe('mobile application shell', () => {
 
     const rail = page.locator('.ui-rail');
     await expect(rail).toBeVisible();
-    await expect(rail.locator('.ui-rail-button')).toHaveCount(5);
+    await expect(rail.locator('.ui-rail-button')).toHaveCount(4);
     await expect(rail.getByLabel('Обзор')).toBeVisible();
     await expect(rail.getByLabel('Мониторы')).toBeVisible();
     await expect(rail.getByLabel('Каталог')).toBeVisible();
@@ -101,7 +101,7 @@ test.describe('mobile application shell', () => {
 test('mobile shell remains usable at 360px width', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
-  await expect(page.locator('.ui-rail-button')).toHaveCount(5);
+  await expect(page.locator('.ui-rail-button')).toHaveCount(4);
   await expectNoPageOverflow(page);
   await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
