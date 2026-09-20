@@ -93,7 +93,7 @@ async function renderScreen(screen, token) {
       products: bundle.products || [],
       packaging: bundle.packaging || [],
       scene: bundle.draft?.scene || { version:1, elements:[] },
-      animation: { enabled: currentSettings?.enabled === true, profile: currentSettings?.profile || DEFAULT_LIVE_PROFILE },
+      animation: { enabled: currentSettings?.enabled === true, profile: currentSettings?.profile || {} },
       scene_playlist: currentSettings?.scene_playlist || null
     };
 

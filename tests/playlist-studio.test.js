@@ -135,7 +135,7 @@ test('Scene editor owns menu motion while Playlist Studio owns only Scene Playli
   }
 
   assert.match(page, /new PlayerSceneRenderer/);
-  assert.match(page, /\/animation\/playlist/);
+  assert.match(page, /animationSettings\}\/playlist/);
   assert.doesNotMatch(page, /readMotionProfile|bindMotionProfileControls|writeMotionProfile/);
   assert.match(indexCss, /player-scene\.css/);
   assert.match(playerSceneCss, /\.player-scene-stage \.tv-player-menu-layer>svg\{[^}]*width:100%;height:100%/);

@@ -134,23 +134,24 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.match(css, /weather-atmosphere/);
   assert.doesNotMatch(preview, /SceneElementRenderer|weatherPreview|data-scene-elements-layer/);
 });
-test('animation apply changes only motion and Scene Playlist; weather is owned by monitor scene', async () => {
+test('Playlist apply changes only Scene Playlist; weather and motion profile stay owned elsewhere', async () => {
   const [playlist, settingsRoutes] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/playlist.js'),
     read('src/api/settings/routes.js')
   ]);
 
-  assert.match(playlist, /API\.animationApply/);
+  assert.match(playlist, /animationSettings\}\/playlist\/apply/);
   assert.match(playlist, /screen_ids:\s*ids/);
-  assert.doesNotMatch(playlist, /weatherStudioSettings|weatherSnapshot|settings:\s*desired,\s*weather/);
+  assert.doesNotMatch(playlist, /readMotionProfile|bindMotionProfileControls|weatherStudioSettings|weatherSnapshot/);
 
-  const applyStart = settingsRoutes.indexOf("router.put('/animation/apply'");
-  const applyEnd = settingsRoutes.indexOf("router.put('/site/logo'", applyStart);
+  const applyStart = settingsRoutes.indexOf("router.put('/animation/playlist/apply'");
+  const applyEnd = settingsRoutes.indexOf("router.put('/animation/apply'", applyStart);
   const applyRoute = settingsRoutes.slice(applyStart, applyEnd);
   assert.ok(applyStart >= 0 && applyEnd > applyStart);
   assert.match(applyRoute, /applyAnimationSettingsToScreens/);
   assert.doesNotMatch(applyRoute, /applyWeatherSettingsToScreens|weatherWidgetInput|getWeatherSettings/);
-  assert.match(applyRoute, /\['animation', 'scene_playlist'\]/);
+  assert.match(applyRoute, /\['scene_playlist'\]/);
+  assert.doesNotMatch(applyRoute, /\['animation', 'scene_playlist'\]/);
   assert.match(applyRoute, /markScreenRenderChanged/);
   assert.match(applyRoute, /applied_screens/);
   assert.doesNotMatch(settingsRoutes, /animation\/entity-asset|replaceEntityAssetStream/);
