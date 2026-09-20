@@ -6,7 +6,7 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Редактор меню', prefetch: true }),
-  Object.freeze({ path: '/scene', page: 'scene', section: 'scene', title: 'Сцена', prefetch: true }),
+  Object.freeze({ path: '/scene', page: 'scene', section: 'monitors', title: 'Сцена', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
   Object.freeze({ path: '/playlist', page: 'playlist', section: 'playlist', title: 'Плейлист', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
@@ -38,9 +38,8 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([['Обзор', '/']]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Подключить ТВ', '/connect-tv']]),
+  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
-  scene: Object.freeze([['Сцена', '/scene']]),
   playlist: Object.freeze([['Плейлист', '/playlist']]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });
@@ -48,7 +47,6 @@ const CONTEXT_LINKS = Object.freeze({
 export const PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key: 'monitors', label: 'Мониторы', href: '/screens', icon: 'monitor' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
-  Object.freeze({ key: 'scene', label: 'Сцена', href: '/scene', icon: 'motion' }),
   Object.freeze({ key: 'playlist', label: 'Плейлист', href: '/playlist', icon: 'motion' }),
   Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings', icon: 'settings' })
 ]);
@@ -67,7 +65,6 @@ export function routeIsActive(href, currentPage = pageName()) {
   if (href === '/') return currentPage === 'overview';
   const target = new URL(href, window.location.origin);
   if (currentPage === 'screen-editor' && canonicalRoutePath(target.pathname) === '/screens') return true;
-  if (currentPage === 'scene' && canonicalRoutePath(target.pathname) === '/scene') return true;
   if (canonicalRoutePath(window.location.pathname) !== canonicalRoutePath(target.pathname)) return false;
   if (!target.hash) return true;
   return window.location.hash === target.hash;
