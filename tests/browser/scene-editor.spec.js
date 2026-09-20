@@ -52,12 +52,16 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-screen')).toHaveValue(String(screen.id));
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
   const backgroundLayer = page.locator('#scene-editor-background-layer');
+  const animationLayer = page.locator('#scene-editor-animation-layer');
   const tableLayer = page.locator('#scene-editor-table-layer');
   await expect(backgroundLayer).toBeVisible();
+  await expect(animationLayer).toBeVisible();
   await expect(tableLayer).toBeVisible();
   await expect(backgroundLayer.locator('svg')).toHaveCount(1);
+  await expect(animationLayer.locator('svg')).toHaveCount(1);
   await expect(tableLayer.locator('svg')).toHaveCount(1);
   expect((await backgroundLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
+  expect((await animationLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   expect((await tableLayer.boundingBox())?.height).toBeLessThanOrEqual(28);
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
   const inspectorWidth1600 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
@@ -105,6 +109,17 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'gloss');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
+
+  await animationLayer.click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация');
+  const animationInspector = page.locator('#scene-editor-properties');
+  await expect(animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Gloss-перелив' })).toHaveAttribute('aria-checked', 'true');
+  await expect(animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Breathing Glow' })).toHaveAttribute('aria-checked', 'true');
+  await animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Заполнение' }).click();
+  await animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Gloss Shine' }).click();
+  await animationInspector.getByLabel('Характер').selectOption('wave');
+  await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'fill');
+  await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
 
   await page.locator('#scene-editor-background-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
@@ -218,8 +233,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[1].type).toBe('weather');
   const storedPromotion = stored.draft.rows.find((row) => row.kind === 'item');
   expect(storedPromotion.promotion).toBe(true);
-  expect(storedPromotion.promotion_animation).toBe('gloss');
-  expect(storedPromotion.promotion_badge_animation).toBe('breathe');
+  expect(storedPromotion.promotion_animation).toBe('fill');
+  expect(storedPromotion.promotion_badge_animation).toBe('shine');
+  expect(stored.animation.profile.pattern).toBe('wave');
 
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);

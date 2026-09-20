@@ -104,18 +104,30 @@ test('stored v3 bounce/pop settings are canonicalized instead of reintroducing j
   assert.equal(migrated.promotion_travel_px, 0);
 });
 
-test('Playlist Studio owns only menu motion and Scene Playlist while visual elements stay in Scene editor', async () => {
-  const [html, page, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, scenePlaylistRuntime, scenePlaylistCss, playerCss, playerSceneCss, previewCss, indexCss] = await Promise.all([
-    read('playlist.html'), read('js/pages/playlist.js'), read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
+test('Scene editor owns menu motion while Playlist Studio owns only Scene Playlist', async () => {
+  const [html, page, sceneHtml, scenePage, playlistEditor, profileEditor, motionPlan, domAdapter, sceneMotion, scenePlaylistRuntime, scenePlaylistCss, playerCss, playerSceneCss, previewCss, indexCss] = await Promise.all([
+    read('playlist.html'), read('js/pages/playlist.js'), read('scene.html'), read('js/pages/scene.js'),
+    read('js/motion/scene-playlist-editor.js'), read('js/motion/profile-editor.js'),
     read('js/motion/motion-plan.js'), read('js/motion/dom-scene-adapter.js'), read('js/motion/scene-motion-runtime.js'),
     read('js/motion/scene-playlist-runtime.js'), read('css/scene-playlist.css'), read('css/player.css'), read('css/player-scene.css'), read('css/pages/animation-screen-preview.css'), read('css/index.css')
   ]);
 
-  for (const id of [
-    'animation-stage','animation-screen-select','animation-save','animation-intensity','animation-travel','animation-scale',
-    'animation-section-effect','animation-item-effect','animation-promotion-effect','animation-promotion-intensity',
-    'animation-promotion-glow','animation-playlist-panel','animation-apply-screens'
-  ]) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['animation-stage','animation-screen-select','animation-save','animation-playlist-panel','animation-apply-screens']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  for (const movedId of [
+    'animation-pattern','animation-intensity','animation-travel','animation-scale',
+    'animation-section-effect','animation-item-effect','animation-promotion-effect','animation-promotion-intensity','animation-promotion-glow'
+  ]) assert.doesNotMatch(html, new RegExp(`id="${movedId}"`));
+
+  assert.match(sceneHtml, /id="scene-editor-animation-layer"/);
+  assert.ok(sceneHtml.indexOf('scene-editor-background-layer') < sceneHtml.indexOf('scene-editor-animation-layer'));
+  assert.ok(sceneHtml.indexOf('scene-editor-animation-layer') < sceneHtml.indexOf('scene-editor-table-layer'));
+  assert.match(scenePage, /bindMotionProfileControls/);
+  assert.match(scenePage, /PROMOTION_ROW_ANIMATION_OPTIONS/);
+  assert.match(scenePage, /PROMOTION_BADGE_ANIMATION_OPTIONS/);
+  assert.match(scenePage, /animation-pattern/);
+  assert.match(scenePage, /animation-promotion-intensity/);
 
   for (const legacy of ['animation-announcement-', 'animation-brand-', 'animation-aquarium-', 'animation-entity-']) {
     assert.equal(html.includes(legacy), false, legacy);
@@ -123,9 +135,13 @@ test('Playlist Studio owns only menu motion and Scene Playlist while visual elem
   }
 
   assert.match(page, /new PlayerSceneRenderer/);
+  assert.match(page, /\/animation\/playlist/);
+  assert.doesNotMatch(page, /readMotionProfile|bindMotionProfileControls|writeMotionProfile/);
   assert.match(indexCss, /player-scene\.css/);
   assert.match(playerSceneCss, /\.player-scene-stage \.tv-player-menu-layer>svg\{[^}]*width:100%;height:100%/);
   assert.match(playerSceneCss, /\.player-scene-stage \.tv-player-content-layer\{[^}]*container-type:inline-size/);
+  assert.match(playerSceneCss, /tv-player-gpu-effect\.is-pulse,[\s\S]*tv-player-gpu-effect\.is-focus\{background:none\}/);
+  assert.doesNotMatch(playerSceneCss, /radial-gradient\(ellipse at center,rgba\(246,201,14/);
   assert.match(page, /new ScenePlaylistEditor/);
   assert.match(page, /scene_playlist:\s*scenePlaylistEditor/);
   assert.match(playlistEditor, /playlist-scene-strip/);
@@ -133,9 +149,7 @@ test('Playlist Studio owns only menu motion and Scene Playlist while visual elem
   assert.match(playlistEditor, /PromoScene/);
   assert.match(playlistEditor, /ContentScene/);
   assert.doesNotMatch(playlistEditor, /Object Story|object-story/);
-  assert.match(profileEditor, /profile\.price_effect = 'none'/);
-  assert.match(profileEditor, /promotion_scale_amount = clamp/);
-  assert.match(sceneMotion, /WasmMotionDriver/);
+  assert.match(profileEditor, /promotion_scale_amount:\s*\['animation-promotion-scale'/);
   assert.match(motionPlan, /menuTextStatic: true/);
   assert.match(motionPlan, /context\.menuEnabled === false/);
   assert.match(motionPlan, /procedural:/);

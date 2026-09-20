@@ -96,6 +96,25 @@
 .scene-editor-system-layer.is-selected .scene-editor-system-icon{color:var(--ui-accent)}
 .scene-editor-system-layer strong{min-width:0;overflow:hidden;font-size:8px;font-weight:850;line-height:1.1;text-overflow:ellipsis;white-space:nowrap}
 
+.scene-animation-inspector{gap:5px}
+.scene-animation-panel{gap:6px}
+.scene-animation-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.scene-animation-control-grid .field{min-width:0}
+.scene-animation-control-grid select{width:100%;min-width:0;min-height:25px;padding:2px 5px;font-size:8px}
+.scene-animation-range-grid{display:grid;gap:4px}
+.scene-animation-range{display:grid;gap:2px}
+.scene-animation-range>div{display:grid;grid-template-columns:minmax(0,1fr) 52px;align-items:center;gap:5px}
+.scene-animation-range input[type="range"]{width:100%;min-width:0;accent-color:var(--ui-accent)}
+.scene-animation-range output{display:grid;min-height:23px;place-items:center;padding:0 4px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised);color:var(--ui-text);font-size:7px;font-weight:800;font-variant-numeric:tabular-nums}
+.scene-animation-preset-field{display:grid;gap:3px}
+.scene-animation-preset-field>span,.scene-animation-note{color:var(--ui-text-muted);font-size:7px;line-height:1.3}
+.scene-animation-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.scene-animation-preset-field:nth-of-type(2) .scene-animation-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.scene-animation-preset{min-width:0;min-height:25px;padding:2px 4px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised);color:var(--ui-text-muted);font:750 7px/1.1 inherit;cursor:pointer}
+.scene-animation-preset:hover:not(:disabled){border-color:color-mix(in srgb,var(--ui-accent) 45%,var(--ui-border));color:var(--ui-text)}
+.scene-animation-preset.is-selected{border-color:color-mix(in srgb,var(--ui-accent) 72%,var(--ui-border));background:color-mix(in srgb,var(--ui-accent) 11%,var(--ui-panel-raised));color:var(--ui-accent)}
+.scene-animation-preset:disabled{opacity:.4;cursor:default}
+
 .scene-editor-table-selection-box{position:absolute;z-index:20;display:block;border:1px solid transparent;background:transparent;pointer-events:auto;cursor:move}
 .scene-editor-table-selection-box:hover{border-color:color-mix(in srgb,var(--ui-accent) 30%,transparent)}
 .scene-editor-table-selection-box.is-selected{border-color:color-mix(in srgb,var(--ui-accent) 92%,#fff);background:transparent;box-shadow:0 0 0 1px rgba(0,0,0,.55)}
@@ -109,6 +128,9 @@
 .scene-editor-mobile-toolbar{display:none}
 
 @media(max-width:1100px){
+  .scene-animation-control-grid{grid-template-columns:1fr}
+  .scene-animation-preset-grid{grid-template-columns:1fr}
+  .scene-animation-preset-field:nth-of-type(2) .scene-animation-preset-grid{grid-template-columns:1fr 1fr}
   body[data-page="scene"]{overflow:hidden}
   body[data-page="scene"] .app-shell{display:block;height:100dvh;min-height:0;padding-bottom:0}
   body[data-page="scene"] .ui-rail{display:none}

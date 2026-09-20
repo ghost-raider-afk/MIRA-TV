@@ -2,7 +2,12 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { element, setMessage, setPending } from '../core/dom.js';
 import { updateSceneElement, selectSceneElement } from '../editor/commands.js';
-import { appendRow, renderPreviewRows } from '../editor/rows.js';
+import {
+  appendRow,
+  PROMOTION_BADGE_ANIMATION_OPTIONS,
+  PROMOTION_ROW_ANIMATION_OPTIONS,
+  renderPreviewRows
+} from '../editor/rows.js';
 import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
 import { createEditorHistory } from '../editor/history.js';
 import { createEditorState, replaceEditorState } from '../editor/state.js';
@@ -12,6 +17,12 @@ import {
   renderSceneLayerList
 } from '../editor/elements.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
+import {
+  DEFAULT_LIVE_PROFILE,
+  bindMotionProfileControls,
+  readMotionProfile,
+  writeMotionProfile
+} from '../motion/profile-editor.js';
 
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
@@ -22,6 +33,7 @@ const ELEMENT_LABELS = Object.freeze({
   video: 'Видео',
   weather: 'Погода',
   background: 'Фон',
+  animation: 'Анимация',
   table: 'Таблица меню'
 });
 const ELEMENT_ICONS = Object.freeze({
@@ -31,6 +43,7 @@ const ELEMENT_ICONS = Object.freeze({
   video: '▶',
   weather: '☁',
   background: '▧',
+  animation: '∿',
   table: '▦'
 });
 const TABLE_FONTS = Object.freeze([
@@ -43,11 +56,18 @@ const TABLE_FONTS = Object.freeze([
 ]);
 
 function systemOwnerIcon(type) {
-  if (type !== 'background' && type !== 'table') return null;
+  if (!['background','animation','table'].includes(type)) return null;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
+
+  if (type === 'animation') {
+    const wave = document.createElementNS(svg.namespaceURI, 'path');
+    wave.setAttribute('d', 'M3.5 15c2.1-5.3 4.2-5.3 6.3 0s4.2 5.3 6.3 0S20 9.7 21 12M4 9c1.5-2.5 3-2.5 4.5 0');
+    svg.append(wave);
+    return svg;
+  }
 
   const rect = document.createElementNS(svg.namespaceURI, 'rect');
   rect.setAttribute('x', '3.5');
@@ -101,6 +121,12 @@ function labelForScreen(screen) {
   return `${screen.location_name || 'Без точки'} — ${screen.name}`;
 }
 
+function menuMotionEnabled(profile) {
+  return profile?.section_effect !== 'none'
+    || profile?.item_effect !== 'none'
+    || profile?.promotion_effect !== 'none';
+}
+
 function createState() {
   return createEditorState();
 }
@@ -117,6 +143,7 @@ export function initialiseSceneEditor() {
   const addButton = element('scene-editor-add');
   const addMenu = element('scene-editor-add-menu');
   const backgroundLayer = element('scene-editor-background-layer');
+  const animationLayer = element('scene-editor-animation-layer');
   const tableLayer = element('scene-editor-table-layer');
   const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
   const undoButton = element('scene-editor-undo');
@@ -133,6 +160,7 @@ export function initialiseSceneEditor() {
       || !(addButton instanceof HTMLButtonElement)
       || !(addMenu instanceof HTMLElement)
       || !(backgroundLayer instanceof HTMLButtonElement)
+      || !(animationLayer instanceof HTMLButtonElement)
       || !(tableLayer instanceof HTMLButtonElement)
       || !(undoButton instanceof HTMLButtonElement)
       || !(redoButton instanceof HTMLButtonElement)
@@ -143,6 +171,12 @@ export function initialiseSceneEditor() {
   let renderer = null;
   let screens = [];
   let currentBundle = null;
+  let currentAnimationSettings = {
+    enabled:true,
+    preset_id:'cinematic-live-menu',
+    profile:structuredClone(DEFAULT_LIVE_PROFILE),
+    scene_playlist:null
+  };
   let currentScreenId = null;
   let disposed = false;
   let previewFrame = 0;
@@ -178,11 +212,13 @@ export function initialiseSceneEditor() {
     const ownerType = selectedOwner === 'element' ? selected?.type : selectedOwner;
     const caption = selectedOwner === 'background'
       ? 'Фон'
-      : selectedOwner === 'table'
-        ? 'Таблица меню'
-        : selected
-          ? `Элемент ${index + 1}`
-          : 'Элемент не выбран';
+      : selectedOwner === 'animation'
+        ? 'Анимация'
+        : selectedOwner === 'table'
+          ? 'Таблица меню'
+          : selected
+            ? `Элемент ${index + 1}`
+            : 'Элемент не выбран';
 
     if (status) {
       status.textContent = selected
@@ -234,6 +270,7 @@ export function initialiseSceneEditor() {
     });
     selectionLayer.querySelector('.scene-editor-table-selection-box')?.classList.toggle('is-selected', selectedOwner === 'table');
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
+    animationLayer.classList.toggle('is-selected', selectedOwner === 'animation');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     setSelectionStatus();
   }
@@ -470,6 +507,187 @@ export function initialiseSceneEditor() {
     appearance.append(appearanceSummary, appearancePanel);
     stack.append(appearance);
     propertiesRoot.append(stack);
+  }
+
+  function animationSelect(id, labelText, options) {
+    const select = document.createElement('select');
+    select.id = id;
+    select.setAttribute('aria-label', labelText);
+    for (const [value, label] of options) select.add(new Option(label, value));
+    return makeField(labelText, select);
+  }
+
+  function animationRange(id, labelText, min, max, step, outputId) {
+    const label = document.createElement('label');
+    label.className = 'field scene-animation-range';
+    const caption = document.createElement('span');
+    caption.textContent = labelText;
+    const line = document.createElement('div');
+    const input = compactInput('range', '', { min, max, step });
+    input.id = id;
+    input.setAttribute('aria-label', labelText);
+    const output = document.createElement('output');
+    output.id = outputId;
+    line.append(input, output);
+    label.append(caption, line);
+    return label;
+  }
+
+  function hiddenAnimationControl(id, type = 'hidden', value = '') {
+    const control = document.createElement('input');
+    control.id = id;
+    control.type = type;
+    if (type === 'checkbox') control.className = 'is-hidden';
+    else control.value = value;
+    return control;
+  }
+
+  function promotionRows() {
+    return state.rows.filter((row) => row?.kind === 'item' && row?.promotion === true);
+  }
+
+  function renderPromotionPresetGroup(titleText, field, options, fallback) {
+    const fieldRoot = document.createElement('div');
+    fieldRoot.className = 'scene-animation-preset-field';
+    const title = document.createElement('span');
+    title.textContent = titleText;
+    const group = document.createElement('div');
+    group.className = 'scene-animation-preset-grid';
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', titleText);
+    const rows = promotionRows();
+    for (const [value, label] of options) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'scene-animation-preset';
+      button.textContent = label;
+      button.setAttribute('role', 'radio');
+      const selected = rows.length > 0 && rows.every((row) => (row[field] || fallback) === value);
+      button.classList.toggle('is-selected', selected);
+      button.setAttribute('aria-checked', String(selected));
+      button.disabled = rows.length === 0;
+      button.addEventListener('click', () => {
+        if (!rows.length || selected) return;
+        history.checkpoint();
+        for (const row of rows) row[field] = value;
+        state.dirty = true;
+        setDirty();
+        scheduleDocumentRender();
+        renderAnimationInspector();
+        setSelectionStatus();
+      });
+      group.append(button);
+    }
+    fieldRoot.append(title, group);
+    return fieldRoot;
+  }
+
+  function renderAnimationInspector() {
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
+    propertiesRoot.replaceChildren();
+
+    const stack = document.createElement('div');
+    stack.className = 'scene-editor-inspector-stack scene-animation-inspector';
+
+    const menu = document.createElement('details');
+    menu.className = 'scene-editor-inspector-group';
+    menu.open = true;
+    menu.append(Object.assign(document.createElement('summary'), { textContent:'Меню' }));
+    const menuPanel = document.createElement('div');
+    menuPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
+    const menuGrid = document.createElement('div');
+    menuGrid.className = 'scene-animation-control-grid';
+    menuGrid.append(
+      animationSelect('animation-pattern', 'Характер', [
+        ['cinematic','Cinematic light'],['ambient','Ambient Glow'],['wave','Light Drift'],
+        ['focus','Focus Pulse'],['pulse','Soft Pulse'],['spark','Neon Spark'],['parallax','Depth Light']
+      ]),
+      animationSelect('animation-flow-direction', 'Направление', [
+        ['alternate','Встречное'],['left-to-right','Слева направо'],['right-to-left','Справа налево'],
+        ['top-to-bottom','Сверху вниз'],['bottom-to-top','Снизу вверх'],['none','Без направления']
+      ]),
+      animationSelect('animation-easing', 'Пластика', [
+        ['cinematic','Киношная'],['smooth','Очень плавная'],['standard','Стандартная'],['snappy','Энергичная'],['elastic','Упругая']
+      ]),
+      animationSelect('animation-section-effect', 'Разделы', [
+        ['cinematic','Cinematic'],['wave','Волна света'],['lift','Световой подъём'],['glow','Свечение'],
+        ['pulse','Пульс'],['shimmer','Блик'],['none','Без движения']
+      ]),
+      animationSelect('animation-item-effect', 'Строки продукции', [
+        ['cinematic','Cinematic'],['wave','Light Drift'],['lift','Световой подъём'],
+        ['focus','Focus'],['breathe','Дыхание света'],['none','Без движения']
+      ])
+    );
+    const menuRanges = document.createElement('div');
+    menuRanges.className = 'scene-animation-range-grid';
+    menuRanges.append(
+      animationRange('animation-intensity','Выразительность',0,100,1,'animation-intensity-output'),
+      animationRange('animation-travel','Ход света',0,48,1,'animation-travel-output'),
+      animationRange('animation-scale','Масштаб',0,.12,.001,'animation-scale-output'),
+      animationRange('animation-brightness','Яркость',0,.7,.01,'animation-brightness-output'),
+      animationRange('animation-cycle','Период',4,30,.5,'animation-cycle-output'),
+      animationRange('animation-stagger','Фаза строк',0,600,10,'animation-stagger-output'),
+      animationRange('animation-event-duration','Длительность',400,10000,100,'animation-event-duration-output')
+    );
+    menuPanel.append(menuGrid, menuRanges);
+    menu.append(menuPanel);
+
+    const promo = document.createElement('details');
+    promo.className = 'scene-editor-inspector-group';
+    promo.open = true;
+    promo.append(Object.assign(document.createElement('summary'), { textContent:'Акция' }));
+    const promoPanel = document.createElement('div');
+    promoPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
+    const presetNote = document.createElement('small');
+    presetNote.className = 'scene-animation-note';
+    presetNote.textContent = promotionRows().length
+      ? 'Пресеты применяются ко всем строкам с включённой «Акцией».'
+      : 'В таблице пока нет строк с включённой «Акцией».';
+    promoPanel.append(
+      renderPromotionPresetGroup('Анимация строки акции', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
+      renderPromotionPresetGroup('Анимация плашки акции', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
+      presetNote
+    );
+    const promoGrid = document.createElement('div');
+    promoGrid.className = 'scene-animation-control-grid';
+    promoGrid.append(
+      animationSelect('animation-promotion-effect', 'Подсветка акции', [['cinematic','Включена'],['none','Выключена']]),
+      animationSelect('animation-promotion-easing', 'Пластика акции', [['smooth','Плавная'],['cinematic','Киношная']])
+    );
+    const promoRanges = document.createElement('div');
+    promoRanges.className = 'scene-animation-range-grid';
+    promoRanges.append(
+      animationRange('animation-promotion-intensity','Сила акции',0,100,1,'animation-promotion-intensity-output'),
+      animationRange('animation-promotion-brightness','Яркость акции',0,.8,.01,'animation-promotion-brightness-output'),
+      animationRange('animation-promotion-glow','Glow акции',0,48,1,'animation-promotion-glow-output'),
+      animationRange('animation-promotion-cycle','Период акции',2,15,.5,'animation-promotion-cycle-output'),
+      animationRange('animation-promotion-duration','Длительность акции',700,4000,100,'animation-promotion-duration-output')
+    );
+    promoPanel.append(promoGrid, promoRanges);
+    promo.append(promoPanel);
+
+    const menuVisible = hiddenAnimationControl('animation-menu-visible', 'checkbox');
+    const promotionVisible = hiddenAnimationControl('animation-promotion-visible', 'checkbox');
+    const priceEffect = hiddenAnimationControl('animation-price-effect', 'hidden', 'none');
+    const promotionTravel = hiddenAnimationControl('animation-promotion-travel', 'hidden', '0');
+    const promotionScale = hiddenAnimationControl('animation-promotion-scale', 'hidden', '0.06');
+
+    stack.append(menu, promo, menuVisible, promotionVisible, priceEffect, promotionTravel, promotionScale);
+    propertiesRoot.append(stack);
+
+    writeMotionProfile(currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE);
+    bindMotionProfileControls((profile) => {
+      currentAnimationSettings = {
+        ...(currentAnimationSettings || {}),
+        enabled:menuMotionEnabled(profile),
+        preset_id:currentAnimationSettings?.preset_id || 'cinematic-live-menu',
+        profile
+      };
+      state.dirty = true;
+      setDirty();
+      void renderer?.render(sceneContext(), ['animation']);
+    });
   }
 
   function renderTableInspector() {
@@ -828,7 +1046,10 @@ export function initialiseSceneEditor() {
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
       scene: state.scene,
-      animation: { enabled: false, profile: null },
+      animation: {
+        enabled: currentAnimationSettings?.enabled === true,
+        profile: currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE
+      },
       scene_playlist: null
     };
   }
@@ -870,6 +1091,7 @@ export function initialiseSceneEditor() {
 
   function renderLayers() {
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
+    animationLayer.classList.toggle('is-selected', selectedOwner === 'animation');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     renderSceneLayerList(state, {
       container: layersRoot,
@@ -900,6 +1122,11 @@ export function initialiseSceneEditor() {
   function renderInspector() {
     if (selectedOwner === 'background') {
       renderBackgroundInspector();
+      setSelectionStatus();
+      return;
+    }
+    if (selectedOwner === 'animation') {
+      renderAnimationInspector();
       setSelectionStatus();
       return;
     }
@@ -942,7 +1169,7 @@ export function initialiseSceneEditor() {
     stage.replaceChildren();
     stage.dataset.playerActive = 'true';
     renderer = new PlayerSceneRenderer(stage, { autoplay: false, weatherPreview: true });
-    await renderer.render(sceneContext(), ['screen', 'menu', 'scene']);
+    await renderer.render(sceneContext(), ['screen', 'menu', 'scene', 'animation']);
     fitPreviewShell();
     refreshSelectionOverlay();
     if (selectedOwner === 'table') renderTableEditLayer();
@@ -950,6 +1177,12 @@ export function initialiseSceneEditor() {
 
   function hydrate(bundle) {
     currentBundle = bundle;
+    currentAnimationSettings = structuredClone(bundle.animation || {
+      enabled:true,
+      preset_id:'cinematic-live-menu',
+      profile:DEFAULT_LIVE_PROFILE,
+      scene_playlist:null
+    });
     replaceEditorState(state, {
       screen:bundle.screen,
       rows:Array.isArray(bundle.draft?.rows) ? bundle.draft.rows : [],
@@ -979,6 +1212,7 @@ export function initialiseSceneEditor() {
     screenSelect.disabled = true;
     addButton.disabled = true;
     backgroundLayer.disabled = true;
+    animationLayer.disabled = true;
     tableLayer.disabled = true;
     const saveButton = element('scene-editor-save');
     if (saveButton) saveButton.disabled = true;
@@ -994,6 +1228,7 @@ export function initialiseSceneEditor() {
     element('scene-editor-save').disabled = false;
     addButton.disabled = false;
     backgroundLayer.disabled = false;
+    animationLayer.disabled = false;
     tableLayer.disabled = false;
     syncAddMenuAvailability();
     screenSelect.disabled = false;
@@ -1079,6 +1314,7 @@ export function initialiseSceneEditor() {
   form.addEventListener('keydown', onEditorKeydown);
 
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
+  animationLayer.addEventListener('click', () => selectOwner('animation'));
   tableLayer.addEventListener('click', () => selectOwner('table'));
 
   mobileToolbar?.querySelectorAll('[data-scene-mobile-panel]').forEach((button) => {
@@ -1129,10 +1365,16 @@ export function initialiseSceneEditor() {
         revision: state.draftRevision,
         rows: structuredClone(state.rows),
         settings: structuredClone(state.settings),
-        scene: structuredClone(state.scene)
+        scene: structuredClone(state.scene),
+        animation: {
+          enabled: currentAnimationSettings?.enabled === true,
+          preset_id: currentAnimationSettings?.preset_id || 'cinematic-live-menu',
+          profile: structuredClone(currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE)
+        }
       });
       if (!active()) return;
-      currentBundle = { ...currentBundle, screen: saved.screen, draft: saved.draft };
+      currentBundle = { ...currentBundle, screen: saved.screen, draft: saved.draft, animation:saved.animation || currentAnimationSettings };
+      currentAnimationSettings = structuredClone(saved.animation || currentAnimationSettings);
       state.screen = structuredClone(saved.screen);
       state.rows = structuredClone(saved.draft.rows || []);
       state.settings = structuredClone(saved.draft.settings || {});
@@ -1146,7 +1388,7 @@ export function initialiseSceneEditor() {
       history.clear();
       setDirty();
       renderSelectionOwners();
-      setMessage('scene-editor-message', 'Сцена сохранена и доступна TV Player.', 'success');
+      setMessage('scene-editor-message', 'Сцена и анимация сохранены и доступны TV Player.', 'success');
     } catch (error) {
       if (active()) setMessage('scene-editor-message', error.message);
     } finally {

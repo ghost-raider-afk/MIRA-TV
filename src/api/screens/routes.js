@@ -1,5 +1,6 @@
 import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
+import { animationSettingsInput } from '../../contracts/animation.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
 import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
@@ -86,8 +87,14 @@ export function createScreensRouter({ store, config, realtime }) {
     const id = positiveId(request.params.id, 'id');
     const screen = await store.getScreen(id);
     if (!screen) throw notFound();
-    const [draft, products, packaging] = await Promise.all([store.getScreenDraft(id), store.listProducts(), store.listPackaging()]);
-    response.json({ screen, draft, products, packaging });
+    const [draft, products, packaging, screenAnimation, globalAnimation] = await Promise.all([
+      store.getScreenDraft(id),
+      store.listProducts(),
+      store.listPackaging(),
+      store.getScreenAnimationSettings(id),
+      store.getAnimationSettings()
+    ]);
+    response.json({ screen, draft, products, packaging, animation:screenAnimation || globalAnimation });
   });
 
   router.put('/screens/:id/scene-asset', async (request, response) => {
@@ -117,6 +124,7 @@ export function createScreensRouter({ store, config, realtime }) {
       const current = await tx.getScreen(id);
       if (!current) throw notFound();
       const currentDraft = await tx.getScreenDraft(id);
+      const currentAnimation = await tx.getScreenAnimationSettings(id) || await tx.getAnimationSettings();
       const previousSceneAssets = new Set(sceneAssetUrls(currentDraft?.scene));
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
@@ -130,18 +138,43 @@ export function createScreensRouter({ store, config, realtime }) {
       if (!updatedScreen) throw notFound();
       const saved = await tx.saveScreenDraft(id, draft, expectedRevision);
       if (!saved) throw conflict('Меню уже было изменено в другом окне. Обновите редактор и повторите изменения.', { expected_revision: expectedRevision });
+
+      let savedAnimation = currentAnimation;
+      let animationChanged = false;
+      if (request.body?.animation && typeof request.body.animation === 'object' && !Array.isArray(request.body.animation)) {
+        savedAnimation = animationSettingsInput({
+          ...(currentAnimation || {}),
+          ...request.body.animation,
+          scene_playlist:currentAnimation?.scene_playlist
+        });
+        animationChanged = !sameJson({
+          enabled:currentAnimation?.enabled === true,
+          preset_id:currentAnimation?.preset_id || 'cinematic-live-menu',
+          profile:currentAnimation?.profile || {}
+        }, {
+          enabled:savedAnimation.enabled === true,
+          preset_id:savedAnimation.preset_id,
+          profile:savedAnimation.profile
+        });
+        if (animationChanged) {
+          const applied = await tx.applyAnimationSettingsToScreens([id], savedAnimation, request.session.sub);
+          if (applied.length !== 1) throw conflict('Не удалось сохранить анимацию текущего монитора.');
+        }
+      }
+
       const changedComponents = changedDraftComponents(current, currentDraft, updatedScreen, saved);
+      if (animationChanged) changedComponents.push('animation');
       const revisions = changedComponents.length
         ? await tx.markScreenRenderChanged([id], changedComponents, 'screen.state.saved', request.session.sub)
         : [];
       const nextSceneAssets = new Set(sceneAssetUrls(saved.scene));
       const droppedSceneAssets = [...previousSceneAssets].filter((url) => !nextSceneAssets.has(url));
-      return { screen: await tx.getScreen(id), draft: saved, revisions, droppedSceneAssets };
+      return { screen: await tx.getScreen(id), draft: saved, animation:savedAnimation, revisions, droppedSceneAssets };
     });
     await Promise.all((result.droppedSceneAssets || []).map((url) => deleteSceneAsset(url, { store, config })));
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
     notifyRevisions(realtime, result.revisions);
-    response.json({ screen: result.screen, draft: result.draft });
+    response.json({ screen: result.screen, draft: result.draft, animation:result.animation });
   });
 
   router.put('/screens/:id/background', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'], limit: config.screenBackgroundMaxBytes }), async (request, response) => {

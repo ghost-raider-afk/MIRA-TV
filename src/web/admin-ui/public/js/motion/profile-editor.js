@@ -20,6 +20,7 @@ const PROFILE_FIELDS = Object.freeze({
   promotion_brightness_amount: ['animation-promotion-brightness', 'number'],
   promotion_glow_radius: ['animation-promotion-glow', 'number'],
   promotion_travel_px: ['animation-promotion-travel', 'number'],
+  promotion_scale_amount: ['animation-promotion-scale', 'number'],
   promotion_cycle_seconds: ['animation-promotion-cycle', 'number'],
   promotion_event_duration_ms: ['animation-promotion-duration', 'number']
 });

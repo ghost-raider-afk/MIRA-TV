@@ -326,6 +326,17 @@ function selectedRowActions(editorState, row, options) {
   return actions;
 }
 
+export const PROMOTION_ROW_ANIMATION_OPTIONS = Object.freeze([
+  Object.freeze(['wave', 'Мягкая волна']),
+  Object.freeze(['fill', 'Заполнение']),
+  Object.freeze(['gloss', 'Gloss-перелив'])
+]);
+
+export const PROMOTION_BADGE_ANIMATION_OPTIONS = Object.freeze([
+  Object.freeze(['shine', 'Gloss Shine']),
+  Object.freeze(['breathe', 'Breathing Glow'])
+]);
+
 function promotionPresetControl({ labelText, ariaLabel, value, choices, disabled = false, onChange }) {
   const field = document.createElement('div');
   field.className = 'editor-preview-promotion-preset-field';
@@ -417,11 +428,7 @@ function promotionControls(editorState, row, options) {
     ariaLabel:'Анимация строки акции',
     value:row.promotion_animation || 'wave',
     disabled:!checkbox.checked,
-    choices:[
-      ['wave', 'Мягкая волна'],
-      ['fill', 'Заполнение'],
-      ['gloss', 'Gloss-перелив']
-    ],
+    choices:PROMOTION_ROW_ANIMATION_OPTIONS,
     onChange:(value) => {
       options.onBeforeMutate?.();
       updateRow(editorState, row.id, { promotion_animation:value });
@@ -434,10 +441,7 @@ function promotionControls(editorState, row, options) {
     ariaLabel:'Анимация плашки акции',
     value:row.promotion_badge_animation || 'shine',
     disabled:!checkbox.checked,
-    choices:[
-      ['shine', 'Gloss Shine'],
-      ['breathe', 'Breathing Glow']
-    ],
+    choices:PROMOTION_BADGE_ANIMATION_OPTIONS,
     onChange:(value) => {
       options.onBeforeMutate?.();
       updateRow(editorState, row.id, { promotion_badge_animation:value });
