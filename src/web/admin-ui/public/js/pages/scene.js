@@ -5,6 +5,7 @@ import { updateSceneElement, selectSceneElement } from '../editor/commands.js';
 import { appendRow, renderPreviewRows } from '../editor/rows.js';
 import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
 import { createEditorHistory } from '../editor/history.js';
+import { createEditorState, replaceEditorState } from '../editor/state.js';
 import {
   appendSceneElement,
   renderSceneElementInspector,
@@ -71,16 +72,7 @@ function labelForScreen(screen) {
 }
 
 function createState() {
-  return {
-    screen: null,
-    rows: [],
-    settings: {},
-    scene: { version: 1, elements: [] },
-    selectedElementId: null,
-    dirty: false,
-    revision: 0,
-    draftRevision: 0
-  };
+  return createEditorState();
 }
 
 export function initialiseSceneEditor() {
@@ -925,15 +917,17 @@ export function initialiseSceneEditor() {
 
   function hydrate(bundle) {
     currentBundle = bundle;
-    state.screen = structuredClone(bundle.screen);
-    state.rows = structuredClone(Array.isArray(bundle.draft?.rows) ? bundle.draft.rows : []);
-    state.settings = structuredClone(bundle.draft?.settings || {});
-    state.scene = structuredClone(bundle.draft?.scene || { version: 1, elements: [] });
-    state.selectedElementId = null;
+    replaceEditorState(state, {
+      screen:bundle.screen,
+      rows:Array.isArray(bundle.draft?.rows) ? bundle.draft.rows : [],
+      settings:bundle.draft?.settings || {},
+      scene:bundle.draft?.scene || { version:1, elements:[] },
+      selectedElementId:null,
+      dirty:false,
+      revision:0,
+      draftRevision:Number(bundle.draft?.revision || 0)
+    });
     selectedOwner = 'none';
-    state.dirty = false;
-    state.revision = 0;
-    state.draftRevision = Number(bundle.draft?.revision || 0);
     history.clear();
     const resolution = element('scene-editor-resolution');
     if (resolution) resolution.textContent = state.screen?.resolution || '—';
