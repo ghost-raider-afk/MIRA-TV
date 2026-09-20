@@ -851,6 +851,7 @@ export function renderSceneElementInspector(state, {
   onBeforeMutate,
   onVisualChange,
   onStructureChange,
+  onWeatherLocationSearch,
   onUpload
 } = {}) {
   if (!(container instanceof HTMLElement)) return null;
@@ -868,7 +869,15 @@ export function renderSceneElementInspector(state, {
 
   const index = elements.indexOf(element);
   const weatherOwnerId = elements.find((item) => item?.type === 'weather')?.id || null;
-  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
+  const options = {
+    container,
+    onBeforeMutate,
+    onVisualChange,
+    onStructureChange,
+    onWeatherLocationSearch,
+    onUpload,
+    weatherOwnerId
+  };
   const card = renderElementCard(state, element, index, options);
   card.open = true;
 
