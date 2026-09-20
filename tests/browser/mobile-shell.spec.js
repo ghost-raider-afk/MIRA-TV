@@ -55,7 +55,12 @@ test.describe('mobile application shell', () => {
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
     await expect(page.locator('body')).not.toHaveClass(/ui-context-open/);
 
-    await page.locator('.ui-rail').getByLabel('Плейлист').click();
+    await page.locator('.ui-rail').getByLabel('Мониторы').click();
+    await expect(page).toHaveURL(/\/screens$/);
+    await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
+    await trigger.click();
+    await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
+    await page.getByRole('link', { name: /^Плейлист/ }).click();
     await expect(page).toHaveURL(/\/playlist$/);
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
     await expectNoPageOverflow(page);
