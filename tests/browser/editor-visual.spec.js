@@ -125,35 +125,18 @@ test('reference density keeps MIRA-TV 1 two-line typography without overlap', as
   expect(overlaps.some(Boolean)).toBe(false);
 });
 
-test('table settings move and resize the same canonical preview SVG', async ({ page }) => {
+test('monitor settings do not own visual Scene controls', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await login(page);
   const { screen } = await createEditorFixture(page, { rows: 3 });
   await page.goto(`/screen-editor?id=${screen.id}`);
-  await openSettings(page, 'Таблица');
-  const x = page.locator('#editor-table-x');
-  const width = page.locator('#editor-table-width');
-  await expect(x).toHaveValue('56');
-  await x.fill('100');
-  await width.fill('1200');
-  await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
-  const rect = page.locator('svg.menu-table-svg .table-section rect').first();
-  await expect(rect).toHaveAttribute('x', '100');
-  await expect(rect).toHaveAttribute('width', '1200');
-  await expect(page.locator('#editor-publish')).toHaveCount(0);
-});
 
-test('font selector changes preview through canonical renderer', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await login(page);
-  const { screen } = await createEditorFixture(page, { rows: 3 });
-  await page.goto(`/screen-editor?id=${screen.id}`);
-  await openSettings(page, 'Таблица');
-  const font = page.locator('#editor-font-family');
-  await expect(font).toHaveValue('arial-narrow');
-  await font.selectOption('tahoma-bold');
-  await expect(page.locator('#editor-dirty-state')).toHaveText('Не сохранено');
-  await expect(page.locator('svg.menu-table-svg')).toHaveAttribute('font-family', 'Tahoma, Arial, sans-serif');
+  await expect(page.locator('#editor-table-x')).toHaveCount(0);
+  await expect(page.locator('#editor-font-family')).toHaveCount(0);
+  await expect(page.locator('#editor-background-file')).toHaveCount(0);
+  await expect(page.locator('#editor-add-section')).toHaveCount(0);
+  await expect(page.locator('#editor-menu-preview [data-editor-preview-row-control]')).toHaveCount(0);
+  await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
 });
 
 test('screen properties update preview and keep the editor dirty until save', async ({ page }) => {
