@@ -361,19 +361,21 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect.poll(async () => weatherNode.evaluate((node) => {
     const outer = node.getBoundingClientRect();
     const widget = node.querySelector('.weather-widget');
-    if (!(widget instanceof HTMLElement)) return false;
-    const rects = [widget, ...widget.querySelectorAll('*')]
-      .filter((item) => item instanceof Element)
-      .map((item) => item.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 || rect.height > 0);
-    const left = Math.min(...rects.map((rect) => rect.left));
-    const top = Math.min(...rects.map((rect) => rect.top));
-    const right = Math.max(...rects.map((rect) => rect.right));
-    const bottom = Math.max(...rects.map((rect) => rect.bottom));
-    return left >= outer.left - 1 && top >= outer.top - 1 && right <= outer.right + 1 && bottom <= outer.bottom + 1;
+    const visual = node.querySelector('.weather-widget-visual');
+    if (!(widget instanceof HTMLElement) || !(visual instanceof HTMLElement)) return false;
+    const widgetRect = widget.getBoundingClientRect();
+    const visualRect = visual.getBoundingClientRect();
+    const visibleWidgetInside =
+      widgetRect.left >= outer.left - 1 && widgetRect.top >= outer.top - 1
+      && widgetRect.right <= outer.right + 1 && widgetRect.bottom <= outer.bottom + 1;
+    const visualInsideWidget =
+      visualRect.left >= widgetRect.left - 1 && visualRect.top >= widgetRect.top - 1
+      && visualRect.right <= widgetRect.right + 1 && visualRect.bottom <= widgetRect.bottom + 1;
+    return visibleWidgetInside && visualInsideWidget && getComputedStyle(visual).overflow === 'hidden';
   })).toBe(true);
 
   await expect(weatherNode).toHaveCSS('overflow', 'hidden');
+  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCSS('overflow', 'hidden');
   const effectiveScale = Number(await weatherNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
   expect(effectiveScale).toBeGreaterThan(0);
   expect(effectiveScale).toBeLessThan(1);

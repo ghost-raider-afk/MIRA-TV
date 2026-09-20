@@ -86,7 +86,7 @@ async function removePreviewFixture(page, fixture) {
   await page.request.delete(`/api/catalog/products/${fixture.productId}`).catch(() => undefined);
 }
 
-test('Playlist Studio owns only menu motion and Scene Playlist and shares the Player renderer', async ({ page }) => {
+test('Playlist Studio owns only Scene Playlist and preserves the screen motion profile', async ({ page }) => {
   await login(page);
   const fixture = await createPreviewFixture(page);
   const original = await animationSettings(page);
@@ -97,8 +97,11 @@ test('Playlist Studio owns only menu motion and Scene Playlist and shares the Pl
     const inspector = page.locator('.playlist-inspector');
     await expect(previewPane).toBeVisible();
     await expect(inspector).toBeVisible();
-    await expect(inspector.locator('[data-animation-inspector-tab]')).toHaveCount(2);
+    await expect(inspector.locator('[data-animation-inspector-tab]')).toHaveCount(0);
+    await expect(inspector.locator('[data-animation-inspector-panel="playlist"]')).toBeVisible();
     await expect(inspector.locator('.animation-object-manager')).toHaveCount(0);
+    await expect(inspector.locator('#animation-item-effect')).toHaveCount(0);
+    await expect(inspector.locator('#animation-intensity')).toHaveCount(0);
     await expect(inspector).not.toContainText('Аквариум');
     await expect(inspector).not.toContainText('Объявление');
     await expect(inspector).not.toContainText('Бренд');
@@ -118,16 +121,7 @@ test('Playlist Studio owns only menu motion and Scene Playlist and shares the Pl
     await expect(inspector.locator('#animation-apply-screens')).toBeVisible();
     await expect(inspector.locator('#animation-target-summary')).toContainText('1 монитор');
 
-    await page.locator('#animation-item-effect').selectOption('cinematic');
-    await page.locator('#animation-intensity').fill('82');
-    await expect(page.locator('#animation-intensity-output')).toHaveText('82%');
-    await expect(page.locator('#animation-stage')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
-    const row = page.locator('#animation-stage g.table-item').first();
-    const surface = row.locator(':scope > .row-motion-surface-item');
-    await expect(surface).toHaveAttribute('data-motion', 'item');
-    await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
-
-    await inspector.locator('[data-animation-inspector-tab="playlist"]').click();
+    const beforePlaylistEdit = await animationSettings(page, fixture.screenId);
     const playlistPanel = inspector.locator('[data-animation-inspector-panel="playlist"]');
     await expect(playlistPanel).toBeVisible();
     await expect(page.locator('.playlist-scene-strip')).toBeVisible();
@@ -148,27 +142,26 @@ test('Playlist Studio owns only menu motion and Scene Playlist and shares the Pl
     await expect(menuLayer).not.toHaveClass(/scene-menu-suppressed/);
     await expect(sceneElement).toBeVisible();
 
-    const saveResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation') && response.request().method() === 'PUT');
+    const saveResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation/playlist') && response.request().method() === 'PUT');
     await page.locator('#animation-save').click();
     expect((await saveResponse).ok()).toBeTruthy();
 
     const saved = await animationSettings(page);
-    expect(saved.profile.intensity).toBe(82);
-    expect(saved.profile.price_effect).toBe('none');
+    expect(saved.profile).toEqual(original.profile);
     expect(saved.scene_playlist.enabled).toBe(true);
     expect(saved.scene_playlist.scenes.some((scene) =>
       scene.type === 'promo' && scene.title === 'Пятничная акция' && scene.mode === 'fullscreen'
     )).toBe(true);
     for (const legacy of ['entity','announcement','brand','environment','weather']) expect(legacy in saved).toBe(false);
 
-    const applyResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation/apply') && response.request().method() === 'PUT');
+    const applyResponse = page.waitForResponse((response) => response.url().endsWith('/api/settings/animation/playlist/apply') && response.request().method() === 'PUT');
     await page.locator('#animation-apply-screens').click();
     const appliedResponse = await applyResponse;
     expect(appliedResponse.ok()).toBeTruthy();
     expect(appliedResponse.request().postDataJSON().screen_ids).toEqual([fixture.screenId]);
 
     const applied = await animationSettings(page, fixture.screenId);
-    expect(applied.profile.intensity).toBe(82);
+    expect(applied.profile).toEqual(beforePlaylistEdit.profile);
     expect(applied.scene_playlist.scenes.some((scene) => scene.title === 'Пятничная акция')).toBe(true);
   } finally {
     if (!page.isClosed()) {
@@ -183,8 +176,8 @@ test('Scene Playlist preview rebinds to canonical Player layers after screen rer
   const fixture = await createPreviewFixture(page);
   try {
     await page.goto(`/playlist?screen=${fixture.screenId}`);
-    await page.locator('[data-animation-inspector-tab="playlist"]').click();
     const panel = page.locator('[data-animation-inspector-panel="playlist"]');
+    await expect(panel).toBeVisible();
     await panel.getByRole('button', { name: '+ ContentScene', exact: true }).click();
     await panel.getByLabel('Заголовок').fill('Информация');
     await panel.getByLabel('Режим показа').selectOption('split');

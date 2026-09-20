@@ -1388,7 +1388,7 @@ export function initialiseSceneEditor() {
       history.clear();
       setDirty();
       renderSelectionOwners();
-      setMessage('scene-editor-message', 'Сцена и анимация сохранены и доступны TV Player.', 'success');
+      setMessage('scene-editor-message', 'Сцена сохранена. Анимация сохранена и доступна TV Player.', 'success');
     } catch (error) {
       if (active()) setMessage('scene-editor-message', error.message);
     } finally {
