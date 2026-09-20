@@ -99,3 +99,15 @@
   .scene-editor-workspace{grid-template-columns:150px minmax(0,1fr) 224px}
   .scene-editor-panel{padding:6px}.scene-editor-canvas-panel{padding:6px}
 }
+
+.scene-editor-add-menu>button{grid-template-columns:26px minmax(0,1fr);align-items:center;column-gap:7px}
+.scene-editor-type-icon{display:grid;width:24px;height:24px;place-items:center;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel);color:var(--ui-text);font-size:10px;font-weight:900;line-height:1}
+.scene-editor-add-copy{display:grid;min-width:0;gap:1px}
+.scene-editor-add-copy strong{overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.scene-editor-add-copy small{overflow:hidden;color:var(--ui-text-muted);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.scene-editor-properties-kind{position:relative;display:grid;width:24px;height:24px;max-width:none;flex:0 0 24px;place-items:center;overflow:visible;padding:0;border-radius:5px;font-size:10px;line-height:1}
+.scene-editor-properties-kind[data-element-type="text"]{font-family:Georgia,serif;font-weight:900}
+.scene-editor-properties-kind[data-element-type="video"]{font-size:8px}
+.scene-editor-properties-kind::after{content:attr(data-tooltip);position:absolute;z-index:120;top:calc(100% + 6px);right:0;display:none;width:max-content;max-width:150px;padding:4px 6px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised);color:var(--ui-text);box-shadow:0 8px 20px rgba(0,0,0,.18);font:700 8px/1.2 inherit;white-space:nowrap}
+.scene-editor-properties-kind[data-tooltip]:not([data-tooltip=""]):hover::after,
+.scene-editor-properties-kind[data-tooltip]:not([data-tooltip=""]):focus-visible::after{display:block}
