@@ -147,7 +147,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(Number(await inspector.getByLabel('Ширина', { exact:true }).inputValue())).toBeGreaterThan(720);
   expect(Number(await inspector.getByLabel('Высота', { exact:true }).inputValue())).toBeGreaterThan(220);
 
-  await page.route('**/api/weather/locations?**', async (route) => {
+  await page.route(/\/api\/weather\/locations(?:\?|$)/, async (route) => {
     await route.fulfill({
       status:200,
       contentType:'application/json',
@@ -161,7 +161,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
       }])
     });
   });
-  await page.route('**/api/weather/preview?**', async (route) => {
+  await page.route(/\/api\/weather\/preview(?:\?|$)/, async (route) => {
     await route.fulfill({
       status:200,
       contentType:'application/json',
