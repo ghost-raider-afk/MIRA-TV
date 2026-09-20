@@ -118,7 +118,13 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Заполнение' }).click();
   await animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Gloss Shine' }).click();
   await animationInspector.getByLabel('Характер').selectOption('wave');
-  await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'fill');
+  const promotionGlow = page.locator('#scene-editor-stage .promotion-row-glow');
+  await expect(promotionGlow).toHaveAttribute('data-promotion-row-animation', 'fill');
+  await expect(promotionGlow).toHaveAttribute('data-motion', 'promotion-glow');
+  const promotionClip = promotionGlow.locator('..');
+  await expect(promotionClip).toHaveClass(/promotion-row-clip/);
+  expect(await promotionClip.evaluate((node) => getComputedStyle(node).clipPath)).not.toBe('none');
+  expect(await promotionClip.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
 
   await page.locator('#scene-editor-background-layer').click();

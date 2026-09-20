@@ -62,7 +62,7 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
     <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" clip-path="url(#${clipId})" opacity="0" pointer-events="none">
       <rect x="${x - shineWidth}" y="${top}" width="${shineWidth}" height="${height}" fill="url(#mira-promo-badge-shine)"/>
     </g>`,
-    glow: `<g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" clip-path="url(#${rowClipId})" opacity="0" pointer-events="none"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g>`
+    glow: `<g class="promotion-row-clip" clip-path="url(#${rowClipId})" pointer-events="none"><g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" opacity="0"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g></g>`
   };
 }
 
