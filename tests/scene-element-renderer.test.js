@@ -25,6 +25,7 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(renderer, /flow\.dataset\.sceneTextFlow/);
   assert.match(renderer, /span\.style\.display = scaleX === 1 && scaleY === 1 \? 'inline' : 'inline-block'/);
   assert.match(renderer, /element\.enabled === false \? 'none' : 'block'/);
+  assert.match(renderer, /element\.type === 'text' \? 'visible' : 'hidden'/);
   assert.doesNotMatch(renderer, /innerHTML/);
 
   assert.match(preview, /menuLayer\.innerHTML = buildTableSvg/);
