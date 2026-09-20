@@ -52,13 +52,17 @@ export class SceneMotionRuntime {
     delete this.stage.dataset.motionMode;
   }
 
-  render({ profile = null, menuEnabled = false } = {}) {
+  render({ profile = null, menuEnabled = false, promotionEnabled = true } = {}) {
     if (this.destroyed) return null;
     this.runtime.destroy();
     this.scene = buildDomMotionScene(this.stage);
     this.plan = this.runtime.load({
       scene: this.scene,
-      context: { profile: profile || {}, menuEnabled: menuEnabled === true }
+      context: {
+        profile: profile || {},
+        menuEnabled: menuEnabled === true,
+        promotionEnabled: promotionEnabled !== false
+      }
     });
 
     if (this.plan.tracks.length) this.stage.dataset.motionMode = 'wasm-continuous';
