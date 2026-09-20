@@ -80,7 +80,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await inspector.getByLabel('Текст', { exact:true }).fill('бар маяк');
   await inspector.getByLabel('X', { exact:true }).fill('300');
   await inspector.getByLabel('Y', { exact:true }).fill('160');
-  await inspector.getByRole('button', { name:'Шрифт', exact:true }).click();
+  await inspector.getByRole('tab', { name:'Шрифт', exact:true }).click();
   await inspector.getByLabel('Размер, px', { exact:true }).fill('96');
   await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toContainText('бар маяк');
@@ -89,7 +89,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
   await inspector.getByLabel('Тип элемента 2').selectOption('weather');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="weather"]')).toHaveCount(1);
-  await expect(inspector.getByRole('button', { name:'Погода', exact:true })).toBeVisible();
+  await expect(inspector.getByRole('tab', { name:'Погода', exact:true })).toBeVisible();
 
   await page.locator('#scene-editor-add').click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(3);
