@@ -96,12 +96,12 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const promotionEditor = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
   await expect(promotionEditor).toBeVisible();
   await promotionEditor.locator('input[type="checkbox"]').check();
-  const promotionRowAnimation = promotionEditor.getByLabel('Анимация строки акции');
-  const promotionBadgeAnimation = promotionEditor.getByLabel('Анимация плашки акции');
-  await expect(promotionRowAnimation).toHaveValue('wave');
-  await expect(promotionBadgeAnimation).toHaveValue('shine');
-  await promotionRowAnimation.selectOption('gloss');
-  await promotionBadgeAnimation.selectOption('breathe');
+  const promotionRowAnimation = promotionEditor.getByRole('radiogroup', { name:'Анимация строки акции' });
+  const promotionBadgeAnimation = promotionEditor.getByRole('radiogroup', { name:'Анимация плашки акции' });
+  await expect(promotionRowAnimation.getByRole('radio', { name:'Мягкая волна' })).toHaveAttribute('aria-checked', 'true');
+  await expect(promotionBadgeAnimation.getByRole('radio', { name:'Gloss Shine' })).toHaveAttribute('aria-checked', 'true');
+  await promotionRowAnimation.getByRole('radio', { name:'Gloss-перелив' }).click();
+  await promotionBadgeAnimation.getByRole('radio', { name:'Breathing Glow' }).click();
   await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'gloss');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
