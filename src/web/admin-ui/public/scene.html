@@ -40,7 +40,16 @@
               <aside class="scene-editor-panel scene-editor-layers-panel" aria-label="Слои сцены">
                 <div class="scene-editor-panel-head">
                   <div><span class="scene-editor-kicker">СЛОИ</span><strong>Элементы</strong></div>
-                  <button id="scene-editor-add" class="button button-secondary" type="button" disabled>+ Элемент</button>
+                  <div class="scene-editor-add-wrap">
+                    <button id="scene-editor-add" class="button button-secondary" type="button" aria-haspopup="menu" aria-expanded="false" disabled>+ Элемент</button>
+                    <div id="scene-editor-add-menu" class="scene-editor-add-menu" role="menu" aria-label="Добавить элемент" hidden>
+                      <button type="button" role="menuitem" data-scene-element-type="text"><strong>Текстовое поле</strong><span>Надпись и типографика</span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="logo"><strong>Логотип</strong><span>Логотип бренда</span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="image"><strong>Картинка</strong><span>Изображение на сцене</span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="video"><strong>Видео</strong><span>MP4 / WebM, до двух</span></button>
+                      <button type="button" role="menuitem" data-scene-element-type="weather"><strong>Погода</strong><span>Один виджет на сцену</span></button>
+                    </div>
+                  </div>
                 </div>
                 <div id="scene-editor-layers" class="scene-editor-layers" aria-label="Список элементов"></div>
                 <div class="scene-editor-layer-hint">Выберите слой или объект на рабочем экране.</div>
@@ -69,6 +78,7 @@
               <aside class="scene-editor-panel scene-editor-properties-panel" aria-label="Свойства элемента">
                 <div class="scene-editor-panel-head scene-editor-properties-head">
                   <div><span class="scene-editor-kicker">СВОЙСТВА</span><strong id="scene-editor-properties-title">Элемент не выбран</strong></div>
+                  <span id="scene-editor-properties-kind" class="scene-editor-properties-kind">—</span>
                 </div>
                 <div id="scene-editor-properties" class="scene-editor-properties">
                   <p class="scene-editor-empty">Выберите элемент слева или на рабочем экране.</p>
