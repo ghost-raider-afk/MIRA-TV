@@ -7,7 +7,7 @@
 .scene-editor-screen-picker{display:grid;grid-template-columns:auto minmax(180px,280px);align-items:center;gap:6px}.scene-editor-screen-picker>span{color:var(--ui-text-muted);font-size:9px;font-weight:800;letter-spacing:.08em}.scene-editor-screen-picker select{min-height:34px;padding:4px 28px 4px 8px;font-size:11px}
 .scene-editor-command-actions .button{min-height:36px;padding:6px 11px;font-size:10px}.scene-editor-resolution{display:inline-flex;min-height:30px;align-items:center;padding:0 8px;border:1px solid var(--ui-border);border-radius:999px;background:var(--ui-panel-raised);color:var(--ui-text-muted);font-size:9px;font-weight:850;font-variant-numeric:tabular-nums}
 .scene-editor-message{margin:0}
-.scene-editor-workspace{display:grid;grid-template-columns:164px minmax(0,1fr) 238px;gap:8px;min-height:0}
+.scene-editor-workspace{display:grid;grid-template-columns:164px minmax(0,1fr) 286px;gap:8px;min-height:0}
 .scene-editor-panel,.scene-editor-canvas-panel{min-width:0;min-height:0;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel);box-shadow:var(--ui-shadow-sm)}
 .scene-editor-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:7px;overflow:hidden}
 .scene-editor-layers-panel{grid-template-rows:auto auto minmax(0,1fr) auto}
@@ -228,3 +228,21 @@
 
 .scene-editor-properties-kind svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .scene-editor-content-scale-grid{margin-top:3px;padding-top:5px;border-top:1px solid var(--ui-border)}
+
+
+.editor-weather-location-picker{position:relative;min-width:0}
+.editor-weather-location-picker>input{width:100%}
+.editor-weather-location-results{position:absolute;z-index:140;top:calc(100% + 3px);left:0;right:0;display:grid;max-height:190px;gap:2px;padding:4px;border:1px solid var(--ui-border-strong);border-radius:6px;background:var(--ui-panel-raised);box-shadow:0 12px 28px color-mix(in srgb,var(--ui-shadow-color) 28%,transparent);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.editor-weather-location-results[hidden]{display:none}
+.editor-weather-location-option{display:grid;min-width:0;min-height:30px;align-content:center;gap:1px;padding:4px 6px;border:0;border-radius:4px;background:transparent;color:var(--ui-text);cursor:pointer;text-align:left}
+.editor-weather-location-option:hover,.editor-weather-location-option:focus-visible{background:color-mix(in srgb,var(--ui-accent) 10%,var(--ui-panel));outline:none}
+.editor-weather-location-option strong,.editor-weather-location-option small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editor-weather-location-option strong{font-size:9px;line-height:1.15}
+.editor-weather-location-option small{color:var(--ui-text-muted);font-size:7px;line-height:1.15}
+
+@media(max-width:1100px){
+  body[data-page="scene"] .editor-weather-location-results{max-height:240px}
+  body[data-page="scene"] .editor-weather-location-option{min-height:42px;padding:6px 8px}
+  body[data-page="scene"] .editor-weather-location-option strong{font-size:12px}
+  body[data-page="scene"] .editor-weather-location-option small{font-size:10px}
+}
