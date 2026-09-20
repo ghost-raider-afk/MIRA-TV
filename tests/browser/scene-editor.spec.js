@@ -93,6 +93,19 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await productSearch.press('Escape');
   await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeHidden();
 
+  const promotionEditor = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
+  await expect(promotionEditor).toBeVisible();
+  await promotionEditor.locator('input[type="checkbox"]').check();
+  const promotionRowAnimation = promotionEditor.getByLabel('Анимация строки акции');
+  const promotionBadgeAnimation = promotionEditor.getByLabel('Анимация плашки акции');
+  await expect(promotionRowAnimation).toHaveValue('wave');
+  await expect(promotionBadgeAnimation).toHaveValue('shine');
+  await promotionRowAnimation.selectOption('gloss');
+  await promotionBadgeAnimation.selectOption('breathe');
+  await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'gloss');
+  await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
+  await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
+
   await page.locator('#scene-editor-background-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
   await expect(page.locator('#scene-editor-properties').getByLabel('Цвет фона')).toHaveValue('#101828');
@@ -203,6 +216,10 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[0].text.runs[0].value).toBe('бар маяк');
   expect(stored.draft.scene.elements[0].x).toBe(300);
   expect(stored.draft.scene.elements[1].type).toBe('weather');
+  const storedPromotion = stored.draft.rows.find((row) => row.kind === 'item');
+  expect(storedPromotion.promotion).toBe(true);
+  expect(storedPromotion.promotion_animation).toBe('gloss');
+  expect(storedPromotion.promotion_badge_animation).toBe('breathe');
 
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
@@ -302,6 +319,16 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect(page.locator('.scene-editor-selection-box.is-selected')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(weatherNode.locator('.weather-widget-location')).toHaveText('Турку');
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
+  const weatherType = await weatherNode.evaluate((node) => {
+    const facts = node.querySelector('.weather-widget-facts');
+    const time = node.querySelector('.weather-widget-forecast-item > span');
+    return {
+      factsSize:facts ? parseFloat(getComputedStyle(facts).fontSize) : 0,
+      timeSize:time ? parseFloat(getComputedStyle(time).fontSize) : 0
+    };
+  });
+  expect(weatherType.factsSize).toBeGreaterThanOrEqual(13);
+  expect(weatherType.timeSize).toBeGreaterThanOrEqual(12);
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
   expect(previewRequests.at(-1)).toMatchObject({
     name:'Турку',
