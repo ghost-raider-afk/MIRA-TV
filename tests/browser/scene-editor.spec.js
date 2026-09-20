@@ -144,7 +144,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="weather"]')).toHaveCount(1);
-  await expect(inspector.getByText('Погода', { exact:true }).first()).toBeVisible();
+  await expect(inspector.locator('summary[aria-label^="Погода:"]')).toBeVisible();
 
   await page.locator('#scene-editor-add').click();
   await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
