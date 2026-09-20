@@ -4,12 +4,10 @@ import { element, setMessage, setPending } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
 import { navigate } from '../core/router.js';
 import { createEditorState, markEditorSaved, replaceEditorState } from './state.js';
-import { updateSettings } from './commands.js';
-import { createEditorHistory } from './history.js';
-import { normaliseEditorSettings } from './settings.js';
-import { bindScreenProperties, readEditorSettings, readScreenProperties, writeEditorSettings, writeScreenProperties } from './properties.js';
-import { renderPreview } from './preview.js';
+import { normaliseEditorSettings, parseResolution } from './settings.js';
+import { bindScreenProperties, readScreenProperties, writeScreenProperties } from './properties.js';
 import { serializeDraft } from './serializer.js';
+import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 
 const EDITOR_LOADING_CONTROLS = Object.freeze([
   'editor-name', 'editor-resolution', 'editor-status', 'editor-active', 'editor-save'
@@ -60,9 +58,8 @@ function setEditorLoading(form, loading) {
   });
 }
 
-function populateEditor(screen, editorState) {
+function populateEditor(screen) {
   writeScreenProperties(screen);
-  writeEditorSettings(editorState.settings);
 }
 
 function setDirtyState(editorState) {
@@ -72,34 +69,12 @@ function setDirtyState(editorState) {
   target.classList.toggle('is-dirty', editorState.dirty);
 }
 
-function setFontScaleState(preview) {
-  const target = element('editor-font-scale-effective');
-  if (!target) return;
-  const vertical = preview?.layout?.vertical;
-  if (!vertical) {
-    target.textContent = 'Фактический масштаб будет рассчитан после загрузки меню.';
-    target.classList.remove('is-auto-reduced');
-    return;
-  }
-  target.textContent = vertical.autoReduced
-    ? `Задано ${vertical.requestedPercent}%, применено ${vertical.effectivePercent}% для вмещения.`
-    : `Фактически ${vertical.effectivePercent}%.`;
-  target.classList.toggle('is-auto-reduced', vertical.autoReduced);
-}
-
-function setLayoutWarning(preview, screen) {
+function setResolutionWarning(screen) {
   const target = element('editor-layout-warning');
   if (!target) return;
-  if (preview?.invalidResolution) {
-    target.classList.remove('is-hidden');
-    target.textContent = 'Укажите разрешение в формате 1920×1080.';
-    return;
-  }
-  const overflowing = preview?.layout?.vertical?.fits === false;
-  target.classList.toggle('is-hidden', !overflowing);
-  target.textContent = overflowing
-    ? `Таблица не помещается в заданную высоту на ${screen?.resolution || 'экране'}. Увеличьте высоту области или сократите строки.`
-    : '';
+  const valid = Boolean(parseResolution(screen?.resolution));
+  target.classList.toggle('is-hidden', valid);
+  target.textContent = valid ? '' : 'Укажите разрешение в формате 1920×1080.';
 }
 
 export function initialiseScreenEditor() {
@@ -115,30 +90,53 @@ export function initialiseScreenEditor() {
   const isMounted = () => !disposed && document.getElementById('screen-editor-form') === form;
 
   const editorState = createEditorState();
-  const history = createEditorHistory(editorState);
   let screen = null;
   let products = [];
   let packaging = [];
+  let renderer = null;
+  let previewFrame = 0;
 
   const previewTarget = element('editor-menu-preview');
+  if (!(previewTarget instanceof HTMLElement)) {
+    void navigate('/screens.html', { replace:true });
+    return undefined;
+  }
 
   setEditorLoading(form, true);
 
-  const refreshPreview = (screenOverride = editorState.screen || screen) => renderPreview(editorState, {
-    screen: screenOverride,
+  const previewContext = (screenOverride = editorState.screen || screen) => ({
+    screen:screenOverride,
+    draft:{ rows:editorState.rows, settings:editorState.settings },
     products,
     packaging,
-    target: previewTarget
+    scene:editorState.scene,
+    animation:{ enabled:false, profile:null },
+    scene_playlist:null
   });
 
+  const renderPlayerPreview = async (screenOverride = editorState.screen || screen, changed = ['screen','menu']) => {
+    if (!isMounted() || !screenOverride) return;
+    const resolution = parseResolution(screenOverride.resolution);
+    previewTarget.style.aspectRatio = resolution ? `${resolution.width} / ${resolution.height}` : '16 / 9';
+    setResolutionWarning(screenOverride);
+    if (!renderer) renderer = new PlayerSceneRenderer(previewTarget, { autoplay:false, weatherPreview:true });
+    await renderer.render(previewContext(screenOverride), changed);
+  };
+
+  const schedulePlayerPreview = (screenOverride = editorState.screen || screen) => {
+    if (previewFrame) cancelAnimationFrame(previewFrame);
+    previewFrame = requestAnimationFrame(() => {
+      previewFrame = 0;
+      void renderPlayerPreview(screenOverride);
+    });
+  };
+
   const refreshEditorView = () => {
-    if (!isMounted()) return null;
+    if (!isMounted()) return;
     const activeScreen = editorState.screen || screen;
-    const preview = refreshPreview(activeScreen);
-    setLayoutWarning(preview, activeScreen);
-    setFontScaleState(preview);
+    setResolutionWarning(activeScreen);
     setDirtyState(editorState);
-    return preview;
+    schedulePlayerPreview(activeScreen);
   };
 
   const load = async () => {
@@ -156,14 +154,14 @@ export function initialiseScreenEditor() {
       revision: 0,
       draftRevision: Number(editor.draft?.revision || 0)
     });
-    history.clear();
-    populateEditor(screen, editorState);
+    populateEditor(screen);
     const sceneLink = element('editor-scene-link');
     const previewSceneLink = element('editor-preview-scene-link');
     if (sceneLink instanceof HTMLAnchorElement) sceneLink.href = `/scene?screen=${screenId}`;
     if (previewSceneLink instanceof HTMLAnchorElement) previewSceneLink.href = `/scene?screen=${screenId}`;
     setEditorLoading(form, false);
-    refreshEditorView();
+    setDirtyState(editorState);
+    await renderPlayerPreview(screen, ['screen','menu','scene']);
   };
   void load().catch((error) => { if (isMounted()) setEditorMessage(error.message); });
 
@@ -174,13 +172,8 @@ export function initialiseScreenEditor() {
     const submit = element('editor-save');
     setPending(submit, true, 'Сохраняем…');
     try {
-      updateSettings(editorState, readEditorSettings(editorState.settings));
       const screenPayload = readScreenProperties(editorState.screen || screen);
-      const preview = refreshPreview(screenPayload);
-      setLayoutWarning(preview, screenPayload);
-      setFontScaleState(preview);
-      if (preview?.invalidResolution) throw new Error('Укажите разрешение в формате 1920×1080.');
-      if (!preview?.layout?.vertical?.fits) throw new Error('Таблица не помещается в заданную область. Измените высоту, масштаб или количество строк.');
+      if (!parseResolution(screenPayload.resolution)) throw new Error('Укажите разрешение в формате 1920×1080.');
 
       const saved = await api.put(`${API.screens}/${screenId}/draft`, serializeDraft(editorState, screenPayload));
       if (!isMounted()) return;
@@ -195,9 +188,9 @@ export function initialiseScreenEditor() {
       });
       screen = saved.screen;
       markEditorSaved(editorState);
-      history.clear();
-      populateEditor(screen, editorState);
-      refreshEditorView();
+      populateEditor(screen);
+      setDirtyState(editorState);
+      await renderPlayerPreview(screen, ['screen','menu','scene']);
       await loadNotifications();
       setEditorMessage('Состояние сохранено и доступно TV Player.', 'success');
     } catch (error) {
@@ -220,6 +213,9 @@ export function initialiseScreenEditor() {
     },
     dispose() {
       disposed = true;
+      if (previewFrame) cancelAnimationFrame(previewFrame);
+      renderer?.destroy();
+      renderer = null;
       unbindToolMenus();
       window.removeEventListener('beforeunload', onBeforeUnload);
     }
