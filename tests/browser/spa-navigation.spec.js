@@ -19,9 +19,11 @@ test('main menu and context submenu navigate inside one persistent document', as
     if (request.resourceType() === 'document') documentRequests.push(request.url());
   });
 
+  await expect(page.locator('.ui-rail-button[aria-label="Плейлист"]')).toHaveCount(0);
   await page.locator('.ui-rail-button[aria-label="Мониторы"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await expect(page.locator('[data-screen-hierarchy]')).toBeVisible();
+  await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Плейлист' })).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.getByRole('link', { name: /Торговые точки/ }).click();
