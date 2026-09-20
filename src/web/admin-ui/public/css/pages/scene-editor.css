@@ -34,14 +34,14 @@
 .scene-editor-add-wrap{position:relative}
 .scene-editor-add-menu{position:absolute;z-index:90;top:calc(100% + 5px);left:0;display:grid;width:218px;padding:5px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);box-shadow:0 14px 34px rgba(0,0,0,.24)}
 .scene-editor-add-menu[hidden]{display:none}
-.scene-editor-add-menu>button{display:grid;gap:1px;width:100%;padding:7px 8px;border:0;border-radius:5px;background:transparent;color:var(--ui-text);cursor:pointer;text-align:left}
+.scene-editor-add-menu>button{display:grid;grid-template-columns:26px minmax(0,1fr);width:100%;align-items:center;gap:1px 7px;padding:7px 8px;border:0;border-radius:5px;background:transparent;color:var(--ui-text);cursor:pointer;text-align:left}
 .scene-editor-add-menu>button:hover,.scene-editor-add-menu>button:focus-visible{background:color-mix(in srgb,var(--ui-accent) 9%,var(--ui-panel))}
 .scene-editor-add-menu>button:disabled{opacity:.38;cursor:not-allowed}
 .scene-editor-add-menu strong{font-size:10px}.scene-editor-add-menu span{color:var(--ui-text-muted);font-size:8px}
 .scene-editor-layers-panel{position:relative;overflow:visible}
 
 .scene-editor-properties-head{min-height:32px}
-.scene-editor-properties-kind{display:inline-flex;max-width:92px;align-items:center;overflow:hidden;padding:2px 6px;border:1px solid var(--ui-border);border-radius:999px;color:var(--ui-text-muted);font-size:7px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
+.scene-editor-properties-kind{position:relative;display:grid;width:24px;height:24px;max-width:none;flex:0 0 24px;place-items:center;overflow:visible;padding:0;border:1px solid var(--ui-border);border-radius:5px;color:var(--ui-text-muted);font-size:10px;font-weight:850;line-height:1;white-space:nowrap}
 .scene-editor-inspector-stack{display:grid;align-content:start}
 .scene-editor-inspector-group{border-bottom:1px solid var(--ui-border)}
 .scene-editor-inspector-group>summary{display:flex;min-height:29px;align-items:center;padding:0 5px;color:var(--ui-text);cursor:pointer;font-size:8px;font-weight:900;letter-spacing:.015em;list-style:none}
@@ -74,12 +74,10 @@
   .scene-editor-panel{padding:6px}.scene-editor-canvas-panel{padding:6px}
 }
 
-.scene-editor-add-menu>button{grid-template-columns:26px minmax(0,1fr);align-items:center;column-gap:7px}
 .scene-editor-type-icon{display:grid;width:24px;height:24px;place-items:center;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel);color:var(--ui-text);font-size:10px;font-weight:900;line-height:1}
 .scene-editor-add-copy{display:grid;min-width:0;gap:1px}
 .scene-editor-add-copy strong{overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
 .scene-editor-add-copy small{overflow:hidden;color:var(--ui-text-muted);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
-.scene-editor-properties-kind{position:relative;display:grid;width:24px;height:24px;max-width:none;flex:0 0 24px;place-items:center;overflow:visible;padding:0;border-radius:5px;font-size:10px;line-height:1}
 .scene-editor-properties-kind[data-element-type="text"]{font-family:Georgia,serif;font-weight:900}
 .scene-editor-properties-kind[data-element-type="video"]{font-size:8px}
 .scene-editor-properties-kind::after{content:attr(data-tooltip);position:absolute;z-index:120;top:calc(100% + 6px);right:0;display:none;width:max-content;max-width:150px;padding:4px 6px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised);color:var(--ui-text);box-shadow:0 8px 20px rgba(0,0,0,.18);font:700 8px/1.2 inherit;white-space:nowrap}
