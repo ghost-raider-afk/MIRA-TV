@@ -26,13 +26,16 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(renderer, /span\.style\.display = scaleX === 1 && scaleY === 1 \? 'inline' : 'inline-block'/);
   assert.match(renderer, /element\.enabled === false \? 'none' : 'block'/);
   assert.match(renderer, /element\.type === 'text' \? 'visible' : 'hidden'/);
-  assert.match(renderer, /function contentScaleFactor\(element\)/);
+  assert.match(renderer, /function contentScaleFactor\(node, content, element\)/);
+  assert.match(renderer, /function measuredFitScale\(node, content, element\)/);
+  assert.match(renderer, /visualMeasurementNodes\(content, element\)/);
   assert.match(renderer, /content_auto_scale === false/);
   assert.match(renderer, /content_scale_percent/);
   assert.match(renderer, /content_reference_width/);
   assert.match(renderer, /content_reference_height/);
   assert.match(renderer, /translate\(-50%, -50%\) scale/);
-  assert.match(renderer, /applyContentGeometry\(entry\.content, element\)/);
+  assert.match(renderer, /applyContentGeometry\(entry\.node, entry\.content, element\)/);
+  assert.match(renderer, /refreshContentGeometry\(elementId\)/);
   assert.doesNotMatch(renderer, /innerHTML/);
 
   assert.match(preview, /menuLayer\.innerHTML = buildTableSvg/);
