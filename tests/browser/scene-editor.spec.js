@@ -37,7 +37,7 @@ async function fixture(page) {
     screen:{ location_id:screen.location_id, name:screen.name, resolution:'1920×1080', status:'draft', active:true }
   } });
   expect(saved.ok()).toBeTruthy();
-  return { screen };
+  return { screen, product };
 }
 
 test('Scene editor keeps layers, shared Player preview and contextual properties on one desktop page', async ({ page }) => {
@@ -51,6 +51,23 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-properties')).toBeVisible();
   await expect(page.locator('#scene-editor-screen')).toHaveValue(String(screen.id));
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
+  await expect(page.locator('#scene-editor-background-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-table-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
+  await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(2);
+  const tableProductSelect = page.locator('#scene-editor-table-edit-layer [data-preview-product-select]').first();
+  await expect(tableProductSelect).toBeVisible();
+  expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeLessThanOrEqual(10);
+
+  await page.locator('#scene-editor-background-layer').click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Цвет фона')).toHaveValue('#101828');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Фоновое изображение')).toBeVisible();
+
+  await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
 
   const geometry = await page.evaluate(() => ({
     documentClient:document.documentElement.clientHeight,
@@ -133,6 +150,38 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
   await expect(page.locator('#editor-add-element')).toHaveCount(0);
+  await expect(page.locator('#editor-background-file')).toHaveCount(0);
+  await expect(page.locator('#editor-table-x')).toHaveCount(0);
+  await expect(page.locator('#editor-menu-preview [data-editor-preview-row-control]')).toHaveCount(0);
   await expect(page.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(0);
   await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+  await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+});
+
+test('Scene editor stays a single-page touch workspace on mobile', async ({ page }) => {
+  await page.setViewportSize({ width:390, height:844 });
+  await login(page);
+  const { screen } = await fixture(page);
+  await page.goto(`/scene?screen=${screen.id}`);
+
+  await expect(page.locator('.scene-editor-mobile-toolbar')).toBeVisible();
+  const size = await page.evaluate(() => ({
+    clientHeight:document.documentElement.clientHeight,
+    scrollHeight:document.documentElement.scrollHeight,
+    clientWidth:document.documentElement.clientWidth,
+    scrollWidth:document.documentElement.scrollWidth
+  }));
+  expect(size.scrollHeight).toBeLessThanOrEqual(size.clientHeight + 2);
+  expect(size.scrollWidth).toBeLessThanOrEqual(size.clientWidth + 2);
+
+  await page.getByRole('button', { name:/Слои/ }).click();
+  await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
+  await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
+
+  await page.getByRole('button', { name:/Элемент/ }).click();
+  await expect(page.locator('#scene-editor-add-menu')).toBeVisible();
+  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Текстовое поле/ }).click();
+  await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
+  await expect(page.locator('.scene-editor-resize-handle')).toHaveCount(8);
 });
