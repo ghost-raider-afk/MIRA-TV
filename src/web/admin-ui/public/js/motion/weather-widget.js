@@ -202,7 +202,7 @@ function createAtmosphere(state, config) {
   return atmosphere;
 }
 
-function createContent(config, data) {
+function createContent(config, data, state) {
   const card = document.createElement('section');
   card.className = 'weather-widget weather-widget-adaptive';
   card.dataset.weatherDraggable = 'true';
@@ -224,15 +224,26 @@ function createContent(config, data) {
   content.className = 'weather-widget-content';
   const top = document.createElement('div');
   top.className = 'weather-widget-main';
-  const icon = document.createElement('div');
-  icon.className = 'weather-widget-icon';
-  icon.innerHTML = svgIcon(data.icon || 'cloud');
+
   const primary = document.createElement('div');
   primary.className = 'weather-widget-primary';
   if (config.show_location) primary.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
   primary.append(text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`));
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
-  top.append(icon, primary);
+
+  const visual = document.createElement('div');
+  visual.className = 'weather-widget-visual';
+  visual.dataset.weatherVisual = state;
+  if (config.animation_enabled) {
+    visual.append(createAtmosphere(state, config));
+  } else {
+    const icon = document.createElement('div');
+    icon.className = 'weather-widget-icon';
+    icon.innerHTML = svgIcon(data.icon || 'cloud');
+    visual.append(icon);
+  }
+
+  top.append(primary, visual);
   content.append(top);
 
   const facts = document.createElement('div');
@@ -291,8 +302,7 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   const data = snapshot && typeof snapshot === 'object' ? snapshot : WEATHER_SAMPLE;
   const state = weatherVisualState(data);
   layer.dataset.weatherState = state;
-  const atmosphere = createAtmosphere(state, config);
-  const widget = createContent(config, data);
+  const widget = createContent(config, data, state);
   widget.dataset.weatherState = state;
-  layer.append(atmosphere, widget);
+  layer.append(widget);
 }

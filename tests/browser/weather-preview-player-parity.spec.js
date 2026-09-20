@@ -102,6 +102,11 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
     const previewLayer=adminPage.locator('#scene-editor-stage [data-scene-elements-layer]');
     const previewNode=previewLayer.locator('[data-scene-element-id="weather-parity"]');
     await expect(previewNode.locator('.weather-widget')).toBeVisible();
+    await expect(adminPage.locator('#scene-editor-stage')).toHaveAttribute('data-scene-viewport-width', '1920');
+    await expect(adminPage.locator('#scene-editor-stage')).toHaveAttribute('data-scene-viewport-height', '1080');
+    const previewViewportScale=Number(await adminPage.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
+    expect(previewViewportScale).toBeGreaterThan(0);
+    expect(previewViewportScale).toBeLessThan(1);
     const previewGeometry=await normalizedGeometry(adminPage,'#scene-editor-stage [data-scene-elements-layer]','[data-scene-element-id="weather-parity"]');
     const previewScale=Number(await previewNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
     const previewText=await previewNode.locator('.weather-widget').innerText();
@@ -114,7 +119,7 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
     const persistedWeather=persisted.draft.scene.elements.find((element)=>element.id==='weather-parity');
     expect(persistedWeather).toMatchObject({ type:'weather', x:700, y:315, width:525, height:360 });
 
-    const player=await browser.newContext({ baseURL, viewport:{width:1920,height:1080}, serviceWorkers:'block' });
+    const player=await browser.newContext({ baseURL, viewport:{width:1366,height:768}, serviceWorkers:'block' });
     await player.addInitScript(()=>{
       class FakeWebSocket extends EventTarget {
         static CONNECTING=0; static OPEN=1; static CLOSING=2; static CLOSED=3;
@@ -159,6 +164,12 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
     const playerLayer=playerPage.locator('[data-player-stage] [data-scene-elements-layer]');
     const playerNode=playerLayer.locator('[data-scene-element-id="weather-parity"]');
     await expect(playerNode.locator('.weather-widget')).toBeVisible();
+    const playerStage=playerPage.locator('[data-player-stage]');
+    await expect(playerStage).toHaveAttribute('data-scene-viewport-width', '1920');
+    await expect(playerStage).toHaveAttribute('data-scene-viewport-height', '1080');
+    const playerViewportScale=Number(await playerStage.getAttribute('data-scene-viewport-scale'));
+    expect(playerViewportScale).toBeGreaterThan(0);
+    expect(playerViewportScale).toBeLessThan(1);
     const playerGeometry=await normalizedGeometry(playerPage,'[data-player-stage] [data-scene-elements-layer]','[data-scene-element-id="weather-parity"]');
     expect(playerGeometry).not.toBeNull();
 
@@ -170,6 +181,14 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
     const playerText=await playerNode.locator('.weather-widget').innerText();
     expect(Math.abs(previewScale-playerScale)).toBeLessThan(.001);
     expect(previewText).toBe(playerText);
+
+    await playerPage.setViewportSize({width:1024,height:768});
+    await expect.poll(async()=>Number(await playerStage.getAttribute('data-scene-viewport-scale'))).toBeLessThan(playerViewportScale);
+    const resizedGeometry=await normalizedGeometry(playerPage,'[data-player-stage] [data-scene-elements-layer]','[data-scene-element-id="weather-parity"]');
+    for(const key of ['x','y','width','height']) {
+      expect(Math.abs(playerGeometry[key]-resizedGeometry[key]),`player resize ${key}`).toBeLessThan(1.5);
+      expect(Math.abs(previewGeometry[key]-resizedGeometry[key]),`preview/resized-player ${key}`).toBeLessThan(1.5);
+    }
     await player.close();
   } finally {
     if(locationId) await adminPage.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
