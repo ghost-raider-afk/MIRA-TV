@@ -6,12 +6,11 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('Scene owns canonical menu editing while monitor settings keep a read-only TV preview', async () => {
-  const [monitorHtml, monitorEditor, sceneHtml, sceneEditor, preview, rows, editorCss, sceneCss] = await Promise.all([
+  const [monitorHtml, monitorEditor, sceneHtml, sceneEditor, rows, editorCss, sceneCss] = await Promise.all([
     read('src/web/admin-ui/public/screen-editor.html'),
     read('src/web/admin-ui/public/js/editor/editor.js'),
     read('src/web/admin-ui/public/scene.html'),
     read('src/web/admin-ui/public/js/pages/scene.js'),
-    read('src/web/admin-ui/public/js/editor/preview.js'),
     read('src/web/admin-ui/public/js/editor/rows.js'),
     read('src/web/admin-ui/public/css/editor/editor.css'),
     read('src/web/admin-ui/public/css/pages/scene-editor.css')
@@ -21,7 +20,9 @@ test('Scene owns canonical menu editing while monitor settings keep a read-only 
   assert.match(monitorHtml, /id="editor-preview-scene-link"/);
   assert.doesNotMatch(monitorHtml, /id="editor-preview-row-inspector"|id="editor-add-section"|id="editor-add-item"|id="editor-add-packaging"/);
   assert.doesNotMatch(monitorHtml, /id="editor-background-file"|id="editor-table-x"|id="editor-font-family"/);
-  assert.doesNotMatch(monitorEditor, /renderPreviewRows|appendRow/);
+  assert.doesNotMatch(monitorEditor, /renderPreviewRows|appendRow|renderPreview\(/);
+  assert.match(monitorEditor, /PlayerSceneRenderer/);
+  assert.match(monitorEditor, /weatherPreview:true/);
 
   assert.match(sceneHtml, /id="scene-editor-table-edit-layer"/);
   assert.match(sceneHtml, /id="scene-editor-background-layer"/);
@@ -30,11 +31,6 @@ test('Scene owns canonical menu editing while monitor settings keep a read-only 
   assert.match(sceneEditor, /buildRenderModel/);
   assert.match(sceneEditor, /appendRow/);
   assert.match(sceneEditor, /data-scene-table-row-inspector/);
-
-  assert.match(preview, /editorPreviewControlsLayer/);
-  assert.doesNotMatch(preview, /SceneElementRenderer|sceneRenderer|data-scene-elements-layer|weatherPreview/);
-  assert.match(preview, /target\.append\(menuLayer, editorLayer\)/);
-  assert.match(preview, /return \{ model, lines, layout, editorLayer \}/);
 
   assert.match(rows, /line\.sourceRowId/);
   assert.match(rows, /line\.sourceRowIds/);
