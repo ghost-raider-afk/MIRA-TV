@@ -383,7 +383,8 @@ export class SceneElementRenderer {
       const fingerprint = JSON.stringify(element);
       applyGeometry(entry.node, element);
       entry.element = element;
-      if (entry.fingerprint !== fingerprint) {
+      const liveWeatherPreview = this.weatherPreview && element.type === 'weather';
+      if (entry.fingerprint !== fingerprint || liveWeatherPreview) {
         updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview, this.weatherSnapshotProvider);
         entry.fingerprint = fingerprint;
       } else if (entry.content instanceof HTMLVideoElement) {
