@@ -30,10 +30,19 @@ function contentScaleFactor(element) {
   return Math.max(.01, Math.min(width / referenceWidth, height / referenceHeight)) * manual;
 }
 
+function intrinsicContentFit(content) {
+  const width = Math.max(0, Number(content.clientWidth || 0));
+  const height = Math.max(0, Number(content.clientHeight || 0));
+  if (width <= 0 || height <= 0) return 1;
+  const requiredWidth = Math.max(width, Number(content.scrollWidth || 0));
+  const requiredHeight = Math.max(height, Number(content.scrollHeight || 0));
+  if (requiredWidth <= 0 || requiredHeight <= 0) return 1;
+  return Math.max(.01, Math.min(1, width / requiredWidth, height / requiredHeight));
+}
+
 function applyContentGeometry(content, element) {
   const referenceWidth = Math.max(1, Number(element?.content_reference_width || element?.width || 1));
   const referenceHeight = Math.max(1, Number(element?.content_reference_height || element?.height || 1));
-  const scale = contentScaleFactor(element);
   content.style.position = 'absolute';
   content.style.left = '50%';
   content.style.top = '50%';
@@ -44,6 +53,11 @@ function applyContentGeometry(content, element) {
   content.style.maxWidth = 'none';
   content.style.maxHeight = 'none';
   content.style.transformOrigin = 'center center';
+
+  const fit = intrinsicContentFit(content);
+  const scale = contentScaleFactor(element) * fit;
+  content.dataset.sceneIntrinsicFit = String(fit);
+  content.dataset.sceneContentScale = String(scale);
   content.style.transform = 'translate(-50%, -50%) scale(' + String(scale) + ')';
 }
 
@@ -264,7 +278,7 @@ function weatherSettings(element) {
   };
 }
 
-function updateContent(content, element, playbackAllowed, weatherPreview = false) {
+function updateContent(content, element, playbackAllowed, weatherPreview = false, weatherSnapshotProvider = null) {
   if (element.type === 'text') {
     renderText(content, element.text);
     return;
@@ -273,7 +287,14 @@ function updateContent(content, element, playbackAllowed, weatherPreview = false
     content.dataset.weatherMode = String(element.weather?.mode || 'current');
     content.dataset.showLocation = element.weather?.show_location === false ? 'false' : 'true';
     content.dataset.showCondition = element.weather?.show_condition === false ? 'false' : 'true';
-    if (weatherPreview) renderWeatherWidget(content, weatherSettings(element), WEATHER_SAMPLE);
+    if (weatherPreview) {
+      const fallback = {
+        ...WEATHER_SAMPLE,
+        location_name:String(element.weather?.location_name || WEATHER_SAMPLE.location_name)
+      };
+      const snapshot = weatherSnapshotProvider?.(element) || fallback;
+      renderWeatherWidget(content, weatherSettings(element), snapshot);
+    }
     return;
   }
   updateMedia(content, element, playbackAllowed);
@@ -295,12 +316,13 @@ function applyGeometry(node, element) {
 }
 
 export class SceneElementRenderer {
-  constructor(layer, { activityTarget = null, autoplay = true, weatherPreview = false } = {}) {
+  constructor(layer, { activityTarget = null, autoplay = true, weatherPreview = false, weatherSnapshotProvider = null } = {}) {
     if (!(layer instanceof HTMLElement)) throw new TypeError('SceneElementRenderer requires an HTMLElement layer.');
     this.layer = layer;
     this.activityTarget = activityTarget instanceof HTMLElement ? activityTarget : null;
     this.autoplay = autoplay !== false;
     this.weatherPreview = weatherPreview === true;
+    this.weatherSnapshotProvider = typeof weatherSnapshotProvider === 'function' ? weatherSnapshotProvider : null;
     this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
     this.sceneVisible = this.activityTarget?.dataset.scenePlaylistFullscreen !== 'true';
     this.entries = new Map();
@@ -362,14 +384,14 @@ export class SceneElementRenderer {
       applyGeometry(entry.node, element);
       entry.element = element;
       if (entry.fingerprint !== fingerprint) {
-        updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview);
+        updateContent(entry.content, element, this.playbackAllowed(), this.weatherPreview, this.weatherSnapshotProvider);
         entry.fingerprint = fingerprint;
       } else if (entry.content instanceof HTMLVideoElement) {
         syncVideo(entry.content, element, this.playbackAllowed());
       }
-      applyContentGeometry(entry.content, element);
 
       this.layer.append(entry.node);
+      applyContentGeometry(entry.content, element);
     }
 
     for (const [id, entry] of this.entries) {
@@ -407,6 +429,7 @@ export class SceneElementRenderer {
     this.activityTarget?.removeEventListener('mira:scene-playlist-mode', this.handleScenePlaylistMode);
     this.clear();
     this.activityTarget = null;
+    this.weatherSnapshotProvider = null;
     this.layer = null;
   }
 }
