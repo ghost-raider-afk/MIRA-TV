@@ -13,8 +13,9 @@ test('cached TV video never copies the full asset into JavaScript memory for Ran
 
   assert.doesNotMatch(implementation, /arrayBuffer\s*\(/, 'video Range handling must not materialize the full cached video in JS memory');
   assert.doesNotMatch(implementation, /\.slice\s*\(/, 'video Range handling must not copy byte ranges in JS');
-  assert.match(implementation, /if \(cached\)[\s\S]*return cached;/, 'cached video must be returned as the original streaming Response');
-  assert.match(implementation, /request\.headers\.has\('range'\)/, 'uncached Range requests must stay on the native HTTP path');
+  assert.match(implementation, /request\.headers\.has\('range'\)/, 'Range requests must stay explicit');
+  assert.match(implementation, /networkWithTimeout\(request, 8000\)/, 'online Range requests must preserve native HTTP byte ranges');
+  assert.match(implementation, /return cached \|\| Response\.error\(\)/, 'complete cache must remain the offline fallback without JS slicing');
 });
 
 test('Unified TV scene runtime is event-driven and pauses hidden motion plus video', async () => {
