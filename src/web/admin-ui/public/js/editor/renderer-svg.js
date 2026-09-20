@@ -43,14 +43,22 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
   const top = box.top + 4 * scale;
   const notch = 9 * fontScale;
   const shape = `M${x} ${top}H${x + width - notch}L${x + width} ${top + height / 2}L${x + width - notch} ${top + height}H${x}Z`;
+  const clipId = `mira-promo-badge-clip-${Math.round(box.top * 10)}-${Math.round(x * 10)}`;
+  const rowAnimation = ['wave', 'fill', 'gloss'].includes(line.promotionAnimation) ? line.promotionAnimation : 'wave';
+  const badgeAnimation = ['shine', 'breathe'].includes(line.promotionBadgeAnimation) ? line.promotionBadgeAnimation : 'shine';
+  const shineWidth = Math.max(18 * fontScale, width * .28);
   return {
     width,
-    markup: `<g class="promotion-badge-glow" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
+    markup: `<defs><clipPath id="${clipId}"><path d="${shape}"/></clipPath></defs>
+    <g class="promotion-badge-glow" data-promotion-badge-animation="${badgeAnimation}" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
     <g class="promotion-badge">
       <path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/>
       <text x="${x + (width - notch) / 2}" y="${top + 18.5 * fontScale}" class="promotion" ${textAttributes({ size: 12 * fontScale, weight: 800, fill: '#FFFFFF', letterSpacing: 0.2 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
+    </g>
+    <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" clip-path="url(#${clipId})" opacity="0" pointer-events="none">
+      <rect x="${x - shineWidth}" y="${top}" width="${shineWidth}" height="${height}" fill="url(#mira-promo-badge-shine)"/>
     </g>`,
-    glow: `<g class="promotion-row-glow" opacity="0" pointer-events="none"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g>`
+    glow: `<g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" opacity="0" pointer-events="none"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g>`
   };
 }
 
@@ -118,6 +126,7 @@ export function buildTableSvg(model, lines, layout = buildRenderLayout(model, li
     <defs>
       <linearGradient id="mira-row-motion-surface" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0"/><stop offset="0.26" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.18"/><stop offset="0.5" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.30"/><stop offset="0.74" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.18"/><stop offset="1" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0"/></linearGradient>
       <linearGradient id="mira-promo-row-glow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff384f" stop-opacity="0.10"/><stop offset="0.16" stop-color="#ff3048" stop-opacity="0.30"/><stop offset="0.5" stop-color="#ff5267" stop-opacity="0.48"/><stop offset="0.84" stop-color="#ff3048" stop-opacity="0.30"/><stop offset="1" stop-color="#ff384f" stop-opacity="0.10"/></linearGradient>
+      <linearGradient id="mira-promo-badge-shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.42" stop-color="#fff" stop-opacity="0.10"/><stop offset="0.52" stop-color="#fff" stop-opacity="0.92"/><stop offset="0.62" stop-color="#fff" stop-opacity="0.18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <filter id="mira-promo-row-softness" x="-8%" y="-80%" width="116%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
     </defs>
     ${content}

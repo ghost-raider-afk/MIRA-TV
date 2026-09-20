@@ -4,6 +4,8 @@ import { sceneInput } from './scene.js';
 const VALID_STATUSES = new Set(['draft', 'ready', 'published']);
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
 const VALID_DATE_FORMATS = new Set(['DD.MM.YYYY', 'YYYY-MM-DD']);
+const PROMOTION_ROW_ANIMATIONS = new Set(['wave', 'fill', 'gloss']);
+const PROMOTION_BADGE_ANIMATIONS = new Set(['shine', 'breathe']);
 
 export function requireText(value, field, { max = 120 } = {}) {
   if (typeof value !== 'string' || value.trim().length === 0 || value.trim().length > max) {
@@ -18,6 +20,13 @@ export function optionalText(value, field, { max = 300 } = {}) {
     throw new ValidationError(`Поле «${field}» должно содержать не более ${max} символов.`);
   }
   return value.trim();
+}
+
+function optionValue(value, field, allowed, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const text = String(value).trim();
+  if (!allowed.has(text)) throw new ValidationError(`Поле «${field}» содержит неподдерживаемое значение.`);
+  return text;
 }
 
 export function positiveId(value, field) {
@@ -118,6 +127,8 @@ export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, m
         price_primary: product.price_primary, price_secondary: product.price_secondary,
         promotion: row.promotion === true,
         promotion_text: optionalText(row.promotion_text ?? row.promotionText, 'Текст акции', { max: 80 }),
+        promotion_animation: optionValue(row.promotion_animation ?? row.promotionAnimation, 'Анимация строки акции', PROMOTION_ROW_ANIMATIONS, 'wave'),
+        promotion_badge_animation: optionValue(row.promotion_badge_animation ?? row.promotionBadgeAnimation, 'Анимация плашки акции', PROMOTION_BADGE_ANIMATIONS, 'shine'),
         enabled: row.enabled !== false
       };
     }
