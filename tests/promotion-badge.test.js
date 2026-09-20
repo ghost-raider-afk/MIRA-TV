@@ -36,6 +36,9 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.match(svg, /id="mira-promo-row-glow"/);
   assert.match(svg, /id="mira-promo-badge-shine"/);
   assert.match(svg, /clipPath id="mira-promo-badge-clip-/);
+  assert.match(svg, /clipPath id="mira-promo-row-clip-[^"]+" clipPathUnits="userSpaceOnUse"/);
+  assert.match(svg, /class="promotion-row-glow"[^>]*clip-path="url\(#mira-promo-row-clip-[^)]+\)"/);
+  assert.match(svg, /mira-promo-row-clip-[^"]+"[^>]*><rect x="56"[^>]*width="1374"[^>]*height="/);
   assert.ok(badgeStart > rowStart && pricesStart > rowStart && rowEnd > pricesStart, 'badge, content and prices must stay inside the same table-item row');
 });
 

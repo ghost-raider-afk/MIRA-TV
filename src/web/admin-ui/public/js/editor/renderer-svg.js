@@ -44,12 +44,16 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
   const notch = 9 * fontScale;
   const shape = `M${x} ${top}H${x + width - notch}L${x + width} ${top + height / 2}L${x + width - notch} ${top + height}H${x}Z`;
   const clipId = `mira-promo-badge-clip-${Math.round(box.top * 10)}-${Math.round(x * 10)}`;
+  const rowClipId = `mira-promo-row-clip-${Math.round(box.top * 10)}-${Math.round(horizontal.left * 10)}`;
   const rowAnimation = ['wave', 'fill', 'gloss'].includes(line.promotionAnimation) ? line.promotionAnimation : 'wave';
   const badgeAnimation = ['shine', 'breathe'].includes(line.promotionBadgeAnimation) ? line.promotionBadgeAnimation : 'shine';
   const shineWidth = Math.max(18 * fontScale, width * .28);
   return {
     width,
-    markup: `<defs><clipPath id="${clipId}"><path d="${shape}"/></clipPath></defs>
+    markup: `<defs>
+      <clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><path d="${shape}"/></clipPath>
+      <clipPath id="${rowClipId}" clipPathUnits="userSpaceOnUse"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}"/></clipPath>
+    </defs>
     <g class="promotion-badge-glow" data-promotion-badge-animation="${badgeAnimation}" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
     <g class="promotion-badge">
       <path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/>
@@ -58,7 +62,7 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
     <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" clip-path="url(#${clipId})" opacity="0" pointer-events="none">
       <rect x="${x - shineWidth}" y="${top}" width="${shineWidth}" height="${height}" fill="url(#mira-promo-badge-shine)"/>
     </g>`,
-    glow: `<g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" opacity="0" pointer-events="none"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g>`
+    glow: `<g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" clip-path="url(#${rowClipId})" opacity="0" pointer-events="none"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g>`
   };
 }
 
