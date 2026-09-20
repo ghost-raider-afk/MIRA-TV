@@ -287,7 +287,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
     await route.fulfill({
       status:200,
       contentType:'application/json',
-      body:JSON.stringify([{ name:'Турку', admin1:'Varsinais-Suomi', country:'Финляндия', latitude:60.4518, longitude:22.2666, timezone:'Europe/Helsinki' }])
+      body:JSON.stringify([{ name:'Турку', admin1:'Varsinais-Suomi', country:'Финляндия', latitude:60.451753, longitude:22.266643, timezone:'Europe/Helsinki' }])
     });
   });
   const previewRequests = [];
@@ -326,8 +326,14 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
 
   const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
   await location.fill('Турку');
-  await expect(page.locator('#scene-editor-properties').getByLabel('Широта')).toHaveValue('60.4518');
-  await expect(page.locator('#scene-editor-properties').getByLabel('Долгота')).toHaveValue('22.2666');
+  const latitudeField = page.locator('#scene-editor-properties').getByLabel('Широта');
+  const longitudeField = page.locator('#scene-editor-properties').getByLabel('Долгота');
+  await expect(latitudeField).toHaveValue('60.451753');
+  await expect(longitudeField).toHaveValue('22.266643');
+  await expect(latitudeField).toHaveAttribute('step', 'any');
+  await expect(longitudeField).toHaveAttribute('step', 'any');
+  expect(await latitudeField.evaluate((field) => field.validity.valid)).toBe(true);
+  expect(await longitudeField.evaluate((field) => field.validity.valid)).toBe(true);
   await expect(page.locator('#scene-editor-properties').getByLabel('Часовой пояс')).toHaveValue('Europe/Helsinki');
 
   const weatherNode = page.locator('div[data-scene-element-type="weather"][data-scene-element-id]');
@@ -348,8 +354,8 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
   expect(previewRequests.at(-1)).toMatchObject({
     name:'Турку',
-    latitude:'60.4518',
-    longitude:'22.2666',
+    latitude:'60.451753',
+    longitude:'22.266643',
     timezone:'Europe/Helsinki'
   });
 

@@ -31,6 +31,22 @@ test('weather widget stores canonical transform and motion controls', () => {
   assert.equal(value.widget_motion_enabled, false);
 });
 
+test('weather coordinates preserve provider precision without artificial step rounding', async () => {
+  const [elements] = await Promise.all([
+    read('src/web/admin-ui/public/js/editor/elements.js')
+  ]);
+  const input = weatherWidgetInput({
+    enabled:true,
+    latitude:60.451753,
+    longitude:22.266643,
+    timezone:'Europe/Helsinki'
+  });
+  assert.equal(input.latitude, 60.451753);
+  assert.equal(input.longitude, 22.266643);
+  assert.match(elements, /latitude = input\('number',[\s\S]*step: 'any'/);
+  assert.match(elements, /longitude = input\('number',[\s\S]*step: 'any'/);
+});
+
 test('browser and server weather models preserve empty coordinates as unconfigured', () => {
   const value = normaliseWeatherWidget({ enabled:true, latitude:null, longitude:'' });
   assert.equal(value.latitude, null);
