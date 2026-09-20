@@ -4,6 +4,7 @@ import { element, setMessage, setPending } from '../core/dom.js';
 import { updateSceneElement, selectSceneElement } from '../editor/commands.js';
 import { appendRow, renderPreviewRows } from '../editor/rows.js';
 import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
+import { createEditorHistory } from '../editor/history.js';
 import {
   appendSceneElement,
   renderSceneElementInspector,
@@ -96,6 +97,8 @@ export function initialiseSceneEditor() {
   const backgroundLayer = element('scene-editor-background-layer');
   const tableLayer = element('scene-editor-table-layer');
   const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
+  const undoButton = element('scene-editor-undo');
+  const redoButton = element('scene-editor-redo');
   const screenSelect = element('scene-editor-screen');
   if (!(form instanceof HTMLFormElement)
       || !(stage instanceof HTMLElement)
@@ -109,6 +112,8 @@ export function initialiseSceneEditor() {
       || !(addMenu instanceof HTMLElement)
       || !(backgroundLayer instanceof HTMLButtonElement)
       || !(tableLayer instanceof HTMLButtonElement)
+      || !(undoButton instanceof HTMLButtonElement)
+      || !(redoButton instanceof HTMLButtonElement)
       || !(screenSelect instanceof HTMLSelectElement)) return undefined;
 
   const token = ++generation;
@@ -122,7 +127,8 @@ export function initialiseSceneEditor() {
   let documentPreviewFrame = 0;
   let resizeObserver = null;
   let interactionActive = false;
-  let selectedOwner = 'table';
+  let selectedOwner = 'none';
+  const history = createEditorHistory(state);
 
   const active = () => !disposed && token === generation && document.body.dataset.page === 'scene';
 
@@ -131,6 +137,8 @@ export function initialiseSceneEditor() {
     if (!target) return;
     target.textContent = state.dirty ? 'Не сохранено' : 'Сохранено';
     target.classList.toggle('is-dirty', state.dirty);
+    undoButton.disabled = !history.canUndo();
+    redoButton.disabled = !history.canRedo();
   }
 
   function selectedElement() {
@@ -219,6 +227,24 @@ export function initialiseSceneEditor() {
 
   function selectInCanvas(elementId) {
     selectOwner('element', elementId);
+  }
+
+  function checkpointControl(control) {
+    let captured = false;
+    const capture = () => {
+      if (captured) return;
+      captured = true;
+      history.checkpoint();
+      setDirty();
+    };
+    control.addEventListener('focus', capture, { once:true });
+    control.addEventListener('pointerdown', capture, { once:true });
+  }
+
+  function syncAfterHistory() {
+    selectedOwner = state.selectedElementId ? 'element' : 'none';
+    setDirty();
+    void renderFullPreview().then(() => renderSelectionOwners());
   }
 
   async function renderDocumentPreview() {
@@ -349,6 +375,7 @@ export function initialiseSceneEditor() {
       layout: computed.layout,
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
+      onBeforeMutate: () => history.checkpoint(),
       onVisualChange: () => {
         state.dirty = true;
         setDirty();
@@ -381,6 +408,7 @@ export function initialiseSceneEditor() {
 
     const color = compactInput('color', state.settings.background_color || '#101828');
     color.setAttribute('aria-label', 'Цвет фона');
+    checkpointControl(color);
     color.addEventListener('input', () => patchMenuSettings({ background_color: color.value.toUpperCase() }));
     appearancePanel.append(makeField('Цвет', color));
 
@@ -438,6 +466,7 @@ export function initialiseSceneEditor() {
     ]) {
       const control = compactInput('number', state.settings[key], { min, max, step:1 });
       control.setAttribute('aria-label', caption === 'W' ? 'Ширина таблицы' : caption === 'H' ? 'Высота таблицы' : caption);
+      checkpointControl(control);
       control.addEventListener('input', () => {
         const value = Number(control.value);
         if (!Number.isFinite(value)) return;
@@ -464,9 +493,11 @@ export function initialiseSceneEditor() {
     for (const [value,label] of TABLE_FONTS) font.add(new Option(label,value));
     font.value = state.settings.font_family || 'arial-narrow';
     font.setAttribute('aria-label','Шрифт таблицы');
+    checkpointControl(font);
     font.addEventListener('change', () => patchMenuSettings({ font_family:font.value }));
     const scale = compactInput('number', state.settings.font_scale_percent || 100, { min:55,max:130,step:1 });
     scale.setAttribute('aria-label','Масштаб шрифта таблицы');
+    checkpointControl(scale);
     scale.addEventListener('input', () => {
       const value = Number(scale.value);
       if (Number.isFinite(value)) patchMenuSettings({ font_scale_percent:clamp(Math.round(value),55,130) });
@@ -484,6 +515,7 @@ export function initialiseSceneEditor() {
     for (const [caption,key,fallback] of [['Акцент','accent_color','#F4C915'],['Текст','text_color','#F8FAFC']]) {
       const control = compactInput('color', state.settings[key] || fallback);
       control.setAttribute('aria-label',caption);
+      checkpointControl(control);
       control.addEventListener('input', () => patchMenuSettings({ [key]:control.value.toUpperCase() }));
       paletteGrid.append(makeField(caption,control));
     }
@@ -504,6 +536,7 @@ export function initialiseSceneEditor() {
       button.className = 'button button-secondary';
       button.textContent = label;
       button.addEventListener('click', () => {
+        history.checkpoint();
         appendRow(state, kind);
         state.dirty = true;
         setDirty();
@@ -606,6 +639,7 @@ export function initialiseSceneEditor() {
     tableBox.addEventListener('pointerdown', (event) => {
       if (event.target.closest('.scene-editor-resize-handle')) return;
       event.preventDefault();
+      history.checkpoint();
       selectOwner('table');
       interactionActive = true;
       const startX = event.clientX;
@@ -668,6 +702,7 @@ export function initialiseSceneEditor() {
           resize.addEventListener('pointerdown', (event) => {
             event.preventDefault();
             event.stopPropagation();
+            history.checkpoint();
             interactionActive = true;
             const pointerStartX = event.clientX;
             const pointerStartY = event.clientY;
@@ -719,6 +754,7 @@ export function initialiseSceneEditor() {
       box.addEventListener('pointerdown', (event) => {
         if (event.target.closest('.scene-editor-resize-handle')) return;
         event.preventDefault();
+        history.checkpoint();
         selectInCanvas(sceneElement.id);
         interactionActive = true;
 
@@ -851,6 +887,7 @@ export function initialiseSceneEditor() {
     tableEditLayer.replaceChildren();
     const selected = renderSceneElementInspector(state, {
       container: propertiesRoot,
+      onBeforeMutate: () => history.checkpoint(),
       onVisualChange: () => {
         setDirty();
         scheduleSceneRender();
@@ -892,11 +929,12 @@ export function initialiseSceneEditor() {
     state.rows = structuredClone(Array.isArray(bundle.draft?.rows) ? bundle.draft.rows : []);
     state.settings = structuredClone(bundle.draft?.settings || {});
     state.scene = structuredClone(bundle.draft?.scene || { version: 1, elements: [] });
-    state.selectedElementId = state.scene.elements?.[0]?.id || null;
-    selectedOwner = state.selectedElementId ? 'element' : 'table';
+    state.selectedElementId = null;
+    selectedOwner = 'none';
     state.dirty = false;
     state.revision = 0;
     state.draftRevision = Number(bundle.draft?.revision || 0);
+    history.clear();
     const resolution = element('scene-editor-resolution');
     if (resolution) resolution.textContent = state.screen?.resolution || '—';
     const previewTitle = element('scene-editor-preview-title');
@@ -965,6 +1003,47 @@ export function initialiseSceneEditor() {
     });
   });
 
+  undoButton.addEventListener('click', () => {
+    if (history.undo()) syncAfterHistory();
+  });
+  redoButton.addEventListener('click', () => {
+    if (history.redo()) syncAfterHistory();
+  });
+
+  shell.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.scene-editor-selection-box,.scene-editor-table-selection-box,.scene-editor-table-edit-layer')) return;
+    if (selectedOwner === 'none') return;
+    selectedOwner = 'none';
+    state.selectedElementId = null;
+    renderSelectionOwners();
+  });
+
+  const onEditorKeydown = (event) => {
+    const target = event.target;
+    const editing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable;
+    const mod = event.ctrlKey || event.metaKey;
+    if (mod && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      const changed = event.shiftKey ? history.redo() : history.undo();
+      if (changed) syncAfterHistory();
+      return;
+    }
+    if (mod && event.key.toLowerCase() === 'y') {
+      event.preventDefault();
+      if (history.redo()) syncAfterHistory();
+      return;
+    }
+    if (editing) return;
+    if ((event.key === 'Delete' || event.key === 'Backspace') && selectedOwner === 'element' && state.selectedElementId) {
+      const removeButton = propertiesRoot.querySelector('.editor-element-delete');
+      if (removeButton instanceof HTMLButtonElement) {
+        event.preventDefault();
+        removeButton.click();
+      }
+    }
+  };
+  form.addEventListener('keydown', onEditorKeydown);
+
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
   tableLayer.addEventListener('click', () => selectOwner('table'));
 
@@ -986,6 +1065,7 @@ export function initialiseSceneEditor() {
 
   addMenu.querySelectorAll('[data-scene-element-type]').forEach((button) => {
     button.addEventListener('click', () => {
+      history.checkpoint();
       const created = appendSceneElement(state, button.dataset.sceneElementType);
       if (!created) {
         syncAddMenuAvailability();
@@ -1029,6 +1109,7 @@ export function initialiseSceneEditor() {
       }
       state.draftRevision = Number(saved.draft.revision || state.draftRevision);
       state.dirty = false;
+      history.clear();
       setDirty();
       renderSelectionOwners();
       setMessage('scene-editor-message', 'Сцена сохранена и доступна TV Player.', 'success');
@@ -1072,6 +1153,7 @@ export function initialiseSceneEditor() {
       renderer?.destroy();
       renderer = null;
       window.removeEventListener('beforeunload', onBeforeUnload);
+      form.removeEventListener('keydown', onEditorKeydown);
       delete document.body.dataset.sceneMobilePanel;
     }
   };
