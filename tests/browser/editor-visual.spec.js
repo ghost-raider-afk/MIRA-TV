@@ -191,17 +191,15 @@ test('login composition follows MIRA-TV 1 and size 7 is the reference logo scale
   expect(card.width).toBeLessThanOrEqual(375);
 });
 
-test('monitor editor stays table-only and links to the dedicated Scene editor', async ({ page }) => {
+test('monitor page is technical settings plus read-only TV preview', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await login(page);
   const { screen } = await createEditorFixture(page, { rows: 2 });
   await page.goto(`/screen-editor?id=${screen.id}`);
 
-  const preview = page.locator('#editor-menu-preview');
-  await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
-  await expect(page.locator('#editor-add-element')).toHaveCount(0);
-  await expect(page.locator('.editor-settings-section').filter({ hasText: 'Элементы' })).toHaveCount(0);
-  await expect(preview.locator('[data-scene-elements-layer]')).toHaveCount(0);
-  await expect(preview.locator('[data-scene-element-type]')).toHaveCount(0);
-  await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+  await expect(page.locator('#editor-menu-preview svg.menu-table-svg')).toBeVisible();
+  await expect(page.locator('#editor-menu-preview [data-editor-preview-row-control]')).toHaveCount(0);
+  await expect(page.locator('#editor-background-file')).toHaveCount(0);
+  await expect(page.locator('#editor-table-x')).toHaveCount(0);
+  await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
 });
