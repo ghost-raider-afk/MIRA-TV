@@ -18,7 +18,7 @@ import {
   fullPlayerContext,
   playerRuntimeHash
 } from '../../services/player-context-service.js';
-import { getWeatherSnapshot } from '../../services/weather-service.js';
+import { getWeatherSnapshot, hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 
 const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime']);
@@ -267,7 +267,7 @@ export function createDevicePublicRouter({ store, config, realtime }) {
     if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
     const draft = await store.getScreenDraft(session.screen_id);
     const settings = sceneWeatherSettings(draft?.scene, session.screen_id);
-    if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
+    if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
     const snapshot = await getWeatherSnapshot(settings, config);
     response.setHeader('Cache-Control', 'private, no-store');
     return response.json({ settings, snapshot });

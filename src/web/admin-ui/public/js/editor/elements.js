@@ -9,6 +9,14 @@ export const SCENE_ELEMENT_TYPE_OPTIONS = Object.freeze([
   ['logo', 'Логотип']
 ]);
 
+const SCENE_ELEMENT_TYPE_ICONS = Object.freeze({
+  text: 'T',
+  weather: '☁',
+  image: '▧',
+  video: '▶',
+  logo: '◈'
+});
+
 const FONTS = Object.freeze([
   ['arial-narrow', 'Arial Narrow'],
   ['tahoma-bold', 'Tahoma Bold'],
@@ -230,6 +238,10 @@ function typeLabel(type) {
   return SCENE_ELEMENT_TYPE_OPTIONS.find(([value]) => value === type)?.[1] || type;
 }
 
+function typeIcon(type) {
+  return SCENE_ELEMENT_TYPE_ICONS[type] || '•';
+}
+
 function commonSettings(state, element, options) {
   const block = section('Трансформация', 'Координаты сцены 1920×1080');
   const grid = document.createElement('div');
@@ -439,6 +451,21 @@ function weatherSettings(state, element, options) {
     locationResults.replaceChildren();
     location.setAttribute('aria-expanded', 'false');
   };
+  const applyLocation = (item) => {
+    if (!item || !Number.isFinite(Number(item.latitude)) || !Number.isFinite(Number(item.longitude))) return;
+    mutateWeather(state, element.id, (next) => {
+      next.location_name = String(item.name || '');
+      next.latitude = Number(item.latitude);
+      next.longitude = Number(item.longitude);
+      next.timezone = String(item.timezone || 'auto');
+    });
+    location.value = String(item.name || '');
+    latitude.value = String(item.latitude);
+    longitude.value = String(item.longitude);
+    timezone.value = String(item.timezone || 'auto');
+    closeLocations();
+    options.onVisualChange?.();
+  };
   const showLocations = (items) => {
     locationResults.replaceChildren();
     for (const item of items) {
@@ -452,20 +479,7 @@ function weatherSettings(state, element, options) {
       details.textContent = [item.admin1, item.country].filter(Boolean).join(', ');
       option.append(name, details);
       option.addEventListener('pointerdown', (event) => event.preventDefault());
-      option.addEventListener('click', () => {
-        mutateWeather(state, element.id, (next) => {
-          next.location_name = String(item.name || '');
-          next.latitude = Number(item.latitude);
-          next.longitude = Number(item.longitude);
-          next.timezone = String(item.timezone || 'auto');
-        });
-        location.value = String(item.name || '');
-        latitude.value = String(item.latitude);
-        longitude.value = String(item.longitude);
-        timezone.value = String(item.timezone || 'auto');
-        closeLocations();
-        options.onVisualChange?.();
-      });
+      option.addEventListener('click', () => applyLocation(item));
       locationResults.append(option);
     }
     locationResults.hidden = locationResults.childElementCount === 0;
@@ -483,7 +497,14 @@ function weatherSettings(state, element, options) {
       try {
         const items = await api.get('/api/weather/locations?q=' + encodeURIComponent(current));
         if (generation !== searchGeneration || !location.isConnected || location.value.trim() !== current) return;
-        showLocations(Array.isArray(items) ? items.slice(0, 8) : []);
+        const limited = Array.isArray(items) ? items.slice(0, 8) : [];
+        const key = current.toLocaleLowerCase('ru-RU');
+        const exact = limited.filter((item) => String(item?.name || '').trim().toLocaleLowerCase('ru-RU') === key);
+        if (exact.length === 1) {
+          applyLocation(exact[0]);
+          return;
+        }
+        showLocations(limited);
       } catch {
         if (generation === searchGeneration) closeLocations();
       }
@@ -506,8 +527,27 @@ function weatherSettings(state, element, options) {
   });
   location.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeLocations();
+    if (event.key === 'Enter' && !locationResults.hidden) {
+      const first = locationResults.querySelector('.weather-location-option');
+      if (first instanceof HTMLButtonElement) {
+        event.preventDefault();
+        first.click();
+      }
+    }
   });
   location.addEventListener('blur', () => setTimeout(closeLocations, 120));
+
+  const hasConfiguredCoordinates = weather.latitude !== null
+    && weather.latitude !== ''
+    && weather.longitude !== null
+    && weather.longitude !== ''
+    && Number.isFinite(Number(weather.latitude))
+    && Number.isFinite(Number(weather.longitude));
+  if (location.value.trim().length >= 2 && !hasConfiguredCoordinates) {
+    queueMicrotask(() => {
+      if (location.isConnected) searchLocations(location.value);
+    });
+  }
 
   for (const [caption, key, control, read] of [
     ['Широта', 'latitude', latitude, (field) => field.value === '' ? null : numberValue(field, null)],
@@ -741,8 +781,8 @@ function sceneLayerSubtitle(element) {
     if (place) return place;
   }
   const source = String(element?.media?.source_url || '').trim();
-  if (source) return source.split('/').pop() || typeLabel(element.type);
-  return typeLabel(element?.type);
+  if (source) return source.split('/').pop() || '';
+  return '';
 }
 
 export function renderSceneLayerList(state, {
@@ -776,8 +816,9 @@ export function renderSceneLayerList(state, {
     const eye = document.createElement('button');
     eye.type = 'button';
     eye.className = 'scene-editor-layer-eye';
-    eye.textContent = element.enabled === false ? '○' : '●';
-    eye.title = element.enabled === false ? 'Показать элемент' : 'Скрыть элемент';
+    eye.classList.toggle('is-hidden', element.enabled === false);
+    eye.textContent = typeIcon(element.type);
+    eye.title = element.enabled === false ? `Показать «${typeLabel(element.type)}»` : `Скрыть «${typeLabel(element.type)}»`;
     eye.setAttribute('aria-label', eye.title);
     eye.addEventListener('click', () => {
       onBeforeMutate?.();
@@ -789,12 +830,11 @@ export function renderSceneLayerList(state, {
     const selectButton = document.createElement('button');
     selectButton.type = 'button';
     selectButton.className = 'scene-editor-layer-select';
-    selectButton.setAttribute('aria-label', `Выбрать Элемент ${index + 1}`);
+    selectButton.setAttribute('aria-label', `Выбрать «${typeLabel(element.type)}»`);
     const title = document.createElement('strong');
-    title.textContent = `Элемент ${index + 1} · ${typeLabel(element.type)}`;
-    const subtitle = document.createElement('span');
-    subtitle.textContent = sceneLayerSubtitle(element);
-    selectButton.append(title, subtitle);
+    title.textContent = typeLabel(element.type);
+    selectButton.title = sceneLayerSubtitle(element);
+    selectButton.append(title);
     selectButton.addEventListener('click', () => {
       selectSceneElement(state, element.id);
       onSelect?.(element.id);
@@ -804,7 +844,7 @@ export function renderSceneLayerList(state, {
     remove.type = 'button';
     remove.className = 'scene-editor-layer-delete';
     remove.textContent = '×';
-    remove.title = `Удалить Элемент ${index + 1}`;
+    remove.title = `Удалить «${typeLabel(element.type)}»`;
     remove.setAttribute('aria-label', remove.title);
     remove.addEventListener('click', () => {
       onBeforeMutate?.();

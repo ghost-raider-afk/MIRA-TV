@@ -212,11 +212,15 @@ export function initialiseSceneEditor() {
     const scale = Math.min(widthLimit / resolution.width, heightLimit / resolution.height);
     const width = Math.max(360, Math.floor(resolution.width * scale));
     const height = Math.max(203, Math.floor(resolution.height * scale));
+    const previewScale = Math.min(width / resolution.width, height / resolution.height);
     shell.style.width = `${width}px`;
     shell.style.height = `${height}px`;
     shell.style.aspectRatio = `${resolution.width} / ${resolution.height}`;
+    stage.style.setProperty('--scene-preview-width', `${resolution.width}px`);
+    stage.style.setProperty('--scene-preview-height', `${resolution.height}px`);
+    stage.style.setProperty('--scene-preview-scale', String(previewScale));
     const zoom = element('scene-editor-zoom');
-    if (zoom) zoom.textContent = `${Math.max(1, Math.round(scale * 100))}%`;
+    if (zoom) zoom.textContent = `${Math.max(1, Math.round(previewScale * 100))}%`;
   }
 
   function applyBoxGeometry(box, sceneElement) {

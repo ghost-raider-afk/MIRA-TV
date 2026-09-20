@@ -106,10 +106,19 @@ function number(value, fallback = 0) {
   return Number.isFinite(result) ? result : fallback;
 }
 
-function timeLabel(value) {
-  const date = new Date(value);
+function timeLabel(value, timezone = 'auto') {
+  const source = String(value || '').trim();
+  const local = /^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})(?::\d{2})?$/.exec(source);
+  if (local) return `${local[1]}:${local[2]}`;
+  const date = new Date(source);
   if (!Number.isFinite(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
+  const options = { hour: '2-digit', minute: '2-digit' };
+  if (timezone && timezone !== 'auto') options.timeZone = timezone;
+  try {
+    return new Intl.DateTimeFormat('ru-RU', options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
+  }
 }
 
 function text(tag, className, value) {
@@ -231,7 +240,7 @@ function createContent(config, data) {
     for (const item of (Array.isArray(data.forecast) ? data.forecast : []).slice(0, config.forecast_items)) {
       const entry = document.createElement('div');
       entry.className = 'weather-widget-forecast-item';
-      entry.append(text('span', '', timeLabel(item.time)));
+      entry.append(text('span', '', timeLabel(item.time, data.timezone || config.timezone)));
       const mini = document.createElement('i');
       mini.innerHTML = svgIcon(item.icon || 'cloud');
       entry.append(mini, text('strong', '', `${Math.round(number(item.temperature))}°`));
