@@ -326,6 +326,52 @@ function selectedRowActions(editorState, row, options) {
   return actions;
 }
 
+function promotionPresetControl({ labelText, ariaLabel, value, choices, disabled = false, onChange }) {
+  const field = document.createElement('div');
+  field.className = 'editor-preview-promotion-preset-field';
+
+  const caption = document.createElement('span');
+  caption.textContent = labelText;
+
+  const group = document.createElement('div');
+  group.className = 'editor-preview-promotion-preset-group';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', ariaLabel);
+
+  let current = value;
+  const buttons = choices.map(([nextValue, text]) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'editor-preview-promotion-preset';
+    option.textContent = text;
+    option.dataset.value = nextValue;
+    option.setAttribute('role', 'radio');
+    option.addEventListener('click', () => {
+      if (option.disabled || current === nextValue) return;
+      current = nextValue;
+      sync();
+      onChange?.(nextValue);
+    });
+    group.append(option);
+    return option;
+  });
+
+  const sync = () => {
+    buttons.forEach((option) => {
+      const checked = option.dataset.value === current;
+      option.classList.toggle('is-selected', checked);
+      option.setAttribute('aria-checked', String(checked));
+    });
+  };
+  const setDisabled = (nextDisabled) => {
+    buttons.forEach((option) => { option.disabled = nextDisabled === true; });
+  };
+  sync();
+  setDisabled(disabled);
+  field.append(caption, group);
+  return { field, setDisabled };
+}
+
 function promotionControls(editorState, row, options) {
   if (row.kind !== 'item') return null;
   const shell = document.createElement('div');
@@ -361,49 +407,45 @@ function promotionControls(editorState, row, options) {
   const animationGrid = document.createElement('div');
   animationGrid.className = 'editor-preview-promotion-motion-grid';
 
-  const rowAnimationLabel = document.createElement('label');
-  const rowAnimationCaption = document.createElement('span');
-  rowAnimationCaption.textContent = 'Анимация строки';
-  const rowAnimation = document.createElement('select');
-  rowAnimation.setAttribute('aria-label', 'Анимация строки акции');
-  for (const [value, labelText] of [
-    ['wave', 'Мягкая волна'],
-    ['fill', 'Заполнение'],
-    ['gloss', 'Gloss-перелив']
-  ]) rowAnimation.add(new Option(labelText, value));
-  rowAnimation.value = row.promotion_animation || 'wave';
-  rowAnimation.disabled = !checkbox.checked;
+  const rowAnimation = promotionPresetControl({
+    labelText:'Анимация строки',
+    ariaLabel:'Анимация строки акции',
+    value:row.promotion_animation || 'wave',
+    disabled:!checkbox.checked,
+    choices:[
+      ['wave', 'Мягкая волна'],
+      ['fill', 'Заполнение'],
+      ['gloss', 'Gloss-перелив']
+    ],
+    onChange:(value) => {
+      options.onBeforeMutate?.();
+      updateRow(editorState, row.id, { promotion_animation:value });
+      options.onVisualChange?.();
+    }
+  });
 
-  const badgeAnimationLabel = document.createElement('label');
-  const badgeAnimationCaption = document.createElement('span');
-  badgeAnimationCaption.textContent = 'Анимация плашки';
-  const badgeAnimation = document.createElement('select');
-  badgeAnimation.setAttribute('aria-label', 'Анимация плашки акции');
-  for (const [value, labelText] of [
-    ['shine', 'Gloss Shine'],
-    ['breathe', 'Breathing Glow']
-  ]) badgeAnimation.add(new Option(labelText, value));
-  badgeAnimation.value = row.promotion_badge_animation || 'shine';
-  badgeAnimation.disabled = !checkbox.checked;
+  const badgeAnimation = promotionPresetControl({
+    labelText:'Анимация плашки',
+    ariaLabel:'Анимация плашки акции',
+    value:row.promotion_badge_animation || 'shine',
+    disabled:!checkbox.checked,
+    choices:[
+      ['shine', 'Gloss Shine'],
+      ['breathe', 'Breathing Glow']
+    ],
+    onChange:(value) => {
+      options.onBeforeMutate?.();
+      updateRow(editorState, row.id, { promotion_badge_animation:value });
+      options.onVisualChange?.();
+    }
+  });
 
   checkbox.addEventListener('change', () => {
-    rowAnimation.disabled = !checkbox.checked;
-    badgeAnimation.disabled = !checkbox.checked;
-  });
-  rowAnimation.addEventListener('change', () => {
-    options.onBeforeMutate?.();
-    updateRow(editorState, row.id, { promotion_animation: rowAnimation.value });
-    options.onVisualChange?.();
-  });
-  badgeAnimation.addEventListener('change', () => {
-    options.onBeforeMutate?.();
-    updateRow(editorState, row.id, { promotion_badge_animation: badgeAnimation.value });
-    options.onVisualChange?.();
+    rowAnimation.setDisabled(!checkbox.checked);
+    badgeAnimation.setDisabled(!checkbox.checked);
   });
 
-  rowAnimationLabel.append(rowAnimationCaption, rowAnimation);
-  badgeAnimationLabel.append(badgeAnimationCaption, badgeAnimation);
-  animationGrid.append(rowAnimationLabel, badgeAnimationLabel);
+  animationGrid.append(rowAnimation.field, badgeAnimation.field);
   shell.append(toggle, text, animationGrid);
   return shell;
 }
