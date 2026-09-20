@@ -2,6 +2,8 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { element, setMessage, setPending } from '../core/dom.js';
 import { updateSceneElement, selectSceneElement } from '../editor/commands.js';
+import { appendRow, renderPreviewRows } from '../editor/rows.js';
+import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
 import {
   appendSceneElement,
   renderSceneElementInspector,
@@ -86,6 +88,7 @@ export function initialiseSceneEditor() {
   const shell = element('scene-editor-stage-shell');
   const canvasPane = element('scene-editor-canvas-pane');
   const selectionLayer = element('scene-editor-selection-layer');
+  const tableEditLayer = element('scene-editor-table-edit-layer');
   const layersRoot = element('scene-editor-layers');
   const propertiesRoot = element('scene-editor-properties');
   const addButton = element('scene-editor-add');
@@ -99,6 +102,7 @@ export function initialiseSceneEditor() {
       || !(shell instanceof HTMLElement)
       || !(canvasPane instanceof HTMLElement)
       || !(selectionLayer instanceof HTMLElement)
+      || !(tableEditLayer instanceof HTMLElement)
       || !(layersRoot instanceof HTMLElement)
       || !(propertiesRoot instanceof HTMLElement)
       || !(addButton instanceof HTMLButtonElement)
@@ -221,7 +225,10 @@ export function initialiseSceneEditor() {
     if (!renderer || !active()) return;
     await renderer.render(sceneContext(), ['screen', 'menu']);
     if (!active()) return;
-    if (!interactionActive) refreshSelectionOverlay();
+    if (!interactionActive) {
+      refreshSelectionOverlay();
+      if (selectedOwner === 'table') renderTableEditLayer();
+    }
   }
 
   function scheduleDocumentRender() {
@@ -311,7 +318,55 @@ export function initialiseSceneEditor() {
     }
   }
 
+  function tableEditModel() {
+    if (!state.screen) return null;
+    const resolution = resolutionOf(state.screen);
+    const model = buildRenderModel(state, resolution);
+    const lines = buildDisplayLines(model, {
+      products: currentBundle?.products || [],
+      packaging: currentBundle?.packaging || [],
+      fallbackTitle: 'Новый раздел'
+    });
+    const layout = buildRenderLayout(model, lines);
+    return { model, lines, layout };
+  }
+
+  function renderTableEditLayer({ rebuildInspector = false } = {}) {
+    const activeTable = selectedOwner === 'table';
+    tableEditLayer.hidden = !activeTable;
+    if (!activeTable) {
+      tableEditLayer.replaceChildren();
+      return;
+    }
+    const computed = tableEditModel();
+    if (!computed) return;
+    const rowInspector = propertiesRoot.querySelector('[data-scene-table-row-inspector]');
+    renderPreviewRows(state, {
+      target: tableEditLayer,
+      inspector: rowInspector,
+      model: computed.model,
+      lines: computed.lines,
+      layout: computed.layout,
+      products: currentBundle?.products || [],
+      packaging: currentBundle?.packaging || [],
+      onVisualChange: () => {
+        state.dirty = true;
+        setDirty();
+        scheduleDocumentRender();
+      },
+      onStructureChange: () => {
+        state.dirty = true;
+        setDirty();
+        scheduleDocumentRender();
+        renderTableEditLayer({ rebuildInspector:true });
+      }
+    });
+    if (rebuildInspector) setSelectionStatus();
+  }
+
   function renderBackgroundInspector() {
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
     propertiesRoot.replaceChildren();
     const stack = document.createElement('div');
     stack.className = 'scene-editor-inspector-stack';
@@ -435,12 +490,37 @@ export function initialiseSceneEditor() {
     palettePanel.append(paletteGrid);
     palette.append(palettePanel);
 
-    const content = document.createElement('div');
-    content.className = 'scene-editor-table-content-hint';
-    content.textContent = 'Клик по таблице на рабочем поле включает её редактирование. Наполнение строк переносится сюда следующим этапом без отдельного Preview-редактора.';
+    const content = document.createElement('details');
+    content.className = 'scene-editor-inspector-group';
+    content.open = true;
+    content.append(Object.assign(document.createElement('summary'), { textContent:'Содержимое' }));
+    const contentPanel = document.createElement('div');
+    contentPanel.className = 'scene-editor-inspector-panel';
+    const rowActions = document.createElement('div');
+    rowActions.className = 'scene-editor-table-row-actions';
+    for (const [label, kind] of [['+ Раздел','section'],['+ Продукт','item'],['+ Тара','packaging']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'button button-secondary';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        appendRow(state, kind);
+        state.dirty = true;
+        setDirty();
+        renderTableEditLayer({ rebuildInspector:true });
+        scheduleDocumentRender();
+      });
+      rowActions.append(button);
+    }
+    const rowInspector = document.createElement('div');
+    rowInspector.className = 'scene-editor-table-row-inspector';
+    rowInspector.dataset.sceneTableRowInspector = '';
+    contentPanel.append(rowActions, rowInspector);
+    content.append(contentPanel);
 
     stack.append(geometry, typography, palette, content);
     propertiesRoot.append(stack);
+    renderTableEditLayer();
   }
 
   function refreshSelectionOverlay() {
@@ -767,6 +847,8 @@ export function initialiseSceneEditor() {
       setSelectionStatus();
       return;
     }
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
     const selected = renderSceneElementInspector(state, {
       container: propertiesRoot,
       onVisualChange: () => {
@@ -801,6 +883,7 @@ export function initialiseSceneEditor() {
     await renderer.render(sceneContext(), ['screen', 'menu', 'scene']);
     fitPreviewShell();
     refreshSelectionOverlay();
+    if (selectedOwner === 'table') renderTableEditLayer();
   }
 
   function hydrate(bundle) {
