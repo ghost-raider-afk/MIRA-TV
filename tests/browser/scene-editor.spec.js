@@ -64,7 +64,17 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(2);
   const tableProductSelect = page.locator('#scene-editor-table-edit-layer [data-preview-product-select]').first();
   await expect(tableProductSelect).toBeVisible();
+  await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
   expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeLessThanOrEqual(10);
+  await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
+  await tableProductSelect.click();
+  await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeVisible();
+  const productSearch = page.locator('#scene-editor-table-edit-layer .editor-preview-choice-search');
+  await expect(productSearch).toBeFocused();
+  await productSearch.fill('Scene product');
+  await expect(page.locator('#scene-editor-table-edit-layer [role="option"]')).toHaveCount(1);
+  await productSearch.press('Escape');
+  await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeHidden();
 
   await page.locator('#scene-editor-background-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
