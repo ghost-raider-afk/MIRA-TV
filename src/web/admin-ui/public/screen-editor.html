@@ -13,15 +13,15 @@
       <div class="app-content">
         <main class="main-content editor-content">
           <form id="screen-editor-form" class="editor-workspace" aria-busy="true">
-            <section class="editor-commandbar" aria-label="Редактор монитора">
+            <section class="editor-commandbar" aria-label="Настройки монитора">
               <div class="editor-commandbar-identity">
                 <a class="editor-back" href="/screens" aria-label="К мониторам">←</a>
                 <div class="editor-commandbar-identity-copy">
-                  <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка монитора…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
+                  <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка настроек…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
                 </div>
               </div>
               <div class="editor-primary-actions" aria-label="Действия редактора">
-                <a class="button button-secondary" id="editor-scene-link" href="/scene">Сцена</a>
+                <a class="button button-secondary" id="editor-scene-link" href="/scene">Редактировать сцену</a>
                 <button class="button button-primary editor-save" id="editor-save" type="submit" disabled>Сохранить</button>
               </div>
             </section>
@@ -58,22 +58,6 @@
                   </div>
                 </details>
 
-                <details class="editor-settings-section editor-tool-menu">
-                  <summary>Оформление</summary>
-                  <div class="editor-settings-body">
-                    <div class="compact-form-grid compact-colors">
-                      <label class="field"><span>Фон</span><input id="editor-background-color" type="color" disabled /></label>
-                      <label class="field"><span>Акцент</span><input id="editor-accent-color" type="color" disabled /></label>
-                      <label class="field"><span>Текст</span><input id="editor-text-color" type="color" disabled /></label>
-                    </div>
-                    <div class="background-upload-block">
-                      <div><strong>Фоновое изображение</strong><small id="editor-background-state">Без изображения</small></div>
-                      <input id="editor-background-file" type="file" accept="image/png,image/jpeg,image/webp" disabled aria-label="Фоновое изображение монитора" />
-                      <div class="inline-actions"><button class="button button-secondary" id="editor-background-upload" type="button" disabled>Загрузить</button><button class="button button-danger" id="editor-background-remove" type="button" disabled>Удалить</button></div>
-                      <small data-screen-background-limit>Лимит загрузки задаётся сервером.</small>
-                    </div>
-                  </div>
-                </details>
               </aside>
 
               <div class="editor-main-column">
