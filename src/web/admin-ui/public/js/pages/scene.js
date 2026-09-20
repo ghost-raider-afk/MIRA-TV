@@ -11,6 +11,13 @@ import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
+const ELEMENT_LABELS = Object.freeze({
+  text: 'Текстовое поле',
+  logo: 'Логотип',
+  image: 'Картинка',
+  video: 'Видео',
+  weather: 'Погода'
+});
 
 let generation = 0;
 
@@ -62,6 +69,8 @@ export function initialiseSceneEditor() {
   const selectionLayer = element('scene-editor-selection-layer');
   const layersRoot = element('scene-editor-layers');
   const propertiesRoot = element('scene-editor-properties');
+  const addButton = element('scene-editor-add');
+  const addMenu = element('scene-editor-add-menu');
   const screenSelect = element('scene-editor-screen');
   if (!(form instanceof HTMLFormElement)
       || !(stage instanceof HTMLElement)
@@ -70,6 +79,8 @@ export function initialiseSceneEditor() {
       || !(selectionLayer instanceof HTMLElement)
       || !(layersRoot instanceof HTMLElement)
       || !(propertiesRoot instanceof HTMLElement)
+      || !(addButton instanceof HTMLButtonElement)
+      || !(addMenu instanceof HTMLElement)
       || !(screenSelect instanceof HTMLSelectElement)) return undefined;
 
   const token = ++generation;
@@ -81,6 +92,7 @@ export function initialiseSceneEditor() {
   let disposed = false;
   let previewFrame = 0;
   let resizeObserver = null;
+  let interactionActive = false;
 
   const active = () => !disposed && token === generation && document.body.dataset.page === 'scene';
 
@@ -106,6 +118,8 @@ export function initialiseSceneEditor() {
       ? `${caption} · X ${Math.round(Number(selected.x) || 0)} · Y ${Math.round(Number(selected.y) || 0)}`
       : 'Элемент не выбран';
     if (title) title.textContent = caption;
+    const kind = element('scene-editor-properties-kind');
+    if (kind) kind.textContent = selected ? (ELEMENT_LABELS[selected.type] || selected.type) : '—';
   }
 
   function fitPreviewShell() {
@@ -121,6 +135,14 @@ export function initialiseSceneEditor() {
     shell.style.aspectRatio = `${resolution.width} / ${resolution.height}`;
     const zoom = element('scene-editor-zoom');
     if (zoom) zoom.textContent = `${Math.max(1, Math.round(scale * 100))}%`;
+  }
+
+  function applyBoxGeometry(box, sceneElement) {
+    box.style.left = `${(Number(sceneElement.x || 0) / SCENE_WIDTH) * 100}%`;
+    box.style.top = `${(Number(sceneElement.y || 0) / SCENE_HEIGHT) * 100}%`;
+    box.style.width = `${(Number(sceneElement.width || 1) / SCENE_WIDTH) * 100}%`;
+    box.style.height = `${(Number(sceneElement.height || 1) / SCENE_HEIGHT) * 100}%`;
+    box.style.transform = `rotate(${Number(sceneElement.rotation_deg || 0)}deg)`;
   }
 
   function syncOverlaySelection() {
@@ -147,11 +169,7 @@ export function initialiseSceneEditor() {
       box.className = 'scene-editor-selection-box';
       box.classList.toggle('is-selected', sceneElement.id === state.selectedElementId);
       box.dataset.sceneElementId = sceneElement.id;
-      box.style.left = `${(Number(sceneElement.x || 0) / SCENE_WIDTH) * 100}%`;
-      box.style.top = `${(Number(sceneElement.y || 0) / SCENE_HEIGHT) * 100}%`;
-      box.style.width = `${(Number(sceneElement.width || 1) / SCENE_WIDTH) * 100}%`;
-      box.style.height = `${(Number(sceneElement.height || 1) / SCENE_HEIGHT) * 100}%`;
-      box.style.transform = `rotate(${Number(sceneElement.rotation_deg || 0)}deg)`;
+      applyBoxGeometry(box, sceneElement);
       box.setAttribute('aria-label', `Выбрать Элемент ${index + 1}`);
       const label = document.createElement('span');
       label.className = 'scene-editor-selection-label';
@@ -159,46 +177,67 @@ export function initialiseSceneEditor() {
       box.append(label);
 
       if (sceneElement.id === state.selectedElementId) {
-        const resize = document.createElement('span');
-        resize.className = 'scene-editor-resize-handle';
-        resize.setAttribute('aria-hidden', 'true');
-        resize.addEventListener('pointerdown', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const startX = event.clientX;
-          const startY = event.clientY;
-          const startWidth = Math.max(1, Number(sceneElement.width || 1));
-          const startHeight = Math.max(1, Number(sceneElement.height || 1));
-          const rect = shell.getBoundingClientRect();
-          resize.setPointerCapture?.(event.pointerId);
+        for (const direction of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+          const resize = document.createElement('span');
+          resize.className = 'scene-editor-resize-handle';
+          resize.dataset.direction = direction;
+          resize.setAttribute('aria-hidden', 'true');
+          resize.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            interactionActive = true;
+            const pointerStartX = event.clientX;
+            const pointerStartY = event.clientY;
+            const startLeft = Number(sceneElement.x || 0);
+            const startTop = Number(sceneElement.y || 0);
+            const startRight = startLeft + Math.max(1, Number(sceneElement.width || 1));
+            const startBottom = startTop + Math.max(1, Number(sceneElement.height || 1));
+            const rect = shell.getBoundingClientRect();
+            resize.setPointerCapture?.(event.pointerId);
 
-          const move = (moveEvent) => {
-            const deltaX = (moveEvent.clientX - startX) * (SCENE_WIDTH / Math.max(1, rect.width));
-            const deltaY = (moveEvent.clientY - startY) * (SCENE_HEIGHT / Math.max(1, rect.height));
-            updateSceneElement(state, sceneElement.id, {
-              width: Math.round(clamp(startWidth + deltaX, 20, SCENE_WIDTH - Number(sceneElement.x || 0))),
-              height: Math.round(clamp(startHeight + deltaY, 20, SCENE_HEIGHT - Number(sceneElement.y || 0)))
-            });
-            setDirty();
-            scheduleSceneRender();
-          };
-          const end = () => {
-            resize.removeEventListener('pointermove', move);
-            resize.removeEventListener('pointerup', end);
-            resize.removeEventListener('pointercancel', end);
-            renderSelectionOwners();
-          };
-          resize.addEventListener('pointermove', move);
-          resize.addEventListener('pointerup', end);
-          resize.addEventListener('pointercancel', end);
-        });
-        box.append(resize);
+            const move = (moveEvent) => {
+              const deltaX = (moveEvent.clientX - pointerStartX) * (SCENE_WIDTH / Math.max(1, rect.width));
+              const deltaY = (moveEvent.clientY - pointerStartY) * (SCENE_HEIGHT / Math.max(1, rect.height));
+              let left = startLeft;
+              let top = startTop;
+              let right = startRight;
+              let bottom = startBottom;
+              if (direction.includes('w')) left = clamp(startLeft + deltaX, 0, right - 20);
+              if (direction.includes('e')) right = clamp(startRight + deltaX, left + 20, SCENE_WIDTH);
+              if (direction.includes('n')) top = clamp(startTop + deltaY, 0, bottom - 20);
+              if (direction.includes('s')) bottom = clamp(startBottom + deltaY, top + 20, SCENE_HEIGHT);
+              updateSceneElement(state, sceneElement.id, {
+                x: Math.round(left),
+                y: Math.round(top),
+                width: Math.round(right - left),
+                height: Math.round(bottom - top)
+              });
+              const current = state.scene?.elements?.find((item) => item.id === sceneElement.id);
+              if (current) applyBoxGeometry(box, current);
+              setDirty();
+              setSelectionStatus();
+              scheduleSceneRender();
+            };
+            const end = () => {
+              interactionActive = false;
+              resize.removeEventListener('pointermove', move);
+              resize.removeEventListener('pointerup', end);
+              resize.removeEventListener('pointercancel', end);
+              renderSelectionOwners();
+            };
+            resize.addEventListener('pointermove', move);
+            resize.addEventListener('pointerup', end);
+            resize.addEventListener('pointercancel', end);
+          });
+          box.append(resize);
+        }
       }
 
       box.addEventListener('pointerdown', (event) => {
         if (event.target.closest('.scene-editor-resize-handle')) return;
         event.preventDefault();
         selectInCanvas(sceneElement.id);
+        interactionActive = true;
 
         const startX = event.clientX;
         const startY = event.clientY;
@@ -216,10 +255,14 @@ export function initialiseSceneEditor() {
             x: Math.round(clamp(startSceneX + deltaX, 0, SCENE_WIDTH - width)),
             y: Math.round(clamp(startSceneY + deltaY, 0, SCENE_HEIGHT - height))
           });
+          const current = state.scene?.elements?.find((item) => item.id === sceneElement.id);
+          if (current) applyBoxGeometry(box, current);
           setDirty();
+          setSelectionStatus();
           scheduleSceneRender();
         };
         const end = () => {
+          interactionActive = false;
           box.removeEventListener('pointermove', move);
           box.removeEventListener('pointerup', end);
           box.removeEventListener('pointercancel', end);
@@ -250,7 +293,7 @@ export function initialiseSceneEditor() {
     if (!renderer || !active()) return;
     await renderer.render(sceneContext(), ['scene']);
     if (!active()) return;
-    refreshSelectionOverlay();
+    if (!interactionActive) refreshSelectionOverlay();
   }
 
   function scheduleSceneRender() {
@@ -259,6 +302,26 @@ export function initialiseSceneEditor() {
       previewFrame = 0;
       void renderScene();
     });
+  }
+
+  function syncAddMenuAvailability() {
+    const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
+    const hasWeather = elements.some((item) => item?.type === 'weather');
+    const videoCount = elements.filter((item) => item?.type === 'video' && item.enabled !== false).length;
+    addMenu.querySelectorAll('[data-scene-element-type]').forEach((button) => {
+      const type = button.dataset.sceneElementType;
+      const unavailable = (type === 'weather' && hasWeather) || (type === 'video' && videoCount >= 2);
+      button.disabled = unavailable;
+      if (type === 'weather') button.title = unavailable ? 'На сцене уже есть Погода' : '';
+      if (type === 'video') button.title = unavailable ? 'На сцене уже два активных видео' : '';
+    });
+  }
+
+  function setAddMenuOpen(open) {
+    const next = open === true && !addButton.disabled;
+    addMenu.hidden = !next;
+    addButton.setAttribute('aria-expanded', next ? 'true' : 'false');
+    if (next) syncAddMenuAvailability();
   }
 
   function renderLayers() {
@@ -307,6 +370,7 @@ export function initialiseSceneEditor() {
   function renderSelectionOwners() {
     renderLayers();
     renderInspector();
+    syncAddMenuAvailability();
     refreshSelectionOverlay();
   }
 
@@ -355,7 +419,8 @@ export function initialiseSceneEditor() {
     if (!active()) return;
     form.setAttribute('aria-busy', 'false');
     element('scene-editor-save').disabled = false;
-    element('scene-editor-add').disabled = false;
+    addButton.disabled = false;
+    syncAddMenuAvailability();
     screenSelect.disabled = false;
   }
 
@@ -397,11 +462,28 @@ export function initialiseSceneEditor() {
     });
   });
 
-  element('scene-editor-add')?.addEventListener('click', () => {
-    appendSceneElement(state);
-    setDirty();
-    renderSelectionOwners();
-    scheduleSceneRender();
+  addButton.addEventListener('click', () => {
+    setAddMenuOpen(addMenu.hidden);
+  });
+
+  addMenu.querySelectorAll('[data-scene-element-type]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const created = appendSceneElement(state, button.dataset.sceneElementType);
+      if (!created) {
+        syncAddMenuAvailability();
+        return;
+      }
+      setAddMenuOpen(false);
+      setDirty();
+      renderSelectionOwners();
+      scheduleSceneRender();
+    });
+  });
+
+  addMenu.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (!addMenu.contains(document.activeElement) && document.activeElement !== addButton) setAddMenuOpen(false);
+    }, 0);
   });
 
   form.addEventListener('submit', async (event) => {
