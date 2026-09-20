@@ -42,6 +42,36 @@ const TABLE_FONTS = Object.freeze([
   ['system-sans', 'Системный sans-serif']
 ]);
 
+function systemOwnerIcon(type) {
+  if (type !== 'background' && type !== 'table') return null;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+
+  const rect = document.createElementNS(svg.namespaceURI, 'rect');
+  rect.setAttribute('x', '3.5');
+  rect.setAttribute('y', '4.5');
+  rect.setAttribute('width', '17');
+  rect.setAttribute('height', '15');
+  rect.setAttribute('rx', '2');
+  svg.append(rect);
+
+  const path = document.createElementNS(svg.namespaceURI, 'path');
+  if (type === 'background') {
+    const circle = document.createElementNS(svg.namespaceURI, 'circle');
+    circle.setAttribute('cx', '8.5');
+    circle.setAttribute('cy', '9');
+    circle.setAttribute('r', '1.5');
+    path.setAttribute('d', 'm5.5 17 4.2-4.3 3.1 2.8 2.3-2.2 3.4 3.7');
+    svg.append(circle, path);
+  } else {
+    path.setAttribute('d', 'M3.5 9.5h17M9 9.5v10M15 9.5v10M3.5 14.5h17');
+    svg.append(path);
+  }
+  return svg;
+}
+
 let generation = 0;
 
 function screenFromQuery(screens) {
@@ -164,7 +194,9 @@ export function initialiseSceneEditor() {
     if (title) title.textContent = caption;
     if (kind) {
       const typeLabel = ownerType ? (ELEMENT_LABELS[ownerType] || ownerType) : 'Тип элемента не выбран';
-      kind.textContent = ownerType ? (ELEMENT_ICONS[ownerType] || '•') : '—';
+      const ownerIcon = systemOwnerIcon(ownerType);
+      if (ownerIcon) kind.replaceChildren(ownerIcon);
+      else kind.textContent = ownerType ? (ELEMENT_ICONS[ownerType] || '•') : '—';
       kind.dataset.elementType = ownerType || '';
       kind.dataset.tooltip = ownerType ? typeLabel : '';
       kind.setAttribute('aria-label', typeLabel);
