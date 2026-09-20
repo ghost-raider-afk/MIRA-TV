@@ -90,7 +90,7 @@ export function normaliseWeatherWidget(source = {}) {
 
 function svgIcon(name) {
   const common = 'viewBox="0 0 64 64" aria-hidden="true" focusable="false"';
-  if (name === 'sun') return `<svg ${common}><circle cx="32" cy="32" r="12"/><path d="M32 5v10M32 49v10M5 32h10M49 32h10M13 13l7 7M44 44l7 7M51 13l-7 7M20 44l-7 7"/></svg>`;
+  if (name === 'sun') return `<svg ${common}><circle cx="32" cy="32" r="15"/><circle cx="32" cy="32" r="21" opacity=".22"/></svg>`;
   if (name === 'moon') return `<svg ${common}><path d="M44 43A22 22 0 1 1 28 9a18 18 0 0 0 16 34Z"/></svg>`;
   if (name === 'rain') return `<svg ${common}><path d="M18 41h30a11 11 0 0 0-2-22 16 16 0 0 0-29 6A8 8 0 0 0 18 41Z"/><path d="m22 48-3 7M34 48l-3 7M46 48l-3 7"/></svg>`;
   if (name === 'snow') return `<svg ${common}><path d="M18 39h30a11 11 0 0 0-2-22 16 16 0 0 0-29 6A8 8 0 0 0 18 39Z"/><path d="M20 50h8M24 46v8M36 50h8M40 46v8"/></svg>`;
