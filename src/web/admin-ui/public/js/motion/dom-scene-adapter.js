@@ -34,13 +34,22 @@ function collectMenuNodes(stage) {
   const badgeGlows = [...stage.querySelectorAll('g.promotion-badge-glow')];
   badgeGlows.forEach((target, index) => append(nodes, {
     id: `menu.promotion-badge-glow.${index}`, kind: 'promotion-badge-glow', layer: MOTION_LAYERS.MENU, target,
-    order: index, count: badgeGlows.length, depth: 2, transformOwner: 'promotion-overlay'
+    order: index, count: badgeGlows.length, depth: 2, transformOwner: 'promotion-overlay',
+    metadata: { animation: target.dataset.promotionBadgeAnimation || 'shine' }
+  }));
+
+  const badgeShines = [...stage.querySelectorAll('g.promotion-badge-shine')];
+  badgeShines.forEach((target, index) => append(nodes, {
+    id: `menu.promotion-badge-shine.${index}`, kind: 'promotion-badge-shine', layer: MOTION_LAYERS.MENU, target,
+    order: index, count: badgeShines.length, depth: 3, transformOwner: 'promotion-overlay',
+    metadata: { animation: target.dataset.promotionBadgeAnimation || 'shine' }
   }));
 
   const glows = [...stage.querySelectorAll('g.promotion-row-glow')];
   glows.forEach((target, index) => append(nodes, {
     id: `menu.promotion-glow.${index}`, kind: 'promotion-glow', layer: MOTION_LAYERS.MENU, target,
-    order: index, count: glows.length, depth: 1, transformOwner: 'promotion-overlay'
+    order: index, count: glows.length, depth: 1, transformOwner: 'promotion-overlay',
+    metadata: { animation: target.dataset.promotionRowAnimation || 'wave' }
   }));
   return nodes;
 }
