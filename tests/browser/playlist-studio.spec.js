@@ -109,12 +109,29 @@ test('Playlist Studio owns only Scene Playlist and preserves the screen motion p
     await expect(page.locator('#animation-screen-select')).toHaveValue(String(fixture.screenId));
     await expect(page.locator('#animation-stage [data-player-menu-layer] .section-title')).toHaveText('НАСТОЯЩИЙ ЭКРАН PLAYLIST STUDIO');
     await expect(page.locator('#animation-stage')).toHaveClass(/player-scene-stage/);
-    const stageSize = await page.locator('#animation-stage').evaluate((node) => ({ width: node.clientWidth, height: node.clientHeight }));
+    const stageGeometry = await page.locator('#animation-stage').evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        logicalWidth:node.clientWidth,
+        logicalHeight:node.clientHeight,
+        visualWidth:box.width,
+        visualHeight:box.height,
+        viewportWidth:Number(node.dataset.sceneViewportWidth),
+        viewportHeight:Number(node.dataset.sceneViewportHeight),
+        viewportScale:Number(node.dataset.sceneViewportScale)
+      };
+    });
     const svgBox = await page.locator('#animation-stage [data-player-menu-layer] svg.menu-table-svg').boundingBox();
     expect(svgBox).not.toBeNull();
-    expect(Math.abs(svgBox.width - stageSize.width)).toBeLessThanOrEqual(1);
-    expect(Math.abs(svgBox.height - stageSize.height)).toBeLessThanOrEqual(1);
-    expect(Math.abs(stageSize.width / stageSize.height - (1024 / 768))).toBeLessThan(0.01);
+    expect(stageGeometry.logicalWidth).toBe(1024);
+    expect(stageGeometry.logicalHeight).toBe(768);
+    expect(stageGeometry.viewportWidth).toBe(1024);
+    expect(stageGeometry.viewportHeight).toBe(768);
+    expect(stageGeometry.viewportScale).toBeGreaterThan(0);
+    expect(stageGeometry.viewportScale).toBeLessThanOrEqual(1);
+    expect(Math.abs(svgBox.width - stageGeometry.visualWidth)).toBeLessThanOrEqual(1);
+    expect(Math.abs(svgBox.height - stageGeometry.visualHeight)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stageGeometry.visualWidth / stageGeometry.visualHeight - (1024 / 768))).toBeLessThan(0.01);
     const sceneElement = page.locator('#animation-stage [data-scene-element-id="playlist-scene-text"]');
     await expect(sceneElement).toBeVisible();
     await expect(inspector.locator('#animation-save')).toBeVisible();
