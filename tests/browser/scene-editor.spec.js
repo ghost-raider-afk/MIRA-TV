@@ -43,7 +43,7 @@ async function fixture(page) {
 test('Scene editor keeps layers, shared Player preview and contextual properties on one desktop page', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
-  const { screen } = await fixture(page);
+  const { screen, product } = await fixture(page);
   await page.goto(`/scene?screen=${screen.id}`);
 
   await expect(page.locator('#scene-editor-layers')).toBeVisible();
@@ -71,8 +71,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeVisible();
   const productSearch = page.locator('#scene-editor-table-edit-layer .editor-preview-choice-search');
   await expect(productSearch).toBeFocused();
-  await productSearch.fill('Scene product');
+  await productSearch.fill(product.name);
   await expect(page.locator('#scene-editor-table-edit-layer [role="option"]')).toHaveCount(1);
+  await expect(page.locator('#scene-editor-table-edit-layer [role="option"]').first()).toContainText(product.name);
   await productSearch.press('Escape');
   await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeHidden();
 
@@ -121,7 +122,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await inspector.getByLabel('Текст', { exact:true }).fill('бар маяк');
   await inspector.getByLabel('X', { exact:true }).fill('300');
   await inspector.getByLabel('Y', { exact:true }).fill('160');
-  await inspector.getByText('Типографика', { exact:true }).click();
+  await inspector.getByText('Шрифт', { exact:true }).click();
   await inspector.getByLabel('Размер, px', { exact:true }).fill('96');
   await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="text"]')).toContainText('бар маяк');
@@ -196,7 +197,7 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
 
-  await page.getByRole('button', { name:/Элемент/ }).click();
+  await page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Элемент/ }).click();
   await expect(page.locator('#scene-editor-add-menu')).toBeVisible();
   await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Текстовое поле/ }).click();
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
