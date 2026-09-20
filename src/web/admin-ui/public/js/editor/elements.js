@@ -412,16 +412,146 @@ function weatherSettings(state, element, options) {
   bind(mode, 'change', () => mutateWeather(state, element.id, (next) => { next.mode = mode.value; }), options);
   grid.append(label('Режим', mode));
 
-  const specs = [
-    ['Населённый пункт', 'location_name', input('text', weather.location_name, { placeholder: 'Хельсинки' }), (control) => control.value],
-    ['Широта', 'latitude', input('number', weather.latitude, { min: -90, max: 90, step: .0001 }), (control) => control.value === '' ? null : numberValue(control, null)],
-    ['Долгота', 'longitude', input('number', weather.longitude, { min: -180, max: 180, step: .0001 }), (control) => control.value === '' ? null : numberValue(control, null)],
-    ['Часовой пояс', 'timezone', input('text', weather.timezone || 'auto'), (control) => control.value],
+  const locationShell = document.createElement('div');
+  locationShell.className = 'editor-weather-location-picker';
+  const location = input('search', weather.location_name, { placeholder: 'Начните вводить город' });
+  location.setAttribute('aria-label', 'Населённый пункт');
+  location.setAttribute('autocomplete', 'off');
+  location.setAttribute('role', 'combobox');
+  location.setAttribute('aria-expanded', 'false');
+  location.setAttribute('aria-autocomplete', 'list');
+
+  const locationResults = document.createElement('div');
+  locationResults.className = 'editor-weather-location-results';
+  locationResults.setAttribute('role', 'listbox');
+  locationResults.hidden = true;
+  const resultsId = `weather-location-${Math.random().toString(36).slice(2, 9)}`;
+  locationResults.id = resultsId;
+  location.setAttribute('aria-controls', resultsId);
+
+  const latitude = input('number', weather.latitude, { min: -90, max: 90, step: .0001 });
+  const longitude = input('number', weather.longitude, { min: -180, max: 180, step: .0001 });
+  const timezone = input('text', weather.timezone || 'auto');
+
+  let searchTimer = 0;
+  let searchGeneration = 0;
+
+  function currentWeather() {
+    return structuredClone(elementById(state, element.id)?.weather || defaultWeather());
+  }
+
+  function notifyWeatherConfiguration({ immediate = false } = {}) {
+    options.onWeatherConfigurationChange?.(element.id, currentWeather(), { immediate });
+  }
+
+  function closeLocations() {
+    locationResults.hidden = true;
+    location.setAttribute('aria-expanded', 'false');
+  }
+
+  function renderLocations(items, generation) {
+    if (generation !== searchGeneration) return;
+    locationResults.replaceChildren();
+    for (const item of Array.isArray(items) ? items : []) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'editor-weather-location-option';
+      button.setAttribute('role', 'option');
+
+      const strong = document.createElement('strong');
+      strong.textContent = String(item.name || '');
+      const small = document.createElement('small');
+      small.textContent = [item.admin1, item.country].filter(Boolean).join(' · ');
+      button.append(strong, small);
+
+      button.addEventListener('pointerdown', (event) => event.preventDefault());
+      button.addEventListener('click', () => {
+        const nextName = String(item.name || '').trim();
+        const nextLatitude = Number(item.latitude);
+        const nextLongitude = Number(item.longitude);
+        const nextTimezone = String(item.timezone || 'auto');
+
+        mutateWeather(state, element.id, (next) => {
+          next.location_name = nextName;
+          next.latitude = Number.isFinite(nextLatitude) ? nextLatitude : null;
+          next.longitude = Number.isFinite(nextLongitude) ? nextLongitude : null;
+          next.timezone = nextTimezone;
+        });
+        location.value = nextName;
+        latitude.value = Number.isFinite(nextLatitude) ? String(nextLatitude) : '';
+        longitude.value = Number.isFinite(nextLongitude) ? String(nextLongitude) : '';
+        timezone.value = nextTimezone;
+        closeLocations();
+        options.onVisualChange?.();
+        notifyWeatherConfiguration({ immediate:true });
+      });
+      locationResults.append(button);
+    }
+    const hasResults = locationResults.childElementCount > 0;
+    locationResults.hidden = !hasResults;
+    location.setAttribute('aria-expanded', hasResults ? 'true' : 'false');
+  }
+
+  begin(location, options.onBeforeMutate);
+  location.addEventListener('input', () => {
+    mutateWeather(state, element.id, (next) => {
+      next.location_name = location.value;
+      next.latitude = null;
+      next.longitude = null;
+      next.timezone = 'auto';
+    });
+    latitude.value = '';
+    longitude.value = '';
+    timezone.value = 'auto';
+    options.onVisualChange?.();
+    notifyWeatherConfiguration();
+
+    window.clearTimeout(searchTimer);
+    const query = location.value.trim();
+    const requestGeneration = ++searchGeneration;
+    if (query.length < 2 || typeof options.onWeatherLocationSearch !== 'function') {
+      closeLocations();
+      return;
+    }
+    searchTimer = window.setTimeout(async () => {
+      try {
+        const items = await options.onWeatherLocationSearch(query);
+        renderLocations(items, requestGeneration);
+      } catch {
+        if (requestGeneration === searchGeneration) closeLocations();
+      }
+    }, 220);
+  });
+  location.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeLocations();
+    if (event.key === 'ArrowDown') {
+      const first = locationResults.querySelector('[role="option"]');
+      if (first instanceof HTMLButtonElement) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
+  locationShell.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (!locationShell.contains(document.activeElement)) closeLocations();
+    }, 0);
+  });
+  locationShell.append(location, locationResults);
+  grid.append(label('Населённый пункт', locationShell));
+
+  const sourceSpecs = [
+    ['Широта', 'latitude', latitude, (control) => control.value === '' ? null : numberValue(control, null)],
+    ['Долгота', 'longitude', longitude, (control) => control.value === '' ? null : numberValue(control, null)],
+    ['Часовой пояс', 'timezone', timezone, (control) => control.value],
     ['Обновление, мин', 'refresh_minutes', input('number', weather.refresh_minutes, { min: 5, max: 120, step: 1 }), (control) => numberValue(control, 15)],
     ['Прогнозов', 'forecast_items', input('number', weather.forecast_items, { min: 1, max: 6, step: 1 }), (control) => numberValue(control, 3)]
   ];
-  specs.forEach(([caption, key, control, read]) => {
-    bind(control, 'input', () => mutateWeather(state, element.id, (next) => { next[key] = read(control); }), options);
+  sourceSpecs.forEach(([caption, key, control, read]) => {
+    bind(control, 'input', () => {
+      mutateWeather(state, element.id, (next) => { next[key] = read(control); });
+      if (key === 'latitude' || key === 'longitude' || key === 'timezone') notifyWeatherConfiguration();
+    }, options);
     grid.append(label(caption, control));
   });
   source.append(grid);
@@ -631,7 +761,16 @@ export function renderSceneElements(state, {
   }
 
   const weatherOwnerId = elements.find((element) => element?.type === 'weather')?.id || null;
-  const options = { container, onBeforeMutate, onVisualChange, onStructureChange, onUpload, weatherOwnerId };
+  const options = {
+    container,
+    onBeforeMutate,
+    onVisualChange,
+    onStructureChange,
+    onUpload,
+    onWeatherLocationSearch,
+    onWeatherConfigurationChange,
+    weatherOwnerId
+  };
   elements.forEach((element, index) => container.append(renderElementCard(state, element, index, options)));
 }
 
@@ -749,7 +888,9 @@ export function renderSceneElementInspector(state, {
   onBeforeMutate,
   onVisualChange,
   onStructureChange,
-  onUpload
+  onUpload,
+  onWeatherLocationSearch,
+  onWeatherConfigurationChange
 } = {}) {
   if (!(container instanceof HTMLElement)) return null;
   container.replaceChildren();
