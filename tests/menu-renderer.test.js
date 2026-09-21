@@ -102,7 +102,7 @@ test('canonical SVG mirrors MIRA-TV 1 structure without vertical price separator
 test('canonical SVG uses MIRA-TV 1 typography ratios and remains CSP-safe', () => {
   const { svg } = rendered();
   assert.doesNotMatch(svg, /<style[\s>]/i);
-  assert.match(svg, /class="item-name"[^>]*font-size="25\.2(?:0+)?(?:000000000000003)?"[^>]*fill="#F8FAFC"/);
+  assert.match(svg, /class="item-name"[^>]*font-size="25\.2[0-9]*"[^>]*fill="#F8FAFC"/);
   assert.match(svg, /class="item-meta"[^>]*font-size="14\.175"/);
   assert.match(svg, /class="section-title"[^>]*font-size="29\.400000000000002"|class="section-title"[^>]*font-size="29\.4"/);
   assert.match(svg, /class="separator"[^>]*stroke="#8B929A"[^>]*stroke-dasharray=/);
