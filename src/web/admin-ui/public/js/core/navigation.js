@@ -3,7 +3,7 @@ import { pageName } from './config.js';
 export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Обзор', prefetch: false }),
   Object.freeze({ path: '/locations', page: 'locations', section: 'monitors', title: 'Торговые точки', prefetch: true }),
-  Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
+  Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'TV-сеть', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Настройки монитора', prefetch: true }),
   Object.freeze({ path: '/scene', page: 'scene', section: 'monitors', title: 'Сцена', prefetch: true }),
@@ -38,7 +38,7 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([['Обзор', '/']]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Плейлист', '/playlist'], ['Подключить ТВ', '/connect-tv']]),
+  monitors: Object.freeze([['Торговые точки', '/locations'], ['TV-сеть', '/screens'], ['Сцена', '/scene'], ['Плейлист', '/playlist'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });
