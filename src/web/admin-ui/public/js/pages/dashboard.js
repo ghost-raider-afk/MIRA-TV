@@ -108,7 +108,7 @@ function drawChart(card, points, config) {
   for (let index = 1; index <= 3; index += 1) {
     const y = padding + (height - padding * 2) * index / 4;
     const grid = svgNode('line', { x1:padding, y1:y, x2:width-padding, y2:y });
-    grid.classList.add('dashboard-chart-grid');
+    grid.classList.add('dashboard-chart-gridline');
     svg.append(grid);
   }
 
@@ -155,7 +155,16 @@ function renderAttention(items = []) {
     link.href = '/screens';
     const label = item.location_number ? `TV ${item.location_number}` : (item.screen_name || `TV ${item.screen_id}`);
     const lastSeen = item.last_seen_at ? formatDate(item.last_seen_at) : 'связи ещё не было';
-    link.innerHTML = `<span><strong>${label}</strong><small>${item.location_name || 'Без торговой точки'}</small></span><span class="dashboard-attention-state">Офлайн · ${lastSeen}</span>`;
+    const identity = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = label;
+    const location = document.createElement('small');
+    location.textContent = item.location_name || 'Без торговой точки';
+    identity.append(title, location);
+    const status = document.createElement('span');
+    status.className = 'dashboard-attention-state';
+    status.textContent = `Офлайн · ${lastSeen}`;
+    link.append(identity, status);
     host.append(link);
   }
 }
