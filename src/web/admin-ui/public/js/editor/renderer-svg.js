@@ -101,14 +101,17 @@ function itemMarkup(line, box, horizontal, palette, scale, typography) {
   const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
   const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
   const priceBaseline = box.top + 35 * fontScale;
-  const nameBaseline = line.metadata ? box.top + 22 * fontScale : priceBaseline;
-  const metaBaseline = box.top + 46 * fontScale;
+  const hasMetadata = Boolean(line.metadata);
+  const nameBaseline = hasMetadata ? box.top + 21 * fontScale : priceBaseline;
+  const metaBaseline = box.top + 46.5 * fontScale;
+  const nameSize = (hasMetadata ? 24 : 25) * fontScale;
+  const metaSize = 13.5 * fontScale;
   return `<g class="table-item tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale)}
     ${motionSurfaceMarkup(box, horizontal, scale, 'item')}
     ${promotion.glow}
     ${promotion.markup}
-    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: 14 * fontScale, weight: 400, fill: metaColor }, typography)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
+    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor }, typography)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
     <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, toneColor, typography)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, toneColor, typography)}</g>
   </g>`;
 }
