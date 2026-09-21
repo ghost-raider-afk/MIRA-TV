@@ -1,5 +1,12 @@
-const OUTPUT_WIDTH = 480;
-const OUTPUT_QUALITY = 0.64;
+const OUTPUT_WIDTH = 720;
+const OUTPUT_QUALITY = 0.76;
+const PREVIEW_ATTEMPTS = Object.freeze([
+  Object.freeze({ width:OUTPUT_WIDTH, quality:OUTPUT_QUALITY }),
+  Object.freeze({ width:OUTPUT_WIDTH, quality:0.68 }),
+  Object.freeze({ width:640, quality:0.68 }),
+  Object.freeze({ width:560, quality:0.64 }),
+  Object.freeze({ width:480, quality:0.60 })
+]);
 const assetCache = new Map();
 
 function canonicalSize(stage) {
@@ -68,7 +75,7 @@ async function videoFrame(video) {
     canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
     canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
     canvas.getContext('2d', { alpha:false })?.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.72);
+    return canvas.toDataURL('image/jpeg', 0.78);
   } catch {
     return '';
   }
@@ -126,7 +133,28 @@ async function inlineDynamicState(stage, clone) {
   await Promise.all(tasks);
 }
 
-async function capturePlayerPreview(stage) {
+async function encodedPreview(image, sceneWidth, sceneHeight, maxBytes) {
+  const byteLimit = Number(maxBytes);
+  const bounded = Number.isFinite(byteLimit) && byteLimit > 0;
+
+  for (const attempt of PREVIEW_ATTEMPTS) {
+    const outputHeight = Math.max(1, Math.round(attempt.width * sceneHeight / sceneWidth));
+    const canvas = document.createElement('canvas');
+    canvas.width = attempt.width;
+    canvas.height = outputHeight;
+    const context = canvas.getContext('2d', { alpha:false });
+    if (!context) return null;
+    context.fillStyle = '#090d14';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const frame = await canvasBlob(canvas, 'image/webp', attempt.quality);
+    if (!(frame instanceof Blob) || frame.size < 1) continue;
+    if (!bounded || frame.size <= byteLimit) return frame;
+  }
+  return null;
+}
+
+async function capturePlayerPreview(stage, maxBytes) {
   if (!(stage instanceof HTMLElement) || !stage.isConnected) return null;
   try { await document.fonts?.ready; } catch {}
 
@@ -153,20 +181,11 @@ async function capturePlayerPreview(stage) {
   image.decoding = 'async';
   image.src = imageSource;
   await image.decode();
-  const outputHeight = Math.max(1, Math.round(OUTPUT_WIDTH * height / width));
-  const canvas = document.createElement('canvas');
-  canvas.width = OUTPUT_WIDTH;
-  canvas.height = outputHeight;
-  const context = canvas.getContext('2d', { alpha:false });
-  if (!context) return null;
-  context.fillStyle = '#090d14';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return await canvasBlob(canvas, 'image/webp', OUTPUT_QUALITY);
+  return encodedPreview(image, width, height, maxBytes);
 }
 
-export async function publishPlayerPreview(stage) {
-  const frame = await capturePlayerPreview(stage);
+export async function publishPlayerPreview(stage, { maxBytes } = {}) {
+  const frame = await capturePlayerPreview(stage, maxBytes);
   if (!(frame instanceof Blob) || frame.size < 1) return false;
   const response = await fetch('/api/device/preview', {
     method:'POST',
