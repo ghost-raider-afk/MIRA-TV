@@ -313,10 +313,7 @@ export function initialiseSceneEditor() {
     if (!renderer || !active()) return;
     await renderer.render(sceneContext(), ['menu']);
     if (!active()) return;
-    if (!interactionActive) {
-      refreshSelectionOverlay();
-      if (selectedOwner === 'table') renderTableEditLayer();
-    }
+    if (!interactionActive) refreshSelectionOverlay();
   }
 
   function scheduleDocumentRender() {
@@ -332,6 +329,9 @@ export function initialiseSceneEditor() {
     state.dirty = true;
     setDirty();
     setSelectionStatus();
+    if (selectedOwner === 'table' && ['table_x','table_y','table_width_px','table_height_px'].some((key) => Object.hasOwn(patch, key))) {
+      renderTableEditLayer();
+    }
     scheduleDocumentRender();
   }
 
