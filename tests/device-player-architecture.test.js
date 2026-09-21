@@ -138,6 +138,8 @@ test('TV network status comes from real Player presence, on-demand ping and in-m
   assert.match(adminRoutes, /preview_available/);
   assert.match(player, /publishPlayerPreview/);
   assert.match(capture, /fetch\('\/api\/device\/preview'/);
+  assert.match(capture, /blobAsDataUrl\(new Blob\(\[svg\]/);
+  assert.doesNotMatch(capture, /URL\.createObjectURL\(new Blob\(\[svg\]/);
   assert.match(screens, /IP-адрес/);
   assert.match(screens, /Последняя связь/);
   assert.match(screens, /Ping/);
