@@ -385,6 +385,7 @@
   height: 92px;
   display: grid;
   place-items: center;
+  z-index: 4;
   color: var(--mira-menu-accent, #F6C90E);
   filter: drop-shadow(0 8px 12px rgba(0,0,0,.42));
   transform: translate(-50%,-50%);
