@@ -30,12 +30,15 @@ export function createPlayerRealtime({ store }) {
   const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 4096 });
   const byScreen = new Map();
   const byDevice = new Map();
+  const screenPreviews = new Map();
   let heartbeatTimer = null;
   let attachedServer = null;
 
   function add(session, socket) {
     const screen = addToIndex(byScreen, session.screen_id, socket);
     const device = addToIndex(byDevice, session.device_id, socket);
+    socket.miraConnectedAt = new Date().toISOString();
+    socket.miraLastSeenAt = socket.miraConnectedAt;
     socket.once('close', () => {
       screen.sockets.delete(socket);
       if (screen.sockets.size === 0) byScreen.delete(screen.id);
@@ -66,7 +69,81 @@ export function createPlayerRealtime({ store }) {
     return sent;
   }
 
+  function presenceForScreen(screenId) {
+    const sockets = byScreen.get(Number(screenId));
+    const open = sockets ? [...sockets].filter((socket) => socket.readyState === WebSocket.OPEN) : [];
+    return {
+      online: open.length > 0,
+      connections: open.length,
+      connected_at: open.map((socket) => socket.miraConnectedAt).filter(Boolean).sort()[0] || null,
+      realtime_last_seen_at: open.map((socket) => socket.miraLastSeenAt).filter(Boolean).sort().at(-1) || null
+    };
+  }
+
+  function pingSocket(socket, timeoutMs) {
+    if (socket?.readyState !== WebSocket.OPEN) return Promise.resolve(null);
+    const payload = Buffer.from(`mira-ping:${Date.now()}:${Math.random().toString(36).slice(2)}`);
+    const started = process.hrtime.bigint();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        socket.off('pong', onPong);
+        resolve(value);
+      };
+      const onPong = (data) => {
+        if (!Buffer.isBuffer(data) || !data.equals(payload)) return;
+        socket.miraLastSeenAt = new Date().toISOString();
+        const elapsed = Number(process.hrtime.bigint() - started) / 1_000_000;
+        finish(Math.max(0, Math.round(elapsed)));
+      };
+      const timer = setTimeout(() => finish(null), timeoutMs);
+      socket.on('pong', onPong);
+      try { socket.ping(payload); } catch { finish(null); }
+    });
+  }
+
+  async function pingScreen(screenId, timeoutMs = 2500) {
+    const sockets = byScreen.get(Number(screenId));
+    if (!sockets?.size) return null;
+    const values = await Promise.all([...sockets].map((socket) => pingSocket(socket, timeoutMs)));
+    const valid = values.filter((value) => Number.isFinite(value));
+    return valid.length ? Math.min(...valid) : null;
+  }
+
+  function updateScreenPreview(screenId, buffer, contentType = 'image/webp') {
+    const id = Number(screenId);
+    if (!Number.isSafeInteger(id) || id < 1 || !Buffer.isBuffer(buffer) || buffer.length < 1) return null;
+    const type = contentType === 'image/jpeg' ? 'image/jpeg' : 'image/webp';
+    const updatedAt = new Date().toISOString();
+    const preview = {
+      buffer: Buffer.from(buffer),
+      contentType: type,
+      updatedAt,
+      etag: `"tv-preview-${id}-${Date.now().toString(36)}"`
+    };
+    screenPreviews.set(id, preview);
+    return { content_type:type, updated_at:updatedAt, etag:preview.etag, bytes:preview.buffer.length };
+  }
+
+  function screenPreview(screenId) {
+    return screenPreviews.get(Number(screenId)) || null;
+  }
+
+  function screenPreviewMeta(screenId) {
+    const preview = screenPreview(screenId);
+    return preview ? {
+      content_type: preview.contentType,
+      updated_at: preview.updatedAt,
+      etag: preview.etag,
+      bytes: preview.buffer.length
+    } : null;
+  }
+
   function disconnectScreen(screenId) {
+    screenPreviews.delete(Number(screenId));
     return disconnectIndexed(byScreen, screenId, 'binding revoked');
   }
 
@@ -112,7 +189,10 @@ export function createPlayerRealtime({ store }) {
         }
         wss.handleUpgrade(request, socket, head, (ws) => {
           ws.isAlive = true;
-          ws.on('pong', () => { ws.isAlive = true; });
+          ws.on('pong', () => {
+            ws.isAlive = true;
+            ws.miraLastSeenAt = new Date().toISOString();
+          });
           add(session, ws);
           send(ws, { type: 'ready', screen_id: session.screen_id });
         });
@@ -128,8 +208,21 @@ export function createPlayerRealtime({ store }) {
     for (const socket of wss.clients) safeClose(socket, 1001, 'server stopping');
     byScreen.clear();
     byDevice.clear();
+    screenPreviews.clear();
     wss.close();
   }
 
-  return Object.freeze({ attach, close, notifyScreen, notifyScreens, disconnectScreen, disconnectDevice });
+  return Object.freeze({
+    attach,
+    close,
+    notifyScreen,
+    notifyScreens,
+    disconnectScreen,
+    disconnectDevice,
+    presenceForScreen,
+    pingScreen,
+    updateScreenPreview,
+    screenPreview,
+    screenPreviewMeta
+  });
 }
