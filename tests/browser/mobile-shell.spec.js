@@ -30,7 +30,7 @@ test.describe('mobile application shell', () => {
     await expect(rail).toBeVisible();
     await expect(rail.locator('.ui-rail-button')).toHaveCount(4);
     await expect(rail.getByLabel('Обзор')).toBeVisible();
-    await expect(rail.getByLabel('Мониторы')).toBeVisible();
+    await expect(rail.getByLabel('TV-сеть')).toBeVisible();
     await expect(rail.getByLabel('Каталог')).toBeVisible();
     await expect(rail.getByLabel('Настройки')).toBeVisible();
 
@@ -55,7 +55,7 @@ test.describe('mobile application shell', () => {
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
     await expect(page.locator('body')).not.toHaveClass(/ui-context-open/);
 
-    await page.locator('.ui-rail').getByLabel('Мониторы').click();
+    await page.locator('.ui-rail').getByLabel('TV-сеть').click();
     await expect(page).toHaveURL(/\/screens$/);
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
     await trigger.click();
