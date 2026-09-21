@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v27';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v28';
-const SHELL_CACHE = 'mira-tv-player-shell-v29';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v28';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v29';
+const SHELL_CACHE = 'mira-tv-player-shell-v30';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: Player performance telemetry and operational dashboard metrics. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: per-TV Dashboard history, deterministic context drawer and readable dense menu editing. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
