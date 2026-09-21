@@ -661,6 +661,8 @@ export function initialiseSceneEditor() {
       animationRange('animation-promotion-intensity','Сила акции',0,100,1,'animation-promotion-intensity-output'),
       animationRange('animation-promotion-brightness','Яркость акции',0,.8,.01,'animation-promotion-brightness-output'),
       animationRange('animation-promotion-glow','Glow акции',0,48,1,'animation-promotion-glow-output'),
+      animationRange('animation-promotion-shine-speed','Скорость блика',0.5,3,0.1,'animation-promotion-shine-speed-output'),
+      animationRange('animation-promotion-shine-frequency','Частота блика',2,20,1,'animation-promotion-shine-frequency-output'),
       animationRange('animation-promotion-cycle','Период акции',2,15,.5,'animation-promotion-cycle-output'),
       animationRange('animation-promotion-duration','Длительность акции',700,4000,100,'animation-promotion-duration-output')
     );

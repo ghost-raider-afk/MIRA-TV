@@ -32,6 +32,8 @@ export const DEFAULT_ANIMATION_PROFILE = Object.freeze({
   promotion_scale_amount: 0.06,
   promotion_brightness_amount: 0.35,
   promotion_glow_radius: 28,
+  promotion_shine_speed: 1,
+  promotion_shine_frequency_per_minute: 8,
   promotion_easing: 'smooth'
 });
 
@@ -90,6 +92,8 @@ function canonicalCurrent(source) {
     promotion_scale_amount: clamp(number(present(source.promotion_scale_amount, DEFAULT_ANIMATION_PROFILE.promotion_scale_amount), DEFAULT_ANIMATION_PROFILE.promotion_scale_amount), 0.03, 0.08),
     promotion_brightness_amount: clamp(number(present(source.promotion_brightness_amount, DEFAULT_ANIMATION_PROFILE.promotion_brightness_amount), DEFAULT_ANIMATION_PROFILE.promotion_brightness_amount), 0, 0.8),
     promotion_glow_radius: clamp(number(present(source.promotion_glow_radius, DEFAULT_ANIMATION_PROFILE.promotion_glow_radius), DEFAULT_ANIMATION_PROFILE.promotion_glow_radius), 0, 48),
+    promotion_shine_speed: clamp(number(present(source.promotion_shine_speed, DEFAULT_ANIMATION_PROFILE.promotion_shine_speed), DEFAULT_ANIMATION_PROFILE.promotion_shine_speed), 0.5, 3),
+    promotion_shine_frequency_per_minute: clamp(number(present(source.promotion_shine_frequency_per_minute, DEFAULT_ANIMATION_PROFILE.promotion_shine_frequency_per_minute), DEFAULT_ANIMATION_PROFILE.promotion_shine_frequency_per_minute), 2, 20),
     promotion_easing: canonicalPromotionEasing(present(source.promotion_easing, DEFAULT_ANIMATION_PROFILE.promotion_easing))
   };
 }
@@ -145,6 +149,8 @@ function migrateV2(source) {
     promotion_scale_amount: 0.06,
     promotion_brightness_amount: 0.35,
     promotion_glow_radius: 28,
+    promotion_shine_speed: 1,
+    promotion_shine_frequency_per_minute: 8,
     promotion_easing: 'smooth'
   });
 }
@@ -171,6 +177,8 @@ function migrateLegacyProfile(source) {
     promotion_scale_amount: 0.06,
     promotion_brightness_amount: 0.35,
     promotion_glow_radius: 28,
+    promotion_shine_speed: 1,
+    promotion_shine_frequency_per_minute: 8,
     promotion_easing: 'smooth'
   });
 }

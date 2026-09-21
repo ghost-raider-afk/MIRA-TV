@@ -222,26 +222,26 @@ function createContent(config, data, state) {
 
   const content = document.createElement('div');
   content.className = 'weather-widget-content';
+  if (config.show_location) {
+    content.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
+  }
+
   const top = document.createElement('div');
   top.className = 'weather-widget-main';
 
   const primary = document.createElement('div');
   primary.className = 'weather-widget-primary';
-  if (config.show_location) primary.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
   primary.append(text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`));
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
 
   const visual = document.createElement('div');
   visual.className = 'weather-widget-visual';
   visual.dataset.weatherVisual = state;
-  if (config.animation_enabled) {
-    visual.append(createAtmosphere(state, config));
-  } else {
-    const icon = document.createElement('div');
-    icon.className = 'weather-widget-icon';
-    icon.innerHTML = svgIcon(data.icon || 'cloud');
-    visual.append(icon);
-  }
+  if (config.animation_enabled) visual.append(createAtmosphere(state, config));
+  const icon = document.createElement('div');
+  icon.className = 'weather-widget-icon';
+  icon.innerHTML = svgIcon(data.icon || 'cloud');
+  visual.append(icon);
 
   top.append(primary, visual);
   content.append(top);

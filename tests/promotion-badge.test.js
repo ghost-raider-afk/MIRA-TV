@@ -31,10 +31,13 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.match(badge, /<path\b[^>]*fill="#D92D35"\/?>/);
   assert.match(badge, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
   assert.match(svg, /class="promotion-badge-glow" data-promotion-badge-animation="shine" opacity="0"/);
-  assert.match(svg, /class="promotion-badge-shine" data-promotion-badge-animation="shine"/);
+  assert.match(svg, /class="promotion-badge-effects-clip"[^>]*clip-path="url\(#mira-promo-badge-clip-/);
+  assert.match(svg, /class="promotion-badge-shine" data-promotion-badge-animation="shine" data-promotion-travel=/);
+  assert.match(svg, /class="promotion-badge-sparkle" data-promotion-badge-animation="shine" data-promotion-travel=/);
   assert.match(svg, /class="promotion-row-glow" data-promotion-row-animation="gloss"/);
   assert.match(svg, /id="mira-promo-row-glow"/);
   assert.match(svg, /id="mira-promo-badge-shine"/);
+  assert.match(svg, /id="mira-promo-badge-sparkle"/);
   assert.match(svg, /clipPath id="mira-promo-badge-clip-/);
   assert.match(svg, /clipPath id="mira-promo-row-clip-[^"]+" clipPathUnits="userSpaceOnUse"/);
   assert.match(svg, /class="promotion-row-clip"[^>]*clip-path="url\(#mira-promo-row-clip-[^)]+\)"[^>]*><g class="promotion-row-glow"/);
@@ -56,6 +59,7 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.match(adapter, /surfaceOnly: true/);
   assert.match(adapter, /g\.promotion-badge-glow/);
   assert.match(adapter, /g\.promotion-badge-shine/);
+  assert.match(adapter, /g\.promotion-badge-sparkle/);
   assert.doesNotMatch(adapter, /querySelectorAll\('g\.promotion-badge'\)/);
   assert.match(adapter, /g\.promotion-row-glow/);
   assert.match(adapter, /promotionBadgeAnimation/);
@@ -70,6 +74,7 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.match(driver, /spec\.surfaceOnly/);
   assert.match(driver, /spec\.kind === 'promo-badge-glow'/);
   assert.match(driver, /spec\.kind === 'promo-badge-shine'/);
+  assert.match(driver, /spec\.kind === 'promo-badge-sparkle'/);
   assert.match(driver, /spec\.kind === 'promo-glow'/);
   assert.match(driver, /spec\.animation === 'fill'/);
   assert.match(driver, /spec\.animation === 'gloss'/);

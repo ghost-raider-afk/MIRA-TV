@@ -9,7 +9,8 @@ const PROFILE = {
   brightness_amount: 0.26, section_effect: 'cinematic', item_effect: 'cinematic', price_effect: 'none', intensity: 80,
   promotion_effect: 'cinematic', promotion_intensity: 96, promotion_cycle_seconds: 4.8,
   promotion_event_duration_ms: 1800, promotion_travel_px: 0, promotion_scale_amount: 0.06,
-  promotion_brightness_amount: 0.35, promotion_glow_radius: 28, promotion_easing: 'smooth'
+  promotion_brightness_amount: 0.35, promotion_glow_radius: 28,
+  promotion_shine_speed: 1.4, promotion_shine_frequency_per_minute: 12, promotion_easing: 'smooth'
 };
 
 function playerContext() {
@@ -95,12 +96,20 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     const surface = row.locator(':scope > .row-motion-surface-item');
     const badge = row.locator(':scope > g.promotion-badge');
     const badgeGlow = row.locator(':scope > g.promotion-badge-glow');
+    const badgeEffects = row.locator(':scope > g.promotion-badge-effects-clip');
+    const badgeShine = badgeEffects.locator(':scope > g.promotion-badge-shine');
+    const badgeSparkle = badgeEffects.locator(':scope > g.promotion-badge-sparkle');
     const clip = row.locator(':scope > g.promotion-row-clip');
     const glow = clip.locator(':scope > g.promotion-row-glow');
     const itemText = row.locator(':scope > .table-item-content');
     await expect(surface).toHaveAttribute('data-motion', 'item');
     await expect(badge).not.toHaveAttribute('data-motion', /.+/);
     await expect(badgeGlow).toHaveAttribute('data-motion', 'promotion-badge-glow');
+    await expect(badgeEffects).toHaveClass(/promotion-badge-effects-clip/);
+    expect(await badgeEffects.evaluate((node) => getComputedStyle(node).clipPath)).not.toBe('none');
+    expect(await badgeEffects.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
+    await expect(badgeShine).toHaveAttribute('data-motion', 'promotion-badge-shine');
+    await expect(badgeSparkle).toHaveAttribute('data-motion', 'promotion-badge-sparkle');
     await expect(clip).toHaveClass(/promotion-row-clip/);
     expect(await clip.evaluate((node) => getComputedStyle(node).clipPath)).not.toBe('none');
     expect(await clip.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
@@ -108,6 +117,8 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
     await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     await expect.poll(() => badgeGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+    await expect.poll(() => badgeShine.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)), { timeout:5000 }).toBeGreaterThan(0);
+    await expect.poll(() => badgeSparkle.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)), { timeout:5000 }).toBeGreaterThan(0);
     await expect(badge).toHaveCSS('transform', 'none');
     await expect(badgeGlow).toHaveCSS('transform', 'none');
     const before = await Promise.all([badge.boundingBox(), itemText.boundingBox()]);
@@ -121,6 +132,8 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     expect(await surface.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await badge.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await badgeGlow.evaluate((node) => node.getAnimations().length)).toBe(0);
+    expect(await badgeShine.evaluate((node) => node.getAnimations().length)).toBe(0);
+    expect(await badgeSparkle.evaluate((node) => node.getAnimations().length)).toBe(0);
     await expect(page.locator('[data-player-stage]')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
   } finally {
     await context.close();

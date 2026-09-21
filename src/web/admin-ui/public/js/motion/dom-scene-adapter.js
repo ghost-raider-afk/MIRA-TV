@@ -42,7 +42,20 @@ function collectMenuNodes(stage) {
   badgeShines.forEach((target, index) => append(nodes, {
     id: `menu.promotion-badge-shine.${index}`, kind: 'promotion-badge-shine', layer: MOTION_LAYERS.MENU, target,
     order: index, count: badgeShines.length, depth: 3, transformOwner: 'promotion-overlay',
-    metadata: { animation: target.dataset.promotionBadgeAnimation || 'shine' }
+    metadata: {
+      animation: target.dataset.promotionBadgeAnimation || 'shine',
+      travelPx: Number(target.dataset.promotionTravel) || 0
+    }
+  }));
+
+  const badgeSparkles = [...stage.querySelectorAll('g.promotion-badge-sparkle')];
+  badgeSparkles.forEach((target, index) => append(nodes, {
+    id: `menu.promotion-badge-sparkle.${index}`, kind: 'promotion-badge-sparkle', layer: MOTION_LAYERS.MENU, target,
+    order: index, count: badgeSparkles.length, depth: 4, transformOwner: 'promotion-overlay',
+    metadata: {
+      animation: target.dataset.promotionBadgeAnimation || 'shine',
+      travelPx: Number(target.dataset.promotionTravel) || 0
+    }
   }));
 
   const glows = [...stage.querySelectorAll('g.promotion-row-glow')];

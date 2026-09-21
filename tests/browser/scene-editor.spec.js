@@ -293,7 +293,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
     await route.fulfill({
       status:200,
       contentType:'application/json',
-      body:JSON.stringify([{ name:'Турку', admin1:'Varsinais-Suomi', country:'Финляндия', latitude:60.451753, longitude:22.266643, timezone:'Europe/Helsinki' }])
+      body:JSON.stringify([{ name:'Комсомольск-на-Амуре', admin1:'Хабаровский край', country:'Россия', latitude:50.5503, longitude:137.0079, timezone:'Asia/Vladivostok' }])
     });
   });
   const previewRequests = [];
@@ -331,22 +331,71 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Погода/ }).click();
 
   const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
-  await location.fill('Турку');
+  await location.fill('Комсомольск-на-Амуре');
   const latitudeField = page.locator('#scene-editor-properties').getByLabel('Широта');
   const longitudeField = page.locator('#scene-editor-properties').getByLabel('Долгота');
-  await expect(latitudeField).toHaveValue('60.451753');
-  await expect(longitudeField).toHaveValue('22.266643');
+  await expect(latitudeField).toHaveValue('50.5503');
+  await expect(longitudeField).toHaveValue('137.0079');
   await expect(latitudeField).toHaveAttribute('step', 'any');
   await expect(longitudeField).toHaveAttribute('step', 'any');
   expect(await latitudeField.evaluate((field) => field.validity.valid)).toBe(true);
   expect(await longitudeField.evaluate((field) => field.validity.valid)).toBe(true);
-  await expect(page.locator('#scene-editor-properties').getByLabel('Часовой пояс')).toHaveValue('Europe/Helsinki');
+  await expect(page.locator('#scene-editor-properties').getByLabel('Часовой пояс')).toHaveValue('Asia/Vladivostok');
 
   const weatherNode = page.locator('div[data-scene-element-type="weather"][data-scene-element-id]');
   await expect(page.locator('.scene-editor-layer-select strong')).toHaveText('Погода');
   await expect(page.locator('.scene-editor-selection-box.is-selected')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(weatherNode.locator('.weather-widget-location')).toHaveText('Турку');
+  const weatherLocation = weatherNode.locator('.weather-widget-location');
+  await expect(weatherLocation).toHaveText('Комсомольск-на-Амуре');
+  const locationLayout = await weatherLocation.evaluate((node) => {
+    const content = node.parentElement;
+    const rect = node.getBoundingClientRect();
+    const contentRect = content?.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return {
+      text:node.textContent,
+      width:rect.width,
+      contentWidth:contentRect?.width || 0,
+      whiteSpace:style.whiteSpace,
+      textOverflow:style.textOverflow,
+      overflowX:style.overflowX,
+      scrollWidth:node.scrollWidth,
+      clientWidth:node.clientWidth
+    };
+  });
+  expect(locationLayout.text).toBe('Комсомольск-на-Амуре');
+  expect(locationLayout.width).toBeGreaterThan(locationLayout.contentWidth * .95);
+  expect(locationLayout.whiteSpace).toBe('normal');
+  expect(locationLayout.textOverflow).toBe('clip');
+  expect(locationLayout.scrollWidth).toBeLessThanOrEqual(locationLayout.clientWidth + 1);
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
+  await expect(weatherNode.locator('.weather-widget-icon')).toBeVisible();
+  await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(1);
+
+  const stableWeatherWidget = weatherNode.locator('.weather-widget');
+  const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
+  const weatherBefore = await stableWeatherWidget.boundingBox();
+  const weatherContentScaleBefore = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
+  const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
+
+  await page.locator('#scene-editor-animation-layer').click();
+  const animationScale = page.locator('#animation-scale');
+  const animationBrightness = page.locator('#animation-brightness');
+  await animationScale.fill('0.09');
+  await animationBrightness.fill('0.55');
+  await animationScale.fill('0.025');
+  await animationBrightness.fill('0.18');
+
+  const weatherAfter = await stableWeatherWidget.boundingBox();
+  const weatherContentScaleAfter = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
+  const viewportScaleAfter = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
+  expect(weatherBefore).not.toBeNull();
+  expect(weatherAfter).not.toBeNull();
+  for (const key of ['x','y','width','height']) {
+    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather geometry ${key}`).toBeLessThan(.25);
+  }
+  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
+  expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
   const weatherType = await weatherNode.evaluate((node) => {
     const facts = node.querySelector('.weather-widget-facts');
     const time = node.querySelector('.weather-widget-forecast-item > span');
@@ -359,11 +408,14 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(weatherType.timeSize).toBeGreaterThanOrEqual(12);
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
   expect(previewRequests.at(-1)).toMatchObject({
-    name:'Турку',
-    latitude:'60.451753',
-    longitude:'22.266643',
-    timezone:'Europe/Helsinki'
+    name:'Комсомольск-на-Амуре',
+    latitude:'50.5503',
+    longitude:'137.0079',
+    timezone:'Asia/Vladivostok'
   });
+
+  await page.locator('.scene-editor-layer-select', { hasText:'Погода' }).click();
+  await expect(page.locator('#scene-editor-properties-title')).toContainText('Элемент');
 
   const width = page.locator('#scene-editor-properties').getByLabel('Ширина');
   const height = page.locator('#scene-editor-properties').getByLabel('Высота');

@@ -19,6 +19,8 @@ const PROFILE_FIELDS = Object.freeze({
   promotion_intensity: ['animation-promotion-intensity', 'number'],
   promotion_brightness_amount: ['animation-promotion-brightness', 'number'],
   promotion_glow_radius: ['animation-promotion-glow', 'number'],
+  promotion_shine_speed: ['animation-promotion-shine-speed', 'number'],
+  promotion_shine_frequency_per_minute: ['animation-promotion-shine-frequency', 'number'],
   promotion_travel_px: ['animation-promotion-travel', 'number'],
   promotion_scale_amount: ['animation-promotion-scale', 'number'],
   promotion_cycle_seconds: ['animation-promotion-cycle', 'number'],
@@ -50,6 +52,8 @@ export const DEFAULT_LIVE_PROFILE = Object.freeze({
   promotion_scale_amount: 0.06,
   promotion_brightness_amount: 0.35,
   promotion_glow_radius: 28,
+  promotion_shine_speed: 1,
+  promotion_shine_frequency_per_minute: 8,
   promotion_easing: 'smooth'
 });
 
@@ -64,6 +68,8 @@ const OUTPUTS = Object.freeze({
   'animation-promotion-intensity-output': () => `${Math.round(numberValue('animation-promotion-intensity'))}%`,
   'animation-promotion-brightness-output': () => `${Math.round(numberValue('animation-promotion-brightness') * 100)}%`,
   'animation-promotion-glow-output': () => `${Math.round(numberValue('animation-promotion-glow'))} px`,
+  'animation-promotion-shine-speed-output': () => `${numberValue('animation-promotion-shine-speed').toFixed(1)}×`,
+  'animation-promotion-shine-frequency-output': () => `${Math.round(numberValue('animation-promotion-shine-frequency'))}/мин`,
   'animation-promotion-cycle-output': () => `${numberValue('animation-promotion-cycle').toFixed(1)} с`,
   'animation-promotion-duration-output': () => `${Math.round(numberValue('animation-promotion-duration'))} мс`
 });
@@ -78,6 +84,8 @@ function canonicalStudioProfile(source = {}) {
   profile.promotion_effect = profile.promotion_effect === 'none' ? 'none' : 'cinematic';
   profile.promotion_easing = profile.promotion_easing === 'cinematic' ? 'cinematic' : 'smooth';
   profile.promotion_scale_amount = clamp(profile.promotion_scale_amount, 0.03, 0.08);
+  profile.promotion_shine_speed = clamp(profile.promotion_shine_speed, 0.5, 3);
+  profile.promotion_shine_frequency_per_minute = clamp(profile.promotion_shine_frequency_per_minute, 2, 20);
   profile.promotion_travel_px = 0;
   return profile;
 }

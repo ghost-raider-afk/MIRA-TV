@@ -47,7 +47,12 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
   const rowClipId = `mira-promo-row-clip-${Math.round(box.top * 10)}-${Math.round(horizontal.left * 10)}`;
   const rowAnimation = ['wave', 'fill', 'gloss'].includes(line.promotionAnimation) ? line.promotionAnimation : 'wave';
   const badgeAnimation = ['shine', 'breathe'].includes(line.promotionBadgeAnimation) ? line.promotionBadgeAnimation : 'shine';
-  const shineWidth = Math.max(18 * fontScale, width * .28);
+  const shineWidth = Math.max(28 * fontScale, width * .58);
+  const sparkleRadius = Math.max(3.8 * fontScale, height * .16);
+  const sparkleStartX = x - sparkleRadius * 2.4;
+  const sparkleY = top + height * .34;
+  const shineTravel = width + shineWidth * 2;
+  const sparkleTravel = width + sparkleRadius * 4.8;
   return {
     width,
     markup: `<defs>
@@ -59,8 +64,14 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
       <path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/>
       <text x="${x + (width - notch) / 2}" y="${top + 18.5 * fontScale}" class="promotion" ${textAttributes({ size: 12 * fontScale, weight: 800, fill: '#FFFFFF', letterSpacing: 0.2 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
     </g>
-    <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" clip-path="url(#${clipId})" opacity="0" pointer-events="none">
-      <rect x="${x - shineWidth}" y="${top}" width="${shineWidth}" height="${height}" fill="url(#mira-promo-badge-shine)"/>
+    <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
+      <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${shineTravel}" opacity="0">
+        <rect x="${x - shineWidth}" y="${top}" width="${shineWidth}" height="${height}" fill="url(#mira-promo-badge-shine)"/>
+      </g>
+      <g class="promotion-badge-sparkle" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${sparkleTravel}" opacity="0">
+        <circle cx="${sparkleStartX}" cy="${sparkleY}" r="${sparkleRadius * 1.8}" fill="url(#mira-promo-badge-sparkle)"/>
+        <path d="M${sparkleStartX - sparkleRadius * 2.2} ${sparkleY}H${sparkleStartX + sparkleRadius * 2.2}M${sparkleStartX} ${sparkleY - sparkleRadius * 2.2}V${sparkleY + sparkleRadius * 2.2}" stroke="#fff" stroke-width="${Math.max(.7, .75 * fontScale)}" stroke-linecap="round"/>
+      </g>
     </g>`,
     glow: `<g class="promotion-row-clip" clip-path="url(#${rowClipId})" pointer-events="none"><g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" opacity="0"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)" filter="url(#mira-promo-row-softness)"/></g></g>`
   };
@@ -130,7 +141,8 @@ export function buildTableSvg(model, lines, layout = buildRenderLayout(model, li
     <defs>
       <linearGradient id="mira-row-motion-surface" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0"/><stop offset="0.26" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.18"/><stop offset="0.5" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.30"/><stop offset="0.74" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.18"/><stop offset="1" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0"/></linearGradient>
       <linearGradient id="mira-promo-row-glow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff384f" stop-opacity="0.10"/><stop offset="0.16" stop-color="#ff3048" stop-opacity="0.30"/><stop offset="0.5" stop-color="#ff5267" stop-opacity="0.48"/><stop offset="0.84" stop-color="#ff3048" stop-opacity="0.30"/><stop offset="1" stop-color="#ff384f" stop-opacity="0.10"/></linearGradient>
-      <linearGradient id="mira-promo-badge-shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.42" stop-color="#fff" stop-opacity="0.10"/><stop offset="0.52" stop-color="#fff" stop-opacity="0.92"/><stop offset="0.62" stop-color="#fff" stop-opacity="0.18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <linearGradient id="mira-promo-badge-shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.22" stop-color="#fff" stop-opacity="0.05"/><stop offset="0.46" stop-color="#fff" stop-opacity="0.34"/><stop offset="0.54" stop-color="#fff" stop-opacity="0.82"/><stop offset="0.66" stop-color="#fff" stop-opacity="0.20"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <radialGradient id="mira-promo-badge-sparkle"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.24" stop-color="#fffbe8" stop-opacity=".96"/><stop offset="0.56" stop-color="#fff6bd" stop-opacity=".46"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
       <filter id="mira-promo-row-softness" x="-8%" y="-80%" width="116%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
     </defs>
     ${content}
