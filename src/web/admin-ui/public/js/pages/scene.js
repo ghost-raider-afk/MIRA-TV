@@ -311,7 +311,7 @@ export function initialiseSceneEditor() {
 
   async function renderDocumentPreview() {
     if (!renderer || !active()) return;
-    await renderer.render(sceneContext(), ['screen', 'menu']);
+    await renderer.render(sceneContext(), ['menu']);
     if (!active()) return;
     if (!interactionActive) {
       refreshSelectionOverlay();

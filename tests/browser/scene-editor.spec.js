@@ -288,6 +288,16 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
   const { screen } = await fixture(page);
+  const promotionBundle = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+  const promotionSave = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
+    revision:promotionBundle.draft.revision,
+    rows:promotionBundle.draft.rows.map((row) => row.kind === 'item'
+      ? { ...row, promotion:true, promotion_text:'АКЦИЯ', promotion_animation:'wave', promotion_badge_animation:'shine' }
+      : row),
+    settings:promotionBundle.draft.settings,
+    scene:promotionBundle.draft.scene
+  } });
+  expect(promotionSave.ok()).toBeTruthy();
 
   await page.route('**/api/weather/locations**', async (route) => {
     await route.fulfill({
@@ -369,16 +379,50 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(locationLayout.textOverflow).toBe('clip');
   expect(locationLayout.scrollWidth).toBeLessThanOrEqual(locationLayout.clientWidth + 1);
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
-  await expect(weatherNode.locator('.weather-widget-icon')).toBeVisible();
+  const weatherIcon = weatherNode.locator('.weather-widget-icon');
+  const weatherTemperature = weatherNode.locator('.weather-widget-temperature');
+  const weatherVisual = weatherNode.locator('.weather-widget-visual');
+  await expect(weatherIcon).toBeVisible();
   await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(1);
+  const weatherColumns = await weatherNode.evaluate((node) => {
+    const icon = node.querySelector('.weather-widget-icon')?.getBoundingClientRect();
+    const temperature = node.querySelector('.weather-widget-temperature')?.getBoundingClientRect();
+    const visual = node.querySelector('.weather-widget-visual')?.getBoundingClientRect();
+    if (!icon || !temperature || !visual) return null;
+    return {
+      iconCenter:icon.left + icon.width / 2,
+      temperatureCenter:temperature.left + temperature.width / 2,
+      visualCenter:visual.left + visual.width / 2
+    };
+  });
+  expect(weatherColumns).not.toBeNull();
+  expect(weatherColumns.iconCenter).toBeLessThan(weatherColumns.temperatureCenter);
+  expect(weatherColumns.temperatureCenter).toBeLessThan(weatherColumns.visualCenter);
 
   const stableWeatherWidget = weatherNode.locator('.weather-widget');
   const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
-  const weatherBefore = await stableWeatherWidget.boundingBox();
+  const weatherMetrics = () => weatherNode.evaluate((node) => {
+    const stage = node.closest('#scene-editor-stage');
+    const widget = node.querySelector('.weather-widget');
+    if (!(stage instanceof HTMLElement) || !(widget instanceof HTMLElement)) return null;
+    const stageRect = stage.getBoundingClientRect();
+    const widgetRect = widget.getBoundingClientRect();
+    const scale = stageRect.width / 1920;
+    return {
+      x:(widgetRect.left - stageRect.left) / scale,
+      y:(widgetRect.top - stageRect.top) / scale,
+      width:widgetRect.width / scale,
+      height:widgetRect.height / scale
+    };
+  });
+  const weatherBefore = await weatherMetrics();
   const weatherContentScaleBefore = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
   const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
 
   await page.locator('#scene-editor-animation-layer').click();
+  const weatherAnimationInspector = page.locator('#scene-editor-properties');
+  await weatherAnimationInspector.getByRole('radiogroup', { name:'Эффект строки' }).getByRole('radio', { name:'Заполнение' }).click();
+  await weatherAnimationInspector.getByRole('radiogroup', { name:'Эффект плашки' }).getByRole('radio', { name:'Breathing Glow' }).click();
   const animationScale = page.locator('#animation-scale');
   const animationBrightness = page.locator('#animation-brightness');
   await animationScale.fill('0.09');
@@ -386,16 +430,16 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await animationScale.fill('0.025');
   await animationBrightness.fill('0.18');
 
-  const weatherAfter = await stableWeatherWidget.boundingBox();
+  const weatherAfter = await weatherMetrics();
   const weatherContentScaleAfter = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
   const viewportScaleAfter = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
   expect(weatherBefore).not.toBeNull();
   expect(weatherAfter).not.toBeNull();
-  for (const key of ['x','y','width','height']) {
-    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather geometry ${key}`).toBeLessThan(.25);
-  }
-  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
   expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
+  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
+  for (const key of ['x','y','width','height']) {
+    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather logical geometry ${key}`).toBeLessThan(.05);
+  }
   const weatherType = await weatherNode.evaluate((node) => {
     const facts = node.querySelector('.weather-widget-facts');
     const time = node.querySelector('.weather-widget-forecast-item > span');

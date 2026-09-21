@@ -31,6 +31,25 @@ test('weather widget stores canonical transform and motion controls', () => {
   assert.equal(value.widget_motion_enabled, false);
 });
 
+test('weather geometry is isolated from menu and promotion rerenders', async () => {
+  const [scenePage, playerRenderer, elementRenderer, weatherWidget, weatherCss] = await Promise.all([
+    read('src/web/admin-ui/public/js/pages/scene.js'),
+    read('src/web/admin-ui/public/js/player/player-scene-renderer.js'),
+    read('src/web/admin-ui/public/js/player/scene-element-renderer.js'),
+    read('src/web/admin-ui/public/js/motion/weather-widget.js'),
+    read('src/web/admin-ui/public/css/weather-widget.css')
+  ]);
+  assert.match(scenePage, /renderer\.render\(sceneContext\(\), \['menu'\]\)/);
+  assert.doesNotMatch(scenePage, /renderer\.render\(sceneContext\(\), \['screen', 'menu'\]\)/);
+  assert.match(playerRenderer, /if \(dirty\.has\('scene'\) \|\| dirty\.has\('screen'\)\)/);
+  assert.doesNotMatch(playerRenderer, /dirty\.has\('scene'\) \|\| dirty\.has\('screen'\) \|\| menuDirty/);
+  assert.match(elementRenderer, /if \(element\?\.type === 'weather'\) \{\s*return Math\.max\(\.01, nominal \* manual\);/);
+  assert.match(weatherWidget, /summary\.append\(icon, primary\)/);
+  assert.match(weatherWidget, /top\.append\(summary, visual\)/);
+  assert.match(weatherCss, /\.weather-widget-summary\s*\{[\s\S]*grid-template-columns:\s*74px minmax\(0,1fr\)/);
+  assert.match(weatherCss, /\.weather-widget-icon\s*\{[\s\S]*transform:\s*none/);
+});
+
 test('weather coordinates preserve provider precision without artificial step rounding', async () => {
   const [elements] = await Promise.all([
     read('src/web/admin-ui/public/js/editor/elements.js')
@@ -144,7 +163,7 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.doesNotMatch(css, /weather-rays-rotate/);
   assert.match(css, /\.weather-widget-facts\s*\{[\s\S]*font-size:\s*13px/);
   assert.match(css, /\.weather-widget-forecast-item > span\s*\{[\s\S]*font-size:\s*12px/);
-  assert.match(css, /\.weather-widget-main\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,46%\) minmax\(0,54%\)/);
+  assert.match(css, /\.weather-widget-main\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,58%\) minmax\(0,42%\)/);
   assert.match(css, /\.weather-widget-visual\s*\{[\s\S]*overflow:\s*hidden/);
   assert.match(css, /\.weather-widget-visual \.weather-atmosphere/);
   assert.match(css, /weather-atmosphere/);

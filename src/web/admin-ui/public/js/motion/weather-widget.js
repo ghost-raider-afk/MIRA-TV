@@ -229,21 +229,25 @@ function createContent(config, data, state) {
   const top = document.createElement('div');
   top.className = 'weather-widget-main';
 
+  const summary = document.createElement('div');
+  summary.className = 'weather-widget-summary';
+
+  const icon = document.createElement('div');
+  icon.className = 'weather-widget-icon';
+  icon.innerHTML = svgIcon(data.icon || 'cloud');
+
   const primary = document.createElement('div');
   primary.className = 'weather-widget-primary';
   primary.append(text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`));
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
+  summary.append(icon, primary);
 
   const visual = document.createElement('div');
   visual.className = 'weather-widget-visual';
   visual.dataset.weatherVisual = state;
   if (config.animation_enabled) visual.append(createAtmosphere(state, config));
-  const icon = document.createElement('div');
-  icon.className = 'weather-widget-icon';
-  icon.innerHTML = svgIcon(data.icon || 'cloud');
-  visual.append(icon);
 
-  top.append(primary, visual);
+  top.append(summary, visual);
   content.append(top);
 
   const facts = document.createElement('div');
