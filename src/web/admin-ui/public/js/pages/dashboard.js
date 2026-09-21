@@ -13,10 +13,16 @@ function numberText(value, digits = 0) {
   return Number.isFinite(number) ? number.toLocaleString('ru-RU', { maximumFractionDigits:digits, minimumFractionDigits:digits }) : '—';
 }
 
+function metricNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function latestValue(points, key) {
   for (let index = points.length - 1; index >= 0; index -= 1) {
-    const value = Number(points[index]?.[key]);
-    if (Number.isFinite(value)) return value;
+    const value = metricNumber(points[index]?.[key]);
+    if (value !== null) return value;
   }
   return null;
 }
@@ -68,10 +74,7 @@ function drawChart(card, points, config) {
   const maxNode = card?.querySelector('[data-dashboard-max]');
   if (!host) return;
 
-  const values = points.map((point) => {
-    const value = Number(point?.[config.key]);
-    return Number.isFinite(value) ? value : null;
-  });
+  const values = points.map((point) => metricNumber(point?.[config.key]));
   const numeric = values.filter(Number.isFinite);
   const current = latestValue(points, config.key);
   if (latest) latest.textContent = current === null ? '—' : config.format(current);
@@ -128,7 +131,7 @@ function drawChart(card, points, config) {
 function drawAllCharts(points) {
   const configs = [
     { id:'online', key:'online_tvs', format:(value)=>`${Math.round(value)} TV`, minimum:0, zeroBase:true, aria:'Количество TV, передающих телеметрию' },
-    { id:'fps', key:'fps_avg', format:(value)=>`${numberText(value, 1)} FPS`, minimum:0, maximum:60, aria:'Средняя частота кадров TV Player' },
+    { id:'fps', key:'fps_avg', format:(value)=>`${numberText(value, 1)} FPS`, minimum:0, aria:'Средняя частота кадров TV Player' },
     { id:'load', key:'player_load_percent', format:(value)=>`${numberText(value, 1)}%`, minimum:0, maximum:100, aria:'Нагрузка главного потока TV Player' },
     { id:'memory', key:'memory_mb', format:(value)=>`${numberText(value, 0)} МБ`, minimum:0, zeroBase:true, aria:'Средняя JS-память TV Player' }
   ];
