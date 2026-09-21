@@ -101,8 +101,8 @@ function itemMarkup(line, box, horizontal, palette, scale, typography) {
   const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
   const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
   const priceBaseline = box.top + 35 * fontScale;
-  const nameBaseline = line.metadata ? box.top + 24 * fontScale : priceBaseline;
-  const metaBaseline = box.top + 44 * fontScale;
+  const nameBaseline = line.metadata ? box.top + 22 * fontScale : priceBaseline;
+  const metaBaseline = box.top + 46 * fontScale;
   return `<g class="table-item tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale)}
     ${motionSurfaceMarkup(box, horizontal, scale, 'item')}
