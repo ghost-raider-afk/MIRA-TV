@@ -41,7 +41,7 @@ test('site name updates the persistent application shell immediately after save'
   await expect(page).toHaveURL(/\/screens$/);
   await waitForRouteReady(page);
   await expect(page.locator('.app-header [data-app-name]')).toHaveText(changed);
-  await expect(page).toHaveTitle(`${changed} — Мониторы`);
+  await expect(page).toHaveTitle(`${changed} — TV-сеть`);
   expect(await page.evaluate(() => window.__brandingSentinel)).toBe(sentinel);
 
   await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
