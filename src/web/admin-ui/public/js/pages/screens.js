@@ -31,8 +31,10 @@ function statusState(binding) {
 
 function rememberPing(binding) {
   if (!binding?.ping_measured_at) return;
+  const rawPing = binding.ping_ms;
+  const measuredPing = rawPing === null || rawPing === undefined || rawPing === '' ? null : Number(rawPing);
   pingByScreen.set(Number(binding.screen_id), {
-    ms:Number.isFinite(Number(binding.ping_ms)) ? Number(binding.ping_ms) : null,
+    ms:Number.isFinite(measuredPing) ? measuredPing : null,
     connectedAt:binding.realtime_connected_at || null,
     measuredAt:binding.ping_measured_at
   });
@@ -49,8 +51,8 @@ async function requestBindings({ measurePing = false } = {}) {
 function pingText(screenId, binding) {
   if (!binding?.online) return '—';
   const ping = pingByScreen.get(Number(screenId));
-  if (!ping || ping.connectedAt !== (binding.realtime_connected_at || null)) return '—';
-  return Number.isFinite(ping.ms) ? `${Math.round(ping.ms)} мс` : '—';
+  if (!ping || ping.connectedAt !== (binding.realtime_connected_at || null)) return 'не измерен';
+  return Number.isFinite(ping.ms) ? `${Math.round(ping.ms)} мс` : 'нет ответа';
 }
 
 function previewUrl(screen, binding) {
