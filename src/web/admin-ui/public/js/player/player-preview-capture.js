@@ -148,25 +148,21 @@ async function capturePlayerPreview(stage) {
   const serialized = new XMLSerializer().serializeToString(clone);
   const css = styleSheetText();
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;background:#090d14"><style>${css}</style>${serialized}</div></foreignObject></svg>`;
-  const objectUrl = URL.createObjectURL(new Blob([svg], { type:'image/svg+xml;charset=utf-8' }));
-  try {
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = objectUrl;
-    await image.decode();
-    const outputHeight = Math.max(1, Math.round(OUTPUT_WIDTH * height / width));
-    const canvas = document.createElement('canvas');
-    canvas.width = OUTPUT_WIDTH;
-    canvas.height = outputHeight;
-    const context = canvas.getContext('2d', { alpha:false });
-    if (!context) return null;
-    context.fillStyle = '#090d14';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return await canvasBlob(canvas, 'image/webp', OUTPUT_QUALITY);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
+  const imageSource = await blobAsDataUrl(new Blob([svg], { type:'image/svg+xml;charset=utf-8' }));
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = imageSource;
+  await image.decode();
+  const outputHeight = Math.max(1, Math.round(OUTPUT_WIDTH * height / width));
+  const canvas = document.createElement('canvas');
+  canvas.width = OUTPUT_WIDTH;
+  canvas.height = outputHeight;
+  const context = canvas.getContext('2d', { alpha:false });
+  if (!context) return null;
+  context.fillStyle = '#090d14';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return await canvasBlob(canvas, 'image/webp', OUTPUT_QUALITY);
 }
 
 export async function publishPlayerPreview(stage) {
