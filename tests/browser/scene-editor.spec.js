@@ -401,7 +401,21 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
 
   const stableWeatherWidget = weatherNode.locator('.weather-widget');
   const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
-  const weatherBefore = await stableWeatherWidget.boundingBox();
+  const weatherMetrics = () => weatherNode.evaluate((node) => {
+    const stage = node.closest('#scene-editor-stage');
+    const widget = node.querySelector('.weather-widget');
+    if (!(stage instanceof HTMLElement) || !(widget instanceof HTMLElement)) return null;
+    const stageRect = stage.getBoundingClientRect();
+    const widgetRect = widget.getBoundingClientRect();
+    const scale = stageRect.width / 1920;
+    return {
+      x:(widgetRect.left - stageRect.left) / scale,
+      y:(widgetRect.top - stageRect.top) / scale,
+      width:widgetRect.width / scale,
+      height:widgetRect.height / scale
+    };
+  });
+  const weatherBefore = await weatherMetrics();
   const weatherContentScaleBefore = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
   const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
 
@@ -416,16 +430,16 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await animationScale.fill('0.025');
   await animationBrightness.fill('0.18');
 
-  const weatherAfter = await stableWeatherWidget.boundingBox();
+  const weatherAfter = await weatherMetrics();
   const weatherContentScaleAfter = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
   const viewportScaleAfter = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
   expect(weatherBefore).not.toBeNull();
   expect(weatherAfter).not.toBeNull();
-  for (const key of ['x','y','width','height']) {
-    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather geometry ${key}`).toBeLessThan(.25);
-  }
-  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
   expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
+  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
+  for (const key of ['x','y','width','height']) {
+    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather logical geometry ${key}`).toBeLessThan(.01);
+  }
   const weatherType = await weatherNode.evaluate((node) => {
     const facts = node.querySelector('.weather-widget-facts');
     const time = node.querySelector('.weather-widget-forecast-item > span');
