@@ -204,6 +204,10 @@ function rowLabel(row, products, packaging) {
 
 function activateRow(editorState, rowId, options) {
   selectRow(editorState, rowId);
+  options.editorTarget?.querySelectorAll('.scene-table-editor-row').forEach((node) => {
+    const ids = String(node.dataset.sourceRowIds || '').split(',').filter(Boolean);
+    node.classList.toggle('is-selected', ids.includes(String(rowId)));
+  });
   renderInspector(editorState, options);
 }
 
@@ -516,6 +520,129 @@ function renderInspector(editorState, options) {
 
   const hidden = hiddenRowsBlock(editorState, options);
   if (hidden) target.append(hidden);
+}
+
+function tableEditorFrame(model) {
+  const x = Math.max(0, Number(model?.settings?.table_x) || 0);
+  const y = Math.max(0, Number(model?.settings?.table_y) || 0);
+  const width = Math.max(1, Number(model?.settings?.table_width_px) || model?.viewport?.width || 1);
+  const height = Math.max(1, Number(model?.settings?.table_height_px) || model?.viewport?.height || 1);
+  return { x, y, width, height };
+}
+
+function tableEditorGroups(editorState) {
+  const visible = editorState.rows.filter((row) => row?.enabled !== false);
+  const groups = [];
+  for (let index = 0; index < visible.length; index += 1) {
+    const row = visible[index];
+    if (row.kind !== 'packaging') {
+      groups.push({ kind:row.kind, rows:[row] });
+      continue;
+    }
+    const next = visible[index + 1];
+    if (next?.kind === 'packaging') {
+      groups.push({ kind:'packaging', rows:[row, next] });
+      index += 1;
+    } else {
+      groups.push({ kind:'packaging', rows:[row] });
+    }
+  }
+  return groups;
+}
+
+function tableEditorKindLabel(kind, count = 1) {
+  if (kind === 'section') return 'РАЗДЕЛ';
+  if (kind === 'item') return 'ПРОДУКЦИЯ';
+  return count > 1 ? 'ТАРА · 2 ПОЗИЦИИ' : 'ТАРА';
+}
+
+function tableEditorControl(editorState, group, options) {
+  if (group.kind === 'section') return sectionInlineControl(editorState, group.rows[0], options);
+  if (group.kind === 'item') return itemInlineControl(editorState, group.rows[0], options);
+  return packagingInlineControls(editorState, group.rows.map((row) => row.id), options);
+}
+
+export function renderTableEditorRows(editorState, {
+  target,
+  inspector,
+  model,
+  products = [],
+  packaging = [],
+  onBeforeMutate,
+  onVisualChange,
+  onStructureChange
+}) {
+  if (!(target instanceof HTMLElement) || !model) return;
+  const options = {
+    inspector,
+    products,
+    packaging,
+    onBeforeMutate,
+    onVisualChange,
+    onStructureChange,
+    editorTarget:target
+  };
+  target.replaceChildren();
+
+  const panel = document.createElement('section');
+  panel.className = 'scene-table-editor-panel';
+  panel.setAttribute('aria-label', 'Редактор таблицы меню');
+  const frame = tableEditorFrame(model);
+  panel.style.left = percent(frame.x, model.viewport.width);
+  panel.style.top = percent(frame.y, model.viewport.height);
+  panel.style.width = percent(frame.width, model.viewport.width);
+  panel.style.height = percent(frame.height, model.viewport.height);
+
+  const head = document.createElement('header');
+  head.className = 'scene-table-editor-head';
+  const headCopy = document.createElement('div');
+  const eyebrow = document.createElement('span');
+  eyebrow.textContent = 'РЕДАКТИРОВАНИЕ ТАБЛИЦЫ';
+  const title = document.createElement('strong');
+  title.textContent = 'Содержимое меню';
+  headCopy.append(eyebrow, title);
+  const counter = document.createElement('span');
+  const visibleCount = editorState.rows.filter((row) => row?.enabled !== false).length;
+  counter.className = 'scene-table-editor-count';
+  counter.textContent = `${visibleCount} строк`;
+  head.append(headCopy, counter);
+
+  const scroll = document.createElement('div');
+  scroll.className = 'scene-table-editor-scroll';
+
+  const groups = tableEditorGroups(editorState);
+  if (!groups.length) {
+    const empty = document.createElement('p');
+    empty.className = 'scene-table-editor-empty';
+    empty.textContent = 'Таблица пуста. Добавьте раздел, продукцию или тару справа.';
+    scroll.append(empty);
+  }
+
+  for (const group of groups) {
+    const rowNode = document.createElement('div');
+    rowNode.className = `scene-table-editor-row is-${group.kind}`;
+    rowNode.dataset.sourceRowIds = group.rows.map((row) => row.id).join(',');
+    rowNode.classList.toggle('is-selected', group.rows.some((row) => row.id === editorState.selectedRowId));
+
+    const type = document.createElement('span');
+    type.className = 'scene-table-editor-kind';
+    type.textContent = tableEditorKindLabel(group.kind, group.rows.length);
+
+    const control = document.createElement('div');
+    control.className = 'scene-table-editor-control';
+    control.append(tableEditorControl(editorState, group, options));
+
+    rowNode.addEventListener('pointerdown', (event) => {
+      if (event.target instanceof Element && event.target.closest('button,input,select,textarea')) return;
+      activateRow(editorState, group.rows[0].id, options);
+    });
+    rowNode.append(type, control);
+    scroll.append(rowNode);
+  }
+
+  panel.append(head, scroll);
+  target.append(panel);
+  renderInspector(editorState, options);
 }
 
 export function renderPreviewRows(editorState, {
