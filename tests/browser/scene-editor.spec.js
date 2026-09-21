@@ -392,6 +392,9 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
     timezone:'Europe/Helsinki'
   });
 
+  await page.locator('.scene-editor-layer-select', { hasText:'Погода' }).click();
+  await expect(page.locator('#scene-editor-properties-title')).toContainText('Элемент');
+
   const width = page.locator('#scene-editor-properties').getByLabel('Ширина');
   const height = page.locator('#scene-editor-properties').getByLabel('Высота');
   await width.fill('250');
