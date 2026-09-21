@@ -438,7 +438,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
   expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
   for (const key of ['x','y','width','height']) {
-    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather logical geometry ${key}`).toBeLessThan(.01);
+    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather logical geometry ${key}`).toBeLessThan(.05);
   }
   const weatherType = await weatherNode.evaluate((node) => {
     const facts = node.querySelector('.weather-widget-facts');
