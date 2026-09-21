@@ -10,7 +10,7 @@ function userName() {
 }
 
 function contextTitle(section) {
-  return ({ overview: 'Обзор', monitors: 'TV-сеть', catalog: 'Каталог', settings: 'Настройки' })[section] || 'MIRA-TV';
+  return ({ overview: 'Дашборд', monitors: 'TV-сеть', catalog: 'Каталог', settings: 'Настройки' })[section] || 'MIRA-TV';
 }
 
 function contextLinksMarkup(contextLinks, currentPage) {
