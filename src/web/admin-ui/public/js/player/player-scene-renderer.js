@@ -132,9 +132,10 @@ export class PlayerSceneRenderer {
 
   async render(context, changedNames = ALL_PLAYER_COMPONENTS) {
     if (this.destroyed) return;
-    const canonicalViewport = resolutionOf(context.screen);
-    this.fitViewport(canonicalViewport);
     const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
+    const canonicalViewport = resolutionOf(context.screen);
+    const viewportChanged = canonicalViewport.width !== this.viewport.width || canonicalViewport.height !== this.viewport.height;
+    if (dirty.has('screen') || viewportChanged) this.fitViewport(canonicalViewport);
     const {
       menu: menuLayer,
       fx: fxLayer,
