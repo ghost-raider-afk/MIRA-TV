@@ -1,8 +1,6 @@
 import { PRIMARY_ROUTES, navigationState } from '../core/navigation.js';
 import { state } from '../core/state.js';
 
-const MOBILE_OVERVIEW_ROUTE = Object.freeze({ key: 'overview', label: 'Обзор', href: '/', icon: 'home', mobileOnly: true });
-
 const ICONS = Object.freeze({
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3l8.5 7.5"/><path d="M5.5 9.5V21h13V9.5M9 21v-6h6v6"/></svg>',
   monitor: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>',
@@ -36,7 +34,7 @@ export function createSidebar() {
   const rail = document.createElement('aside');
   rail.className = 'ui-rail';
   rail.setAttribute('aria-label', 'Основные разделы');
-  const routes = [MOBILE_OVERVIEW_ROUTE, ...PRIMARY_ROUTES];
+  const routes = PRIMARY_ROUTES;
   rail.innerHTML = `<a class="ui-rail-brand" href="/" title="${appName()}"><span class="brand-mark" data-shell-brand>ТВ</span></a><nav class="ui-rail-nav" aria-label="Разделы">${routes.map((route) => railLink(route, section)).join('')}</nav>`;
   const logo = state.site?.logo_url;
   if (logo) {
