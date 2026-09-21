@@ -13,7 +13,7 @@ export function createPlayerMetricsRepository(pool) {
         [
           deviceId,
           screenId,
-          metric.sampled_at,
+          receivedAt,
           receivedAt,
           metric.fps_avg,
           metric.player_load_percent,
