@@ -16,6 +16,7 @@ import { migrateScreenAnimationSettings } from './migrations/screen-animation-se
 import { migrateEnvironmentLayer } from './migrations/environment-layer.js';
 import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
+import { migratePlayerMetrics } from './migrations/player-metrics.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -35,6 +36,7 @@ import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
+import { createPlayerMetricsRepository } from './player-metrics.js';
 import { createScreenRenderJournalRepository } from './screen-render-journal.js';
 
 const MIGRATIONS = Object.freeze([
@@ -61,7 +63,8 @@ const MIGRATIONS = Object.freeze([
   { name: '021-scene-elements', run: migrateSceneElementsStorage },
   { name: '022-scene-element-ownership', run: migrateLegacySceneOwnership },
   { name: '023-scene-ownership-cleanup', run: retireLegacySceneOwnership },
-  { name: '024-scene-legacy-elements-cleanup', run: removeLegacySceneElements }
+  { name: '024-scene-legacy-elements-cleanup', run: removeLegacySceneElements },
+  { name: '025-player-metrics', run: migratePlayerMetrics }
 ]);
 
 function createRepositories(queryable) {
@@ -78,6 +81,7 @@ function createRepositories(queryable) {
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
     createPlayerTelemetryRepository(queryable),
+    createPlayerMetricsRepository(queryable),
     createScreenRenderJournalRepository(queryable)
   );
 }
