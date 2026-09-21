@@ -424,8 +424,8 @@ function promotionControls(editorState, row, options) {
   animationGrid.className = 'editor-preview-promotion-motion-grid';
 
   const rowAnimation = promotionPresetControl({
-    labelText:'Анимация строки',
-    ariaLabel:'Анимация строки акции',
+    labelText:'Эффект строки',
+    ariaLabel:'Эффект строки',
     value:row.promotion_animation || 'wave',
     disabled:!checkbox.checked,
     choices:PROMOTION_ROW_ANIMATION_OPTIONS,
@@ -437,8 +437,8 @@ function promotionControls(editorState, row, options) {
   });
 
   const badgeAnimation = promotionPresetControl({
-    labelText:'Анимация плашки',
-    ariaLabel:'Анимация плашки акции',
+    labelText:'Эффект плашки',
+    ariaLabel:'Эффект плашки',
     value:row.promotion_badge_animation || 'shine',
     disabled:!checkbox.checked,
     choices:PROMOTION_BADGE_ANIMATION_OPTIONS,

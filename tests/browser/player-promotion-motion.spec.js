@@ -95,11 +95,15 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     const surface = row.locator(':scope > .row-motion-surface-item');
     const badge = row.locator(':scope > g.promotion-badge');
     const badgeGlow = row.locator(':scope > g.promotion-badge-glow');
-    const glow = row.locator(':scope > g.promotion-row-glow');
+    const clip = row.locator(':scope > g.promotion-row-clip');
+    const glow = clip.locator(':scope > g.promotion-row-glow');
     const itemText = row.locator(':scope > .table-item-content');
     await expect(surface).toHaveAttribute('data-motion', 'item');
     await expect(badge).not.toHaveAttribute('data-motion', /.+/);
     await expect(badgeGlow).toHaveAttribute('data-motion', 'promotion-badge-glow');
+    await expect(clip).toHaveClass(/promotion-row-clip/);
+    expect(await clip.evaluate((node) => getComputedStyle(node).clipPath)).not.toBe('none');
+    expect(await clip.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
     await expect(glow).toHaveAttribute('data-motion', 'promotion-glow');
     await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
     await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
