@@ -4,7 +4,6 @@ import { createContextPanel, refreshContextActive, refreshContextPanel } from '.
 import { createHeader, initialiseHeader, refreshHeaderRoute } from './header.js';
 import { createNotificationsLayer } from './notifications.js';
 
-const CONTEXT_COLLAPSED_KEY = 'mira-tv.context-collapsed';
 const CONTEXT_MOBILE_BREAKPOINT = 1180;
 const PHONE_BREAKPOINT = 960;
 
@@ -16,63 +15,124 @@ function phoneLayout() {
   return window.innerWidth <= PHONE_BREAKPOINT;
 }
 
+function contextAvailable(context) {
+  return context?.dataset?.contextAvailable === 'true';
+}
+
 function syncContextChrome(shell, context, collapsed) {
-  const openOnPhone = phoneLayout() && !collapsed;
-  shell.querySelector('.ui-context-backdrop')?.classList.toggle('is-visible', openOnPhone);
-  document.body.classList.toggle('ui-context-open', openOnPhone);
+  const available = contextAvailable(context);
+  const open = available && !collapsed;
+  const openOnPhone = phoneLayout() && open;
+  const backdrop = shell.querySelector('.ui-context-backdrop');
   const trigger = shell.querySelector('[data-mobile-context-trigger]');
-  if (trigger) trigger.setAttribute('aria-expanded', String(openOnPhone));
-  context.setAttribute('aria-hidden', String(collapsed && phoneLayout()));
+
+  if (backdrop) {
+    backdrop.hidden = !available;
+    backdrop.classList.toggle('is-visible', openOnPhone);
+  }
+
+  document.body.classList.toggle('ui-context-open', openOnPhone);
+
+  if (trigger) {
+    trigger.hidden = !available;
+    trigger.setAttribute('aria-expanded', String(openOnPhone));
+  }
+
+  context.hidden = !available;
+  context.setAttribute('aria-hidden', String(!open));
+  context.toggleAttribute('inert', !open);
 }
 
-function setCollapsed(shell, context, collapsed, { persist = false } = {}) {
-  context.classList.toggle('is-collapsed', collapsed);
-  shell.classList.toggle('ui-context-collapsed', collapsed);
-  syncContextChrome(shell, context, collapsed);
-  if (!persist || responsiveCollapsed()) return;
-  try { localStorage.setItem(CONTEXT_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch {}
+function setCollapsed(shell, context, collapsed) {
+  const next = collapsed || !contextAvailable(context);
+  context.classList.toggle('is-collapsed', next);
+  shell.classList.toggle('ui-context-collapsed', next);
+  syncContextChrome(shell, context, next);
 }
 
-function savedCollapsedState() {
-  try { return localStorage.getItem(CONTEXT_COLLAPSED_KEY) === '1'; }
-  catch { return false; }
+function requestContextOpen(shell, context) {
+  if (!contextAvailable(context)) {
+    context.dataset.openWhenAvailable = 'true';
+    return;
+  }
+  context.dataset.openWhenAvailable = '';
+  setCollapsed(shell, context, false);
 }
 
-function applyViewportState(shell, context) {
-  setCollapsed(shell, context, responsiveCollapsed() ? true : savedCollapsedState());
+function reconcileContextRoute(shell, context) {
+  const { hasContext } = navigationState();
+  const pendingOpen = context.dataset.openWhenAvailable === 'true';
+  context.dataset.contextAvailable = hasContext ? 'true' : 'false';
+
+  if (!hasContext) {
+    context.dataset.openWhenAvailable = '';
+    setCollapsed(shell, context, true);
+    return;
+  }
+
+  context.hidden = false;
+  if (pendingOpen) {
+    context.dataset.openWhenAvailable = '';
+    setCollapsed(shell, context, false);
+    return;
+  }
+
+  syncContextChrome(shell, context, context.classList.contains('is-collapsed'));
+}
+
+function focusContext(context) {
+  const target = context.querySelector('.app-route-link.active, .app-route-link, .ui-context-close');
+  target?.focus?.({ preventScroll: true });
+}
+
+function focusMobileTrigger(trigger) {
+  if (phoneLayout() && trigger && !trigger.hidden) trigger.focus({ preventScroll: true });
 }
 
 function wireContext(shell, rail, context, header) {
   const backdrop = shell.querySelector('.ui-context-backdrop');
   const mobileTrigger = header.querySelector('[data-mobile-context-trigger]');
-  applyViewportState(shell, context);
+
+  context.dataset.contextAvailable = navigationState().hasContext ? 'true' : 'false';
+  context.dataset.openWhenAvailable = '';
+  setCollapsed(shell, context, true);
 
   context.querySelector('.ui-context-close')?.addEventListener('click', () => {
-    setCollapsed(shell, context, true, { persist: !responsiveCollapsed() });
+    setCollapsed(shell, context, true);
+    focusMobileTrigger(mobileTrigger);
   });
 
   mobileTrigger?.addEventListener('click', () => {
-    if (!phoneLayout()) return;
-    setCollapsed(shell, context, !context.classList.contains('is-collapsed'));
+    if (!phoneLayout() || !contextAvailable(context)) return;
+    const opening = context.classList.contains('is-collapsed');
+    setCollapsed(shell, context, !opening);
+    if (opening) requestAnimationFrame(() => focusContext(context));
   });
 
-  backdrop?.addEventListener('click', () => setCollapsed(shell, context, true));
+  backdrop?.addEventListener('click', () => {
+    setCollapsed(shell, context, true);
+    focusMobileTrigger(mobileTrigger);
+  });
 
   context.addEventListener('click', (event) => {
     const routeLink = event.target instanceof Element ? event.target.closest('.app-route-link') : null;
-    if (routeLink && context.contains(routeLink)) setCollapsed(shell, context, true);
+    if (!routeLink || !context.contains(routeLink)) return;
+    context.dataset.openWhenAvailable = '';
+    setCollapsed(shell, context, true);
   });
 
   rail.querySelectorAll('.ui-rail-button').forEach((link) => {
     link.addEventListener('pointerenter', () => {
-      if (!responsiveCollapsed() && link.classList.contains('active')) setCollapsed(shell, context, false);
+      if (!responsiveCollapsed() && link.classList.contains('active')) requestContextOpen(shell, context);
     }, { passive: true });
+
     link.addEventListener('click', () => {
       if (phoneLayout()) {
+        context.dataset.openWhenAvailable = '';
         setCollapsed(shell, context, true);
         return;
       }
-      setCollapsed(shell, context, false, { persist: !responsiveCollapsed() });
+      requestContextOpen(shell, context);
     });
   });
 
@@ -81,11 +141,17 @@ function wireContext(shell, rail, context, header) {
   }, { passive: true });
 
   shell.querySelector('.app-content')?.addEventListener('pointerdown', (event) => {
-    if (!responsiveCollapsed() || context.classList.contains('is-collapsed')) return;
+    if (context.classList.contains('is-collapsed') || !contextAvailable(context)) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('[data-mobile-context-trigger], .ui-context')) return;
     setCollapsed(shell, context, true);
   }, { passive: true });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || context.classList.contains('is-collapsed') || !contextAvailable(context)) return;
+    setCollapsed(shell, context, true);
+    focusMobileTrigger(mobileTrigger);
+  });
 
   let viewportWasResponsive = responsiveCollapsed();
   let viewportWasPhone = phoneLayout();
@@ -95,7 +161,7 @@ function wireContext(shell, rail, context, header) {
     if (viewportIsResponsive === viewportWasResponsive && viewportIsPhone === viewportWasPhone) return;
     viewportWasResponsive = viewportIsResponsive;
     viewportWasPhone = viewportIsPhone;
-    applyViewportState(shell, context);
+    setCollapsed(shell, context, true);
   }, { passive: true });
 
   window.addEventListener('hashchange', () => refreshContextActive(context));
@@ -107,6 +173,11 @@ export function refreshShellRoute() {
   document.body.dataset.uiSection = section;
   refreshSidebarActive();
   refreshContextPanel();
+
+  const shell = document.querySelector('.app-shell');
+  const context = shell?.querySelector('.ui-context');
+  if (shell && context) reconcileContextRoute(shell, context);
+
   refreshHeaderRoute();
   initialiseHeader();
 }
