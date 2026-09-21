@@ -37,7 +37,7 @@ export function isAppRoutePath(pathname) {
 export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((route) => route.prefetch).map((route) => route.path));
 
 const CONTEXT_LINKS = Object.freeze({
-  overview: Object.freeze([['Обзор', '/']]),
+  overview: Object.freeze([]),
   monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Плейлист', '/playlist'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])

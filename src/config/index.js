@@ -24,6 +24,8 @@ export function loadConfig(env = process.env) {
     playerLogBatchSize: integer('PLAYER_LOG_BATCH_SIZE', env.PLAYER_LOG_BATCH_SIZE, { minimum: 10, maximum: 500 }),
     playerLogLocalMaxEntries: integer('PLAYER_LOG_LOCAL_MAX_ENTRIES', env.PLAYER_LOG_LOCAL_MAX_ENTRIES, { minimum: 100, maximum: 50000 }),
     playerLogLocalMaxBytes: integer('PLAYER_LOG_LOCAL_MAX_BYTES', env.PLAYER_LOG_LOCAL_MAX_BYTES, { minimum: 1048576, maximum: 104857600 }),
+    playerMetricsIntervalSeconds: integer('PLAYER_METRICS_INTERVAL_SECONDS', env.PLAYER_METRICS_INTERVAL_SECONDS || (testMode ? '60' : undefined), { minimum: 30, maximum: 600 }),
+    playerMetricsRetentionDays: integer('PLAYER_METRICS_RETENTION_DAYS', env.PLAYER_METRICS_RETENTION_DAYS || (testMode ? '31' : undefined), { minimum: 7, maximum: 365 }),
     tvPreviewCaptureSeconds: integer('TV_PREVIEW_CAPTURE_SECONDS', env.TV_PREVIEW_CAPTURE_SECONDS || (testMode ? '30' : undefined), { minimum: 10, maximum: 300 }),
     tvPreviewMaxBytes: integer('TV_PREVIEW_MAX_BYTES', env.TV_PREVIEW_MAX_BYTES || (testMode ? '262144' : undefined), { minimum: 32768, maximum: 1048576 }),
     eventJournalRetentionDays: integer('EVENT_JOURNAL_RETENTION_DAYS', env.EVENT_JOURNAL_RETENTION_DAYS, { minimum: 1, maximum: 365 }),

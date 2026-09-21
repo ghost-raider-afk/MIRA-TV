@@ -38,6 +38,7 @@ export function playerRuntimeComponent(config, renderRevision = 1) {
     log_batch_size: config.playerLogBatchSize,
     log_local_max_entries: config.playerLogLocalMaxEntries,
     log_local_max_bytes: config.playerLogLocalMaxBytes,
+    metrics_interval_ms: config.playerMetricsIntervalSeconds * 1000,
     preview_capture_interval_ms: config.tvPreviewCaptureSeconds * 1000,
     preview_max_bytes: config.tvPreviewMaxBytes,
     render_revision: Number(renderRevision) || 1

@@ -1,11 +1,12 @@
 import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
 import { publishPlayerPreview } from './player-preview-capture.js';
+import { createPlayerMetricsCollector } from './player-metrics.js';
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.13.11';
+const PLAYER_BUILD_VERSION = '1.13.12';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
@@ -19,6 +20,7 @@ const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
 const playerSceneRenderer = new PlayerSceneRenderer(playerStage);
+const playerMetrics = createPlayerMetricsCollector();
 
 let pollTimer = null;
 let expiryTimer = null;
@@ -177,6 +179,7 @@ async function enterImmersiveMode() {
 }
 
 function showActivationScreen() {
+  playerMetrics.stop();
   playerStateSync?.stop();
   playerSceneRenderer.reset();
   setHidden(player, true);
@@ -402,6 +405,9 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
   clearPairingTimers();
   await playerSceneRenderer.render(context, changedNames);
   reconcilePlayerBuild(context, changedNames, source);
+  const configuredMetricsInterval = Number(context?.metrics_interval_ms);
+  playerMetrics.configure({ intervalMs:configuredMetricsInterval });
+  if (source !== 'last-known-good') playerMetrics.start();
   const configuredPreviewInterval = Number(context?.preview_capture_interval_ms);
   if (Number.isFinite(configuredPreviewInterval) && configuredPreviewInterval >= 10_000) {
     previewCaptureIntervalMs = configuredPreviewInterval;
@@ -422,6 +428,7 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
 
 function playerConnectivityChanged(state) {
   if (state === 'online') {
+    playerMetrics.start();
     showConnectionMessage('');
     schedulePreviewPublish(450);
     return;
@@ -435,6 +442,7 @@ function playerConnectivityChanged(state) {
 }
 
 function playerUnauthorized() {
+  playerMetrics.stop();
   stopPreviewPublishing();
   clearActivation();
   showPairingIntro();
@@ -621,7 +629,10 @@ async function initialisePlayer() {
       schedulePreviewPublish(450);
     }
   });
-  window.addEventListener('pagehide', stopPreviewPublishing);
+  window.addEventListener('pagehide', () => {
+    stopPreviewPublishing();
+    playerMetrics.stop();
+  });
   void navigator.storage?.persist?.().catch(() => undefined);
   void registerOfflinePlayer();
 
