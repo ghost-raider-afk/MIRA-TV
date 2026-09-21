@@ -11,15 +11,110 @@
   <body data-page="overview">
     <div class="app-shell">
       <div class="app-content">
-        <main class="main-content">
-          <section class="welcome-card">
-            <div><p class="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ</p><h1 data-app-name>MIRA-TV</h1><p>Точки, мониторы и публикация меню.</p></div>
-            <a class="button button-primary" href="/screens.html">Мониторы</a>
+        <main class="main-content dashboard-page">
+          <section class="dashboard-commandbar">
+            <div>
+              <p class="eyebrow">ОПЕРАТИВНЫЙ ЦЕНТР</p>
+              <h1>Обзор</h1>
+              <p>Состояние TV-сети и производительность реальных TV Player.</p>
+            </div>
+            <div class="dashboard-period-control">
+              <span>Период: <strong data-dashboard-range-label>1 час</strong></span>
+              <div class="dashboard-period-buttons" role="group" aria-label="Период графиков">
+                <button type="button" data-dashboard-range="1h" aria-pressed="true">1 ч</button>
+                <button type="button" data-dashboard-range="24h" aria-pressed="false">24 ч</button>
+                <button type="button" data-dashboard-range="7d" aria-pressed="false">7 д</button>
+                <button type="button" data-dashboard-range="30d" aria-pressed="false">30 д</button>
+              </div>
+              <small data-dashboard-updated>—</small>
+            </div>
           </section>
-          <section class="metric-grid" aria-label="Состояние системы">
-            <article class="metric-card"><span>Торговые точки</span><strong data-overview="locations">—</strong></article>
-            <article class="metric-card"><span>Мониторы</span><strong data-overview="screens">—</strong></article>
-            <article class="metric-card"><span>Опубликовано</span><strong data-overview="published">—</strong></article>
+
+          <section class="dashboard-summary-grid" aria-label="Сводка TV-сети">
+            <article class="dashboard-summary-card">
+              <span>Торговые точки</span>
+              <strong data-dashboard-summary="locations">—</strong>
+              <small>Всего в системе</small>
+            </article>
+            <article class="dashboard-summary-card">
+              <span>TV всего</span>
+              <strong data-dashboard-summary="screens">—</strong>
+              <small>Созданные мониторы</small>
+            </article>
+            <article class="dashboard-summary-card dashboard-summary-online">
+              <span>Онлайн</span>
+              <strong data-dashboard-summary="online">—</strong>
+              <small>Есть связь с Player</small>
+            </article>
+            <article class="dashboard-summary-card">
+              <span>Офлайн</span>
+              <strong data-dashboard-summary="offline">—</strong>
+              <small>Привязаны, но без связи</small>
+            </article>
+            <article class="dashboard-summary-card">
+              <span>Не подключены</span>
+              <strong data-dashboard-summary="unbound">—</strong>
+              <small>Без физического TV</small>
+            </article>
+          </section>
+
+          <section class="dashboard-health-row">
+            <span class="dashboard-health-pill" data-dashboard-health>Проверяем TV-сеть…</span>
+            <span>Системный CPU Android браузер не раскрывает; график нагрузки ниже показывает нагрузку самого Player по main-thread long tasks.</span>
+          </section>
+
+          <section class="dashboard-chart-grid" aria-label="Графики производительности">
+            <article class="dashboard-chart-card" data-dashboard-card="online">
+              <header>
+                <div><span>Онлайн TV</span><small>Передают телеметрию</small></div>
+                <strong data-dashboard-current>—</strong>
+              </header>
+              <div class="dashboard-chart-host" data-dashboard-chart></div>
+              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
+            </article>
+
+            <article class="dashboard-chart-card" data-dashboard-card="fps">
+              <header>
+                <div><span>FPS Player</span><small>Средняя плавность</small></div>
+                <strong data-dashboard-current>—</strong>
+              </header>
+              <div class="dashboard-chart-host" data-dashboard-chart></div>
+              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
+            </article>
+
+            <article class="dashboard-chart-card" data-dashboard-card="load">
+              <header>
+                <div><span>Нагрузка Player</span><small>Main thread / long tasks</small></div>
+                <strong data-dashboard-current>—</strong>
+              </header>
+              <div class="dashboard-chart-host" data-dashboard-chart></div>
+              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
+            </article>
+
+            <article class="dashboard-chart-card" data-dashboard-card="memory">
+              <header>
+                <div><span>Память Player</span><small>JS heap браузера</small></div>
+                <strong data-dashboard-current>—</strong>
+              </header>
+              <div class="dashboard-chart-host" data-dashboard-chart></div>
+              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
+            </article>
+          </section>
+
+          <section class="dashboard-lower-grid">
+            <article class="dashboard-panel">
+              <header><div><span>Требуют внимания</span><small>TV без текущей связи</small></div><a href="/screens">Открыть TV-сеть</a></header>
+              <div class="dashboard-attention-list" data-dashboard-attention></div>
+            </article>
+            <article class="dashboard-panel dashboard-info-panel">
+              <header><div><span>Что измеряем</span><small>Телеметрия TV Player</small></div></header>
+              <div class="dashboard-info-list">
+                <span><strong>FPS</strong><small>Фактическая частота кадров Player.</small></span>
+                <span><strong>Нагрузка</strong><small>Доля времени длинных задач главного потока.</small></span>
+                <span><strong>Память</strong><small>JS heap Chromium, когда браузер предоставляет метрику.</small></span>
+                <span><strong>История</strong><small>Хранится 31 день, без покадрового мониторинга.</small></span>
+              </div>
+            </article>
           </section>
         </main>
       </div>
