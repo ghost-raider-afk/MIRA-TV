@@ -100,8 +100,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const promotionEditor = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
   await expect(promotionEditor).toBeVisible();
   await promotionEditor.locator('input[type="checkbox"]').check();
-  const promotionRowAnimation = promotionEditor.getByRole('radiogroup', { name:'Анимация строки акции' });
-  const promotionBadgeAnimation = promotionEditor.getByRole('radiogroup', { name:'Анимация плашки акции' });
+  const promotionRowAnimation = promotionEditor.getByRole('radiogroup', { name:'Эффект строки' });
+  const promotionBadgeAnimation = promotionEditor.getByRole('radiogroup', { name:'Эффект плашки' });
   await expect(promotionRowAnimation.getByRole('radio', { name:'Мягкая волна' })).toHaveAttribute('aria-checked', 'true');
   await expect(promotionBadgeAnimation.getByRole('radio', { name:'Gloss Shine' })).toHaveAttribute('aria-checked', 'true');
   await promotionRowAnimation.getByRole('radio', { name:'Gloss-перелив' }).click();
@@ -113,10 +113,10 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await animationLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация');
   const animationInspector = page.locator('#scene-editor-properties');
-  await expect(animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Gloss-перелив' })).toHaveAttribute('aria-checked', 'true');
-  await expect(animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Breathing Glow' })).toHaveAttribute('aria-checked', 'true');
-  await animationInspector.getByRole('radiogroup', { name:'Анимация строки акции' }).getByRole('radio', { name:'Заполнение' }).click();
-  await animationInspector.getByRole('radiogroup', { name:'Анимация плашки акции' }).getByRole('radio', { name:'Gloss Shine' }).click();
+  await expect(animationInspector.getByRole('radiogroup', { name:'Эффект строки' }).getByRole('radio', { name:'Gloss-перелив' })).toHaveAttribute('aria-checked', 'true');
+  await expect(animationInspector.getByRole('radiogroup', { name:'Эффект плашки' }).getByRole('radio', { name:'Breathing Glow' })).toHaveAttribute('aria-checked', 'true');
+  await animationInspector.getByRole('radiogroup', { name:'Эффект строки' }).getByRole('radio', { name:'Заполнение' }).click();
+  await animationInspector.getByRole('radiogroup', { name:'Эффект плашки' }).getByRole('radio', { name:'Gloss Shine' }).click();
   await animationInspector.getByLabel('Характер').selectOption('wave');
   const promotionGlow = page.locator('#scene-editor-stage .promotion-row-glow');
   await expect(promotionGlow).toHaveAttribute('data-promotion-row-animation', 'fill');
