@@ -27,7 +27,8 @@ test('Scene owns canonical menu editing while monitor settings keep a read-only 
   assert.match(sceneHtml, /id="scene-editor-table-edit-layer"/);
   assert.match(sceneHtml, /id="scene-editor-background-layer"/);
   assert.match(sceneHtml, /id="scene-editor-table-layer"/);
-  assert.match(sceneEditor, /renderPreviewRows/);
+  assert.match(sceneEditor, /renderTableEditorRows/);
+  assert.doesNotMatch(sceneEditor, /renderPreviewRows/);
   assert.match(sceneEditor, /buildRenderModel/);
   assert.match(sceneEditor, /appendRow/);
   assert.match(sceneEditor, /data-scene-table-row-inspector/);
@@ -43,5 +44,7 @@ test('Scene owns canonical menu editing while monitor settings keep a read-only 
   assert.doesNotMatch(rows, /createElement\('table'\)|<thead>|<tbody>/);
   assert.doesNotMatch(editorCss, /editor-menu-editor-table|editor-menu-table-scroll|editor-menu-rows/);
   assert.match(sceneCss, /scene-editor-table-edit-layer/);
+  assert.match(sceneCss, /scene-table-editor-panel/);
+  assert.match(sceneCss, /scene-table-editor-row/);
   assert.match(sceneCss, /editor-preview-inline-control/);
 });
