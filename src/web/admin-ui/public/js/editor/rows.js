@@ -130,8 +130,11 @@ function choiceControl({
       }
 
       option.addEventListener('click', () => {
+        selectedId = String(item.id);
+        trigger.dataset[datasetName] = selectedId;
+        triggerText.textContent = item.name || placeholder;
         close();
-        onChange?.(String(item.id));
+        onChange?.(selectedId);
       });
       list.append(option);
     }
