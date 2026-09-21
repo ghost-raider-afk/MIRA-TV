@@ -58,7 +58,8 @@ export function createOverviewRouter({ store, realtime, config }) {
       const binding = bindingByScreen.get(screenId) || null;
       const presence = binding ? realtime?.presenceForScreen(screenId) : null;
       const online = presence?.online === true;
-      const latestMetric = metricByScreen.get(screenId) || null;
+      const rawLatestMetric = metricByScreen.get(screenId) || null;
+      const latestMetric = binding && rawLatestMetric && Number(rawLatestMetric.device_id) === Number(binding.device_id) ? rawLatestMetric : null;
       const problem = problemState({ binding, online, latestMetric, staleAfterMs });
       return {
         screen_id:screenId,
@@ -68,6 +69,7 @@ export function createOverviewRouter({ store, realtime, config }) {
         location_name:screen.location_name,
         location_number:Number(screen.location_number) || null,
         bound:Boolean(binding),
+        device_id:binding ? Number(binding.device_id) : null,
         online,
         problem_code:problem?.code || null,
         problem_label:problem?.label || null,
@@ -92,7 +94,7 @@ export function createOverviewRouter({ store, realtime, config }) {
       || null;
 
     const points = selected
-      ? await store.dashboardPlayerMetrics({ since, bucketSeconds:range.bucketSeconds, screenId:selected.screen_id })
+      ? await store.dashboardPlayerMetrics({ since, bucketSeconds:range.bucketSeconds, deviceId:selected.device_id })
       : [];
 
     const problems = tvs.filter((item) => item.problem_code);
