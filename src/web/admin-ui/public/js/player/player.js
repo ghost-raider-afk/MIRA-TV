@@ -1,5 +1,6 @@
 import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
+import { publishPlayerPreview } from './player-preview-capture.js';
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
@@ -29,6 +30,9 @@ let playerStateSync = null;
 let offlinePlayerRegistrationPromise = null;
 let playerBuildUpdatePromise = null;
 let serviceWorkerControllerChanged = false;
+let previewTimer = null;
+let previewInFlight = false;
+let previewCaptureIntervalMs = null;
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -354,6 +358,35 @@ async function createActivation({ automatic = false } = {}) {
   }
 }
 
+function stopPreviewPublishing() {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = null;
+}
+
+function schedulePreviewPublish(delayMs = previewCaptureIntervalMs) {
+  stopPreviewPublishing();
+  if (!Number.isFinite(previewCaptureIntervalMs) || previewCaptureIntervalMs < 10_000) return;
+  const delay = Math.max(250, Number.isFinite(delayMs) ? delayMs : previewCaptureIntervalMs);
+  previewTimer = setTimeout(() => void publishPreviewFrame(), delay);
+}
+
+async function publishPreviewFrame() {
+  previewTimer = null;
+  if (previewInFlight || document.visibilityState === 'hidden' || !navigator.onLine || player?.classList.contains('is-hidden')) {
+    schedulePreviewPublish();
+    return;
+  }
+  previewInFlight = true;
+  try {
+    await publishPlayerPreview(playerStage);
+  } catch (error) {
+    console.debug('TV Player preview publish skipped', error);
+  } finally {
+    previewInFlight = false;
+    schedulePreviewPublish();
+  }
+}
+
 function showConnectionMessage(message) {
   if (!message) {
     setHidden(playerMessage, true);
@@ -368,9 +401,14 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
   clearPairingTimers();
   await playerSceneRenderer.render(context, changedNames);
   reconcilePlayerBuild(context, changedNames, source);
+  const configuredPreviewInterval = Number(context?.preview_capture_interval_ms);
+  if (Number.isFinite(configuredPreviewInterval) && configuredPreviewInterval >= 10_000) {
+    previewCaptureIntervalMs = configuredPreviewInterval;
+  }
   setHidden(activationView, true);
   setHidden(player, false);
   dispatchPlayerActivity(true);
+  if (source !== 'last-known-good') schedulePreviewPublish(450);
   if (source === 'last-known-good') {
     showConnectionMessage('ТВ запущен по последнему рабочему состоянию. Проверяем связь с сервером…');
   }
@@ -380,6 +418,7 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
 function playerConnectivityChanged(state) {
   if (state === 'online') {
     showConnectionMessage('');
+    schedulePreviewPublish(450);
     return;
   }
   if (!playerStateSync?.hasContext) return;
@@ -391,6 +430,7 @@ function playerConnectivityChanged(state) {
 }
 
 function playerUnauthorized() {
+  stopPreviewPublishing();
   clearActivation();
   showPairingIntro();
 }
@@ -571,8 +611,12 @@ async function initialisePlayer() {
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {
     syncPlayerPageVisibility();
-    if (document.visibilityState === 'visible') void requestWakeLock();
+    if (document.visibilityState === 'visible') {
+      void requestWakeLock();
+      schedulePreviewPublish(450);
+    }
   });
+  window.addEventListener('pagehide', stopPreviewPublishing);
   void navigator.storage?.persist?.().catch(() => undefined);
   void registerOfflinePlayer();
 
