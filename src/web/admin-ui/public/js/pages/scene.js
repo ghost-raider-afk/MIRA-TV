@@ -645,8 +645,8 @@ export function initialiseSceneEditor() {
       ? 'Пресеты применяются ко всем строкам с включённой «Акцией».'
       : 'В таблице пока нет строк с включённой «Акцией».';
     promoPanel.append(
-      renderPromotionPresetGroup('Анимация строки акции', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
-      renderPromotionPresetGroup('Анимация плашки акции', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
+      renderPromotionPresetGroup('Эффект строки', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
+      renderPromotionPresetGroup('Эффект плашки', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
       presetNote
     );
     const promoGrid = document.createElement('div');
