@@ -63,6 +63,32 @@ function knownPlayerState(value) {
   return { schema_version: Number.isSafeInteger(schemaVersion) ? schemaVersion : 0, hashes };
 }
 
+function finiteOrNull(value, { minimum = -Infinity, maximum = Infinity, integer = false } = {}) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < minimum || number > maximum) return null;
+  return integer ? Math.round(number) : number;
+}
+
+function playerMetric(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw Object.assign(new Error('Некорректная метрика Player.'), { status: 400 });
+  }
+  const sampledAt = String(value.sampled_at || '').trim();
+  if (!sampledAt || !Number.isFinite(Date.parse(sampledAt))) {
+    throw Object.assign(new Error('Некорректное время метрики Player.'), { status: 400 });
+  }
+  return {
+    sampled_at: sampledAt,
+    fps_avg: finiteOrNull(value.fps_avg, { minimum: 0, maximum: 240 }),
+    player_load_percent: finiteOrNull(value.player_load_percent, { minimum: 0, maximum: 100 }),
+    js_heap_used_bytes: finiteOrNull(value.js_heap_used_bytes, { minimum: 0, maximum: 1099511627776, integer: true }),
+    device_memory_gb: finiteOrNull(value.device_memory_gb, { minimum: 0.25, maximum: 256 }),
+    hardware_concurrency: finiteOrNull(value.hardware_concurrency, { minimum: 1, maximum: 512, integer: true }),
+    uptime_seconds: finiteOrNull(value.uptime_seconds, { minimum: 0, maximum: 315360000, integer: true })
+  };
+}
+
 function playerLogBatch(value, config) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Object.assign(new Error('Некорректный пакет журнала Player.'), { status: 400 });
   const bootId = String(value.boot_id || '').trim();
@@ -289,6 +315,14 @@ export function createDevicePublicRouter({ store, config, realtime }) {
     const snapshot = await getWeatherSnapshot(settings, config);
     response.setHeader('Cache-Control', 'private, no-store');
     return response.json({ settings, snapshot });
+  });
+
+  router.post('/metrics', async (request, response) => {
+    const session = await resolveDeviceSession(store, config, request, response);
+    if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const metric = playerMetric(request.body);
+    const saved = await store.insertPlayerMetric(session.device_id, session.screen_id, metric);
+    return response.status(202).json({ accepted: true, sampled_at: saved?.sampled_at || metric.sampled_at });
   });
 
   router.post('/player-logs', async (request, response) => {
