@@ -39,9 +39,9 @@ export function createPlayerMetricsRepository(pool) {
       return rows[0] || null;
     },
 
-    async dashboardPlayerMetrics({ since, bucketSeconds, screenId = null }) {
+    async dashboardPlayerMetrics({ since, bucketSeconds, deviceId = null }) {
       const interval = `${Math.max(60, Number(bucketSeconds) || 60)} seconds`;
-      const selectedScreenId = Number.isInteger(Number(screenId)) && Number(screenId) > 0 ? Number(screenId) : null;
+      const selectedDeviceId = Number.isInteger(Number(deviceId)) && Number(deviceId) > 0 ? Number(deviceId) : null;
       const { rows } = await pool.query(
         `SELECT
            date_bin($2::interval, sampled_at, TIMESTAMPTZ '2001-01-01 00:00:00+00') AS bucket,
@@ -54,10 +54,10 @@ export function createPlayerMetricsRepository(pool) {
            AVG(uptime_seconds)::double precision / 3600.0 AS uptime_hours
          FROM tv_player_metrics
          WHERE sampled_at >= $1
-           AND ($3::bigint IS NULL OR screen_id = $3)
+           AND ($3::bigint IS NULL OR device_id = $3)
          GROUP BY bucket
          ORDER BY bucket ASC`,
-        [since, interval, selectedScreenId]
+        [since, interval, selectedDeviceId]
       );
       return rows.map(metricPoint);
     },
