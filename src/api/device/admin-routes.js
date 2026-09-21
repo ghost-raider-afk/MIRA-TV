@@ -112,7 +112,7 @@ export function createDeviceAdminRouter({ store, realtime }) {
         preview && (!presence.connected_at || Date.parse(preview.updated_at) >= Date.parse(presence.connected_at))
       );
       const measuredPing = measurePing ? pingResults.get(Number(binding.screen_id)) : null;
-      const online = presence.online === true && (!measurePing || Number.isFinite(measuredPing));
+      const online = presence.online === true;
       return {
         ...binding,
         online,
