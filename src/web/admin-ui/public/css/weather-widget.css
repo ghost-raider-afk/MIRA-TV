@@ -356,10 +356,18 @@
 
 .weather-widget-main {
   display: grid;
-  grid-template-columns: minmax(0,46%) minmax(0,54%);
+  grid-template-columns: minmax(0,58%) minmax(0,42%);
   gap: 8px;
   align-items: center;
   min-height: 126px;
+}
+
+.weather-widget-summary {
+  display: grid;
+  grid-template-columns: 74px minmax(0,1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
 }
 
 .weather-widget-visual {
@@ -379,16 +387,15 @@
 }
 
 .weather-widget-icon {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 92px;
-  height: 92px;
+  position: relative;
+  width: 72px;
+  height: 72px;
   display: grid;
   place-items: center;
   z-index: 4;
   color: var(--mira-menu-accent, #F6C90E);
   filter: drop-shadow(0 8px 12px rgba(0,0,0,.42));
-  transform: translate(-50%,-50%);
+  transform: none;
 }
 
 .weather-widget-icon svg,
