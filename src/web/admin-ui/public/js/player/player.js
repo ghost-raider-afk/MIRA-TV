@@ -33,6 +33,7 @@ let serviceWorkerControllerChanged = false;
 let previewTimer = null;
 let previewInFlight = false;
 let previewCaptureIntervalMs = null;
+let previewMaxBytes = null;
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -378,7 +379,7 @@ async function publishPreviewFrame() {
   }
   previewInFlight = true;
   try {
-    await publishPlayerPreview(playerStage);
+    await publishPlayerPreview(playerStage, { maxBytes:previewMaxBytes });
   } catch (error) {
     console.debug('TV Player preview publish skipped', error);
   } finally {
@@ -404,6 +405,10 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
   const configuredPreviewInterval = Number(context?.preview_capture_interval_ms);
   if (Number.isFinite(configuredPreviewInterval) && configuredPreviewInterval >= 10_000) {
     previewCaptureIntervalMs = configuredPreviewInterval;
+  }
+  const configuredPreviewMaxBytes = Number(context?.preview_max_bytes);
+  if (Number.isFinite(configuredPreviewMaxBytes) && configuredPreviewMaxBytes > 0) {
+    previewMaxBytes = configuredPreviewMaxBytes;
   }
   setHidden(activationView, true);
   setHidden(player, false);
