@@ -20,6 +20,34 @@ function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
 }
 
+function homeControl() {
+  const link = document.createElement('a');
+  link.className = 'app-header-home';
+  link.href = '/';
+  link.innerHTML = '<span class="app-header-home-mark" data-header-brand>ТВ</span>';
+  syncHeaderBrand(link);
+  return link;
+}
+
+function syncHeaderBrand(root = document) {
+  const name = appName();
+  const logo = String(state.site?.logo_url || '').trim();
+  root.querySelectorAll('.app-header-home').forEach((link) => {
+    link.setAttribute('aria-label', `${name} — Обзор`);
+    link.setAttribute('title', `${name} — Обзор`);
+    const mark = link.querySelector('[data-header-brand]');
+    if (!mark) return;
+    if (logo) {
+      const image = document.createElement('img');
+      image.src = logo;
+      image.alt = '';
+      mark.replaceChildren(image);
+    } else {
+      mark.textContent = 'ТВ';
+    }
+  });
+}
+
 function accountControl() {
   const wrap = document.createElement('div');
   wrap.className = 'header-account';
@@ -38,6 +66,7 @@ export function refreshHeaderRoute(root = document) {
   if (nameNode) nameNode.textContent = appName();
   const sectionTrigger = header.querySelector('[data-mobile-context-trigger]');
   if (sectionTrigger) sectionTrigger.setAttribute('aria-label', `Открыть меню раздела: ${title}`);
+  syncHeaderBrand(root);
 }
 
 export function createHeader() {
@@ -45,7 +74,8 @@ export function createHeader() {
   document.title = `${appName()} — ${title}`;
   const header = document.createElement('header');
   header.className = 'app-header';
-  header.innerHTML = `<button class="mobile-context-trigger" data-mobile-context-trigger type="button" aria-expanded="false" aria-label="Открыть меню раздела: ${title}"></button><div class="app-header-title"><strong data-app-name></strong><span></span></div><div class="app-header-actions"></div>`;
+  header.innerHTML = `<button class="mobile-context-trigger" data-mobile-context-trigger type="button" aria-expanded="false" aria-controls="app-context-panel" aria-label="Открыть меню раздела: ${title}"></button><div class="app-header-title"><strong data-app-name></strong><span></span></div><div class="app-header-actions"></div>`;
+  header.prepend(homeControl());
   setIcon(header.querySelector('[data-mobile-context-trigger]'), 'menu');
   header.querySelector('[data-app-name]').textContent = appName();
   header.querySelector('.app-header-title span').textContent = title;
