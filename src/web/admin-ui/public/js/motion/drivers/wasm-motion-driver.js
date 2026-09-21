@@ -71,6 +71,10 @@ export class WasmMotionDriver {
     } else if (spec.kind === 'promo-badge-shine') {
       target.style.transformOrigin = 'left center';
       target.style.filter = 'none';
+    } else if (spec.kind === 'promo-badge-sparkle') {
+      const radius = number(spec.glowRadius, 8);
+      target.style.transformOrigin = 'center';
+      target.style.filter = `drop-shadow(0 0 ${radius.toFixed(2)}px rgba(255,250,210,.92))`;
     } else if (spec.kind === 'promo-glow') {
       const radius = number(spec.glowRadius, 18);
       target.style.transformOrigin = spec.animation === 'fill' ? 'left center' : 'center';
@@ -227,8 +231,25 @@ export class WasmMotionDriver {
         return;
       }
       const envelope = Math.sin(Math.PI * progress);
+      const travel = number(spec.travelPx, 100);
       target.style.opacity = (envelope * number(spec.opacity, 0.8)).toFixed(4);
-      target.style.transform = `translate3d(${(progress * 500).toFixed(2)}%,0,0)`;
+      target.style.transform = `translate3d(${(progress * travel).toFixed(2)}px,0,0)`;
+      return;
+    }
+    if (spec.kind === 'promo-badge-sparkle') {
+      const progress = activeProgress(phase, active);
+      if (progress === null) {
+        target.style.opacity = '0';
+        target.style.transform = 'translate3d(0,0,0) scale(.72)';
+        return;
+      }
+      const travel = number(spec.travelPx, 100);
+      const focus = Math.exp(-Math.pow((progress - 0.58) / 0.16, 2));
+      const twinkle = 0.82 + 0.18 * Math.pow(Math.sin(progress * Math.PI * 7), 2);
+      const energy = focus * twinkle;
+      const scale = 0.72 + energy * 0.72;
+      target.style.opacity = (energy * number(spec.opacity, 0.94)).toFixed(4);
+      target.style.transform = `translate3d(${(progress * travel).toFixed(2)}px,0,0) scale(${scale.toFixed(4)})`;
       return;
     }
     if (spec.kind === 'promo-glow') {
