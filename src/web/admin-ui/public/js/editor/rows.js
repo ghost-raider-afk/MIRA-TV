@@ -1,4 +1,5 @@
 import { addRow, moveRow, removeRow, selectRow, sortSectionItems, updateRow } from './commands.js';
+import { MENU_REFERENCE } from './renderer-model.js';
 
 let openChoice = null;
 
@@ -533,10 +534,13 @@ function renderInspector(editorState, options) {
 }
 
 function tableEditorFrame(model) {
-  const x = Math.max(0, Number(model?.settings?.table_x) || 0);
-  const y = Math.max(0, Number(model?.settings?.table_y) || 0);
-  const width = Math.max(1, Number(model?.settings?.table_width_px) || model?.viewport?.width || 1);
-  const height = Math.max(1, Number(model?.settings?.table_height_px) || model?.viewport?.height || 1);
+  const viewportWidth = Math.max(1, Number(model?.viewport?.width) || MENU_REFERENCE.width);
+  const viewportHeight = Math.max(1, Number(model?.viewport?.height) || MENU_REFERENCE.height);
+  const numeric = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const x = Math.max(0, Math.min(viewportWidth - 1, numeric(model?.settings?.table_x, MENU_REFERENCE.tableX)));
+  const y = Math.max(0, Math.min(viewportHeight - 1, numeric(model?.settings?.table_y, MENU_REFERENCE.tableTop)));
+  const width = Math.max(1, Math.min(viewportWidth - x, numeric(model?.settings?.table_width_px, MENU_REFERENCE.tableWidth)));
+  const height = Math.max(1, Math.min(viewportHeight - y, numeric(model?.settings?.table_height_px, MENU_REFERENCE.tableHeight)));
   return { x, y, width, height };
 }
 
