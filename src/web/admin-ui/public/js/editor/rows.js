@@ -154,6 +154,13 @@ function choiceControl({
     openChoice?.close?.();
     openChoice = { close };
     onOpen?.();
+    const editorScroll = shell.closest('.scene-table-editor-scroll');
+    if (editorScroll instanceof HTMLElement) {
+      const shellRect = shell.getBoundingClientRect();
+      const scrollRect = editorScroll.getBoundingClientRect();
+      const offset = (shellRect.top + shellRect.height / 2) - (scrollRect.top + scrollRect.height / 2);
+      editorScroll.scrollTop += offset;
+    }
     search.value = '';
     render();
     popup.hidden = false;
