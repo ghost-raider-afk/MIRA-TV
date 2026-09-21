@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v25';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v26';
-const SHELL_CACHE = 'mira-tv-player-shell-v27';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v26';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v27';
+const SHELL_CACHE = 'mira-tv-player-shell-v28';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: stable promotion halo, compositor-safe motion filters and authored-motion parity. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: static offline TV cards and higher-quality Player preview capture. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
