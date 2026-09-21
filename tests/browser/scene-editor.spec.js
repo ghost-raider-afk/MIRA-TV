@@ -288,6 +288,16 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
   const { screen } = await fixture(page);
+  const promotionBundle = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+  const promotionSave = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
+    revision:promotionBundle.draft.revision,
+    rows:promotionBundle.draft.rows.map((row) => row.kind === 'item'
+      ? { ...row, promotion:true, promotion_text:'АКЦИЯ', promotion_animation:'wave', promotion_badge_animation:'shine' }
+      : row),
+    settings:promotionBundle.draft.settings,
+    scene:promotionBundle.draft.scene
+  } });
+  expect(promotionSave.ok()).toBeTruthy();
 
   await page.route('**/api/weather/locations**', async (route) => {
     await route.fulfill({
@@ -327,12 +337,6 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   });
 
   await page.goto(`/scene?screen=${screen.id}`);
-
-  await page.locator('#scene-editor-table-layer').click();
-  const weatherScenarioPromotion = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
-  await expect(weatherScenarioPromotion).toBeVisible();
-  await weatherScenarioPromotion.locator('input[type="checkbox"]').check();
-
   await page.locator('#scene-editor-add').click();
   await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Погода/ }).click();
 
