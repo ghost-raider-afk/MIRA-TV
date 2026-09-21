@@ -9,7 +9,7 @@
   .app-content{display:block;width:100%;min-width:0}
   .main-content{width:100%;min-width:0;padding:14px 12px calc(24px + env(safe-area-inset-bottom))}
 
-  .app-header{position:sticky;z-index:50;top:0;min-height:calc(58px + env(safe-area-inset-top));gap:8px;padding:env(safe-area-inset-top) 10px 0;border-bottom:1px solid var(--ui-border);background:color-mix(in srgb,var(--ui-bg) 94%,transparent);backdrop-filter:blur(18px);box-shadow:0 5px 18px color-mix(in srgb,var(--ui-shadow-color) 8%,transparent)}
+  .app-header{position:sticky;z-index:60;top:0;min-height:calc(58px + env(safe-area-inset-top));gap:8px;padding:env(safe-area-inset-top) 10px 0;border-bottom:1px solid var(--ui-border);background:color-mix(in srgb,var(--ui-bg) 94%,transparent);backdrop-filter:blur(18px);box-shadow:0 5px 18px color-mix(in srgb,var(--ui-shadow-color) 8%,transparent)}
   .app-header-home{display:grid;width:40px;height:40px;flex:0 0 40px;place-items:center;border-radius:11px;text-decoration:none}
   .app-header-home:focus-visible{outline:3px solid color-mix(in srgb,var(--ui-accent) 72%,#fff);outline-offset:2px}
   .app-header-home-mark{display:grid;width:36px;height:36px;place-items:center;overflow:hidden;border-radius:9px;background:var(--ui-accent);color:var(--ui-accent-contrast);font-size:10px;font-weight:900;letter-spacing:.04em}
