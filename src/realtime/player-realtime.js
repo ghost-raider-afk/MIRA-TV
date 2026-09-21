@@ -105,10 +105,21 @@ export function createPlayerRealtime({ store }) {
     });
   }
 
-  async function pingScreen(screenId, timeoutMs = 2500) {
-    const sockets = byScreen.get(Number(screenId));
-    if (!sockets?.size) return null;
-    const values = await Promise.all([...sockets].map((socket) => pingSocket(socket, timeoutMs)));
+  async function pingScreen(screenId, timeoutMs = 2500, connectionGraceMs = 750) {
+    const id = Number(screenId);
+    const deadline = Date.now() + Math.max(250, Number(timeoutMs) || 2500);
+    const graceDeadline = Math.min(deadline, Date.now() + Math.max(0, Number(connectionGraceMs) || 0));
+    let sockets = [];
+
+    do {
+      sockets = [...(byScreen.get(id) || [])].filter((socket) => socket.readyState === WebSocket.OPEN);
+      if (sockets.length || Date.now() >= graceDeadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    } while (Date.now() < graceDeadline);
+
+    if (!sockets.length) return null;
+    const remaining = Math.max(250, deadline - Date.now());
+    const values = await Promise.all(sockets.map((socket) => pingSocket(socket, remaining)));
     const valid = values.filter((value) => Number.isFinite(value));
     return valid.length ? Math.min(...valid) : null;
   }

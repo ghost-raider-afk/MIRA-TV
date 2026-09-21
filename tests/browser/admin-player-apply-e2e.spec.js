@@ -116,7 +116,7 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect(tvCard).toContainText('Онлайн · связь есть');
     await expect(tvCard).toContainText('Последняя связь');
     await expect(tvCard).toContainText('IP-адрес');
-    await expect(tvCard).toContainText('Ping');
+    await expect(tvCard.locator('.screen-tv-meta-row', { hasText:'Ping' }).locator('strong')).toContainText('мс');
     await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(1);
     await tvCard.locator('.screen-tv-card').click();
     await expect(adminPage.locator('.screen-tv-preview-dialog')).toBeVisible();
