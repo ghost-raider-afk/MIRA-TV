@@ -22,7 +22,8 @@ function fakeScene() {
       { id: 'menu.section.0', kind: 'section', layer: 'menu', target: target('section-surface'), order: 0, count: 1, depth: 0, transformOwner: 'surface', metadata: { surfaceOnly: true } },
       { id: 'menu.item.0', kind: 'item', layer: 'menu', target: target('row-surface-0'), order: 0, count: 2, depth: 0, transformOwner: 'surface', metadata: { surfaceOnly: true } },
       { id: 'menu.promotion-badge-glow.0', kind: 'promotion-badge-glow', layer: 'menu', target: target('promotion-badge-glow'), order: 0, count: 1, depth: 2, transformOwner: 'promotion-overlay', metadata: { animation:'shine' } },
-      { id: 'menu.promotion-badge-shine.0', kind: 'promotion-badge-shine', layer: 'menu', target: target('promotion-badge-shine'), order: 0, count: 1, depth: 3, transformOwner: 'promotion-overlay', metadata: { animation:'shine' } },
+      { id: 'menu.promotion-badge-shine.0', kind: 'promotion-badge-shine', layer: 'menu', target: target('promotion-badge-shine'), order: 0, count: 1, depth: 3, transformOwner: 'promotion-overlay', metadata: { animation:'shine', travelPx:120 } },
+      { id: 'menu.promotion-badge-sparkle.0', kind: 'promotion-badge-sparkle', layer: 'menu', target: target('promotion-badge-sparkle'), order: 0, count: 1, depth: 4, transformOwner: 'promotion-overlay', metadata: { animation:'shine', travelPx:108 } },
       { id: 'menu.promotion-glow.0', kind: 'promotion-glow', layer: 'menu', target: target('promotion-glow'), order: 0, count: 1, depth: 1, transformOwner: 'promotion-overlay', metadata: { animation:'gloss' } },
       { id: 'menu.item.1', kind: 'item', layer: 'menu', target: target('row-surface-1'), order: 1, count: 2, depth: 0, transformOwner: 'surface', metadata: { surfaceOnly: true } },
       { id: 'entity.future.0', kind: 'entity', layer: 'entity', target: target('future-entity'), order: 0, count: 1, depth: 20, transformOwner: 'entity-runtime' }
@@ -69,6 +70,7 @@ test('scene graph reserves entity layer while menu text and background stay outs
   assert.equal(scene.node('menu.item.0').metadata.surfaceOnly, true);
   assert.equal(scene.node('menu.promotion-badge-glow.0').transformOwner, 'promotion-overlay');
   assert.equal(scene.node('menu.promotion-badge-shine.0').transformOwner, 'promotion-overlay');
+  assert.equal(scene.node('menu.promotion-badge-sparkle.0').transformOwner, 'promotion-overlay');
   assert.equal(scene.node('menu.promotion-glow.0').transformOwner, 'promotion-overlay');
   assert.equal(scene.node('menu.promotion-glow.0').metadata.animation, 'gloss');
 });
@@ -90,10 +92,12 @@ test('Motion Engine compiles continuous WASM light surfaces and independent prom
   const item = plan.tracks.find((track) => track.node.id === 'menu.item.0');
   const promotion = plan.tracks.find((track) => track.node.id === 'menu.promotion-badge-glow.0');
   const shine = plan.tracks.find((track) => track.node.id === 'menu.promotion-badge-shine.0');
+  const sparkle = plan.tracks.find((track) => track.node.id === 'menu.promotion-badge-sparkle.0');
   const glow = plan.tracks.find((track) => track.node.id === 'menu.promotion-glow.0');
   assert.ok(item);
   assert.ok(promotion);
   assert.ok(shine);
+  assert.ok(sparkle);
   assert.ok(glow);
   assert.equal(item.programId, 'menu-motion');
   assert.equal(promotion.programId, 'promotion-motion');
@@ -103,15 +107,22 @@ test('Motion Engine compiles continuous WASM light surfaces and independent prom
   assert.ok(item.procedural.surfaceOpacity >= 0.18, 'row light surface must remain visible on a TV');
   assert.equal(promotion.procedural.kind, 'promo-badge-glow');
   assert.equal(shine.procedural.kind, 'promo-badge-shine');
+  assert.equal(sparkle.procedural.kind, 'promo-badge-sparkle');
+  assert.equal(shine.procedural.travelPx, 120);
+  assert.equal(sparkle.procedural.travelPx, 108);
   assert.equal(glow.procedural.kind, 'promo-glow');
   assert.equal(glow.procedural.animation, 'gloss');
   assert.deepEqual(item.claims, ['transform', 'appearance', 'opacity']);
   assert.deepEqual(promotion.claims, ['opacity', 'appearance', 'transform']);
   assert.deepEqual(shine.claims, ['opacity', 'transform']);
+  assert.deepEqual(sparkle.claims, ['opacity', 'transform', 'appearance']);
   assert.deepEqual(glow.claims, ['opacity', 'appearance', 'transform']);
   assert.equal(item.timing.easing, 'linear');
   assert.equal(promotion.timing.easing, 'linear');
   assert.equal(shine.timing.easing, 'linear');
+  assert.equal(sparkle.timing.easing, 'linear');
+  assert.equal(shine.timing.duration, 60000 / profile.promotion_shine_frequency_per_minute);
+  assert.equal(sparkle.timing.duration, shine.timing.duration);
   assert.ok(promotion.procedural.opacity > 0);
   assert.equal('scaleAmount' in promotion.procedural, false);
   assert.ok(glow.procedural.opacity > 0);
@@ -128,7 +139,7 @@ test('menu and promotion compilers remain independently callable', () => {
   assert.equal(menu.id, 'menu-motion');
   assert.equal(promotion.id, 'promotion-motion');
   assert.equal(menu.tracks.some((track) => track.node.kind === 'promotion-badge-glow'), false);
-  assert.deepEqual(new Set(promotion.tracks.map((track) => track.node.kind)), new Set(['promotion-badge-glow', 'promotion-badge-shine', 'promotion-glow']));
+  assert.deepEqual(new Set(promotion.tracks.map((track) => track.node.kind)), new Set(['promotion-badge-glow', 'promotion-badge-shine', 'promotion-badge-sparkle', 'promotion-glow']));
   const promotionWithoutMenu = compilePromotionMotionProgram(scene, { profile: activeProfile(), menuEnabled:false, promotionEnabled:true });
   assert.ok(promotionWithoutMenu.tracks.length > 0, 'promotion motion must not depend on generic menu motion');
   const promotionDisabled = compilePromotionMotionProgram(scene, { profile: activeProfile(), promotionEnabled:false });
