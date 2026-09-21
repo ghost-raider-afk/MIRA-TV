@@ -3,6 +3,7 @@ import test from 'node:test';
 import { loadConfig } from '../src/config/index.js';
 import { menuDraftInput, positiveId, siteSettingsInput } from '../src/contracts/input.js';
 import { menuSettingsInput } from '../src/contracts/menu-settings.js';
+import { animationProfileInput } from '../src/contracts/animation.js';
 import { passwordChangeInput } from '../src/services/password-service.js';
 
 function config() {
@@ -48,6 +49,18 @@ test('table font uses a closed allowlist and includes Tahoma Bold', () => {
   assert.equal(menuSettingsInput({ font_family: 'tahoma-bold' }).font_family, 'tahoma-bold');
   assert.equal(menuSettingsInput({}).font_family, 'arial-narrow');
   assert.throws(() => menuSettingsInput({ font_family: 'Comic Sans MS' }).font_family, /Шрифт таблицы/);
+});
+
+test('animation profile persists glare speed and frequency within explicit limits', () => {
+  const profile = animationProfileInput({
+    motion_version:3,
+    promotion_shine_speed:2.2,
+    promotion_shine_frequency_per_minute:14
+  });
+  assert.equal(profile.promotion_shine_speed, 2.2);
+  assert.equal(profile.promotion_shine_frequency_per_minute, 14);
+  assert.throws(() => animationProfileInput({ motion_version:3, promotion_shine_speed:3.1 }), /Скорость блика/);
+  assert.throws(() => animationProfileInput({ motion_version:3, promotion_shine_frequency_per_minute:21 }), /Частота блика/);
 });
 
 test('current password is verified as entered while complexity applies only to the new password', () => {
