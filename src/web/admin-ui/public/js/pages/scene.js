@@ -8,7 +8,7 @@ import {
   PROMOTION_ROW_ANIMATION_OPTIONS,
   renderTableEditorRows
 } from '../editor/rows.js';
-import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
+import { buildRenderModel } from '../editor/renderer.js';
 import { createEditorHistory } from '../editor/history.js';
 import { createEditorState, replaceEditorState } from '../editor/state.js';
 import {
@@ -408,15 +408,7 @@ export function initialiseSceneEditor() {
 
   function tableEditModel() {
     if (!state.screen) return null;
-    const resolution = resolutionOf(state.screen);
-    const model = buildRenderModel(state, resolution);
-    const lines = buildDisplayLines(model, {
-      products: currentBundle?.products || [],
-      packaging: currentBundle?.packaging || [],
-      fallbackTitle: 'Новый раздел'
-    });
-    const layout = buildRenderLayout(model, lines);
-    return { model, lines, layout };
+    return buildRenderModel(state, resolutionOf(state.screen));
   }
 
   function renderTableEditLayer({ rebuildInspector = false } = {}) {
@@ -426,13 +418,13 @@ export function initialiseSceneEditor() {
       tableEditLayer.replaceChildren();
       return;
     }
-    const computed = tableEditModel();
-    if (!computed) return;
+    const model = tableEditModel();
+    if (!model) return;
     const rowInspector = propertiesRoot.querySelector('[data-scene-table-row-inspector]');
     renderTableEditorRows(state, {
       target: tableEditLayer,
       inspector: rowInspector,
-      model: computed.model,
+      model,
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
       onBeforeMutate: () => history.checkpoint(),
