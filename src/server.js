@@ -86,6 +86,18 @@ async function cleanupPlayerLogs(store, config) {
   }
 }
 
+async function cleanupPlayerMetrics(store, config) {
+  if (typeof store?.prunePlayerMetrics !== 'function') return 0;
+  try {
+    const removed = await store.prunePlayerMetrics(config.playerMetricsRetentionDays);
+    if (removed) logger.info('Expired TV player metrics removed', { removed });
+    return removed;
+  } catch (error) {
+    logger.warn('Expired TV player metrics could not be removed', { error });
+    return 0;
+  }
+}
+
 async function cleanupSceneAssets(store, config) {
   try {
     const removed = await cleanupUnreferencedSceneAssets({ store, config });
@@ -101,6 +113,7 @@ async function recoverRuntimeState(store, config) {
   await cleanupDeviceActivations(store, config);
   await cleanupEvents(store, config);
   await cleanupPlayerLogs(store, config);
+  await cleanupPlayerMetrics(store, config);
   await cleanupSceneAssets(store, config);
 }
 
@@ -227,6 +240,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     void cleanupDeviceActivations(service.store, service.config);
     void cleanupEvents(service.store, service.config);
     void cleanupPlayerLogs(service.store, service.config);
+    void cleanupPlayerMetrics(service.store, service.config);
     void cleanupSceneAssets(service.store, service.config);
   }, service.config.deviceActivationCleanupMinutes * 60 * 1000);
   maintenanceTimer.unref();
