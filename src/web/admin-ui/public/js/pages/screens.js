@@ -109,7 +109,13 @@ function syncTvUnit(unit, screen, binding) {
   const status = statusState(binding);
   unit.dataset.tvState = status.key;
   const host = unit.querySelector('[data-tv-face-host]');
-  if (host) host.replaceChildren(createTvFace(screen, binding));
+  if (host) {
+    const faceKey = `${status.key}:${binding?.preview_updated_at || ''}`;
+    if (host.dataset.tvFaceKey !== faceKey) {
+      host.dataset.tvFaceKey = faceKey;
+      host.replaceChildren(createTvFace(screen, binding));
+    }
+  }
   const meta = unit.querySelector('[data-tv-meta]');
   if (meta) fillMeta(meta, screen, binding);
   const bindAction = unit.querySelector('[data-tv-bind-action]');
