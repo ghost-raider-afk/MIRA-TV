@@ -402,17 +402,17 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const stableWeatherWidget = weatherNode.locator('.weather-widget');
   const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
   const weatherMetrics = () => weatherNode.evaluate((node) => {
-    const stage = node.closest('#scene-editor-stage');
-    const widget = node.querySelector('.weather-widget');
-    if (!(stage instanceof HTMLElement) || !(widget instanceof HTMLElement)) return null;
-    const stageRect = stage.getBoundingClientRect();
-    const widgetRect = widget.getBoundingClientRect();
-    const scale = stageRect.width / 1920;
+    const logicalFromPercent = (value, total) => (Number.parseFloat(value) / 100) * total;
+    const left = node.style.left;
+    const top = node.style.top;
+    const width = node.style.width;
+    const height = node.style.height;
+    if (![left, top, width, height].every((value) => value.endsWith('%'))) return null;
     return {
-      x:(widgetRect.left - stageRect.left) / scale,
-      y:(widgetRect.top - stageRect.top) / scale,
-      width:widgetRect.width / scale,
-      height:widgetRect.height / scale
+      x:logicalFromPercent(left, 1920),
+      y:logicalFromPercent(top, 1080),
+      width:logicalFromPercent(width, 1920),
+      height:logicalFromPercent(height, 1080)
     };
   });
   const weatherBefore = await weatherMetrics();
@@ -437,9 +437,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(weatherAfter).not.toBeNull();
   expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
   expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
-  for (const key of ['x','y','width','height']) {
-    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather logical geometry ${key}`).toBeLessThan(.05);
-  }
+  expect(weatherAfter).toEqual(weatherBefore);
   const weatherType = await weatherNode.evaluate((node) => {
     const facts = node.querySelector('.weather-widget-facts');
     const time = node.querySelector('.weather-widget-forecast-item > span');
