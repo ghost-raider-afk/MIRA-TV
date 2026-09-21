@@ -37,7 +37,7 @@ test('site name updates the persistent application shell immediately after save'
 
   const sentinel = `branding-${Math.random()}`;
   await page.evaluate((value) => { window.__brandingSentinel = value; }, sentinel);
-  await page.locator('.ui-rail-button[aria-label="Мониторы"]').click();
+  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await waitForRouteReady(page);
   await expect(page.locator('.app-header [data-app-name]')).toHaveText(changed);

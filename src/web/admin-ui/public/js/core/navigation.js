@@ -44,7 +44,7 @@ const CONTEXT_LINKS = Object.freeze({
 });
 
 export const PRIMARY_ROUTES = Object.freeze([
-  Object.freeze({ key: 'monitors', label: 'Мониторы', href: '/screens', icon: 'monitor' }),
+  Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens', icon: 'monitor' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
   Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings', icon: 'settings' })
 ]);

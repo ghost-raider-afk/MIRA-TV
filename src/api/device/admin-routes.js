@@ -93,8 +93,53 @@ export function createDeviceAdminRouter({ store, realtime }) {
     });
   });
 
-  router.get('/bindings', async (_request, response) => {
-    response.json(await store.listDeviceBindings());
+  router.get('/bindings', async (request, response) => {
+    const bindings = await store.listDeviceBindings();
+    const measurePing = request.query.measure_ping === '1';
+    const pingResults = new Map();
+    if (measurePing) {
+      await Promise.all(bindings.map(async (binding) => {
+        const value = await realtime?.pingScreen(binding.screen_id);
+        pingResults.set(Number(binding.screen_id), Number.isFinite(value) ? value : null);
+      }));
+    }
+    const measuredAt = measurePing ? new Date().toISOString() : null;
+    response.json(bindings.map((binding) => {
+      const presence = realtime?.presenceForScreen(binding.screen_id)
+        || { online:false, connections:0, connected_at:null, realtime_last_seen_at:null };
+      const preview = realtime?.screenPreviewMeta(binding.screen_id);
+      const previewIsCurrentSession = Boolean(
+        preview && (!presence.connected_at || Date.parse(preview.updated_at) >= Date.parse(presence.connected_at))
+      );
+      const measuredPing = measurePing ? pingResults.get(Number(binding.screen_id)) : null;
+      const online = presence.online === true;
+      return {
+        ...binding,
+        online,
+        realtime_connections: presence.connections || 0,
+        realtime_connected_at: presence.connected_at || null,
+        realtime_last_seen_at: presence.realtime_last_seen_at || null,
+        preview_available: online && previewIsCurrentSession,
+        preview_updated_at: previewIsCurrentSession ? preview.updated_at : null,
+        ping_ms: measurePing && Number.isFinite(measuredPing) ? measuredPing : null,
+        ping_measured_at: measuredAt
+      };
+    }));
+  });
+
+  router.get('/bindings/:screenId/preview', async (request, response) => {
+    const screenId = positiveId(request.params.screenId, 'screen_id');
+    const binding = await store.getActiveDeviceBindingByScreen(screenId);
+    if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
+    const presence = realtime?.presenceForScreen(screenId);
+    if (presence?.online !== true) return response.status(404).json({ error: 'TV Player сейчас не в сети.' });
+    const preview = realtime?.screenPreview(screenId);
+    if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
+    response.setHeader('Cache-Control', 'private, no-cache');
+    response.setHeader('ETag', preview.etag);
+    if (request.get('if-none-match') === preview.etag) return response.status(304).end();
+    response.type(preview.contentType);
+    return response.send(preview.buffer);
   });
 
   router.delete('/bindings/:screenId', async (request, response) => {

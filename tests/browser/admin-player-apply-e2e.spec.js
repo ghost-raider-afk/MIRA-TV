@@ -90,6 +90,39 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await menu.evaluate((node) => { node.dataset.identityProbe = 'stable-menu'; });
     await expect.poll(() => tvPage.evaluate(() => window.__miraRealtimeConnected === true), { timeout: 5000 }).toBe(true);
 
+    const tvNetworkState = async () => {
+      const response = await adminPage.request.get('/api/device-admin/bindings?measure_ping=1');
+      const binding = (await response.json()).find((item) => Number(item.screen_id) === Number(screenId));
+      return {
+        ok:response.ok(),
+        online:binding?.online === true,
+        preview:binding?.preview_available === true,
+        ping:Number(binding?.ping_ms),
+        address:String(binding?.remote_address || '')
+      };
+    };
+    await expect.poll(tvNetworkState, { timeout:10000 }).toMatchObject({
+      ok:true,
+      online:true,
+      preview:true
+    });
+    const measured = await tvNetworkState();
+    expect(measured.ping).toBeGreaterThanOrEqual(0);
+    expect(measured.address).not.toBe('');
+
+    await adminPage.goto('/screens');
+    const tvCard = adminPage.locator(`[data-tv-unit][data-screen-id="${screenId}"]`);
+    await expect(tvCard).toBeVisible();
+    await expect(tvCard).toContainText('Онлайн · связь есть');
+    await expect(tvCard).toContainText('Последняя связь');
+    await expect(tvCard).toContainText('IP-адрес');
+    await expect(tvCard).toContainText('Ping');
+    await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(1);
+    await tvCard.locator('.screen-tv-card').click();
+    await expect(adminPage.locator('.screen-tv-preview-dialog')).toBeVisible();
+    await expect(adminPage.locator('.screen-tv-preview-dialog')).toContainText('IP-адрес');
+    await adminPage.locator('.screen-tv-preview-close').click();
+
     const liveText = `LIVE-E2E-${stamp}`;
     await expect(tvPage.locator('[data-scene-element-id="live-e2e-text"]')).toHaveCount(0);
 

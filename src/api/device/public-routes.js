@@ -126,7 +126,13 @@ async function resolveDeviceSession(store, config, request, response) {
   const staleBeforeMs = now - config.deviceHeartbeatWriteSeconds * 1000;
   const lastSeenMs = Date.parse(session.session_last_seen_at || '');
   if (!Number.isFinite(lastSeenMs) || lastSeenMs < staleBeforeMs) {
-    await store.touchDeviceSession(session.session_id, session.device_id, new Date(now).toISOString(), new Date(staleBeforeMs).toISOString());
+    await store.touchDeviceSession(
+      session.session_id,
+      session.device_id,
+      new Date(now).toISOString(),
+      new Date(staleBeforeMs).toISOString(),
+      remoteAddress(request)
+    );
   }
   return session;
 }
@@ -260,6 +266,18 @@ export function createDevicePublicRouter({ store, config, realtime }) {
     const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision });
     if (!state) return response.status(401).json({ error: 'Монитор недоступен.' });
     return response.json(deltaPlayerContext(state, known));
+  });
+
+  router.post('/preview', express.raw({ type: ['image/webp', 'image/jpeg'], limit: config.tvPreviewMaxBytes }), async (request, response) => {
+    const session = await resolveDeviceSession(store, config, request, response);
+    if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const contentType = String(request.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!['image/webp', 'image/jpeg'].includes(contentType) || !Buffer.isBuffer(request.body) || request.body.length < 1) {
+      return response.status(400).json({ error: 'Некорректный кадр TV Player.' });
+    }
+    const saved = realtime?.updateScreenPreview(session.screen_id, request.body, contentType);
+    if (!saved) return response.status(503).json({ error: 'Канал предпросмотра TV Player недоступен.' });
+    return response.status(202).json({ accepted: true, updated_at: saved.updated_at });
   });
 
   router.get('/weather', async (request, response) => {

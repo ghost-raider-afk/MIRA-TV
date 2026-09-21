@@ -24,6 +24,8 @@ export function loadConfig(env = process.env) {
     playerLogBatchSize: integer('PLAYER_LOG_BATCH_SIZE', env.PLAYER_LOG_BATCH_SIZE, { minimum: 10, maximum: 500 }),
     playerLogLocalMaxEntries: integer('PLAYER_LOG_LOCAL_MAX_ENTRIES', env.PLAYER_LOG_LOCAL_MAX_ENTRIES, { minimum: 100, maximum: 50000 }),
     playerLogLocalMaxBytes: integer('PLAYER_LOG_LOCAL_MAX_BYTES', env.PLAYER_LOG_LOCAL_MAX_BYTES, { minimum: 1048576, maximum: 104857600 }),
+    tvPreviewCaptureSeconds: integer('TV_PREVIEW_CAPTURE_SECONDS', env.TV_PREVIEW_CAPTURE_SECONDS || (testMode ? '30' : undefined), { minimum: 10, maximum: 300 }),
+    tvPreviewMaxBytes: integer('TV_PREVIEW_MAX_BYTES', env.TV_PREVIEW_MAX_BYTES || (testMode ? '262144' : undefined), { minimum: 32768, maximum: 1048576 }),
     eventJournalRetentionDays: integer('EVENT_JOURNAL_RETENTION_DAYS', env.EVENT_JOURNAL_RETENTION_DAYS, { minimum: 1, maximum: 365 }),
     eventJournalMaxEntries: integer('EVENT_JOURNAL_MAX_ENTRIES', env.EVENT_JOURNAL_MAX_ENTRIES, { minimum: 100, maximum: 100000 }),
     weatherProviderBaseUrl: required('WEATHER_PROVIDER_BASE_URL', env.WEATHER_PROVIDER_BASE_URL || (testMode ? 'https://api.open-meteo.com' : '')),

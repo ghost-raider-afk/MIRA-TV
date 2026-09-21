@@ -20,7 +20,7 @@ test('main menu and context submenu navigate inside one persistent document', as
   });
 
   await expect(page.locator('.ui-rail-button[aria-label="Плейлист"]')).toHaveCount(0);
-  await page.locator('.ui-rail-button[aria-label="Мониторы"]').click();
+  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await expect(page.locator('[data-screen-hierarchy]')).toBeVisible();
   await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Плейлист' })).toBeVisible();
@@ -62,7 +62,7 @@ test('context submenu auto-collapses consistently and responsive state is not pe
   await login(page);
   await page.evaluate(() => localStorage.removeItem('mira-tv.context-collapsed'));
 
-  for (const label of ['Мониторы', 'Каталог', 'Настройки']) {
+  for (const label of ['TV-сеть', 'Каталог', 'Настройки']) {
     await page.locator(`.ui-rail-button[aria-label="${label}"]`).click();
     const context = page.locator('.ui-context');
     await expect(context).not.toHaveClass(/is-collapsed/);

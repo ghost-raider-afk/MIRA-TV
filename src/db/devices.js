@@ -290,16 +290,19 @@ export function createDevicesRepository(pool) {
       return sessionRecord(rows[0]);
     },
 
-    async touchDeviceSession(sessionId, deviceId, observedAt, staleBefore) {
+    async touchDeviceSession(sessionId, deviceId, observedAt, staleBefore, currentRemoteAddress = '') {
       await pool.query(
         `UPDATE tv_device_sessions SET last_seen_at = $1
          WHERE id = $2 AND (last_seen_at IS NULL OR last_seen_at < $3)`,
         [observedAt, sessionId, staleBefore]
       );
       await pool.query(
-        `UPDATE tv_devices SET last_seen_at = $1, updated_at = $1
-         WHERE id = $2 AND active = TRUE AND (last_seen_at IS NULL OR last_seen_at < $3)`,
-        [observedAt, deviceId, staleBefore]
+        `UPDATE tv_devices
+            SET last_seen_at = $1,
+                updated_at = $1,
+                remote_address = CASE WHEN $4 <> '' THEN $4 ELSE remote_address END
+          WHERE id = $2 AND active = TRUE AND (last_seen_at IS NULL OR last_seen_at < $3)`,
+        [observedAt, deviceId, staleBefore, String(currentRemoteAddress || '').slice(0, 128)]
       );
     },
 
