@@ -51,11 +51,13 @@ export const PRIMARY_ROUTES = Object.freeze([
 
 export function navigationState(currentPage = pageName()) {
   const route = ROUTE_BY_PAGE.get(currentPage) || ROUTE_BY_PAGE.get('overview');
+  const contextLinks = CONTEXT_LINKS[route.section] || CONTEXT_LINKS.overview;
   return {
     currentPage,
     section: route.section,
     title: route.title,
-    contextLinks: CONTEXT_LINKS[route.section] || CONTEXT_LINKS.overview
+    contextLinks,
+    hasContext: contextLinks.length > 0
   };
 }
 
