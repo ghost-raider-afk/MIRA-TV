@@ -234,14 +234,11 @@ function createContent(config, data, state) {
   const visual = document.createElement('div');
   visual.className = 'weather-widget-visual';
   visual.dataset.weatherVisual = state;
-  if (config.animation_enabled) {
-    visual.append(createAtmosphere(state, config));
-  } else {
-    const icon = document.createElement('div');
-    icon.className = 'weather-widget-icon';
-    icon.innerHTML = svgIcon(data.icon || 'cloud');
-    visual.append(icon);
-  }
+  if (config.animation_enabled) visual.append(createAtmosphere(state, config));
+  const icon = document.createElement('div');
+  icon.className = 'weather-widget-icon';
+  icon.innerHTML = svgIcon(data.icon || 'cloud');
+  visual.append(icon);
 
   top.append(primary, visual);
   content.append(top);
