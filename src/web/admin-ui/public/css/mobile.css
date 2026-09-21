@@ -44,7 +44,7 @@
   .ui-rail-icon svg{width:22px;height:22px;stroke-width:1.8}
   .ui-rail-label{display:block;max-width:none;overflow:visible;font-size:10px;font-weight:850;line-height:1.1;text-overflow:clip;white-space:nowrap}
 
-  .ui-context-backdrop{position:fixed;z-index:55;inset:0;display:block;padding:0;border:0;background:color-mix(in srgb,var(--ui-overlay) 48%,transparent);opacity:0;pointer-events:none;transition:opacity .18s ease}
+  .ui-context-backdrop{position:fixed;z-index:55;top:calc(58px + env(safe-area-inset-top));right:0;bottom:calc(68px + env(safe-area-inset-bottom));left:0;display:block;padding:0;border:0;background:color-mix(in srgb,var(--ui-overlay) 48%,transparent);opacity:0;pointer-events:none;transition:opacity .18s ease}
   .ui-context-backdrop.is-visible{opacity:1;pointer-events:auto}
   .ui-context{position:fixed;z-index:70;top:auto;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));left:10px;width:auto;height:auto;max-height:min(72dvh,620px);overflow:hidden;border:1px solid var(--ui-chrome-border-strong);border-radius:18px;background:var(--ui-sidebar);box-shadow:0 24px 70px color-mix(in srgb,var(--ui-shadow-color) 36%,transparent);opacity:1;transform:translateY(0);transition:transform .18s ease,opacity .16s ease}
   .ui-context.is-collapsed{width:auto;opacity:0;transform:translateY(calc(100% + 28px));pointer-events:none}
