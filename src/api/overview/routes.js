@@ -93,7 +93,7 @@ export function createOverviewRouter({ store, realtime, config }) {
       || tvs[0]
       || null;
 
-    const points = selected
+    const points = selected?.device_id
       ? await store.dashboardPlayerMetrics({ since, bucketSeconds:range.bucketSeconds, deviceId:selected.device_id })
       : [];
 
