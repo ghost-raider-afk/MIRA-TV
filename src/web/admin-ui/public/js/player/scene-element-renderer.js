@@ -92,6 +92,9 @@ function contentScaleFactor(node, content, element) {
   const manual = manualContentScale(element);
   if (element?.content_auto_scale === false) return manual;
   const nominal = referenceGeometry(element).nominalScale;
+  if (element?.type === 'weather') {
+    return Math.max(.01, nominal * manual);
+  }
   const fit = measuredFitScale(node, content, element);
   return Math.max(.01, Math.min(nominal * manual, fit));
 }
