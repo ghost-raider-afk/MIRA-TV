@@ -13,6 +13,7 @@ async function login(page) {
 test('Overview dashboard is reached from the logo and switches reporting periods', async ({ page }) => {
   await login(page);
 
+  await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
   await expect(page.locator('.dashboard-commandbar')).toBeVisible();
   await expect(page.locator('[data-dashboard-card]')).toHaveCount(4);
   await expect(page.locator('.ui-context-body .app-route-link', { hasText:'Обзор' })).toHaveCount(0);
