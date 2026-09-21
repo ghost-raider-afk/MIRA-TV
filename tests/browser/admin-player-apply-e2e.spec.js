@@ -90,6 +90,45 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await menu.evaluate((node) => { node.dataset.identityProbe = 'stable-menu'; });
     await expect.poll(() => tvPage.evaluate(() => window.__miraRealtimeConnected === true), { timeout: 5000 }).toBe(true);
 
+    const metricResponse = await tvPage.evaluate(async () => {
+      const response = await fetch('/api/device/metrics', {
+        method:'POST',
+        credentials:'same-origin',
+        headers:{ 'content-type':'application/json' },
+        body:JSON.stringify({
+          sampled_at:new Date().toISOString(),
+          fps_avg:48.5,
+          player_load_percent:12.3,
+          js_heap_used_bytes:128974848,
+          device_memory_gb:4,
+          hardware_concurrency:4,
+          uptime_seconds:3600
+        })
+      });
+      return { ok:response.ok, status:response.status };
+    });
+    expect(metricResponse).toEqual({ ok:true, status:202 });
+
+    const dashboardMetric = async () => {
+      const response = await adminPage.request.get(`/api/overview?range=1h&screen_id=${screenId}`);
+      const body = await response.json();
+      return {
+        ok:response.ok(),
+        selected:Number(body?.selected_tv?.screen_id),
+        metricScreen:Number(body?.player_metrics?.screen_id),
+        points:Array.isArray(body?.player_metrics?.points) ? body.player_metrics.points.length : 0,
+        lastMetric:body?.selected_tv?.last_metric_at || null
+      };
+    };
+    await expect.poll(dashboardMetric, { timeout:5000 }).toMatchObject({
+      ok:true,
+      selected:Number(screenId),
+      metricScreen:Number(screenId)
+    });
+    const metricState = await dashboardMetric();
+    expect(metricState.points).toBeGreaterThan(0);
+    expect(metricState.lastMetric).not.toBeNull();
+
     const tvNetworkState = async () => {
       const response = await adminPage.request.get('/api/device-admin/bindings?measure_ping=1');
       const binding = (await response.json()).find((item) => Number(item.screen_id) === Number(screenId));
