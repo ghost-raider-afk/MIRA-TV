@@ -195,13 +195,13 @@ export class PlayerSceneRenderer {
       sceneElementLayer.setAttribute('aria-hidden', 'true');
     }
 
-    if (dirty.has('scene') || dirty.has('screen') || menuDirty) {
+    if (dirty.has('scene') || dirty.has('screen')) {
       const weatherElement = sceneWeatherElement(context.scene);
       this.weatherElementId = weatherElement?.id || null;
       this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
       this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
-        configurationChanged: dirty.has('scene') || dirty.has('screen'),
-        menuChanged: menuDirty
+        configurationChanged: true,
+        menuChanged: false
       });
     }
 
