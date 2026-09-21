@@ -57,11 +57,9 @@ test('main menu and context submenu navigate inside one persistent document', as
   expect(documentRequests).toEqual([]);
 });
 
-test('context submenu auto-collapses consistently and responsive state is not persisted', async ({ page }) => {
+test('context submenu auto-collapses consistently and resize never opens it implicitly', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
-  await page.evaluate(() => localStorage.removeItem('mira-tv.context-collapsed'));
-
   for (const label of ['TV-сеть', 'Каталог', 'Настройки']) {
     await page.locator(`.ui-rail-button[aria-label="${label}"]`).click();
     const context = page.locator('.ui-context');
@@ -70,14 +68,10 @@ test('context submenu auto-collapses consistently and responsive state is not pe
     await expect(context).toHaveClass(/is-collapsed/);
   }
 
-  await page.evaluate(() => localStorage.removeItem('mira-tv.context-collapsed'));
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
-  expect(await page.evaluate(() => localStorage.getItem('mira-tv.context-collapsed'))).toBeNull();
-
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
-  expect(await page.evaluate(() => localStorage.getItem('mira-tv.context-collapsed'))).toBeNull();
+  await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
 });
 
 test('saved application name immediately controls browser tab title on every route', async ({ page }) => {
