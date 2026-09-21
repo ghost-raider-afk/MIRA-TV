@@ -163,7 +163,7 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.doesNotMatch(css, /weather-rays-rotate/);
   assert.match(css, /\.weather-widget-facts\s*\{[\s\S]*font-size:\s*13px/);
   assert.match(css, /\.weather-widget-forecast-item > span\s*\{[\s\S]*font-size:\s*12px/);
-  assert.match(css, /\.weather-widget-main\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,46%\) minmax\(0,54%\)/);
+  assert.match(css, /\.weather-widget-main\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,58%\) minmax\(0,42%\)/);
   assert.match(css, /\.weather-widget-visual\s*\{[\s\S]*overflow:\s*hidden/);
   assert.match(css, /\.weather-widget-visual \.weather-atmosphere/);
   assert.match(css, /weather-atmosphere/);
