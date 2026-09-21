@@ -37,7 +37,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /mira-tv-player-shell-v26/);
+  assert.match(worker, /mira-tv-player-shell-v27/);
   assert.match(player, /createPlayerStateSync/);
   assert.match(player, /restoreLastKnownGood\(\)/);
   assert.match(player, /syncNow\('boot'\)/);
@@ -118,6 +118,32 @@ test('offline player caches generic scene media without JavaScript Range copies'
   assert.match(worker, /mp4\|webm/);
 });
 
+test('TV network status comes from real Player presence, on-demand ping and in-memory preview', async () => {
+  const [realtime, publicRoutes, adminRoutes, player, capture, screens] = await Promise.all([
+    read('src/realtime/player-realtime.js'),
+    read('src/api/device/public-routes.js'),
+    read('src/api/device/admin-routes.js'),
+    read('src/web/admin-ui/public/js/player/player.js'),
+    read('src/web/admin-ui/public/js/player/player-preview-capture.js'),
+    read('src/web/admin-ui/public/js/pages/screens.js')
+  ]);
+  assert.match(realtime, /const screenPreviews = new Map\(\)/);
+  assert.match(realtime, /async function pingScreen/);
+  assert.match(realtime, /socket\.ping\(payload\)/);
+  assert.match(realtime, /function updateScreenPreview/);
+  assert.doesNotMatch(realtime, /writeFile|createWriteStream/);
+  assert.match(publicRoutes, /router\.post\('\/preview'/);
+  assert.match(adminRoutes, /measure_ping/);
+  assert.match(adminRoutes, /remote_address/);
+  assert.match(adminRoutes, /preview_available/);
+  assert.match(player, /publishPlayerPreview/);
+  assert.match(capture, /fetch\('\/api\/device\/preview'/);
+  assert.match(screens, /IP-адрес/);
+  assert.match(screens, /Последняя связь/);
+  assert.match(screens, /Ping/);
+  assert.match(screens, /\?measure_ping=1/);
+});
+
 test('TV identity is persistent and monitor binding is a first-class one-to-one relation', async () => {
   const [migration, repository, routes, player] = await Promise.all([
     read('src/db/migrations/device-bindings.js'), read('src/db/devices.js'), read('src/api/device/public-routes.js'), read('src/web/admin-ui/public/js/player/player.js')
@@ -181,6 +207,7 @@ test('runtime TV device settings are declared in env example', async () => {
     'DEVICE_ACTIVATION_TTL_MINUTES','DEVICE_ACTIVATION_POLL_SECONDS','DEVICE_ACTIVATION_MAX_ATTEMPTS',
     'DEVICE_ACTIVATION_WINDOW_MINUTES','DEVICE_ACTIVATION_LIMITER_MAX_ENTRIES','DEVICE_ACTIVATION_CLEANUP_MINUTES',
     'DEVICE_ACTIVATION_RETENTION_HOURS','DEVICE_SESSION_TTL_DAYS','DEVICE_HEARTBEAT_WRITE_SECONDS',
-    'PLAYER_FALLBACK_POLL_SECONDS','PLAYER_LOG_BATCH_SIZE','PLAYER_LOG_LOCAL_MAX_ENTRIES','PLAYER_LOG_LOCAL_MAX_BYTES'
+    'PLAYER_FALLBACK_POLL_SECONDS','PLAYER_LOG_BATCH_SIZE','PLAYER_LOG_LOCAL_MAX_ENTRIES','PLAYER_LOG_LOCAL_MAX_BYTES',
+    'TV_PREVIEW_CAPTURE_SECONDS','TV_PREVIEW_MAX_BYTES'
   ]) assert.match(env, new RegExp(`^${key}=`, 'm'), key);
 });
