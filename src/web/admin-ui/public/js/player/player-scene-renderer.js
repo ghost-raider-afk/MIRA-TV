@@ -169,7 +169,7 @@ export class PlayerSceneRenderer {
       this.stage.dataset.fontKey = layout.typography.key;
       menuLayer.dataset.renderMode = renderMode;
       try {
-        await this.flatMenuRenderer.render(menuLayer, menuSvg, viewport);
+        await this.flatMenuRenderer.render(menuLayer, menuSvg, viewport, layout.typography);
       } catch (error) {
         console.error('Flat MIRA-TV render failed; using static DOM fallback', error);
         this.flatMenuRenderer.destroy();
