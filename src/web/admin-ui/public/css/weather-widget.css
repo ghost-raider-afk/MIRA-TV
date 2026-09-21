@@ -409,12 +409,18 @@
 }
 
 .weather-widget-location {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 4px;
   font-size: 14px;
+  line-height: 1.15;
   letter-spacing: .06em;
   text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
   color: var(--mira-menu-accent, #F6C90E);
 }
 

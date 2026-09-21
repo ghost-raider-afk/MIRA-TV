@@ -222,12 +222,15 @@ function createContent(config, data, state) {
 
   const content = document.createElement('div');
   content.className = 'weather-widget-content';
+  if (config.show_location) {
+    content.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
+  }
+
   const top = document.createElement('div');
   top.className = 'weather-widget-main';
 
   const primary = document.createElement('div');
   primary.className = 'weather-widget-primary';
-  if (config.show_location) primary.append(text('strong', 'weather-widget-location', data.location_name || config.location_name || 'Погода'));
   primary.append(text('span', 'weather-widget-temperature', `${Math.round(number(data.temperature))}°`));
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
 
