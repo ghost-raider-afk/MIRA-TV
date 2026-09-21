@@ -219,31 +219,6 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await inspector.getByLabel('Автомасштаб при resize').uncheck();
   await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
 
-  const weatherWidget = weatherElement.locator('.weather-widget');
-  await expect(weatherWidget).toBeVisible();
-  const weatherBefore = await weatherWidget.boundingBox();
-  const weatherContentScaleBefore = Number(await weatherContent.getAttribute('data-scene-content-scale'));
-  const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
-
-  await page.locator('#scene-editor-animation-layer').click();
-  const animationScale = page.locator('#animation-scale');
-  const animationBrightness = page.locator('#animation-brightness');
-  await animationScale.fill('0.09');
-  await animationBrightness.fill('0.55');
-  await animationScale.fill('0.025');
-  await animationBrightness.fill('0.18');
-
-  const weatherAfter = await weatherWidget.boundingBox();
-  const weatherContentScaleAfter = Number(await weatherContent.getAttribute('data-scene-content-scale'));
-  const viewportScaleAfter = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
-  expect(weatherBefore).not.toBeNull();
-  expect(weatherAfter).not.toBeNull();
-  for (const key of ['x','y','width','height']) {
-    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather geometry ${key}`).toBeLessThan(.25);
-  }
-  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
-  expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
-
   await page.locator('#scene-editor-add').click();
   await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
   await addMenu.getByRole('menuitem', { name:/Логотип/ }).click();
@@ -374,6 +349,31 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
   await expect(weatherNode.locator('.weather-widget-icon')).toBeVisible();
   await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(1);
+
+  const stableWeatherWidget = weatherNode.locator('.weather-widget');
+  const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
+  const weatherBefore = await stableWeatherWidget.boundingBox();
+  const weatherContentScaleBefore = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
+  const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
+
+  await page.locator('#scene-editor-animation-layer').click();
+  const animationScale = page.locator('#animation-scale');
+  const animationBrightness = page.locator('#animation-brightness');
+  await animationScale.fill('0.09');
+  await animationBrightness.fill('0.55');
+  await animationScale.fill('0.025');
+  await animationBrightness.fill('0.18');
+
+  const weatherAfter = await stableWeatherWidget.boundingBox();
+  const weatherContentScaleAfter = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
+  const viewportScaleAfter = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
+  expect(weatherBefore).not.toBeNull();
+  expect(weatherAfter).not.toBeNull();
+  for (const key of ['x','y','width','height']) {
+    expect(Math.abs(weatherBefore[key] - weatherAfter[key]), `weather geometry ${key}`).toBeLessThan(.25);
+  }
+  expect(Math.abs(weatherContentScaleBefore - weatherContentScaleAfter)).toBeLessThan(.0001);
+  expect(Math.abs(viewportScaleBefore - viewportScaleAfter)).toBeLessThan(.000001);
   const weatherType = await weatherNode.evaluate((node) => {
     const facts = node.querySelector('.weather-widget-facts');
     const time = node.querySelector('.weather-widget-forecast-item > span');
