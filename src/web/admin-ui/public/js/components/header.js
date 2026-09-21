@@ -36,8 +36,8 @@ function syncHeaderBrand(root = document) {
     ? [root]
     : [...root.querySelectorAll('.app-header-home')];
   links.forEach((link) => {
-    link.setAttribute('aria-label', `${name} — Обзор`);
-    link.setAttribute('title', `${name} — Обзор`);
+    link.setAttribute('aria-label', `${name} — Дашборд`);
+    link.setAttribute('title', `${name} — Дашборд`);
     const mark = link.querySelector('[data-header-brand]');
     if (!mark) return;
     if (logo) {
