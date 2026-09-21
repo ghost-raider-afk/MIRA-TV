@@ -326,6 +326,7 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   const sectionInput = page.locator('.scene-table-editor-row.is-section .editor-preview-section-input').first();
   await sectionInput.fill('НОВОЕ НАЗВАНИЕ РАЗДЕЛА');
   await expect(sectionInput).toHaveValue('НОВОЕ НАЗВАНИЕ РАЗДЕЛА');
+  await expect(sectionInput).toBeFocused();
 
   const productChoice = page.locator('.scene-table-editor-row.is-item [data-preview-product-select]').first();
   await productChoice.click();
