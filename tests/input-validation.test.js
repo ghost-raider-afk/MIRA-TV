@@ -59,8 +59,8 @@ test('animation profile persists glare speed and frequency within explicit limit
   });
   assert.equal(profile.promotion_shine_speed, 2.2);
   assert.equal(profile.promotion_shine_frequency_per_minute, 14);
-  assert.throws(() => animationProfileInput({ motion_version:3, promotion_shine_speed:3.1 }), /Скорость блика/);
-  assert.throws(() => animationProfileInput({ motion_version:3, promotion_shine_frequency_per_minute:21 }), /Частота блика/);
+  assert.equal(animationProfileInput({ motion_version:3, promotion_shine_speed:3.1 }).promotion_shine_speed, 3);
+  assert.equal(animationProfileInput({ motion_version:3, promotion_shine_frequency_per_minute:21 }).promotion_shine_frequency_per_minute, 20);
 });
 
 test('current password is verified as entered while complexity applies only to the new password', () => {
