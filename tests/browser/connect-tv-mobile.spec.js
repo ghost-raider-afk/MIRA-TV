@@ -15,7 +15,7 @@ test('mobile TV pairing is styled after SPA navigation and keeps one active step
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
 
-  await page.locator('.ui-rail-button[aria-label="Мониторы"]').click();
+  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
   const sectionTrigger = page.locator('[data-mobile-context-trigger]');
   await expect(sectionTrigger).toBeVisible();
