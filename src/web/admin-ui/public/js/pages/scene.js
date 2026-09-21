@@ -6,7 +6,7 @@ import {
   appendRow,
   PROMOTION_BADGE_ANIMATION_OPTIONS,
   PROMOTION_ROW_ANIMATION_OPTIONS,
-  renderPreviewRows
+  renderTableEditorRows
 } from '../editor/rows.js';
 import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
 import { createEditorHistory } from '../editor/history.js';
@@ -429,12 +429,10 @@ export function initialiseSceneEditor() {
     const computed = tableEditModel();
     if (!computed) return;
     const rowInspector = propertiesRoot.querySelector('[data-scene-table-row-inspector]');
-    renderPreviewRows(state, {
+    renderTableEditorRows(state, {
       target: tableEditLayer,
       inspector: rowInspector,
       model: computed.model,
-      lines: computed.lines,
-      layout: computed.layout,
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
       onBeforeMutate: () => history.checkpoint(),
