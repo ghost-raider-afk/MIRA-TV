@@ -146,6 +146,21 @@ test('TV network status comes from real Player presence, on-demand ping and in-m
   assert.match(screens, /\?measure_ping=1/);
 });
 
+test('TV cards keep offline state static and Player preview quality stays bounded', async () => {
+  const [css, capture, playerContext] = await Promise.all([
+    read('src/web/admin-ui/public/css/pages/screens.css'),
+    read('src/web/admin-ui/public/js/player/player-preview-capture.js'),
+    read('src/services/player-context-service.js')
+  ]);
+  assert.match(css, /\.screen-tv-noise\{/);
+  assert.doesNotMatch(css, /tv-static|screen-tv-noise[^}]*animation:/);
+  assert.match(capture, /const OUTPUT_WIDTH = 720/);
+  assert.match(capture, /const OUTPUT_QUALITY = 0\.76/);
+  assert.match(capture, /const PREVIEW_ATTEMPTS/);
+  assert.match(capture, /frame\.size <= byteLimit/);
+  assert.match(playerContext, /preview_max_bytes:\s*config\.tvPreviewMaxBytes/);
+});
+
 test('TV identity is persistent and monitor binding is a first-class one-to-one relation', async () => {
   const [migration, repository, routes, player] = await Promise.all([
     read('src/db/migrations/device-bindings.js'), read('src/db/devices.js'), read('src/api/device/public-routes.js'), read('src/web/admin-ui/public/js/player/player.js')
