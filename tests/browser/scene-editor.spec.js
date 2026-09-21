@@ -327,6 +327,12 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   });
 
   await page.goto(`/scene?screen=${screen.id}`);
+
+  await page.locator('#scene-editor-table-layer').click();
+  const weatherScenarioPromotion = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
+  await expect(weatherScenarioPromotion).toBeVisible();
+  await weatherScenarioPromotion.locator('input[type="checkbox"]').check();
+
   await page.locator('#scene-editor-add').click();
   await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Погода/ }).click();
 
@@ -369,8 +375,25 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(locationLayout.textOverflow).toBe('clip');
   expect(locationLayout.scrollWidth).toBeLessThanOrEqual(locationLayout.clientWidth + 1);
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
-  await expect(weatherNode.locator('.weather-widget-icon')).toBeVisible();
+  const weatherIcon = weatherNode.locator('.weather-widget-icon');
+  const weatherTemperature = weatherNode.locator('.weather-widget-temperature');
+  const weatherVisual = weatherNode.locator('.weather-widget-visual');
+  await expect(weatherIcon).toBeVisible();
   await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(1);
+  const weatherColumns = await weatherNode.evaluate((node) => {
+    const icon = node.querySelector('.weather-widget-icon')?.getBoundingClientRect();
+    const temperature = node.querySelector('.weather-widget-temperature')?.getBoundingClientRect();
+    const visual = node.querySelector('.weather-widget-visual')?.getBoundingClientRect();
+    if (!icon || !temperature || !visual) return null;
+    return {
+      iconCenter:icon.left + icon.width / 2,
+      temperatureCenter:temperature.left + temperature.width / 2,
+      visualCenter:visual.left + visual.width / 2
+    };
+  });
+  expect(weatherColumns).not.toBeNull();
+  expect(weatherColumns.iconCenter).toBeLessThan(weatherColumns.temperatureCenter);
+  expect(weatherColumns.temperatureCenter).toBeLessThan(weatherColumns.visualCenter);
 
   const stableWeatherWidget = weatherNode.locator('.weather-widget');
   const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
@@ -379,6 +402,9 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
 
   await page.locator('#scene-editor-animation-layer').click();
+  const weatherAnimationInspector = page.locator('#scene-editor-properties');
+  await weatherAnimationInspector.getByRole('radiogroup', { name:'Эффект строки' }).getByRole('radio', { name:'Заполнение' }).click();
+  await weatherAnimationInspector.getByRole('radiogroup', { name:'Эффект плашки' }).getByRole('radio', { name:'Breathing Glow' }).click();
   const animationScale = page.locator('#animation-scale');
   const animationBrightness = page.locator('#animation-brightness');
   await animationScale.fill('0.09');
