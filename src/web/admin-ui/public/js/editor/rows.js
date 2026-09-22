@@ -187,12 +187,17 @@ function choiceControl({
       event.preventDefault();
       open();
     }
-    if (event.key === 'Escape') close();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
   });
   search.addEventListener('input', () => render(search.value));
   search.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       close();
       trigger.focus();
     } else if (event.key === 'ArrowDown') {
