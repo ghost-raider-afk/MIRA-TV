@@ -608,13 +608,29 @@ export function initialiseSceneEditor() {
         state.dirty = true;
         setDirty();
         scheduleDocumentRender();
-        renderAnimationInspector();
+        renderInspector();
         setSelectionStatus();
       });
       group.append(button);
     }
     fieldRoot.append(title, group);
     return fieldRoot;
+  }
+
+  function bindCurrentMotionInspector() {
+    const source = currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE;
+    writeMotionProfile(source);
+    bindMotionProfileControls((profile) => {
+      currentAnimationSettings = {
+        ...(currentAnimationSettings || {}),
+        enabled:menuMotionEnabled(profile),
+        preset_id:currentAnimationSettings?.preset_id || 'cinematic-live-menu',
+        profile
+      };
+      state.dirty = true;
+      setDirty();
+      void renderer?.render(sceneContext(), ['animation']);
+    }, source);
   }
 
   function renderAnimationInspector() {
@@ -628,7 +644,7 @@ export function initialiseSceneEditor() {
     const menu = document.createElement('details');
     menu.className = 'scene-editor-inspector-group';
     menu.open = true;
-    menu.append(Object.assign(document.createElement('summary'), { textContent:'Меню' }));
+    menu.append(Object.assign(document.createElement('summary'), { textContent:'Анимация сцены' }));
     const menuPanel = document.createElement('div');
     menuPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
     const menuGrid = document.createElement('div');
@@ -668,63 +684,161 @@ export function initialiseSceneEditor() {
     menuPanel.append(menuGrid, menuRanges);
     menu.append(menuPanel);
 
-    const promo = document.createElement('details');
-    promo.className = 'scene-editor-inspector-group';
-    promo.open = true;
-    promo.append(Object.assign(document.createElement('summary'), { textContent:'Акция' }));
-    const promoPanel = document.createElement('div');
-    promoPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
+    const menuVisible = hiddenAnimationControl('animation-menu-visible', 'checkbox');
+    const priceEffect = hiddenAnimationControl('animation-price-effect', 'hidden', 'none');
+    stack.append(menu, menuVisible, priceEffect);
+    propertiesRoot.append(stack);
+    bindCurrentMotionInspector();
+  }
+
+  function renderPromotionInspector() {
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
+    propertiesRoot.replaceChildren();
+
+    const stack = document.createElement('div');
+    stack.className = 'scene-editor-inspector-stack scene-animation-inspector';
+
+    const style = document.createElement('details');
+    style.className = 'scene-editor-inspector-group';
+    style.open = true;
+    style.append(Object.assign(document.createElement('summary'), { textContent:'Плашка акции' }));
+    const stylePanel = document.createElement('div');
+    stylePanel.className = 'scene-editor-inspector-panel scene-animation-panel';
+
+    const shape = document.createElement('select');
+    for (const [value, label] of [
+      ['base','База'],['capsule','Скруглённая капсула'],['cut','Срезанные углы'],
+      ['chevron','Шеврон'],['tag','Ярлык / Tag']
+    ]) shape.add(new Option(label, value));
+    shape.value = state.settings.promotion_badge_shape || 'base';
+    shape.setAttribute('aria-label', 'Форма плашки акции');
+    checkpointControl(shape);
+    shape.addEventListener('change', () => patchMenuSettings({ promotion_badge_shape:shape.value }));
+
+    const font = document.createElement('select');
+    for (const [value,label] of TABLE_FONTS) font.add(new Option(label,value));
+    font.value = state.settings.promotion_font_family || 'arial-narrow';
+    font.setAttribute('aria-label','Шрифт акции');
+    checkpointControl(font);
+    font.addEventListener('change', () => patchMenuSettings({ promotion_font_family:font.value }));
+
+    const fontSize = compactInput('number', state.settings.promotion_font_size_percent || 100, { min:60,max:180,step:1 });
+    fontSize.setAttribute('aria-label','Размер шрифта акции');
+    checkpointControl(fontSize);
+    fontSize.addEventListener('input', () => {
+      const value=Number(fontSize.value);
+      if(Number.isFinite(value)) patchMenuSettings({promotion_font_size_percent:clamp(Math.round(value),60,180)});
+    });
+
+    const weight = document.createElement('select');
+    for (const value of [400,500,600,700,800,900]) weight.add(new Option(String(value),String(value)));
+    weight.value = String(state.settings.promotion_font_weight || 900);
+    weight.setAttribute('aria-label','Жирность шрифта акции');
+    checkpointControl(weight);
+    weight.addEventListener('change', () => patchMenuSettings({promotion_font_weight:Number(weight.value)}));
+
+    const height = compactInput('number', state.settings.promotion_font_height_percent || 112, { min:70,max:180,step:1 });
+    height.setAttribute('aria-label','Высота шрифта акции');
+    checkpointControl(height);
+    height.addEventListener('input', () => {
+      const value=Number(height.value);
+      if(Number.isFinite(value)) patchMenuSettings({promotion_font_height_percent:clamp(Math.round(value),70,180)});
+    });
+
+    const tracking = compactInput('number', state.settings.promotion_letter_spacing_px || 0, { min:-2,max:8,step:1 });
+    tracking.setAttribute('aria-label','Межбуквенный интервал акции');
+    checkpointControl(tracking);
+    tracking.addEventListener('input', () => {
+      const value=Number(tracking.value);
+      if(Number.isFinite(value)) patchMenuSettings({promotion_letter_spacing_px:clamp(Math.round(value),-2,8)});
+    });
+
+    const typeGrid = document.createElement('div');
+    typeGrid.className = 'compact-form-grid';
+    typeGrid.append(
+      makeField('Форма',shape), makeField('Шрифт',font),
+      makeField('Размер, %',fontSize), makeField('Жирность',weight),
+      makeField('Высота, %',height), makeField('Трекинг, px',tracking)
+    );
+    stylePanel.append(typeGrid);
+    style.append(stylePanel);
+
+    const motion = document.createElement('details');
+    motion.className = 'scene-editor-inspector-group';
+    motion.open = true;
+    motion.append(Object.assign(document.createElement('summary'), { textContent:'Анимация плашки' }));
+    const motionPanel = document.createElement('div');
+    motionPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
     const presetNote = document.createElement('small');
     presetNote.className = 'scene-animation-note';
     presetNote.textContent = promotionRows().length
-      ? 'Пресеты применяются ко всем строкам с включённой «Акцией».'
+      ? 'Настройка применяется ко всем плашкам «Акция» текущего меню.'
       : 'В таблице пока нет строк с включённой «Акцией».';
-    promoPanel.append(
-      renderPromotionPresetGroup('Эффект строки', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
+    motionPanel.append(
       renderPromotionPresetGroup('Эффект плашки', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
       presetNote
     );
-    const promoGrid = document.createElement('div');
-    promoGrid.className = 'scene-animation-control-grid';
-    promoGrid.append(
-      animationSelect('animation-promotion-effect', 'Подсветка акции', [['cinematic','Включена'],['none','Выключена']]),
-      animationSelect('animation-promotion-easing', 'Пластика акции', [['smooth','Плавная'],['cinematic','Киношная']])
+    const motionGrid = document.createElement('div');
+    motionGrid.className = 'scene-animation-control-grid';
+    motionGrid.append(
+      animationSelect('animation-promotion-effect', 'Анимация', [['cinematic','Включена'],['none','Выключена']]),
+      animationSelect('animation-promotion-easing', 'Пластика', [['smooth','Плавная'],['cinematic','Киношная']])
     );
-    const promoRanges = document.createElement('div');
-    promoRanges.className = 'scene-animation-range-grid';
-    promoRanges.append(
-      animationRange('animation-promotion-intensity','Сила акции',0,100,1,'animation-promotion-intensity-output'),
-      animationRange('animation-promotion-brightness','Яркость акции',0,.8,.01,'animation-promotion-brightness-output'),
-      animationRange('animation-promotion-glow','Glow акции',0,48,1,'animation-promotion-glow-output'),
+    const ranges = document.createElement('div');
+    ranges.className = 'scene-animation-range-grid';
+    ranges.append(
+      animationRange('animation-promotion-intensity','Сила плашки',0,100,1,'animation-promotion-intensity-output'),
+      animationRange('animation-promotion-brightness','Объём / яркость',0,.8,.01,'animation-promotion-brightness-output'),
+      animationRange('animation-promotion-glow','Свечение',0,48,1,'animation-promotion-glow-output'),
       animationRange('animation-promotion-shine-speed','Скорость блика',0.5,3,0.1,'animation-promotion-shine-speed-output'),
-      animationRange('animation-promotion-shine-frequency','Частота блика',2,20,1,'animation-promotion-shine-frequency-output'),
-      animationRange('animation-promotion-cycle','Период акции',2,15,.5,'animation-promotion-cycle-output'),
-      animationRange('animation-promotion-duration','Длительность акции',700,4000,100,'animation-promotion-duration-output')
+      animationRange('animation-promotion-shine-frequency','Частота цикла',2,20,1,'animation-promotion-shine-frequency-output'),
+      animationRange('animation-promotion-cycle','Период свечения',2,15,.5,'animation-promotion-cycle-output'),
+      animationRange('animation-promotion-duration','Длительность свечения',700,4000,100,'animation-promotion-duration-output')
     );
-    promoPanel.append(promoGrid, promoRanges);
-    promo.append(promoPanel);
+    motionPanel.append(motionGrid, ranges);
+    motion.append(motionPanel);
 
-    const menuVisible = hiddenAnimationControl('animation-menu-visible', 'checkbox');
-    const promotionVisible = hiddenAnimationControl('animation-promotion-visible', 'checkbox');
-    const priceEffect = hiddenAnimationControl('animation-price-effect', 'hidden', 'none');
-    const promotionTravel = hiddenAnimationControl('animation-promotion-travel', 'hidden', '0');
-    const promotionScale = hiddenAnimationControl('animation-promotion-scale', 'hidden', '0.06');
-
-    stack.append(menu, promo, menuVisible, promotionVisible, priceEffect, promotionTravel, promotionScale);
+    stack.append(style, motion);
     propertiesRoot.append(stack);
+    bindCurrentMotionInspector();
+  }
 
-    writeMotionProfile(currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE);
-    bindMotionProfileControls((profile) => {
-      currentAnimationSettings = {
-        ...(currentAnimationSettings || {}),
-        enabled:menuMotionEnabled(profile),
-        preset_id:currentAnimationSettings?.preset_id || 'cinematic-live-menu',
-        profile
-      };
-      state.dirty = true;
-      setDirty();
-      void renderer?.render(sceneContext(), ['animation']);
-    });
+  function renderPromotionRowInspector() {
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
+    propertiesRoot.replaceChildren();
+
+    const stack = document.createElement('div');
+    stack.className = 'scene-editor-inspector-stack scene-animation-inspector';
+    const row = document.createElement('details');
+    row.className = 'scene-editor-inspector-group';
+    row.open = true;
+    row.append(Object.assign(document.createElement('summary'), { textContent:'Анимация акционной строки' }));
+    const panel = document.createElement('div');
+    panel.className = 'scene-editor-inspector-panel scene-animation-panel';
+    const note = document.createElement('small');
+    note.className = 'scene-animation-note';
+    note.textContent = promotionRows().length
+      ? '«Волна» меняет широкую световую массу, «Gloss» — узкий направленный блик. Эффекты используют разные алгоритмы.'
+      : 'В таблице пока нет строк с включённой «Акцией».';
+    panel.append(
+      renderPromotionPresetGroup('Тип эффекта', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
+      note
+    );
+    const ranges = document.createElement('div');
+    ranges.className = 'scene-animation-range-grid';
+    ranges.append(
+      animationRange('animation-promotion-row-intensity','Интенсивность',0,100,1,'animation-promotion-row-intensity-output'),
+      animationRange('animation-promotion-row-glow','Свечение',0,48,1,'animation-promotion-row-glow-output'),
+      animationRange('animation-promotion-row-cycle','Период цикла',2,15,.5,'animation-promotion-row-cycle-output'),
+      animationRange('animation-promotion-row-duration','Длительность эффекта',300,6000,100,'animation-promotion-row-duration-output')
+    );
+    panel.append(ranges);
+    row.append(panel);
+    stack.append(row);
+    propertiesRoot.append(stack);
+    bindCurrentMotionInspector();
   }
 
   function renderTableInspector() {
