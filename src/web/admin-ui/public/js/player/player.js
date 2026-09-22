@@ -113,6 +113,54 @@ function rememberDeviceKey(key) {
   try { localStorage.setItem(DEVICE_KEY_STORAGE_KEY, value); } catch {}
 }
 
+function cleanDeviceLabel(value, max) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
+}
+
+function modelFromUserAgent(userAgent) {
+  const ua = String(userAgent || '');
+  const android = /Android\s+[^;()]+;\s*([^;()]+?)(?:\s+Build\/|;|\))/i.exec(ua)?.[1]?.trim() || '';
+  if (android && !/^(?:android|linux|wv|mobile|k)$/i.test(android)) return cleanDeviceLabel(android, 120);
+  const explicit = /\b(MIBOX[A-Z0-9_-]*|MiTV[A-Z0-9_-]*|BRAVIA[A-Z0-9_-]*|AFT[A-Z0-9_-]+|SHIELD(?:\s+Android\s+TV)?|SM-[A-Z0-9_-]+|ADT-[A-Z0-9_-]+)\b/i.exec(ua)?.[1];
+  return cleanDeviceLabel(explicit, 120);
+}
+
+function manufacturerFromDevice(model, userAgent, platform) {
+  const source = `${model} ${userAgent} ${platform}`;
+  const vendors = [
+    ['Samsung', /\b(?:samsung|sm-[a-z0-9])/i],
+    ['LG', /\b(?:lgtv|lge|webos|oled\d)/i],
+    ['Sony', /\b(?:sony|bravia)/i],
+    ['Xiaomi', /\b(?:xiaomi|redmi|mibox|mitv)/i],
+    ['TCL', /\btcl\b/i],
+    ['Hisense', /\bhisense\b/i],
+    ['Philips', /\bphilips\b/i],
+    ['NVIDIA', /\bshield\b/i],
+    ['Amazon', /\baft[a-z0-9_-]+\b/i],
+    ['Google', /\b(?:chromecast|adt-[a-z0-9_-]+)\b/i],
+    ['Panasonic', /\bpanasonic\b/i]
+  ];
+  return vendors.find(([, pattern]) => pattern.test(source))?.[0] || '';
+}
+
+async function detectDeviceInfo() {
+  const userAgent = navigator.userAgent || '';
+  let model = '';
+  let platform = navigator.platform || '';
+  try {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+      const values = await navigator.userAgentData.getHighEntropyValues(['model', 'platform']);
+      model = cleanDeviceLabel(values?.model, 120);
+      platform = cleanDeviceLabel(values?.platform || platform, 80);
+    }
+  } catch {}
+  if (!model) model = modelFromUserAgent(userAgent);
+  return {
+    manufacturer: manufacturerFromDevice(model, userAgent, platform),
+    model
+  };
+}
+
 function formatReserveCode(value) {
   const code = String(value || '').replace(/\D/g, '').slice(0, 6);
   return code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : '—— ——';
@@ -319,10 +367,11 @@ async function createActivation({ automatic = false } = {}) {
   activationStatus.textContent = automatic ? 'Обновляем код подключения…' : 'Создаём код подключения…';
   try {
     await enterImmersiveMode();
+    const deviceInfo = await detectDeviceInfo();
     const response = await fetch('/api/device/activations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ device_key: currentDeviceKey() || undefined }),
+      body: JSON.stringify({ device_key: currentDeviceKey() || undefined, device_info: deviceInfo }),
       cache: 'no-store'
     });
     if (!response.ok) throw await activationRequestError(response);
