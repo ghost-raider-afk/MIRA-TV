@@ -99,17 +99,37 @@ function contentScaleFactor(node, content, element) {
   return Math.max(.01, Math.min(nominal * manual, fit));
 }
 
+function responsiveContent(element) {
+  return ['weather', 'image', 'video', 'logo'].includes(element?.type);
+}
+
 function applyContentGeometry(node, content, element) {
-  const { referenceWidth, referenceHeight } = referenceGeometry(element);
   content.style.position = 'absolute';
+  content.style.maxWidth = 'none';
+  content.style.maxHeight = 'none';
+
+  if (responsiveContent(element)) {
+    content.style.inset = '0';
+    content.style.left = '0';
+    content.style.top = '0';
+    content.style.right = '0';
+    content.style.bottom = '0';
+    content.style.width = '100%';
+    content.style.height = '100%';
+    content.style.transformOrigin = 'center center';
+    content.style.transform = 'none';
+    content.dataset.sceneContentScale = '1';
+    return;
+  }
+
+  const { referenceWidth, referenceHeight } = referenceGeometry(element);
+  content.style.inset = 'auto';
   content.style.left = '50%';
   content.style.top = '50%';
   content.style.right = 'auto';
   content.style.bottom = 'auto';
   content.style.width = sceneUnit(referenceWidth);
   content.style.height = sceneUnit(referenceHeight);
-  content.style.maxWidth = 'none';
-  content.style.maxHeight = 'none';
   content.style.transformOrigin = 'center center';
   content.style.transform = 'translate(-50%, -50%) scale(1)';
   const scale = contentScaleFactor(node, content, element);
@@ -345,6 +365,7 @@ function applyGeometry(node, element) {
   node.style.transform = 'rotate(' + String(Number(element.rotation_deg || 0)) + 'deg)';
   node.style.transformOrigin = 'center center';
   node.style.overflow = element.type === 'text' ? 'visible' : 'hidden';
+  node.style.containerType = responsiveContent(element) ? 'size' : '';
   node.style.pointerEvents = 'none';
   node.style.display = element.enabled === false ? 'none' : 'block';
 }
