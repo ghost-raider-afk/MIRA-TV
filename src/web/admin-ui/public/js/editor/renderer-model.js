@@ -249,7 +249,7 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         metadata: formatProductMetadata(product),
         promotion: row.promotion === true,
         promotionText: row.promotion_text || row.promotionText || '',
-        promotionAnimation: ['wave', 'fill', 'gloss'].includes(row.promotion_animation || row.promotionAnimation)
+        promotionAnimation: ['wave', 'gloss', 'fill', 'pulse', 'runner'].includes(row.promotion_animation || row.promotionAnimation)
           ? (row.promotion_animation || row.promotionAnimation)
           : 'wave',
         promotionBadgeAnimation: ['shine', 'breathe'].includes(row.promotion_badge_animation || row.promotionBadgeAnimation)
