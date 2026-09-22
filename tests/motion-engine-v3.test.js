@@ -80,10 +80,12 @@ test('Motion Engine compiles continuous WASM light surfaces and independent prom
   const profile = activeProfile();
   const menuDuration = profile.cycle_seconds * 1000;
   const promotionDuration = profile.promotion_cycle_seconds * 1000;
+  const rowDuration = profile.promotion_row_cycle_seconds * 1000;
+  const shineDuration = 60000 / profile.promotion_shine_frequency_per_minute;
   const plan = compileMotionPlan(scene, profile);
 
   assert.equal(plan.version, 3);
-  assert.equal(plan.duration, Math.max(menuDuration, promotionDuration));
+  assert.equal(plan.duration, Math.max(menuDuration, promotionDuration, rowDuration, shineDuration));
   assert.deepEqual(plan.programs.map((program) => program.id), ['menu-motion', 'promotion-motion']);
   assert.equal(plan.tracks.some((track) => track.node.kind === 'background'), false);
   assert.equal(plan.tracks.some((track) => track.node.kind === 'price'), false);
@@ -112,6 +114,10 @@ test('Motion Engine compiles continuous WASM light surfaces and independent prom
   assert.equal(sparkle.procedural.travelPx, 108);
   assert.equal(glow.procedural.kind, 'promo-glow');
   assert.equal(glow.procedural.animation, 'gloss');
+  assert.equal(glow.timing.duration, rowDuration);
+  assert.equal(glow.timing.loop, true);
+  assert.equal(promotion.timing.duration, promotionDuration);
+  assert.equal(promotion.timing.loop, true);
   assert.deepEqual(item.claims, ['transform', 'appearance', 'opacity']);
   assert.deepEqual(promotion.claims, ['opacity', 'appearance', 'transform']);
   assert.deepEqual(shine.claims, ['opacity', 'transform']);
@@ -129,6 +135,28 @@ test('Motion Engine compiles continuous WASM light surfaces and independent prom
   assert.equal('travel' in glow.procedural, false);
   assert.equal('keyframes' in item, false);
   assert.equal('keyframes' in promotion, false);
+});
+
+test('promotion badge and promotional row keep independent repeating clocks', () => {
+  const scene = fakeScene();
+  const profile = {
+    ...activeProfile(),
+    promotion_cycle_seconds:6,
+    promotion_event_duration_ms:1700,
+    promotion_row_cycle_seconds:2.5,
+    promotion_row_event_duration_ms:650,
+    promotion_row_intensity:74,
+    promotion_row_glow_radius:19
+  };
+  const program = compilePromotionMotionProgram(scene, { profile });
+  const badge = program.tracks.find((track) => track.node.kind === 'promotion-badge-glow');
+  const row = program.tracks.find((track) => track.node.kind === 'promotion-glow');
+  assert.equal(badge.timing.duration, 6000);
+  assert.equal(row.timing.duration, 2500);
+  assert.equal(badge.timing.loop, true);
+  assert.equal(row.timing.loop, true);
+  assert.notEqual(badge.procedural.activeFraction, row.procedural.activeFraction);
+  assert.ok(row.procedural.opacity > 0);
 });
 
 test('menu and promotion compilers remain independently callable', () => {
