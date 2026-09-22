@@ -1,7 +1,7 @@
 import { pageName } from './config.js';
 
 export const ROUTE_DEFINITIONS = Object.freeze([
-  Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Обзор', prefetch: false }),
+  Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Дашборд', prefetch: false }),
   Object.freeze({ path: '/locations', page: 'locations', section: 'monitors', title: 'Торговые точки', prefetch: true }),
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
@@ -51,11 +51,13 @@ export const PRIMARY_ROUTES = Object.freeze([
 
 export function navigationState(currentPage = pageName()) {
   const route = ROUTE_BY_PAGE.get(currentPage) || ROUTE_BY_PAGE.get('overview');
+  const contextLinks = CONTEXT_LINKS[route.section] || CONTEXT_LINKS.overview;
   return {
     currentPage,
     section: route.section,
     title: route.title,
-    contextLinks: CONTEXT_LINKS[route.section] || CONTEXT_LINKS.overview
+    contextLinks,
+    hasContext: contextLinks.length > 0
   };
 }
 

@@ -45,6 +45,11 @@ function fitCanonicalStage(stage, viewport) {
   stage.style.bottom = 'auto';
   stage.style.width = `${width}px`;
   stage.style.height = `${height}px`;
+  stage.style.minWidth = `${width}px`;
+  stage.style.minHeight = `${height}px`;
+  stage.style.maxWidth = 'none';
+  stage.style.maxHeight = 'none';
+  stage.style.flex = 'none';
   stage.style.transformOrigin = 'top left';
   stage.style.transform = `translate3d(${offsetX}px,${offsetY}px,0) scale(${scale})`;
   stage.dataset.sceneViewportWidth = String(width);
@@ -169,7 +174,7 @@ export class PlayerSceneRenderer {
       this.stage.dataset.fontKey = layout.typography.key;
       menuLayer.dataset.renderMode = renderMode;
       try {
-        await this.flatMenuRenderer.render(menuLayer, menuSvg, viewport);
+        await this.flatMenuRenderer.render(menuLayer, menuSvg, viewport, layout.typography);
       } catch (error) {
         console.error('Flat MIRA-TV render failed; using static DOM fallback', error);
         this.flatMenuRenderer.destroy();

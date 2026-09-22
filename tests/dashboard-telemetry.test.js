@@ -5,7 +5,7 @@ import test from 'node:test';
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
-test('Overview is logo-only navigation and dashboard exposes TrueNAS-style ranges', async () => {
+test('Dashboard is logo-only navigation and exposes per-TV TrueNAS-style ranges', async () => {
   const [navigation, sidebar, html, dashboard, overviewRoutes] = await Promise.all([
     read('src/web/admin-ui/public/js/core/navigation.js'),
     read('src/web/admin-ui/public/js/components/sidebar.js'),
@@ -14,21 +14,26 @@ test('Overview is logo-only navigation and dashboard exposes TrueNAS-style range
     read('src/api/overview/routes.js')
   ]);
 
+  assert.match(navigation, /title:\s*'Дашборд'/);
   assert.match(navigation, /overview:\s*Object\.freeze\(\[\]\)/);
   assert.doesNotMatch(sidebar, /MOBILE_OVERVIEW_ROUTE/);
   assert.match(sidebar, /class="ui-rail-brand" href="\/"/);
+  assert.match(html, /<h1>Дашборд<\/h1>/);
+  assert.match(html, /data-dashboard-tv-select/);
   for (const range of ['1h','24h','7d','30d']) {
     assert.match(html, new RegExp(`data-dashboard-range="${range}"`));
     assert.ok(overviewRoutes.includes(`'${range}'`) || overviewRoutes.includes(`"${range}"`));
   }
+  assert.match(dashboard, /selectedScreenId/);
+  assert.match(dashboard, /screen_id/);
+  assert.match(dashboard, /uptime_hours/);
   assert.match(dashboard, /dashboard-sparkline/);
-  assert.match(dashboard, /player_load_percent/);
-  assert.match(dashboard, /memory_mb/);
-  assert.match(dashboard, /fps_avg/);
-  assert.match(dashboard, /online_tvs/);
+  assert.match(overviewRoutes, /problems/);
+  assert.match(overviewRoutes, /selected_tv/);
+  assert.match(overviewRoutes, /expected_first_sample_seconds:10/);
 });
 
-test('Player metrics use sampled browser performance data and dedicated history storage', async () => {
+test('Player metrics keep physical-TV history separate and sample browser performance data', async () => {
   const [migration, repository, collector, player, routes, context, config, server] = await Promise.all([
     read('src/db/migrations/player-metrics.js'),
     read('src/db/player-metrics.js'),
@@ -41,9 +46,10 @@ test('Player metrics use sampled browser performance data and dedicated history 
   ]);
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS tv_player_metrics/);
+  assert.match(repository, /latestPlayerMetricsByScreen/);
   assert.match(repository, /dashboardPlayerMetrics/);
-  assert.match(repository, /date_bin/);
-  assert.match(repository, /COUNT\(DISTINCT device_id\)/);
+  assert.match(repository, /device_id = \$3/);
+  assert.match(repository, /AVG\(uptime_seconds\)/);
   assert.match(collector, /PerformanceObserver/);
   assert.match(collector, /requestAnimationFrame/);
   assert.match(collector, /usedJSHeapSize/);

@@ -10,7 +10,7 @@ function userName() {
 }
 
 function contextTitle(section) {
-  return ({ overview: 'Обзор', monitors: 'TV-сеть', catalog: 'Каталог', settings: 'Настройки' })[section] || 'MIRA-TV';
+  return ({ overview: 'Дашборд', monitors: 'TV-сеть', catalog: 'Каталог', settings: 'Настройки' })[section] || 'MIRA-TV';
 }
 
 function contextLinksMarkup(contextLinks, currentPage) {
@@ -33,7 +33,8 @@ export function refreshContextActive(root = document) {
 export function refreshContextPanel(root = document) {
   const context = root.querySelector('.ui-context');
   if (!context) return;
-  const { section, currentPage, contextLinks } = navigationState();
+  const { section, currentPage, contextLinks, hasContext } = navigationState();
+  context.dataset.contextAvailable = hasContext ? 'true' : 'false';
   const heading = context.querySelector('.ui-context-head h2');
   const body = context.querySelector('.ui-context-body');
   if (heading) heading.textContent = contextTitle(section);
@@ -43,9 +44,11 @@ export function refreshContextPanel(root = document) {
 }
 
 export function createContextPanel() {
-  const { section, currentPage, contextLinks } = navigationState();
+  const { section, currentPage, contextLinks, hasContext } = navigationState();
   const context = document.createElement('aside');
   context.className = 'ui-context';
+  context.id = 'app-context-panel';
+  context.dataset.contextAvailable = hasContext ? 'true' : 'false';
   context.setAttribute('aria-label', 'Контекст раздела');
   context.innerHTML = `<div class="ui-context-head"><div><span class="ui-context-kicker">MIRA-TV</span><h2>${contextTitle(section)}</h2></div><button class="ui-context-close" type="button" aria-label="Свернуть панель">‹</button></div><div class="ui-context-body">${contextLinksMarkup(contextLinks, currentPage)}</div><div class="ui-account-card"><span class="company-name" data-shell-company></span><div><span class="ui-account-user-row"><strong data-shell-user></strong><button type="button" data-logout>Выйти</button></span><small class="ui-account-role">Панель управления</small></div></div>`;
   context.querySelector('[data-shell-company]').textContent = appName();

@@ -1,4 +1,5 @@
 @media(min-width:1181px) and (max-height:900px){
+  .animation-studio-workspace{grid-template-columns:minmax(0,1fr) minmax(580px,.9fr)}
   .animation-inspector{gap:6px;padding:7px}
   .animation-inspector-head h2{font-size:16px}
   .animation-inspector-head .eyebrow{font-size:8px}

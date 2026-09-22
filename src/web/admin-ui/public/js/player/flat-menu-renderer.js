@@ -12,6 +12,28 @@ function standaloneSvg(markup) {
 
 const observers = new WeakMap();
 
+function primaryFontFamily(typography) {
+  const first = String(typography?.family || '').split(',')[0]?.trim() || '';
+  return first.replace(/^['"]|['"]$/g, '');
+}
+
+async function ensureMenuFonts(typography) {
+  const fonts = document.fonts;
+  if (!fonts?.load) return;
+  const family = primaryFontFamily(typography);
+  if (!family) {
+    try { await fonts.ready; } catch {}
+    return;
+  }
+  const token = /\s/.test(family) ? `"${family.replaceAll('"', '\\"')}"` : family;
+  const floor = Math.max(400, Number(typography?.weightFloor) || 400);
+  const weights = floor >= 700 ? [700] : [400, 700];
+  try {
+    await Promise.all(weights.map((weight) => fonts.load(`${weight} 32px ${token}`)));
+    await fonts.ready;
+  } catch {}
+}
+
 function releaseStage(stage) {
   const resize = stage instanceof HTMLElement ? observers.get(stage) : null;
   resize?.disconnect();
@@ -92,7 +114,7 @@ export class FlatMenuRenderer {
     this.layer = null;
   }
 
-  async render(layer, svgMarkup, viewport = {}) {
+  async render(layer, svgMarkup, viewport = {}, typography = null) {
     if (!(layer instanceof Element)) throw new TypeError('MIRA-TV renderer requires a layer element.');
     const generation = ++this.generation;
     this.layer = layer;
@@ -100,7 +122,7 @@ export class FlatMenuRenderer {
     const height = positiveDimension(viewport.height, 1080);
     const svg = standaloneSvg(svgMarkup);
 
-    try { await document.fonts?.ready; } catch {}
+    await ensureMenuFonts(typography);
     if (generation !== this.generation || layer !== this.layer) return false;
 
     // Keep the canonical vector output in the DOM. Preview and Player use the same final SVG path,

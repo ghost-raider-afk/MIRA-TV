@@ -6,9 +6,9 @@ import {
   appendRow,
   PROMOTION_BADGE_ANIMATION_OPTIONS,
   PROMOTION_ROW_ANIMATION_OPTIONS,
-  renderPreviewRows
+  renderTableEditorRows
 } from '../editor/rows.js';
-import { buildDisplayLines, buildRenderLayout, buildRenderModel } from '../editor/renderer.js';
+import { buildRenderModel } from '../editor/renderer.js';
 import { createEditorHistory } from '../editor/history.js';
 import { createEditorState, replaceEditorState } from '../editor/state.js';
 import {
@@ -313,10 +313,7 @@ export function initialiseSceneEditor() {
     if (!renderer || !active()) return;
     await renderer.render(sceneContext(), ['menu']);
     if (!active()) return;
-    if (!interactionActive) {
-      refreshSelectionOverlay();
-      if (selectedOwner === 'table') renderTableEditLayer();
-    }
+    if (!interactionActive) refreshSelectionOverlay();
   }
 
   function scheduleDocumentRender() {
@@ -332,6 +329,9 @@ export function initialiseSceneEditor() {
     state.dirty = true;
     setDirty();
     setSelectionStatus();
+    if (selectedOwner === 'table' && ['table_x','table_y','table_width_px','table_height_px'].some((key) => Object.hasOwn(patch, key))) {
+      renderTableEditLayer();
+    }
     scheduleDocumentRender();
   }
 
@@ -408,15 +408,7 @@ export function initialiseSceneEditor() {
 
   function tableEditModel() {
     if (!state.screen) return null;
-    const resolution = resolutionOf(state.screen);
-    const model = buildRenderModel(state, resolution);
-    const lines = buildDisplayLines(model, {
-      products: currentBundle?.products || [],
-      packaging: currentBundle?.packaging || [],
-      fallbackTitle: 'Новый раздел'
-    });
-    const layout = buildRenderLayout(model, lines);
-    return { model, lines, layout };
+    return buildRenderModel(state, resolutionOf(state.screen));
   }
 
   function renderTableEditLayer({ rebuildInspector = false } = {}) {
@@ -426,15 +418,13 @@ export function initialiseSceneEditor() {
       tableEditLayer.replaceChildren();
       return;
     }
-    const computed = tableEditModel();
-    if (!computed) return;
+    const model = tableEditModel();
+    if (!model) return;
     const rowInspector = propertiesRoot.querySelector('[data-scene-table-row-inspector]');
-    renderPreviewRows(state, {
+    renderTableEditorRows(state, {
       target: tableEditLayer,
       inspector: rowInspector,
-      model: computed.model,
-      lines: computed.lines,
-      layout: computed.layout,
+      model,
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
       onBeforeMutate: () => history.checkpoint(),

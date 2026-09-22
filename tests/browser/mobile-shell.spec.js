@@ -29,7 +29,9 @@ test.describe('mobile application shell', () => {
     const rail = page.locator('.ui-rail');
     await expect(rail).toBeVisible();
     await expect(rail.locator('.ui-rail-button')).toHaveCount(3);
-    await expect(rail.getByLabel('Обзор')).toHaveCount(0);
+    await expect(rail.getByLabel('Дашборд')).toHaveCount(0);
+    await expect(page.locator('.app-header-home')).toBeVisible();
+    await expect(page.locator('.app-header-home')).toHaveAttribute('aria-label', /Дашборд/);
     await expect(rail.locator('.ui-rail-brand')).toHaveAttribute('href', '/');
     await expect(rail.getByLabel('TV-сеть')).toBeVisible();
     await expect(rail.getByLabel('Каталог')).toBeVisible();

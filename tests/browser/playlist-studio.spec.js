@@ -114,6 +114,12 @@ test('Playlist Studio owns only Scene Playlist and preserves the screen motion p
       return {
         logicalWidth:node.clientWidth,
         logicalHeight:node.clientHeight,
+        inlineWidth:node.style.width,
+        inlineHeight:node.style.height,
+        minWidth:getComputedStyle(node).minWidth,
+        minHeight:getComputedStyle(node).minHeight,
+        maxWidth:getComputedStyle(node).maxWidth,
+        maxHeight:getComputedStyle(node).maxHeight,
         visualWidth:box.width,
         visualHeight:box.height,
         viewportWidth:Number(node.dataset.sceneViewportWidth),
@@ -125,6 +131,12 @@ test('Playlist Studio owns only Scene Playlist and preserves the screen motion p
     expect(svgBox).not.toBeNull();
     expect(stageGeometry.logicalWidth).toBe(1024);
     expect(stageGeometry.logicalHeight).toBe(768);
+    expect(stageGeometry.inlineWidth).toBe('1024px');
+    expect(stageGeometry.inlineHeight).toBe('768px');
+    expect(stageGeometry.minWidth).toBe('1024px');
+    expect(stageGeometry.minHeight).toBe('768px');
+    expect(stageGeometry.maxWidth).toBe('none');
+    expect(stageGeometry.maxHeight).toBe('none');
     expect(stageGeometry.viewportWidth).toBe(1024);
     expect(stageGeometry.viewportHeight).toBe(768);
     expect(stageGeometry.viewportScale).toBeGreaterThan(0);

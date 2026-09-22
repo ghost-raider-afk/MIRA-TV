@@ -81,11 +81,16 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
-  await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(2);
+  const tableEditorPanel = page.locator('#scene-editor-table-edit-layer .scene-table-editor-panel');
+  await expect(tableEditorPanel).toBeVisible();
+  await expect(page.locator('#scene-editor-table-edit-layer .scene-table-editor-row')).toHaveCount(2);
+  await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(0);
   const tableProductSelect = page.locator('#scene-editor-table-edit-layer [data-preview-product-select]').first();
   await expect(tableProductSelect).toBeVisible();
   await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
-  expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeLessThanOrEqual(10);
+  expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
+  expect((await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0).toBeGreaterThanOrEqual(36);
+  expect(await tableEditorPanel.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
   await tableProductSelect.click();
   await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeVisible();
@@ -253,6 +258,80 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#editor-menu-preview [data-scene-element-type]')).toHaveCount(3);
   await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
   await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+});
+
+test('Scene table editor stays readable and scrollable with a dense menu', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen, product } = await fixture(page);
+  const editor = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+  const rows = [];
+  for (let section = 0; section < 3; section += 1) {
+    rows.push({ id:`dense-section-${section}`, kind:'section', name:`РАЗДЕЛ ${section + 1}`, enabled:true });
+    for (let index = 0; index < 10; index += 1) {
+      rows.push({
+        id:`dense-item-${section}-${index}`,
+        kind:'item',
+        product_id:product.id,
+        promotion:index === 2,
+        promotion_text:index === 2 ? 'АКЦИЯ' : '',
+        enabled:true
+      });
+    }
+  }
+  const saved = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
+    revision:editor.draft.revision,
+    rows,
+    settings:{
+      ...editor.draft.settings,
+      table_x:56,
+      table_y:15,
+      table_width_px:1374,
+      table_height_px:925
+    },
+    scene:editor.draft.scene
+  } });
+  expect(saved.ok()).toBeTruthy();
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-table-layer').click();
+
+  const panel = page.locator('.scene-table-editor-panel');
+  const scroll = page.locator('.scene-table-editor-scroll');
+  const editorRows = page.locator('.scene-table-editor-row');
+  await expect(panel).toBeVisible();
+  await expect(editorRows).toHaveCount(33);
+  await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(0);
+
+  const density = await page.evaluate(() => {
+    const scroller = document.querySelector('.scene-table-editor-scroll');
+    const rows = [...document.querySelectorAll('.scene-table-editor-row')].slice(0, 8);
+    return {
+      clientHeight:scroller?.clientHeight || 0,
+      scrollHeight:scroller?.scrollHeight || 0,
+      fontSizes:rows.map((row) => parseFloat(getComputedStyle(row.querySelector('.editor-preview-inline-control') || row).fontSize)),
+      boxes:rows.map((row) => {
+        const rect = row.getBoundingClientRect();
+        return { top:rect.top, bottom:rect.bottom, height:rect.height };
+      })
+    };
+  });
+  expect(density.scrollHeight).toBeGreaterThan(density.clientHeight);
+  expect(density.fontSizes.every((size) => size >= 11)).toBe(true);
+  expect(density.boxes.every((box) => box.height >= 36)).toBe(true);
+  for (let index = 1; index < density.boxes.length; index += 1) {
+    expect(density.boxes[index].top).toBeGreaterThanOrEqual(density.boxes[index - 1].bottom);
+  }
+
+  const sectionInput = page.locator('.scene-table-editor-row.is-section .editor-preview-section-input').first();
+  await sectionInput.fill('НОВОЕ НАЗВАНИЕ РАЗДЕЛА');
+  await expect(sectionInput).toHaveValue('НОВОЕ НАЗВАНИЕ РАЗДЕЛА');
+  await expect(sectionInput).toBeFocused();
+
+  const productChoice = page.locator('.scene-table-editor-row.is-item [data-preview-product-select]').first();
+  await productChoice.click();
+  await expect(page.locator('.scene-table-editor-row.is-item .editor-preview-choice-popup').first()).toBeVisible();
+  await expect(page.locator('.scene-table-editor-row.is-item .editor-preview-choice-search').first()).toBeFocused();
 });
 
 test('Scene editor stays a single-page touch workspace on mobile', async ({ page }) => {

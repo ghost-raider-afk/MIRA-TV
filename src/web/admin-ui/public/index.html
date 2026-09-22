@@ -15,8 +15,8 @@
           <section class="dashboard-commandbar">
             <div>
               <p class="eyebrow">ОПЕРАТИВНЫЙ ЦЕНТР</p>
-              <h1>Обзор</h1>
-              <p>Состояние TV-сети и производительность реальных TV Player.</p>
+              <h1>Дашборд</h1>
+              <p>Состояние TV-сети и история работы каждого TV Player.</p>
             </div>
             <div class="dashboard-period-control">
               <span>Период: <strong data-dashboard-range-label>1 час</strong></span>
@@ -60,22 +60,28 @@
 
           <section class="dashboard-health-row">
             <span class="dashboard-health-pill" data-dashboard-health>Проверяем TV-сеть…</span>
-            <span>Системный CPU Android браузер не раскрывает; график нагрузки ниже показывает нагрузку самого Player по main-thread long tasks.</span>
+            <span>Проблемой считаются только объективные состояния: TV не подключён, офлайн или перестал передавать телеметрию.</span>
           </section>
 
-          <section class="dashboard-chart-grid" aria-label="Графики производительности">
-            <article class="dashboard-chart-card" data-dashboard-card="online">
-              <header>
-                <div><span>Онлайн TV</span><small>Передают телеметрию</small></div>
-                <strong data-dashboard-current>—</strong>
-              </header>
-              <div class="dashboard-chart-host" data-dashboard-chart></div>
-              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
-            </article>
+          <section class="dashboard-tv-toolbar" aria-label="Выбор телевизора для анализа">
+            <label class="dashboard-tv-select-field">
+              <span>Телевизор для анализа</span>
+              <select data-dashboard-tv-select aria-label="Телевизор для анализа"></select>
+            </label>
+            <div class="dashboard-tv-state">
+              <div>
+                <span data-dashboard-tv-location>TV не выбран</span>
+                <strong data-dashboard-tv-title>—</strong>
+              </div>
+              <span class="dashboard-tv-status" data-dashboard-tv-status>—</span>
+              <small data-dashboard-telemetry-status>История появится после первого замера Player.</small>
+            </div>
+          </section>
 
+          <section class="dashboard-chart-grid" aria-label="Графики выбранного телевизора">
             <article class="dashboard-chart-card" data-dashboard-card="fps">
               <header>
-                <div><span>FPS Player</span><small>Средняя плавность</small></div>
+                <div><span>FPS Player</span><small>Фактическая плавность</small></div>
                 <strong data-dashboard-current>—</strong>
               </header>
               <div class="dashboard-chart-host" data-dashboard-chart></div>
@@ -99,20 +105,29 @@
               <div class="dashboard-chart-host" data-dashboard-chart></div>
               <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
             </article>
+
+            <article class="dashboard-chart-card" data-dashboard-card="uptime">
+              <header>
+                <div><span>Uptime Player</span><small>Время с запуска страницы Player</small></div>
+                <strong data-dashboard-current>—</strong>
+              </header>
+              <div class="dashboard-chart-host" data-dashboard-chart></div>
+              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
+            </article>
           </section>
 
           <section class="dashboard-lower-grid">
             <article class="dashboard-panel">
-              <header><div><span>Требуют внимания</span><small>TV без текущей связи</small></div><a href="/screens">Открыть TV-сеть</a></header>
+              <header><div><span>Проблемные TV</span><small>Только устройства, требующие внимания</small></div><a href="/screens">Открыть TV-сеть</a></header>
               <div class="dashboard-attention-list" data-dashboard-attention></div>
             </article>
             <article class="dashboard-panel dashboard-info-panel">
-              <header><div><span>Что измеряем</span><small>Телеметрия TV Player</small></div></header>
+              <header><div><span>Телеметрия</span><small>Параметры выбранного TV Player</small></div></header>
               <div class="dashboard-info-list">
-                <span><strong>FPS</strong><small>Фактическая частота кадров Player.</small></span>
-                <span><strong>Нагрузка</strong><small>Доля времени длинных задач главного потока.</small></span>
-                <span><strong>Память</strong><small>JS heap Chromium, когда браузер предоставляет метрику.</small></span>
-                <span><strong>История</strong><small>Хранится 31 день, без покадрового мониторинга.</small></span>
+                <span><strong>Первый замер</strong><small data-dashboard-first-sample>Примерно через 10 секунд после запуска Player.</small></span>
+                <span><strong>Интервал</strong><small data-dashboard-sample-interval>Раз в 60 секунд.</small></span>
+                <span><strong>История</strong><small data-dashboard-retention>Хранится 31 день отдельно по каждому TV.</small></span>
+                <span><strong>Системный CPU</strong><small>Android-браузер его не раскрывает; «Нагрузка Player» показывает long tasks главного потока.</small></span>
               </div>
             </article>
           </section>
