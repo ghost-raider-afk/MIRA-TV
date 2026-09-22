@@ -261,6 +261,16 @@ export function createDevicePublicRouter({ store, config, realtime }) {
   router.get('/session', async (request, response) => {
     const session = await resolveDeviceSession(store, config, request, response);
     if (!session) return response.status(401).json({ authorized: false });
+    const descriptor = deviceDescriptor({
+      manufacturer: request.get('x-mira-device-manufacturer'),
+      model: request.get('x-mira-device-model')
+    });
+    if (descriptor.manufacturer || descriptor.model) {
+      await store.updateDeviceIdentification(session.device_id, {
+        ...descriptor,
+        userAgent: userAgent(request)
+      });
+    }
     return response.json({
       authorized: true,
       device_id: session.device_id,
