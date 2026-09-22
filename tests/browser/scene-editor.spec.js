@@ -250,6 +250,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.locator('summary[aria-label^="Погода:"]')).toBeVisible();
   await expect(inspector.getByLabel('Автомасштаб при resize')).toHaveCount(0);
   await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveCount(0);
+  await inspector.getByText('Типографика', { exact:true }).click();
   await expect(inspector.getByLabel('Шрифт температуры')).toHaveValue('arial');
   await inspector.getByLabel('Размер температуры, %').fill('130');
   await inspector.getByLabel('Размер города, %').fill('115');
@@ -737,8 +738,20 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
 
   await expect(weatherNode).toHaveCSS('overflow', 'hidden');
   await expect(weatherNode.locator('.weather-widget-visual')).toHaveCSS('overflow', 'hidden');
-  const effectiveScale = Number(await weatherNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
+  const weatherMount = weatherNode.locator('[data-scene-weather-mount]');
+  const effectiveScale = Number(await weatherMount.getAttribute('data-scene-content-scale'));
   expect(effectiveScale).toBe(1);
-  await expect(weatherNode.locator('[data-scene-weather-mount]')).toHaveCSS('width', '250px');
-  await expect(weatherNode.locator('[data-scene-weather-mount]')).toHaveCSS('height', '150px');
+  const fillGeometry = await weatherNode.evaluate((node) => {
+    const outer = node.getBoundingClientRect();
+    const mount = node.querySelector('[data-scene-weather-mount]')?.getBoundingClientRect();
+    if (!mount) return null;
+    return {
+      widthDelta:Math.abs(outer.width - mount.width),
+      heightDelta:Math.abs(outer.height - mount.height),
+      leftDelta:Math.abs(outer.left - mount.left),
+      topDelta:Math.abs(outer.top - mount.top)
+    };
+  });
+  expect(fillGeometry).not.toBeNull();
+  for (const delta of Object.values(fillGeometry)) expect(delta).toBeLessThan(.1);
 });
