@@ -132,11 +132,14 @@ export class FlatMenuRenderer {
     const stage = layer.closest('.player-scene-stage');
     this.stage = stage instanceof HTMLElement ? stage : null;
 
-    // PlayerSceneRenderer is the canonical owner of logical viewport geometry.
-    // Never let the menu renderer overwrite its fixed 1920×1080 stage with a
-    // responsive 100%/auto layout; that was the root cause of the menu table
-    // expanding to the whole Scene Editor canvas after a menu-only rerender.
-    if (!this.stage?.dataset.sceneViewportWidth) fitStage(this.stage, width, height);
+    // Scene Editor and the real TV keep one fixed logical Player stage and
+    // scale the completed frame externally. Read-only card/settings previews
+    // keep their existing responsive host fitting because the host itself is
+    // the preview surface. This prevents menu-only renders from overwriting
+    // canonical Scene/TV geometry without changing compact preview semantics.
+    const canonicalStage = this.stage?.matches('[data-player-stage], .manager-fullscreen-stage, #scene-editor-stage')
+      || this.stage?.closest('.scene-editor-stage-shell');
+    if (!canonicalStage) fitStage(this.stage, width, height);
     return generation === this.generation && layer === this.layer;
   }
 }
