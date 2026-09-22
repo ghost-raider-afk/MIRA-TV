@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v29';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v30';
-const SHELL_CACHE = 'mira-tv-player-shell-v31';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v30';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v31';
+const SHELL_CACHE = 'mira-tv-player-shell-v32';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: canonical Scene geometry, glass table editor, stronger promotion visibility and enlarged weather typography. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: denser table editor rows and baseline-aligned high-visibility promotion badge typography. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
