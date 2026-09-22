@@ -164,6 +164,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(areaShare).toBeGreaterThan(.25);
   expect(areaShare).toBeLessThan(.55);
 
+  await page.locator('.scene-table-editor-close').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await page.locator('#scene-editor-add').click();
   const addMenu = page.locator('#scene-editor-add-menu');
   await expect(addMenu).toBeVisible();
