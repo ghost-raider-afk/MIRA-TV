@@ -250,7 +250,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.locator('summary[aria-label^="Погода:"]')).toBeVisible();
   await expect(inspector.getByLabel('Автомасштаб при resize')).toHaveCount(0);
   await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveCount(0);
-  await inspector.getByText('Типографика', { exact:true }).click();
+  await expect(inspector.locator('summary[aria-label^="Типографика:"]')).toBeVisible();
   await expect(inspector.getByLabel('Шрифт температуры')).toHaveValue('arial');
   await inspector.getByLabel('Размер температуры, %').fill('130');
   await inspector.getByLabel('Размер города, %').fill('115');
@@ -474,7 +474,11 @@ test('Glass table modal updates canonical Preview live and never changes table g
 
   const tableBox = page.locator('.scene-editor-table-selection-box');
   await expect(tableBox).toBeVisible();
-  const dragBox = await tableBox.boundingBox();
+  let dragBox = null;
+  await expect.poll(async () => {
+    dragBox = await tableBox.boundingBox();
+    return dragBox !== null;
+  }).toBe(true);
   expect(dragBox).not.toBeNull();
   await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
   await page.mouse.down();
