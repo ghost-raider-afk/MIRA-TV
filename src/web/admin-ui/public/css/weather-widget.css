@@ -626,7 +626,7 @@
   gap:clamp(2px,min(1.2cqw,1.4cqh),12px);width:100%;height:100%;min-width:0;min-height:0;animation:none
 }
 .weather-widget-layer[data-weather-embedded="true"] .weather-widget-location{
-  margin:0;min-width:0;font-size:clamp(9px,calc(min(3.5cqw,6.2cqh) * var(--weather-location-scale,1)),32px);
+  margin:0;min-width:0;font-size:clamp(9px,min(var(--weather-location-cqw,3.5cqw),var(--weather-location-cqh,6.2cqh)),32px);
   line-height:1.05;white-space:normal;overflow-wrap:anywhere
 }
 .weather-widget-layer[data-weather-embedded="true"] .weather-widget-main{
@@ -643,7 +643,7 @@
 .weather-widget-layer[data-weather-embedded="true"] .weather-widget-primary{gap:clamp(1px,.7cqh,5px);min-width:0}
 .weather-widget-layer[data-weather-embedded="true"] .weather-widget-temperature{
   font-family:var(--weather-temperature-font,Arial,sans-serif);
-  font-size:clamp(18px,calc(min(12cqw,20cqh) * var(--weather-temperature-scale,1)),112px);line-height:.9
+  font-size:clamp(18px,min(var(--weather-temperature-cqw,12cqw),var(--weather-temperature-cqh,20cqh)),112px);line-height:.9
 }
 .weather-widget-layer[data-weather-embedded="true"] .weather-widget-condition{font-size:clamp(9px,min(3.1cqw,5cqh),24px);line-height:1.05}
 .weather-widget-layer[data-weather-embedded="true"] .weather-widget-visual{width:100%;height:100%;min-width:0;min-height:34px}
