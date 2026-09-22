@@ -38,10 +38,10 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
   if (!line.promotion || !line.promotionText) return { markup: '', glow: '', width: 0 };
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const text = truncateText(line.promotionText, 12);
-  const width = Math.min(130 * fontScale, Math.max(68 * fontScale, ([...text].length * 9 + 24) * fontScale));
-  const height = 27 * fontScale;
-  const top = box.top + 4 * scale;
-  const notch = 9 * fontScale;
+  const width = Math.min(143 * fontScale, Math.max(75 * fontScale, ([...text].length * 9.8 + 26) * fontScale));
+  const height = 29.7 * fontScale;
+  const top = box.top + Math.max(2 * scale, (box.height - height) / 2);
+  const notch = 9.9 * fontScale;
   const shape = `M${x} ${top}H${x + width - notch}L${x + width} ${top + height / 2}L${x + width - notch} ${top + height}H${x}Z`;
   const clipId = `mira-promo-badge-clip-${Math.round(box.top * 10)}-${Math.round(x * 10)}`;
   const rowClipId = `mira-promo-row-clip-${Math.round(box.top * 10)}-${Math.round(horizontal.left * 10)}`;
@@ -61,8 +61,9 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
     </defs>
     <g class="promotion-badge-glow" data-promotion-badge-animation="${badgeAnimation}" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
     <g class="promotion-badge">
-      <path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/>
-      <text x="${x + (width - notch) / 2}" y="${top + 18.5 * fontScale}" class="promotion" ${textAttributes({ size: 12 * fontScale, weight: 800, fill: '#FFFFFF', letterSpacing: 0.2 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
+      <path d="${shape}" fill="url(#mira-promo-badge-depth)" filter="url(#mira-promo-badge-depth-shadow)"/>
+      <path d="${shape}" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="${Math.max(.7, .8 * fontScale)}"/>
+      <text x="${x + (width - notch) / 2}" y="${top + 20.3 * fontScale}" class="promotion" ${textAttributes({ size: 14 * fontScale, weight: 850, fill: '#FFFFFF', letterSpacing: 0.25 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
     </g>
     <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
       <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${shineTravel}" opacity="0">
@@ -143,7 +144,9 @@ export function buildTableSvg(model, lines, layout = buildRenderLayout(model, li
   return `<svg xmlns="http://www.w3.org/2000/svg" class="menu-table-svg" width="${model.viewport.width}" height="${model.viewport.height}" viewBox="0 0 ${model.viewport.width} ${model.viewport.height}" preserveAspectRatio="xMinYMin meet" aria-label="Предпросмотр таблицы меню" font-family="${escapeXml(typography.family)}">
     <defs>
       <linearGradient id="mira-row-motion-surface" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0"/><stop offset="0.26" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.18"/><stop offset="0.5" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.30"/><stop offset="0.74" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0.18"/><stop offset="1" stop-color="var(--mira-menu-accent,#F4C915)" stop-opacity="0"/></linearGradient>
-      <linearGradient id="mira-promo-row-glow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff384f" stop-opacity="0.10"/><stop offset="0.16" stop-color="#ff3048" stop-opacity="0.30"/><stop offset="0.5" stop-color="#ff5267" stop-opacity="0.48"/><stop offset="0.84" stop-color="#ff3048" stop-opacity="0.30"/><stop offset="1" stop-color="#ff384f" stop-opacity="0.10"/></linearGradient>
+      <linearGradient id="mira-promo-row-glow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff2442" stop-opacity="0.16"/><stop offset="0.16" stop-color="#ff3048" stop-opacity="0.42"/><stop offset="0.5" stop-color="#ff5c70" stop-opacity="0.72"/><stop offset="0.84" stop-color="#ff3048" stop-opacity="0.42"/><stop offset="1" stop-color="#ff2442" stop-opacity="0.16"/></linearGradient>
+      <linearGradient id="mira-promo-badge-depth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5966"/><stop offset="0.42" stop-color="${MENU_TABLE_STYLE.promotion}"/><stop offset="1" stop-color="#a91422"/></linearGradient>
+      <filter id="mira-promo-badge-depth-shadow" x="-18%" y="-35%" width="136%" height="180%"><feDropShadow dx="0" dy="${Math.max(1.2, 1.8 * scale)}" stdDeviation="${Math.max(1.2, 2.2 * scale)}" flood-color="#5b0710" flood-opacity=".62"/></filter>
       <linearGradient id="mira-promo-badge-shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.22" stop-color="#fff" stop-opacity="0.05"/><stop offset="0.46" stop-color="#fff" stop-opacity="0.34"/><stop offset="0.54" stop-color="#fff" stop-opacity="0.82"/><stop offset="0.66" stop-color="#fff" stop-opacity="0.20"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <radialGradient id="mira-promo-badge-sparkle"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.24" stop-color="#fffbe8" stop-opacity=".96"/><stop offset="0.56" stop-color="#fff6bd" stop-opacity=".46"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
       <filter id="mira-promo-row-softness" x="-8%" y="-80%" width="116%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
