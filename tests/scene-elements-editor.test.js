@@ -27,9 +27,13 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   for (const label of ['Текстовое поле','Погода','Картинка','Видео','Логотип']) assert.ok(elements.includes(label));
   for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение','Автомасштаб при resize','Масштаб внутри, %']) assert.ok(elements.includes(photoshopControl));
   assert.match(sceneHtml, /scene-editor-background-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
+  assert.match(sceneHtml, /scene-editor-promotion-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
+  assert.match(sceneHtml, /scene-editor-promotion-row-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
   assert.match(sceneHtml, /scene-editor-animation-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
   assert.match(sceneHtml, /scene-editor-table-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.ok(sceneHtml.indexOf('scene-editor-background-layer') < sceneHtml.indexOf('scene-editor-animation-layer'));
+  assert.ok(sceneHtml.indexOf('scene-editor-background-layer') < sceneHtml.indexOf('scene-editor-promotion-layer'));
+  assert.ok(sceneHtml.indexOf('scene-editor-promotion-layer') < sceneHtml.indexOf('scene-editor-promotion-row-layer'));
+  assert.ok(sceneHtml.indexOf('scene-editor-promotion-row-layer') < sceneHtml.indexOf('scene-editor-animation-layer'));
   assert.ok(sceneHtml.indexOf('scene-editor-animation-layer') < sceneHtml.indexOf('scene-editor-table-layer'));
   assert.match(css, /scene-editor-system-layer\{[^}]*min-height:25px/);
   assert.match(css, /scene-editor-system-icon svg/);
@@ -48,6 +52,8 @@ test('dedicated Scene editor is the only admin owner of generic scene elements',
   assert.doesNotMatch(css, /--scene-preview-width|--scene-preview-height|--scene-preview-scale/);
   assert.match(scenePage, /const previewScale = Math\.max\(\.01, Math\.min\(widthLimit \/ resolution\.width, heightLimit \/ resolution\.height\)\)/);
   assert.match(scenePage, /renderSceneElementInspector/);
+  assert.match(scenePage, /renderPromotionInspector/);
+  assert.match(scenePage, /renderPromotionRowInspector/);
   assert.match(scenePage, /renderAnimationInspector/);
   assert.match(scenePage, /bindMotionProfileControls/);
   assert.match(scenePage, /PROMOTION_ROW_ANIMATION_OPTIONS/);

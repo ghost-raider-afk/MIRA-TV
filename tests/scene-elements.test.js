@@ -78,7 +78,7 @@ test('weather scene element owns location and presentation settings', () => {
   const scene = sceneInput({
     elements: [{
       id: 'weather-1', type: 'weather', width: 520, height: 360,
-      weather: { location_name: 'Хельсинки', latitude: 60.1699, longitude: 24.9384, timezone: 'Europe/Helsinki', refresh_minutes: 10, show_forecast: true, forecast_items: 4, animation_speed: 1.25 }
+      weather: { location_name: 'Хельсинки', latitude: 60.1699, longitude: 24.9384, timezone: 'Europe/Helsinki', refresh_minutes: 10, show_forecast: true, forecast_items: 4, temperature_font_family:'tahoma-bold', temperature_size_percent:132, location_size_percent:118, animation_speed: 1.25 }
     }]
   });
   const weather = scene.elements[0].weather;
@@ -87,6 +87,9 @@ test('weather scene element owns location and presentation settings', () => {
   assert.equal(weather.longitude, 24.9384);
   assert.equal(weather.timezone, 'Europe/Helsinki');
   assert.equal(weather.forecast_items, 4);
+  assert.equal(weather.temperature_font_family, 'tahoma-bold');
+  assert.equal(weather.temperature_size_percent, 132);
+  assert.equal(weather.location_size_percent, 118);
   assert.equal(weather.animation_speed, 1.25);
 });
 

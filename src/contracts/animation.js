@@ -56,6 +56,10 @@ export function animationProfileInput(source) {
     promotion_glow_radius: numberValue(profile.promotion_glow_radius, 'Свечение акции', { min: 0, max: 48 }),
     promotion_shine_speed: numberValue(profile.promotion_shine_speed, 'Скорость блика', { min: 0.5, max: 3 }),
     promotion_shine_frequency_per_minute: numberValue(profile.promotion_shine_frequency_per_minute, 'Частота блика', { min: 2, max: 20 }),
+    promotion_row_intensity: numberValue(profile.promotion_row_intensity, 'Интенсивность акционной строки', { min: 0, max: 100, integer: true }),
+    promotion_row_cycle_seconds: numberValue(profile.promotion_row_cycle_seconds, 'Период акционной строки', { min: 2, max: 30 }),
+    promotion_row_event_duration_ms: numberValue(profile.promotion_row_event_duration_ms, 'Длительность акционной строки', { min: 300, max: 6000, integer: true }),
+    promotion_row_glow_radius: numberValue(profile.promotion_row_glow_radius, 'Свечение акционной строки', { min: 0, max: 48 }),
     promotion_easing: enumValue(profile.promotion_easing, 'Пластика акции', ANIMATION_EASINGS)
   };
 }

@@ -348,8 +348,10 @@ function selectedRowActions(editorState, row, options) {
 
 export const PROMOTION_ROW_ANIMATION_OPTIONS = Object.freeze([
   Object.freeze(['wave', 'Мягкая волна']),
+  Object.freeze(['gloss', 'Gloss-перелив']),
   Object.freeze(['fill', 'Заполнение']),
-  Object.freeze(['gloss', 'Gloss-перелив'])
+  Object.freeze(['pulse', 'Пульсирующее свечение']),
+  Object.freeze(['runner', 'Бегущий акцент'])
 ]);
 
 export const PROMOTION_BADGE_ANIMATION_OPTIONS = Object.freeze([
@@ -440,42 +442,7 @@ function promotionControls(editorState, row, options) {
     options.onVisualChange?.();
   });
 
-  const animationGrid = document.createElement('div');
-  animationGrid.className = 'editor-preview-promotion-motion-grid';
-
-  const rowAnimation = promotionPresetControl({
-    labelText:'Эффект строки',
-    ariaLabel:'Эффект строки',
-    value:row.promotion_animation || 'wave',
-    disabled:!checkbox.checked,
-    choices:PROMOTION_ROW_ANIMATION_OPTIONS,
-    onChange:(value) => {
-      options.onBeforeMutate?.();
-      updateRow(editorState, row.id, { promotion_animation:value });
-      options.onVisualChange?.();
-    }
-  });
-
-  const badgeAnimation = promotionPresetControl({
-    labelText:'Эффект плашки',
-    ariaLabel:'Эффект плашки',
-    value:row.promotion_badge_animation || 'shine',
-    disabled:!checkbox.checked,
-    choices:PROMOTION_BADGE_ANIMATION_OPTIONS,
-    onChange:(value) => {
-      options.onBeforeMutate?.();
-      updateRow(editorState, row.id, { promotion_badge_animation:value });
-      options.onVisualChange?.();
-    }
-  });
-
-  checkbox.addEventListener('change', () => {
-    rowAnimation.setDisabled(!checkbox.checked);
-    badgeAnimation.setDisabled(!checkbox.checked);
-  });
-
-  animationGrid.append(rowAnimation.field, badgeAnimation.field);
-  shell.append(toggle, text, animationGrid);
+  shell.append(toggle, text);
   return shell;
 }
 

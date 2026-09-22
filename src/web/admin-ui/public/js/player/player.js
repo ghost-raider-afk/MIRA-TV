@@ -6,7 +6,7 @@ import { createPlayerMetricsCollector } from './player-metrics.js';
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.13.16';
+const PLAYER_BUILD_VERSION = '1.13.17';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
@@ -111,6 +111,54 @@ function rememberDeviceKey(key) {
   const value = String(key || '').trim();
   if (!/^[a-zA-Z0-9_-]{16,128}$/.test(value)) return;
   try { localStorage.setItem(DEVICE_KEY_STORAGE_KEY, value); } catch {}
+}
+
+function cleanDeviceLabel(value, max) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
+}
+
+function modelFromUserAgent(userAgent) {
+  const ua = String(userAgent || '');
+  const android = /Android\s+[^;()]+;\s*([^;()]+?)(?:\s+Build\/|;|\))/i.exec(ua)?.[1]?.trim() || '';
+  if (android && !/^(?:android|linux|wv|mobile|k)$/i.test(android)) return cleanDeviceLabel(android, 120);
+  const explicit = /\b(MIBOX[A-Z0-9_-]*|MiTV[A-Z0-9_-]*|BRAVIA[A-Z0-9_-]*|AFT[A-Z0-9_-]+|SHIELD(?:\s+Android\s+TV)?|SM-[A-Z0-9_-]+|ADT-[A-Z0-9_-]+)\b/i.exec(ua)?.[1];
+  return cleanDeviceLabel(explicit, 120);
+}
+
+function manufacturerFromDevice(model, userAgent, platform) {
+  const source = `${model} ${userAgent} ${platform}`;
+  const vendors = [
+    ['Samsung', /\b(?:samsung|sm-[a-z0-9])/i],
+    ['LG', /\b(?:lgtv|lge|webos|oled\d)/i],
+    ['Sony', /\b(?:sony|bravia)/i],
+    ['Xiaomi', /\b(?:xiaomi|redmi|mibox|mitv)/i],
+    ['TCL', /\btcl\b/i],
+    ['Hisense', /\bhisense\b/i],
+    ['Philips', /\bphilips\b/i],
+    ['NVIDIA', /\bshield\b/i],
+    ['Amazon', /\baft[a-z0-9_-]+\b/i],
+    ['Google', /\b(?:chromecast|adt-[a-z0-9_-]+)\b/i],
+    ['Panasonic', /\bpanasonic\b/i]
+  ];
+  return vendors.find(([, pattern]) => pattern.test(source))?.[0] || '';
+}
+
+async function detectDeviceInfo() {
+  const userAgent = navigator.userAgent || '';
+  let model = '';
+  let platform = navigator.platform || '';
+  try {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+      const values = await navigator.userAgentData.getHighEntropyValues(['model', 'platform']);
+      model = cleanDeviceLabel(values?.model, 120);
+      platform = cleanDeviceLabel(values?.platform || platform, 80);
+    }
+  } catch {}
+  if (!model) model = modelFromUserAgent(userAgent);
+  return {
+    manufacturer: manufacturerFromDevice(model, userAgent, platform),
+    model
+  };
 }
 
 function formatReserveCode(value) {
@@ -319,10 +367,11 @@ async function createActivation({ automatic = false } = {}) {
   activationStatus.textContent = automatic ? 'Обновляем код подключения…' : 'Создаём код подключения…';
   try {
     await enterImmersiveMode();
+    const deviceInfo = await detectDeviceInfo();
     const response = await fetch('/api/device/activations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ device_key: currentDeviceKey() || undefined }),
+      body: JSON.stringify({ device_key: currentDeviceKey() || undefined, device_info: deviceInfo }),
       cache: 'no-store'
     });
     if (!response.ok) throw await activationRequestError(response);
@@ -449,10 +498,14 @@ function playerUnauthorized() {
 }
 
 async function fetchDeviceSession(timeoutMs = 3500) {
+  const deviceInfo = await detectDeviceInfo();
+  const headers = {};
+  if (deviceInfo.manufacturer) headers['x-mira-device-manufacturer'] = deviceInfo.manufacturer;
+  if (deviceInfo.model) headers['x-mira-device-model'] = deviceInfo.model;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch('/api/device/session', { cache: 'no-store', signal: controller.signal });
+    const response = await fetch('/api/device/session', { cache: 'no-store', signal: controller.signal, headers });
     if (response.status === 401 || response.status === 403) return { unauthorized: true };
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return { session: await response.json().catch(() => null) };

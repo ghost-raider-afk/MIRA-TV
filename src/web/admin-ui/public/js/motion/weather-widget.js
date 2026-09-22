@@ -9,6 +9,15 @@ const LEGACY_POSITION = Object.freeze({
 export const WEATHER_SCENE_WIDTH = 1920;
 export const WEATHER_SCENE_HEIGHT = 1080;
 
+const WEATHER_FONTS = Object.freeze({
+  'arial-narrow': "'Arial Narrow', 'Liberation Sans Narrow', Arial, sans-serif",
+  'tahoma-bold': "Tahoma, Arial, sans-serif",
+  arial: "Arial, 'Liberation Sans', sans-serif",
+  'dejavu-condensed': "'DejaVu Sans Condensed', 'DejaVu Sans', sans-serif",
+  'liberation-narrow': "'Liberation Sans Narrow', 'Arial Narrow', Arial, sans-serif",
+  'system-sans': "'MIRA Sans', Arial, sans-serif"
+});
+
 const MOTION_DURATIONS = Object.freeze({
   rain: 1.18,
   rainShort: 0.92,
@@ -84,7 +93,10 @@ export function normaliseWeatherWidget(source = {}) {
     show_humidity: value.show_humidity !== false,
     show_wind: value.show_wind !== false,
     show_forecast: value.show_forecast !== false,
-    forecast_items: Math.round(clamp(value.forecast_items, 1, 6, 3))
+    forecast_items: Math.round(clamp(value.forecast_items, 1, 6, 3)),
+    temperature_font_family: WEATHER_FONTS[value.temperature_font_family] ? value.temperature_font_family : 'arial',
+    temperature_size_percent: Math.round(clamp(value.temperature_size_percent, 60, 180, 100)),
+    location_size_percent: Math.round(clamp(value.location_size_percent, 60, 180, 100))
   };
 }
 
@@ -211,6 +223,13 @@ function createContent(config, data, state) {
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
+  const temperatureScale = config.temperature_size_percent / 100;
+  const locationScale = config.location_size_percent / 100;
+  card.style.setProperty('--weather-temperature-cqw', `${12 * temperatureScale}cqw`);
+  card.style.setProperty('--weather-temperature-cqh', `${20 * temperatureScale}cqh`);
+  card.style.setProperty('--weather-location-cqw', `${3.5 * locationScale}cqw`);
+  card.style.setProperty('--weather-location-cqh', `${6.2 * locationScale}cqh`);
+  card.style.setProperty('--weather-temperature-font', WEATHER_FONTS[config.temperature_font_family] || WEATHER_FONTS.arial);
   if (config.embedded) {
     card.dataset.weatherEmbedded = 'true';
     card.style.left = '0';

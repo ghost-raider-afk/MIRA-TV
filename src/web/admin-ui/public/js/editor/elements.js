@@ -74,6 +74,9 @@ function defaultWeather() {
     show_wind: true,
     show_forecast: true,
     forecast_items: 3,
+    temperature_font_family: 'arial',
+    temperature_size_percent: 100,
+    location_size_percent: 100,
     animation_enabled: true,
     animation_speed: 1,
     animation_intensity: 1,
@@ -265,22 +268,24 @@ function commonSettings(state, element, options) {
   bind(opacity, 'input', () => patch(state, element.id, { opacity: numberValue(opacity, 1) }), options);
   block.append(label('Прозрачность элемента', opacity));
 
-  const contentGrid = document.createElement('div');
-  contentGrid.className = 'compact-form-grid scene-editor-content-scale-grid';
+  if (element.type === 'text') {
+    const contentGrid = document.createElement('div');
+    contentGrid.className = 'compact-form-grid scene-editor-content-scale-grid';
 
-  const autoScale = check(element.content_auto_scale !== false);
-  bind(autoScale, 'change', () => patch(state, element.id, { content_auto_scale: autoScale.checked }), options);
+    const autoScale = check(element.content_auto_scale !== false);
+    bind(autoScale, 'change', () => patch(state, element.id, { content_auto_scale: autoScale.checked }), options);
 
-  const contentScale = input('number', element.content_scale_percent ?? 100, { min: 10, max: 300, step: 1 });
-  bind(contentScale, 'input', () => patch(state, element.id, {
-    content_scale_percent: numberValue(contentScale, 100)
-  }), options);
+    const contentScale = input('number', element.content_scale_percent ?? 100, { min: 10, max: 300, step: 1 });
+    bind(contentScale, 'input', () => patch(state, element.id, {
+      content_scale_percent: numberValue(contentScale, 100)
+    }), options);
 
-  contentGrid.append(
-    label('Автомасштаб при resize', autoScale, 'editor-element-check'),
-    label('Масштаб внутри, %', contentScale)
-  );
-  block.append(contentGrid);
+    contentGrid.append(
+      label('Автомасштаб при resize', autoScale, 'editor-element-check'),
+      label('Масштаб внутри, %', contentScale)
+    );
+    block.append(contentGrid);
+  }
   return block;
 }
 
@@ -578,6 +583,27 @@ function weatherSettings(state, element, options) {
   }
   visibility.append(visibilityGrid);
 
+  const typography = section('Типографика', 'Размеры автоматически подстраиваются под окно погоды');
+  const typographyGrid = document.createElement('div');
+  typographyGrid.className = 'compact-form-grid';
+  const temperatureFont = select(weather.temperature_font_family || 'arial', FONTS);
+  bind(temperatureFont, 'change', () => mutateWeather(state, element.id, (next) => {
+    next.temperature_font_family = temperatureFont.value;
+  }), options);
+  typographyGrid.append(label('Шрифт температуры', temperatureFont));
+
+  for (const [caption, key, fallback] of [
+    ['Размер температуры, %', 'temperature_size_percent', 100],
+    ['Размер города, %', 'location_size_percent', 100]
+  ]) {
+    const control = input('number', weather[key] ?? fallback, { min: 60, max: 180, step: 1 });
+    bind(control, 'input', () => mutateWeather(state, element.id, (next) => {
+      next[key] = numberValue(control, fallback);
+    }), options);
+    typographyGrid.append(label(caption, control));
+  }
+  typography.append(typographyGrid);
+
   const animation = section('Анимация');
   const animationGrid = document.createElement('div');
   animationGrid.className = 'compact-form-grid';
@@ -593,7 +619,7 @@ function weatherSettings(state, element, options) {
   }
   animation.append(animationGrid);
 
-  return [source, visibility, animation];
+  return [source, visibility, typography, animation];
 }
 
 function mediaSettings(state, element, options) {
@@ -870,7 +896,8 @@ function inspectorGroups(element, sections) {
     return [
       ['Трансформация', sections.slice(0, 1), true],
       ['Погода', sections.slice(1, 3), true],
-      ['Анимация', sections.slice(3), false]
+      ['Типографика', sections.slice(3, 4), true],
+      ['Анимация', sections.slice(4), false]
     ];
   }
   return [

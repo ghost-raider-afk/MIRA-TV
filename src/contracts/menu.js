@@ -17,7 +17,7 @@
  * @property {string} price_secondary
  * @property {boolean} promotion
  * @property {string} promotion_text
- * @property {'wave'|'fill'|'gloss'} promotion_animation
+ * @property {'wave'|'gloss'|'fill'|'pulse'|'runner'} promotion_animation
  * @property {'shine'|'breathe'} promotion_badge_animation
  * @property {boolean} enabled
  *

@@ -87,6 +87,8 @@ function metaRows(screen, binding) {
   return [
     ['Статус', status.title, status.key],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', ''],
+    ['Производитель', binding?.manufacturer || 'Не определено', ''],
+    ['Модель', binding?.model || 'Не определена', ''],
     ['IP-адрес', binding?.remote_address || '—', ''],
     ['Ping', pingText(screen.id, binding), '']
   ];

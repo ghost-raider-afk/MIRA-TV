@@ -37,7 +37,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v32'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v33'/);
   assert.match(player, /createPlayerStateSync/);
   assert.match(player, /restoreLastKnownGood\(\)/);
   assert.match(player, /syncNow\('boot'\)/);
@@ -178,6 +178,10 @@ test('TV identity is persistent and monitor binding is a first-class one-to-one 
   assert.match(player, /DEVICE_KEY_STORAGE_KEY/);
   assert.match(player, /device_key: currentDeviceKey\(\) \|\| undefined/);
   assert.match(player, /rememberDeviceKey/);
+  assert.match(player, /detectDeviceInfo/);
+  assert.match(routes, /deviceDescriptor/);
+  assert.match(repository, /manufacturer/);
+  assert.match(repository, /model/);
 });
 
 test('admin connection flow is mobile-first and diagnoses iOS camera/decoder failures', async () => {

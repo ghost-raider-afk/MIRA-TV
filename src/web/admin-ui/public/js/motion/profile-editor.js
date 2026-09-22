@@ -21,6 +21,10 @@ const PROFILE_FIELDS = Object.freeze({
   promotion_glow_radius: ['animation-promotion-glow', 'number'],
   promotion_shine_speed: ['animation-promotion-shine-speed', 'number'],
   promotion_shine_frequency_per_minute: ['animation-promotion-shine-frequency', 'number'],
+  promotion_row_intensity: ['animation-promotion-row-intensity', 'number'],
+  promotion_row_cycle_seconds: ['animation-promotion-row-cycle', 'number'],
+  promotion_row_event_duration_ms: ['animation-promotion-row-duration', 'number'],
+  promotion_row_glow_radius: ['animation-promotion-row-glow', 'number'],
   promotion_travel_px: ['animation-promotion-travel', 'number'],
   promotion_scale_amount: ['animation-promotion-scale', 'number'],
   promotion_cycle_seconds: ['animation-promotion-cycle', 'number'],
@@ -54,6 +58,10 @@ export const DEFAULT_LIVE_PROFILE = Object.freeze({
   promotion_glow_radius: 28,
   promotion_shine_speed: 1,
   promotion_shine_frequency_per_minute: 8,
+  promotion_row_intensity: 96,
+  promotion_row_cycle_seconds: 4.8,
+  promotion_row_event_duration_ms: 1800,
+  promotion_row_glow_radius: 28,
   promotion_easing: 'smooth'
 });
 
@@ -70,6 +78,10 @@ const OUTPUTS = Object.freeze({
   'animation-promotion-glow-output': () => `${Math.round(numberValue('animation-promotion-glow'))} px`,
   'animation-promotion-shine-speed-output': () => `${numberValue('animation-promotion-shine-speed').toFixed(1)}×`,
   'animation-promotion-shine-frequency-output': () => `${Math.round(numberValue('animation-promotion-shine-frequency'))}/мин`,
+  'animation-promotion-row-intensity-output': () => `${Math.round(numberValue('animation-promotion-row-intensity'))}%`,
+  'animation-promotion-row-cycle-output': () => `${numberValue('animation-promotion-row-cycle').toFixed(1)} с`,
+  'animation-promotion-row-duration-output': () => `${Math.round(numberValue('animation-promotion-row-duration'))} мс`,
+  'animation-promotion-row-glow-output': () => `${Math.round(numberValue('animation-promotion-row-glow'))} px`,
   'animation-promotion-cycle-output': () => `${numberValue('animation-promotion-cycle').toFixed(1)} с`,
   'animation-promotion-duration-output': () => `${Math.round(numberValue('animation-promotion-duration'))} мс`
 });
@@ -86,6 +98,10 @@ function canonicalStudioProfile(source = {}) {
   profile.promotion_scale_amount = clamp(profile.promotion_scale_amount, 0.03, 0.08);
   profile.promotion_shine_speed = clamp(profile.promotion_shine_speed, 0.5, 3);
   profile.promotion_shine_frequency_per_minute = clamp(profile.promotion_shine_frequency_per_minute, 2, 20);
+  profile.promotion_row_intensity = clamp(profile.promotion_row_intensity, 0, 100);
+  profile.promotion_row_cycle_seconds = clamp(profile.promotion_row_cycle_seconds, 2, 30);
+  profile.promotion_row_event_duration_ms = clamp(profile.promotion_row_event_duration_ms, 300, 6000);
+  profile.promotion_row_glow_radius = clamp(profile.promotion_row_glow_radius, 0, 48);
   profile.promotion_travel_px = 0;
   return profile;
 }
@@ -97,8 +113,8 @@ function updateOutputs() {
   }
 }
 
-export function readMotionProfile() {
-  const profile = { motion_version: 3 };
+export function readMotionProfile(source = {}) {
+  const profile = canonicalStudioProfile(source);
   for (const [key, [id, type]] of Object.entries(PROFILE_FIELDS)) {
     const control = node(id);
     if (!control) continue;
@@ -119,14 +135,14 @@ export function writeMotionProfile(source = {}) {
   updateOutputs();
 }
 
-export function bindMotionProfileControls(onChange) {
+export function bindMotionProfileControls(onChange, source = {}) {
   const listener = typeof onChange === 'function' ? onChange : () => {};
   const ids = [...new Set(Object.values(PROFILE_FIELDS).map(([id]) => id))];
   ids.forEach((id) => {
     const control = node(id);
     if (!control) return;
     const eventName = control instanceof HTMLSelectElement || (control instanceof HTMLInputElement && control.type === 'checkbox') ? 'change' : 'input';
-    control.addEventListener(eventName, () => { updateOutputs(); listener(readMotionProfile()); });
+    control.addEventListener(eventName, () => { updateOutputs(); listener(readMotionProfile(source)); });
   });
   updateOutputs();
 }

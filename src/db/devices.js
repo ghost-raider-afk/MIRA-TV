@@ -44,23 +44,25 @@ function sessionRecord(row) {
 }
 
 export function createDevicesRepository(pool) {
-  async function getOrCreateDevice({ deviceKey, label = '', userAgent = '', remoteAddress = '', authorizedBy = '' }) {
+  async function getOrCreateDevice({ deviceKey, label = '', userAgent = '', remoteAddress = '', manufacturer = '', model = '', authorizedBy = '' }) {
     const key = String(deviceKey || '').trim();
     if (!key) throw new TypeError('TV binding requires a persistent device key.');
     const now = isoNow();
     const { rows } = await pool.query(
       `INSERT INTO tv_devices
-        (device_key, label, user_agent, remote_address, authorized_by, active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, TRUE, $6, $6)
+        (device_key, label, user_agent, remote_address, manufacturer, model, authorized_by, active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8, $8)
        ON CONFLICT (device_key) DO UPDATE SET
          label = EXCLUDED.label,
          user_agent = EXCLUDED.user_agent,
          remote_address = EXCLUDED.remote_address,
+         manufacturer = CASE WHEN EXCLUDED.manufacturer <> '' THEN EXCLUDED.manufacturer ELSE tv_devices.manufacturer END,
+         model = CASE WHEN EXCLUDED.model <> '' THEN EXCLUDED.model ELSE tv_devices.model END,
          authorized_by = EXCLUDED.authorized_by,
          active = TRUE,
          updated_at = EXCLUDED.updated_at
        RETURNING *`,
-      [key, label, userAgent, remoteAddress, authorizedBy, now]
+      [key, label, userAgent, remoteAddress, manufacturer, model, authorizedBy, now]
     );
     return deviceRecord(rows[0]);
   }
@@ -120,8 +122,8 @@ export function createDevicesRepository(pool) {
     return binding;
   }
 
-  async function bindDevice({ deviceKey, screenId, label = '', userAgent = '', remoteAddress = '', authorizedBy = '' }) {
-    const device = await getOrCreateDevice({ deviceKey, label, userAgent, remoteAddress, authorizedBy });
+  async function bindDevice({ deviceKey, screenId, label = '', userAgent = '', remoteAddress = '', manufacturer = '', model = '', authorizedBy = '' }) {
+    const device = await getOrCreateDevice({ deviceKey, label, userAgent, remoteAddress, manufacturer, model, authorizedBy });
     const now = isoNow();
 
     await pool.query(
@@ -160,15 +162,17 @@ export function createDevicesRepository(pool) {
       reserveCodeHash,
       expiresAt,
       userAgent = '',
-      remoteAddress = ''
+      remoteAddress = '',
+      manufacturer = '',
+      model = ''
     }) {
       const now = isoNow();
       const { rows } = await pool.query(
         `INSERT INTO tv_device_activations
-          (id, device_key, scan_token_hash, poll_secret_hash, reserve_code_hash, status, user_agent, remote_address, expires_at, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $9)
+          (id, device_key, scan_token_hash, poll_secret_hash, reserve_code_hash, status, user_agent, remote_address, manufacturer, model, expires_at, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $11)
          RETURNING *`,
-        [id, deviceKey, scanTokenHash, pollSecretHash, reserveCodeHash, userAgent, remoteAddress, expiresAt, now]
+        [id, deviceKey, scanTokenHash, pollSecretHash, reserveCodeHash, userAgent, remoteAddress, manufacturer, model, expiresAt, now]
       );
       return activationRecord(rows[0]);
     },
@@ -244,8 +248,28 @@ export function createDevicesRepository(pool) {
     getActiveDeviceBindingByKey: activeBindingByKey,
     bindDevice,
 
-    async createDevice({ deviceKey = crypto.randomUUID(), screenId, label = '', userAgent = '', remoteAddress = '', authorizedBy = '' }) {
-      return bindDevice({ deviceKey, screenId, label, userAgent, remoteAddress, authorizedBy });
+    async createDevice({ deviceKey = crypto.randomUUID(), screenId, label = '', userAgent = '', remoteAddress = '', manufacturer = '', model = '', authorizedBy = '' }) {
+      return bindDevice({ deviceKey, screenId, label, userAgent, remoteAddress, manufacturer, model, authorizedBy });
+    },
+
+    async updateDeviceIdentification(deviceId, { manufacturer = '', model = '', userAgent = '' } = {}) {
+      const id = Number(deviceId);
+      if (!Number.isSafeInteger(id) || id < 1) return null;
+      const maker = String(manufacturer || '').trim().slice(0, 80);
+      const deviceModel = String(model || '').trim().slice(0, 120);
+      const agent = String(userAgent || '').trim().slice(0, 512);
+      const now = isoNow();
+      const { rows } = await pool.query(
+        `UPDATE tv_devices
+            SET manufacturer = CASE WHEN $2 <> '' THEN $2 ELSE manufacturer END,
+                model = CASE WHEN $3 <> '' THEN $3 ELSE model END,
+                user_agent = CASE WHEN $4 <> '' THEN $4 ELSE user_agent END,
+                updated_at = $5
+          WHERE id = $1 AND active = TRUE
+          RETURNING *`,
+        [id, maker, deviceModel, agent, now]
+      );
+      return deviceRecord(rows[0]);
     },
 
     async deactivateDevicesForScreen(screenId) {
@@ -309,7 +333,7 @@ export function createDevicesRepository(pool) {
     async listDeviceBindings() {
       const { rows } = await pool.query(
         `SELECT b.id AS binding_id, b.device_id, b.screen_id, b.bound_by, b.bound_at,
-                d.device_key, d.label, d.user_agent, d.remote_address, d.last_seen_at AS device_last_seen_at,
+                d.device_key, d.label, d.user_agent, d.remote_address, d.manufacturer, d.model, d.last_seen_at AS device_last_seen_at,
                 s.name AS screen_name, s.location_number, l.id AS location_id, l.name AS location_name,
                 sessions.session_last_seen_at, sessions.session_expires_at
            FROM tv_device_bindings b

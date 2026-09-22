@@ -10,7 +10,9 @@ const PROFILE = {
   promotion_effect: 'cinematic', promotion_intensity: 96, promotion_cycle_seconds: 4.8,
   promotion_event_duration_ms: 1800, promotion_travel_px: 0, promotion_scale_amount: 0.06,
   promotion_brightness_amount: 0.35, promotion_glow_radius: 28,
-  promotion_shine_speed: 1.4, promotion_shine_frequency_per_minute: 12, promotion_easing: 'smooth'
+  promotion_shine_speed: 3, promotion_shine_frequency_per_minute: 20,
+  promotion_row_intensity: 96, promotion_row_cycle_seconds: 2, promotion_row_event_duration_ms: 650, promotion_row_glow_radius: 28,
+  promotion_easing: 'smooth'
 };
 
 function playerContext() {
@@ -134,6 +136,31 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     expect(await badgeGlow.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await badgeShine.evaluate((node) => node.getAnimations().length)).toBe(0);
     expect(await badgeSparkle.evaluate((node) => node.getAnimations().length)).toBe(0);
+    const cycles = await page.evaluate(async () => {
+      const shine = document.querySelector('[data-player-menu-layer] g.promotion-badge-shine');
+      const rowGlow = document.querySelector('[data-player-menu-layer] g.promotion-row-glow');
+      const samples = [];
+      for (let index = 0; index < 66; index += 1) {
+        samples.push({
+          shine:Number.parseFloat(getComputedStyle(shine).opacity) || 0,
+          row:Number.parseFloat(getComputedStyle(rowGlow).opacity) || 0
+        });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const bursts = (key) => {
+        let count = 0;
+        let active = false;
+        for (const sample of samples) {
+          const next = sample[key] > 0.02;
+          if (next && !active) count += 1;
+          active = next;
+        }
+        return count;
+      };
+      return { shine:bursts('shine'), row:bursts('row') };
+    });
+    expect(cycles.shine).toBeGreaterThanOrEqual(2);
+    expect(cycles.row).toBeGreaterThanOrEqual(2);
     await expect(page.locator('[data-player-stage]')).toHaveAttribute('data-motion-mode', 'wasm-continuous');
   } finally {
     await context.close();

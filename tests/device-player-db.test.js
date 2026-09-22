@@ -5,6 +5,7 @@ import { newDb } from 'pg-mem';
 import { initialiseSchema } from '../src/db/migrations/schema.js';
 import { migrateDevicePlayer } from '../src/db/migrations/device-player.js';
 import { migrateDeviceBindings } from '../src/db/migrations/device-bindings.js';
+import { migrateDeviceIdentification } from '../src/db/migrations/device-identification.js';
 import { createDevicesRepository } from '../src/db/devices.js';
 
 const memoryDb = newDb({ autoCreateForeignKeyIndices: true });
@@ -31,6 +32,7 @@ test.before(async () => {
   await initialiseSchema(pool);
   await migrateDevicePlayer(pool);
   await migrateDeviceBindings(pool);
+  await migrateDeviceIdentification(pool);
 });
 
 test.after(async () => {
@@ -55,11 +57,15 @@ test('TV activation carries persistent identity through a first-class monitor bi
     reserveCodeHash: codeHash,
     expiresAt,
     userAgent: 'test-tv',
-    remoteAddress: '127.0.0.1'
+    remoteAddress: '127.0.0.1',
+    manufacturer: 'Xiaomi',
+    model: 'MIBOX4'
   });
 
   const byQr = await repository.getDeviceActivationByScanTokenHash(scanHash);
   assert.equal(byQr.device_key, deviceKey);
+  assert.equal(byQr.manufacturer, 'Xiaomi');
+  assert.equal(byQr.model, 'MIBOX4');
   const approved = await repository.approveDeviceActivation(activationId, screenId, 'admin');
   assert.equal(approved.approved_screen_id, screenId);
 
@@ -69,6 +75,8 @@ test('TV activation carries persistent identity through a first-class monitor bi
     label: 'ТВ 1',
     userAgent: 'test-tv',
     remoteAddress: '127.0.0.1',
+    manufacturer: byQr.manufacturer,
+    model: byQr.model,
     authorizedBy: 'admin'
   });
   const sessionId = crypto.randomUUID();
@@ -84,6 +92,15 @@ test('TV activation carries persistent identity through a first-class monitor bi
   const binding = await repository.getActiveDeviceBindingByScreen(screenId);
   assert.equal(binding.device_id, device.id);
   assert.equal(binding.device_key, deviceKey);
+  let listed = (await repository.listDeviceBindings()).find((item) => item.device_id === device.id);
+  assert.equal(listed.manufacturer, 'Xiaomi');
+  assert.equal(listed.model, 'MIBOX4');
+
+  await repository.updateDeviceIdentification(device.id, { manufacturer:'Xiaomi', model:'Mi Box S 2nd Gen', userAgent:'updated-tv-agent' });
+  listed = (await repository.listDeviceBindings()).find((item) => item.device_id === device.id);
+  assert.equal(listed.manufacturer, 'Xiaomi');
+  assert.equal(listed.model, 'Mi Box S 2nd Gen');
+  assert.equal(listed.user_agent, 'updated-tv-agent');
 });
 
 test('same physical TV moves between monitors without creating a parallel device', async () => {

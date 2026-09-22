@@ -74,30 +74,39 @@ export function compileMenuMotionProgram(scene, context = {}) {
 export function compilePromotionMotionProgram(scene, context = {}) {
   if (!scene || !Array.isArray(scene.nodes)) throw new TypeError('Promotion motion compiler requires a scene graph.');
   const profile = context.profile || context || {};
-  const duration = Math.max(2000, Number(profile.promotion_cycle_seconds) * 1000 || 4800);
+  const badgeDuration = Math.max(2000, Number(profile.promotion_cycle_seconds) * 1000 || 4800);
+  const rowDuration = Math.max(2000, Number(profile.promotion_row_cycle_seconds) * 1000 || badgeDuration);
   const effect = context.promotionEnabled === false || profile.promotion_visible === false || profile.promotion_effect === 'none'
     ? 'none'
     : (profile.promotion_effect || 'cinematic');
-  const promotionIntensity = profile.promotion_intensity === undefined ? 72 : Number(profile.promotion_intensity);
-  const gain = clamp(Number.isFinite(promotionIntensity) ? promotionIntensity : 72, 0, 100) / 100;
-  const activeFraction = clamp((Number(profile.promotion_event_duration_ms) || 1800) / duration, 0.18, 0.72);
+
+  const badgeIntensity = profile.promotion_intensity === undefined ? 72 : Number(profile.promotion_intensity);
+  const badgeGain = clamp(Number.isFinite(badgeIntensity) ? badgeIntensity : 72, 0, 100) / 100;
+  const badgeActiveFraction = clamp((Number(profile.promotion_event_duration_ms) || 1800) / badgeDuration, 0.18, 0.72);
+
+  const rowIntensity = profile.promotion_row_intensity === undefined ? badgeIntensity : Number(profile.promotion_row_intensity);
+  const rowGain = clamp(Number.isFinite(rowIntensity) ? rowIntensity : badgeIntensity, 0, 100) / 100;
+  const rowActiveFraction = clamp((Number(profile.promotion_row_event_duration_ms) || 1800) / rowDuration, 0.12, 0.86);
+  const rowGlowRadius = clamp((Number(profile.promotion_row_glow_radius) || 18) * rowGain, 0, 38);
+
   const shineSpeed = clamp(Number(profile.promotion_shine_speed) || 1, 0.5, 3);
   const shineFrequency = clamp(Number(profile.promotion_shine_frequency_per_minute) || 8, 2, 20);
   const shineCycle = 60000 / shineFrequency;
   const shineSweep = clamp(1550 / shineSpeed, 420, 3100);
   const shineActiveFraction = clamp(shineSweep / shineCycle, 0.06, 0.86);
+
   const tracks = effect === 'none' ? [] : scene.nodes.flatMap((node) => {
     const animation = node.metadata?.animation || '';
     if (node.kind === 'promotion-badge-glow') return [Object.freeze({
       node,
       claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
-        kind: 'promo-badge-glow', animation, activeFraction,
-        opacity: gain === 0 ? 0 : clamp(0.22 + gain * 0.42, 0.22, 0.64),
-        brightnessAmount: clamp((Number(profile.promotion_brightness_amount) || 0.3) * gain, 0, 0.34),
-        glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 30)
+        kind: 'promo-badge-glow', animation, activeFraction: badgeActiveFraction,
+        opacity: badgeGain === 0 ? 0 : clamp(0.22 + badgeGain * 0.42, 0.22, 0.64),
+        brightnessAmount: clamp((Number(profile.promotion_brightness_amount) || 0.3) * badgeGain, 0, 0.34),
+        glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * badgeGain, 0, 30)
       }),
-      timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
+      timing: Object.freeze({ duration: badgeDuration, delay: 0, easing: 'linear', loop: true })
     })];
     if (node.kind === 'promotion-badge-shine' && animation === 'shine') return [Object.freeze({
       node,
@@ -105,7 +114,7 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       procedural: Object.freeze({
         kind: 'promo-badge-shine',
         activeFraction: shineActiveFraction,
-        opacity: clamp(0.38 + gain * 0.48, 0.38, 0.86),
+        opacity: clamp(0.46 + badgeGain * 0.50, 0.46, 0.96),
         travelPx: Number(node.metadata?.travelPx) || 0
       }),
       timing: Object.freeze({ duration: shineCycle, delay: 0, easing: 'linear', loop: true })
@@ -116,9 +125,9 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       procedural: Object.freeze({
         kind: 'promo-badge-sparkle',
         activeFraction: shineActiveFraction,
-        opacity: clamp(0.68 + gain * 0.30, 0.68, 0.98),
+        opacity: clamp(0.72 + badgeGain * 0.28, 0.72, 1),
         travelPx: Number(node.metadata?.travelPx) || 0,
-        glowRadius: clamp(4 + gain * 9, 4, 13)
+        glowRadius: clamp(5 + badgeGain * 10, 5, 15)
       }),
       timing: Object.freeze({ duration: shineCycle, delay: 0, easing: 'linear', loop: true })
     })];
@@ -126,17 +135,19 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       node,
       claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
-        kind: 'promo-glow', animation: ['wave', 'fill', 'gloss'].includes(animation) ? animation : 'wave', activeFraction,
-        opacity: gain === 0 ? 0 : clamp(0.24 + gain * 0.54, 0.24, 0.78),
-        glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 38)
+        kind: 'promo-glow',
+        animation: ['wave', 'gloss', 'fill', 'pulse', 'runner'].includes(animation) ? animation : 'wave',
+        activeFraction: rowActiveFraction,
+        opacity: rowGain === 0 ? 0 : clamp(0.20 + rowGain * 0.58, 0.20, 0.82),
+        glowRadius: rowGlowRadius
       }),
-      timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
+      timing: Object.freeze({ duration: rowDuration, delay: 0, easing: 'linear', loop: true })
     })];
     return [];
   });
   return createSceneProgram({
     id: 'promotion-motion',
-    duration: Math.max(duration, shineCycle),
+    duration: Math.max(badgeDuration, rowDuration, shineCycle),
     tracks,
     metadata: {
       engine: 'mira-wasm',
