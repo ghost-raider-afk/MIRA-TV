@@ -501,7 +501,11 @@ async function fetchDeviceSession(timeoutMs = 3500) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch('/api/device/session', { cache: 'no-store', signal: controller.signal });
+    const deviceInfo = await detectDeviceInfo();
+    const headers = {};
+    if (deviceInfo.manufacturer) headers['x-mira-device-manufacturer'] = deviceInfo.manufacturer;
+    if (deviceInfo.model) headers['x-mira-device-model'] = deviceInfo.model;
+    const response = await fetch('/api/device/session', { cache: 'no-store', signal: controller.signal, headers });
     if (response.status === 401 || response.status === 403) return { unauthorized: true };
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return { session: await response.json().catch(() => null) };
