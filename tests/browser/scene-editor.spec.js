@@ -340,6 +340,67 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   await expect(page.locator('.scene-table-editor-row.is-item .editor-preview-choice-search').first()).toBeFocused();
 });
 
+test('Glass table modal updates canonical Preview live and never changes table geometry on close', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen, product } = await fixture(page);
+  const editor = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+  const rows = [
+    { id:'modal-section-1', kind:'section', name:'ИСХОДНЫЙ РАЗДЕЛ', enabled:true },
+    { id:'modal-item-1', kind:'item', product_id:product.id, promotion:false, promotion_text:'', enabled:true }
+  ];
+  const saved = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
+    revision:editor.draft.revision,
+    rows,
+    settings:{
+      ...editor.draft.settings,
+      table_x:56,
+      table_y:15,
+      table_width_px:1374,
+      table_height_px:925
+    },
+    scene:editor.draft.scene
+  } });
+  expect(saved.ok()).toBeTruthy();
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  const sectionRect = page.locator('#scene-editor-stage .table-section rect').first();
+  await expect(sectionRect).toBeVisible();
+
+  const before = await sectionRect.evaluate((node) => ({
+    x:Number(node.getAttribute('x')),
+    width:Number(node.getAttribute('width'))
+  }));
+  expect(before.x).toBeCloseTo(56, 1);
+  expect(before.width).toBeCloseTo(1374, 1);
+
+  await page.locator('#scene-editor-table-layer').click();
+  const modal = page.locator('#scene-editor-table-edit-layer');
+  await expect(modal).toBeVisible();
+  await expect(page.locator('.scene-table-editor-dialog')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/scene-table-editor-open/);
+
+  const sectionInput = modal.locator('.scene-table-editor-row.is-section .editor-preview-section-input').first();
+  await sectionInput.fill('LIVE РАЗДЕЛ');
+  await expect(page.locator('#scene-editor-stage .section-title').first()).toHaveText('LIVE РАЗДЕЛ');
+
+  const sectionsBeforeAdd = await page.locator('#scene-editor-stage .table-section').count();
+  await modal.getByRole('button', { name:'+ Раздел', exact:true }).click();
+  await expect(page.locator('#scene-editor-stage .table-section')).toHaveCount(sectionsBeforeAdd + 1);
+
+  await modal.locator('.scene-table-editor-close').click();
+  await expect(modal).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/scene-table-editor-open/);
+
+  const after = await sectionRect.evaluate((node) => ({
+    x:Number(node.getAttribute('x')),
+    width:Number(node.getAttribute('width'))
+  }));
+  expect(after.x).toBeCloseTo(before.x, 2);
+  expect(after.width).toBeCloseTo(before.width, 2);
+  expect(Number(await page.locator('#scene-editor-properties').getByLabel('Ширина таблицы').inputValue())).toBe(1374);
+});
+
 test('Scene editor stays a single-page touch workspace on mobile', async ({ page }) => {
   await page.setViewportSize({ width:390, height:844 });
   await login(page);
