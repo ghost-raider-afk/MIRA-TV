@@ -348,8 +348,10 @@ function selectedRowActions(editorState, row, options) {
 
 export const PROMOTION_ROW_ANIMATION_OPTIONS = Object.freeze([
   Object.freeze(['wave', 'Мягкая волна']),
+  Object.freeze(['gloss', 'Gloss-перелив']),
   Object.freeze(['fill', 'Заполнение']),
-  Object.freeze(['gloss', 'Gloss-перелив'])
+  Object.freeze(['pulse', 'Пульсирующее свечение']),
+  Object.freeze(['runner', 'Бегущий акцент'])
 ]);
 
 export const PROMOTION_BADGE_ANIMATION_OPTIONS = Object.freeze([
