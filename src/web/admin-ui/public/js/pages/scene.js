@@ -1286,6 +1286,13 @@ export function initialiseSceneEditor() {
     const target = event.target;
     const editing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable;
     const mod = event.ctrlKey || event.metaKey;
+    if (event.key === 'Escape' && tableEditorOpen) {
+      const openChoice = tableEditLayer.querySelector('.editor-preview-choice-popup:not([hidden])');
+      if (openChoice) return;
+      event.preventDefault();
+      closeTableEditor();
+      return;
+    }
     if (mod && event.key.toLowerCase() === 'z') {
       event.preventDefault();
       const changed = event.shiftKey ? history.redo() : history.undo();
@@ -1426,6 +1433,10 @@ export function initialiseSceneEditor() {
       resizeObserver?.disconnect();
       renderer?.destroy();
       renderer = null;
+      tableEditorOpen = false;
+      tableEditLayer.hidden = true;
+      tableEditLayer.replaceChildren();
+      document.body.classList.remove('scene-table-editor-open');
       window.removeEventListener('beforeunload', onBeforeUnload);
       form.removeEventListener('keydown', onEditorKeydown);
       delete document.body.dataset.sceneMobilePanel;
