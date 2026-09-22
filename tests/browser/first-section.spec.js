@@ -84,7 +84,7 @@ test('first section is a real editable row and never inherits the monitor name',
   const sectionName = firstRow.locator('[data-preview-section-input]');
   await expect(sectionName).toHaveValue('Новый раздел');
   await sectionName.focus();
-  const inspector = page.locator('[data-scene-table-row-inspector]');
+  const inspector = page.locator('#scene-editor-table-edit-layer .scene-table-editor-side');
   await expect(inspector.getByRole('button', { name: 'Переместить выше' })).toBeDisabled();
   await expect(inspector.getByRole('button', { name: 'Удалить строку' })).toBeDisabled();
 
