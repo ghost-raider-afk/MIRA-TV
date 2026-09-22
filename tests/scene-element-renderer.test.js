@@ -33,6 +33,11 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(renderer, /content_scale_percent/);
   assert.match(renderer, /content_reference_width/);
   assert.match(renderer, /content_reference_height/);
+  assert.match(renderer, /function responsiveContent\(element\)/);
+  assert.match(renderer, /\['weather', 'image', 'video', 'logo'\]\.includes/);
+  assert.match(renderer, /content\.style\.width = '100%'/);
+  assert.match(renderer, /content\.style\.height = '100%'/);
+  assert.match(renderer, /content\.style\.transform = 'none'/);
   assert.match(renderer, /translate\(-50%, -50%\) scale/);
   assert.match(renderer, /applyContentGeometry\(entry\.node, entry\.content, element\)/);
   assert.match(renderer, /refreshContentGeometry\(elementId\)/);
