@@ -103,6 +103,7 @@ function promotionMarkup(line, x, box, scale, typography, horizontal, textBaseli
     <g class="promotion-badge" data-promotion-badge-shape="${shapeKey}">
       <path d="${shape}" fill="url(#mira-promo-badge-depth)" stroke="rgba(255,255,255,.30)" stroke-width="${Math.max(.7, .85 * fontScale)}" filter="url(#mira-promo-badge-depth-shadow)"/>
       <rect x="${x}" y="${top}" width="${width}" height="${height * .48}" fill="url(#mira-promo-badge-bevel)" clip-path="url(#${clipId})" pointer-events="none"/>
+      <text x="${textCenter}" y="${textY}" class="promotion" transform="translate(0 ${textY}) scale(1 ${promoHeight}) translate(0 ${-textY})" ${textAttributes({ size: promoSize, weight: promoWeight, fill: '#FFFFFF', letterSpacing: promoTracking, anchor: 'middle', fontFamily: promoFont.family }, promoFont)}>${escapeXml(text)}</text>
     </g>
     <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
       <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${shineTravel}" opacity="0">
@@ -112,9 +113,6 @@ function promotionMarkup(line, x, box, scale, typography, horizontal, textBaseli
         <circle cx="${sparkleStartX}" cy="${sparkleY}" r="${sparkleRadius * 1.8}" fill="url(#mira-promo-badge-sparkle)"/>
         <path d="M${sparkleStartX - sparkleRadius * 2.2} ${sparkleY}H${sparkleStartX + sparkleRadius * 2.2}M${sparkleStartX} ${sparkleY - sparkleRadius * 2.2}V${sparkleY + sparkleRadius * 2.2}" stroke="#fff" stroke-width="${Math.max(.7, .75 * fontScale)}" stroke-linecap="round"/>
       </g>
-    </g>
-    <g class="promotion-badge-label" pointer-events="none">
-      <text x="${textCenter}" y="${textY}" class="promotion" transform="translate(0 ${textY}) scale(1 ${promoHeight}) translate(0 ${-textY})" ${textAttributes({ size: promoSize, weight: promoWeight, fill: '#FFFFFF', letterSpacing: promoTracking, anchor: 'middle', fontFamily: promoFont.family }, promoFont)}>${escapeXml(text)}</text>
     </g>`,
     glow: `<g class="promotion-row-clip" clip-path="url(#${rowClipId})" pointer-events="none"><g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" opacity="0"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)"/></g></g>`
   };
