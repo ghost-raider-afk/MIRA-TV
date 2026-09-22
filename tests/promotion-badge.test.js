@@ -21,10 +21,10 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   const svg = buildTableSvg(model, lines);
   const rowStart = svg.indexOf('<g class="table-item');
   const badgeStart = svg.indexOf('<g class="promotion-badge"', rowStart);
-  const badgeEnd = svg.indexOf('</g>', badgeStart);
+  const badgeEnd = svg.indexOf('<g class="table-item-content">', badgeStart);
   const pricesStart = svg.indexOf('<g class="table-item-prices">', rowStart);
   const rowEnd = svg.indexOf('</g>', pricesStart);
-  const badge = badgeStart >= 0 && badgeEnd > badgeStart ? svg.slice(badgeStart, badgeEnd + 4) : '';
+  const badge = badgeStart >= 0 && badgeEnd > badgeStart ? svg.slice(badgeStart, badgeEnd) : '';
 
   assert.ok(rowStart >= 0, 'whole item row must exist');
   assert.ok(badge, 'promotion-badge group must exist');
