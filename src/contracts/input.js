@@ -4,7 +4,7 @@ import { sceneInput } from './scene.js';
 const VALID_STATUSES = new Set(['draft', 'ready', 'published']);
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
 const VALID_DATE_FORMATS = new Set(['DD.MM.YYYY', 'YYYY-MM-DD']);
-const PROMOTION_ROW_ANIMATIONS = new Set(['wave', 'fill', 'gloss']);
+const PROMOTION_ROW_ANIMATIONS = new Set(['wave', 'gloss', 'fill', 'pulse', 'runner']);
 const PROMOTION_BADGE_ANIMATIONS = new Set(['shine', 'breathe']);
 
 export function requireText(value, field, { max = 120 } = {}) {
