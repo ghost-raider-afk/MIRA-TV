@@ -98,6 +98,10 @@ function canonicalStudioProfile(source = {}) {
   profile.promotion_scale_amount = clamp(profile.promotion_scale_amount, 0.03, 0.08);
   profile.promotion_shine_speed = clamp(profile.promotion_shine_speed, 0.5, 3);
   profile.promotion_shine_frequency_per_minute = clamp(profile.promotion_shine_frequency_per_minute, 2, 20);
+  profile.promotion_row_intensity = clamp(profile.promotion_row_intensity, 0, 100);
+  profile.promotion_row_cycle_seconds = clamp(profile.promotion_row_cycle_seconds, 2, 30);
+  profile.promotion_row_event_duration_ms = clamp(profile.promotion_row_event_duration_ms, 300, 6000);
+  profile.promotion_row_glow_radius = clamp(profile.promotion_row_glow_radius, 0, 48);
   profile.promotion_travel_px = 0;
   return profile;
 }
