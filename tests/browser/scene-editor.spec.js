@@ -81,7 +81,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
-  const tableEditorPanel = page.locator('#scene-editor-table-edit-layer .scene-table-editor-panel');
+  const tableEditorPanel = page.locator('#scene-editor-table-edit-layer .scene-table-editor-dialog');
   await expect(tableEditorPanel).toBeVisible();
   await expect(page.locator('#scene-editor-table-edit-layer .scene-table-editor-row')).toHaveCount(2);
   await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(0);
@@ -89,7 +89,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(tableProductSelect).toBeVisible();
   await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
   expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
-  expect((await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0).toBeGreaterThanOrEqual(36);
+  expect((await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0).toBeGreaterThanOrEqual(33);
   expect(await tableEditorPanel.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
   await tableProductSelect.click();
@@ -102,7 +102,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await productSearch.press('Escape');
   await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeHidden();
 
-  const promotionEditor = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
+  const promotionEditor = page.locator('#scene-editor-table-edit-layer .scene-table-editor-side .editor-preview-promotion-editor');
   await expect(promotionEditor).toBeVisible();
   await promotionEditor.locator('input[type="checkbox"]').check();
   const promotionRowAnimation = promotionEditor.getByRole('radiogroup', { name:'Эффект строки' });
@@ -115,6 +115,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
 
+  await page.locator('.scene-table-editor-close').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await animationLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация');
   const animationInspector = page.locator('#scene-editor-properties');
@@ -162,6 +164,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(areaShare).toBeGreaterThan(.25);
   expect(areaShare).toBeLessThan(.55);
 
+  await page.locator('.scene-table-editor-close').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await page.locator('#scene-editor-add').click();
   const addMenu = page.locator('#scene-editor-add-menu');
   await expect(addMenu).toBeVisible();
@@ -296,7 +300,7 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   await page.goto(`/scene?screen=${screen.id}`);
   await page.locator('#scene-editor-table-layer').click();
 
-  const panel = page.locator('.scene-table-editor-panel');
+  const panel = page.locator('.scene-table-editor-dialog');
   const scroll = page.locator('.scene-table-editor-scroll');
   const editorRows = page.locator('.scene-table-editor-row');
   await expect(panel).toBeVisible();
@@ -309,7 +313,9 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
     return {
       clientHeight:scroller?.clientHeight || 0,
       scrollHeight:scroller?.scrollHeight || 0,
+      rowGap:parseFloat(getComputedStyle(scroller).rowGap || getComputedStyle(scroller).gap || '0'),
       fontSizes:rows.map((row) => parseFloat(getComputedStyle(row.querySelector('.editor-preview-inline-control') || row).fontSize)),
+      controlHeights:rows.map((row) => (row.querySelector('.editor-preview-inline-control') || row).getBoundingClientRect().height),
       boxes:rows.map((row) => {
         const rect = row.getBoundingClientRect();
         return { top:rect.top, bottom:rect.bottom, height:rect.height };
@@ -317,8 +323,10 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
     };
   });
   expect(density.scrollHeight).toBeGreaterThan(density.clientHeight);
+  expect(density.rowGap).toBeLessThanOrEqual(1);
   expect(density.fontSizes.every((size) => size >= 11)).toBe(true);
-  expect(density.boxes.every((box) => box.height >= 36)).toBe(true);
+  expect(density.controlHeights.every((height) => height >= 32)).toBe(true);
+  expect(density.boxes.every((box) => box.height >= 33 && box.height <= 35)).toBe(true);
   for (let index = 1; index < density.boxes.length; index += 1) {
     expect(density.boxes[index].top).toBeGreaterThanOrEqual(density.boxes[index - 1].bottom);
   }
@@ -332,6 +340,67 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   await productChoice.click();
   await expect(page.locator('.scene-table-editor-row.is-item .editor-preview-choice-popup').first()).toBeVisible();
   await expect(page.locator('.scene-table-editor-row.is-item .editor-preview-choice-search').first()).toBeFocused();
+});
+
+test('Glass table modal updates canonical Preview live and never changes table geometry on close', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen, product } = await fixture(page);
+  const editor = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
+  const rows = [
+    { id:'modal-section-1', kind:'section', name:'ИСХОДНЫЙ РАЗДЕЛ', enabled:true },
+    { id:'modal-item-1', kind:'item', product_id:product.id, promotion:false, promotion_text:'', enabled:true }
+  ];
+  const saved = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
+    revision:editor.draft.revision,
+    rows,
+    settings:{
+      ...editor.draft.settings,
+      table_x:56,
+      table_y:15,
+      table_width_px:1374,
+      table_height_px:925
+    },
+    scene:editor.draft.scene
+  } });
+  expect(saved.ok()).toBeTruthy();
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  const sectionRect = page.locator('#scene-editor-stage .table-section rect').first();
+  await expect(sectionRect).toBeVisible();
+
+  const before = await sectionRect.evaluate((node) => ({
+    x:Number(node.getAttribute('x')),
+    width:Number(node.getAttribute('width'))
+  }));
+  expect(before.x).toBeCloseTo(56, 1);
+  expect(before.width).toBeCloseTo(1374, 1);
+
+  await page.locator('#scene-editor-table-layer').click();
+  const modal = page.locator('#scene-editor-table-edit-layer');
+  await expect(modal).toBeVisible();
+  await expect(page.locator('.scene-table-editor-dialog')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/scene-table-editor-open/);
+
+  const sectionInput = modal.locator('.scene-table-editor-row.is-section .editor-preview-section-input').first();
+  await sectionInput.fill('LIVE РАЗДЕЛ');
+  await expect(page.locator('#scene-editor-stage .section-title').first()).toHaveText('LIVE РАЗДЕЛ');
+
+  const sectionsBeforeAdd = await page.locator('#scene-editor-stage .table-section').count();
+  await modal.getByRole('button', { name:'+ Раздел', exact:true }).click();
+  await expect(page.locator('#scene-editor-stage .table-section')).toHaveCount(sectionsBeforeAdd + 1);
+
+  await modal.locator('.scene-table-editor-close').click();
+  await expect(modal).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/scene-table-editor-open/);
+
+  const after = await sectionRect.evaluate((node) => ({
+    x:Number(node.getAttribute('x')),
+    width:Number(node.getAttribute('width'))
+  }));
+  expect(after.x).toBeCloseTo(before.x, 2);
+  expect(after.width).toBeCloseTo(before.width, 2);
+  expect(Number(await page.locator('#scene-editor-properties').getByLabel('Ширина таблицы').inputValue())).toBe(1374);
 });
 
 test('Scene editor stays a single-page touch workspace on mobile', async ({ page }) => {
@@ -353,6 +422,10 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await page.getByRole('button', { name:/Слои/ }).click();
   await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
   await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
+  await expect(page.locator('.scene-table-editor-dialog')).toBeVisible();
+  await page.locator('.scene-table-editor-close').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
 
   await page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Элемент/ }).click();

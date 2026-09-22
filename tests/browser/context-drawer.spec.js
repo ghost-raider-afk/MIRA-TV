@@ -10,6 +10,26 @@ async function login(page) {
   ]);
 }
 
+test('Dashboard static first paint never reserves rail or submenu columns before app boot', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page);
+
+  await page.route('**/app.js', async (route) => {
+    await route.fulfill({ status:200, contentType:'application/javascript; charset=utf-8', body:'' });
+  });
+  await page.reload({ waitUntil:'domcontentloaded' });
+
+  await expect(page.locator('.ui-rail')).toHaveCount(0);
+  await expect(page.locator('.ui-context')).toHaveCount(0);
+
+  const geometry = await page.locator('.app-content').evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    return { x:box.x, width:box.width, viewport:window.innerWidth };
+  });
+  expect(geometry.x).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.width - geometry.viewport)).toBeLessThanOrEqual(1);
+});
+
 test('context drawer never occupies Dashboard and has deterministic desktop lifecycle', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
@@ -27,6 +47,14 @@ test('context drawer never occupies Dashboard and has deterministic desktop life
   await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
   await expect(context).toBeHidden();
   await expect(shell).toHaveClass(/ui-context-collapsed/);
+  await expect(shell).toHaveClass(/ui-shell-ready/);
+  const hydratedGeometry = await page.evaluate(() => {
+    const rail = document.querySelector('.ui-rail')?.getBoundingClientRect();
+    const content = document.querySelector('.app-content')?.getBoundingClientRect();
+    return rail && content ? { railWidth:rail.width, contentX:content.x } : null;
+  });
+  expect(hydratedGeometry).not.toBeNull();
+  expect(Math.abs(hydratedGeometry.contentX - hydratedGeometry.railWidth)).toBeLessThanOrEqual(1);
 
   await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
   await expect(page).toHaveURL(/\/screens$/);
