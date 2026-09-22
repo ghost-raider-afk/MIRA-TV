@@ -252,6 +252,26 @@ export function createDevicesRepository(pool) {
       return bindDevice({ deviceKey, screenId, label, userAgent, remoteAddress, manufacturer, model, authorizedBy });
     },
 
+    async updateDeviceIdentification(deviceId, { manufacturer = '', model = '', userAgent = '' } = {}) {
+      const id = Number(deviceId);
+      if (!Number.isSafeInteger(id) || id < 1) return null;
+      const maker = String(manufacturer || '').trim().slice(0, 80);
+      const deviceModel = String(model || '').trim().slice(0, 120);
+      const agent = String(userAgent || '').trim().slice(0, 512);
+      const now = isoNow();
+      const { rows } = await pool.query(
+        `UPDATE tv_devices
+            SET manufacturer = CASE WHEN $2 <> '' THEN $2 ELSE manufacturer END,
+                model = CASE WHEN $3 <> '' THEN $3 ELSE model END,
+                user_agent = CASE WHEN $4 <> '' THEN $4 ELSE user_agent END,
+                updated_at = $5
+          WHERE id = $1 AND active = TRUE
+          RETURNING *`,
+        [id, maker, deviceModel, agent, now]
+      );
+      return deviceRecord(rows[0]);
+    },
+
     async deactivateDevicesForScreen(screenId) {
       const binding = await revokeBindingForScreen(screenId);
       if (!binding) return [];
