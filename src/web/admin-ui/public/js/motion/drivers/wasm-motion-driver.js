@@ -1,7 +1,7 @@
 import { WaapiMotionDriver } from './waapi-driver.js';
 import { loadMotionKernel } from '../wasm-motion-kernel.js';
 
-const RED_GLOW = 'rgba(255,48,72,.78)';
+const RED_GLOW = 'rgba(255,42,68,.88)';
 const ROW_GLOW = 'rgba(244,201,21,.24)';
 
 function number(value, fallback = 0) {
@@ -264,14 +264,14 @@ export class WasmMotionDriver {
       if (spec.animation === 'fill') {
         target.style.transformOrigin = 'left center';
         target.style.transform = `scaleX(${Math.max(0.02, progress).toFixed(4)})`;
-        target.style.opacity = (opacity * 0.82).toFixed(4);
+        target.style.opacity = (opacity * 0.90).toFixed(4);
         return;
       }
       const gloss = spec.animation === 'gloss';
       const travel = gloss ? (-210 + progress * 420) : (-125 + progress * 250);
       target.style.transformOrigin = 'center';
       target.style.transform = `translate3d(${travel.toFixed(2)}%,0,0) scaleX(${gloss ? '0.16' : '0.38'})`;
-      target.style.opacity = (opacity * (gloss ? 0.72 : 0.88)).toFixed(4);
+      target.style.opacity = (opacity * (gloss ? 0.84 : 0.95)).toFixed(4);
     }
   }
 }
