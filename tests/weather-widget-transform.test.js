@@ -46,7 +46,7 @@ test('weather geometry is isolated from menu and promotion rerenders', async () 
   assert.match(elementRenderer, /if \(element\?\.type === 'weather'\) \{\s*return Math\.max\(\.01, nominal \* manual\);/);
   assert.match(weatherWidget, /summary\.append\(icon, primary\)/);
   assert.match(weatherWidget, /top\.append\(summary, visual\)/);
-  assert.match(weatherCss, /\.weather-widget-summary\s*\{[\s\S]*grid-template-columns:\s*74px minmax\(0,1fr\)/);
+  assert.match(weatherCss, /\.weather-widget-summary\s*\{[\s\S]*grid-template-columns:\s*85px minmax\(0,1fr\)/);
   assert.match(weatherCss, /\.weather-widget-icon\s*\{[\s\S]*transform:\s*none/);
 });
 
@@ -161,8 +161,8 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
   assert.match(widget, /particleGroup\('weather-moon', 1\)/);
   assert.doesNotMatch(widget, /weather-sun-rays/);
   assert.doesNotMatch(css, /weather-rays-rotate/);
-  assert.match(css, /\.weather-widget-facts\s*\{[\s\S]*font-size:\s*13px/);
-  assert.match(css, /\.weather-widget-forecast-item > span\s*\{[\s\S]*font-size:\s*12px/);
+  assert.match(css, /\.weather-widget-facts\s*\{[\s\S]*font-size:\s*15px/);
+  assert.match(css, /\.weather-widget-forecast-item > span\s*\{[\s\S]*font-size:\s*14px/);
   assert.match(css, /\.weather-widget-main\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,58%\) minmax\(0,42%\)/);
   assert.match(css, /\.weather-widget-visual\s*\{[\s\S]*overflow:\s*hidden/);
   assert.match(css, /\.weather-widget-visual \.weather-atmosphere/);
@@ -214,10 +214,10 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v30'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v31'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v28'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v29'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v29'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v30'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 

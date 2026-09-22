@@ -331,7 +331,7 @@ body[data-page="scene"] .scene-editor-table-edit-layer{
   display:grid;
   place-items:center;
   padding:clamp(14px,3vw,42px);
-  background:rgba(2,6,12,.34);
+  background:rgba(2,6,12,.18);
   pointer-events:auto!important;
 }
 body[data-page="scene"] .scene-editor-table-edit-layer[hidden]{display:none!important}
@@ -345,15 +345,15 @@ body[data-page="scene"] .scene-table-editor-dialog{
   overflow:hidden;
   border:1px solid color-mix(in srgb,var(--ui-accent) 34%,var(--ui-border));
   border-radius:16px;
-  background:color-mix(in srgb,var(--ui-panel) 88%,transparent);
-  box-shadow:0 28px 80px rgba(0,0,0,.52),inset 0 1px rgba(255,255,255,.035);
-  backdrop-filter:blur(18px) saturate(122%);
-  -webkit-backdrop-filter:blur(18px) saturate(122%);
+  background:color-mix(in srgb,var(--ui-panel) 64%,transparent);
+  box-shadow:0 30px 90px rgba(0,0,0,.46),inset 0 1px rgba(255,255,255,.10);
+  backdrop-filter:blur(24px) saturate(138%);
+  -webkit-backdrop-filter:blur(24px) saturate(138%);
 }
 body[data-page="scene"] .scene-table-editor-head{
   min-height:48px;
   padding:7px 10px 7px 14px;
-  background:color-mix(in srgb,var(--ui-panel-raised) 86%,transparent);
+  background:color-mix(in srgb,var(--ui-panel-raised) 58%,transparent);
 }
 body[data-page="scene"] .scene-table-editor-head>div:first-child>span{font-size:8px}
 body[data-page="scene"] .scene-table-editor-head>div:first-child>strong{font-size:13px}
@@ -386,7 +386,7 @@ body[data-page="scene"] .scene-table-editor-toolbar{
   gap:5px;
   padding:5px 10px;
   border-bottom:1px solid var(--ui-border);
-  background:color-mix(in srgb,var(--ui-panel) 82%,transparent);
+  background:color-mix(in srgb,var(--ui-panel) 52%,transparent);
 }
 body[data-page="scene"] .scene-table-editor-toolbar>span{
   margin-right:3px;
@@ -421,15 +421,17 @@ body[data-page="scene"] .scene-table-editor-body{
 body[data-page="scene"] .scene-table-editor-scroll{
   min-height:0;
   padding:4px;
-  background:color-mix(in srgb,var(--ui-bg) 58%,transparent);
+  background:color-mix(in srgb,var(--ui-bg) 42%,transparent);
 }
+body[data-page="scene"] .scene-table-editor-row{background:color-mix(in srgb,var(--ui-panel-raised) 72%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+body[data-page="scene"] .scene-table-editor-row.is-selected{background:color-mix(in srgb,var(--ui-accent) 10%,color-mix(in srgb,var(--ui-panel-raised) 70%,transparent))}
 body[data-page="scene"] .scene-table-editor-side{
   min-width:0;
   min-height:0;
   padding:7px;
   overflow:auto;
   border-left:1px solid var(--ui-border);
-  background:color-mix(in srgb,var(--ui-panel-raised) 70%,transparent);
+  background:color-mix(in srgb,var(--ui-panel-raised) 54%,transparent);
   scrollbar-width:thin;
 }
 body[data-page="scene"] .scene-table-editor-side .editor-preview-selected-row,
@@ -438,7 +440,7 @@ body[data-page="scene"] .scene-table-editor-side .editor-preview-hidden-rows{
   padding:7px;
   border:1px solid var(--ui-border);
   border-radius:8px;
-  background:color-mix(in srgb,var(--ui-panel) 78%,transparent);
+  background:color-mix(in srgb,var(--ui-panel) 62%,transparent);
 }
 body[data-page="scene"] .scene-table-editor-side .editor-preview-inspector-head{display:grid;gap:6px}
 body[data-page="scene"] .scene-table-editor-side .editor-preview-inspector-head>div:first-child{display:grid;gap:2px}

@@ -114,6 +114,21 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'gloss');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
+  const promotionVisual = await page.locator('#scene-editor-stage .promotion-badge').first().evaluate((node) => {
+    const text = node.querySelector('.promotion');
+    const path = node.querySelector('path');
+    const glowStops = [...node.ownerSVGElement.querySelectorAll('#mira-promo-row-glow stop')];
+    return {
+      textSize:Number(text?.getAttribute('font-size') || 0),
+      badgeHeight:path?.getBBox?.().height || 0,
+      badgeFill:path?.getAttribute('fill') || '',
+      maxGlowOpacity:Math.max(0, ...glowStops.map((stop) => Number(stop.getAttribute('stop-opacity') || 0)))
+    };
+  });
+  expect(promotionVisual.textSize).toBeGreaterThanOrEqual(14);
+  expect(promotionVisual.badgeHeight).toBeGreaterThanOrEqual(29);
+  expect(promotionVisual.badgeFill).toContain('mira-promo-badge-depth');
+  expect(promotionVisual.maxGlowOpacity).toBeGreaterThanOrEqual(.7);
 
   await page.locator('.scene-table-editor-close').click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
@@ -376,11 +391,26 @@ test('Glass table modal updates canonical Preview live and never changes table g
   expect(before.x).toBeCloseTo(56, 1);
   expect(before.width).toBeCloseTo(1374, 1);
 
-  await page.locator('#scene-editor-table-layer').click();
+  await page.locator('.scene-editor-table-selection-box').click();
   const modal = page.locator('#scene-editor-table-edit-layer');
   await expect(modal).toBeVisible();
-  await expect(page.locator('.scene-table-editor-dialog')).toBeVisible();
+  const dialog = page.locator('.scene-table-editor-dialog');
+  await expect(dialog).toBeVisible();
   await expect(page.locator('body')).toHaveClass(/scene-table-editor-open/);
+  const glass = await dialog.evaluate((node) => {
+    const style = getComputedStyle(node);
+    const color = style.backgroundColor;
+    const rgba = color.match(/^rgba?\(([^)]+)\)$/);
+    const slash = color.match(/\/\s*([0-9.]+)\s*\)$/);
+    let alpha = 1;
+    if (rgba) {
+      const parts = rgba[1].split(',').map((part) => part.trim());
+      if (parts.length === 4) alpha = Number(parts[3]);
+    } else if (slash) alpha = Number(slash[1]);
+    return { alpha, backdropFilter:style.backdropFilter || style.webkitBackdropFilter || 'none' };
+  });
+  expect(glass.alpha).toBeLessThan(.8);
+  expect(glass.backdropFilter).not.toBe('none');
 
   const sectionInput = modal.locator('.scene-table-editor-row.is-section .editor-preview-section-input').first();
   await sectionInput.fill('LIVE РАЗДЕЛ');
@@ -389,6 +419,18 @@ test('Glass table modal updates canonical Preview live and never changes table g
   const sectionsBeforeAdd = await page.locator('#scene-editor-stage .table-section').count();
   await modal.getByRole('button', { name:'+ Раздел', exact:true }).click();
   await expect(page.locator('#scene-editor-stage .table-section')).toHaveCount(sectionsBeforeAdd + 1);
+  const canonicalStage = await page.locator('#scene-editor-stage').evaluate((node) => ({
+    width:node.style.width,
+    height:node.style.height,
+    viewportWidth:node.dataset.sceneViewportWidth,
+    viewportHeight:node.dataset.sceneViewportHeight,
+    transform:node.style.transform
+  }));
+  expect(canonicalStage.width).toBe('1920px');
+  expect(canonicalStage.height).toBe('1080px');
+  expect(canonicalStage.viewportWidth).toBe('1920');
+  expect(canonicalStage.viewportHeight).toBe('1080');
+  expect(canonicalStage.transform).toContain('scale(');
 
   await modal.locator('.scene-table-editor-close').click();
   await expect(modal).toBeHidden();
@@ -401,6 +443,15 @@ test('Glass table modal updates canonical Preview live and never changes table g
   expect(after.x).toBeCloseTo(before.x, 2);
   expect(after.width).toBeCloseTo(before.width, 2);
   expect(Number(await page.locator('#scene-editor-properties').getByLabel('Ширина таблицы').inputValue())).toBe(1374);
+
+  const tableBox = page.locator('.scene-editor-table-selection-box');
+  const dragBox = await tableBox.boundingBox();
+  expect(dragBox).not.toBeNull();
+  await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dragBox.x + dragBox.width / 2 + 12, dragBox.y + dragBox.height / 2 + 8);
+  await page.mouse.up();
+  await expect(modal).toBeHidden();
 });
 
 test('Scene editor stays a single-page touch workspace on mobile', async ({ page }) => {
@@ -598,8 +649,29 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
       timeSize:time ? parseFloat(getComputedStyle(time).fontSize) : 0
     };
   });
-  expect(weatherType.factsSize).toBeGreaterThanOrEqual(13);
-  expect(weatherType.timeSize).toBeGreaterThanOrEqual(12);
+  expect(weatherType.factsSize).toBeGreaterThanOrEqual(15);
+  expect(weatherType.timeSize).toBeGreaterThanOrEqual(14);
+  const weatherEmphasis = await weatherNode.evaluate((node) => {
+    const location = node.querySelector('.weather-widget-location');
+    const temperature = node.querySelector('.weather-widget-temperature');
+    const icon = node.querySelector('.weather-widget-icon');
+    const locationStyle = location ? getComputedStyle(location) : null;
+    const temperatureStyle = temperature ? getComputedStyle(temperature) : null;
+    return {
+      locationSize:locationStyle ? parseFloat(locationStyle.fontSize) : 0,
+      temperatureSize:temperatureStyle ? parseFloat(temperatureStyle.fontSize) : 0,
+      locationShadow:locationStyle?.textShadow || 'none',
+      temperatureShadow:temperatureStyle?.textShadow || 'none',
+      iconWidth:icon ? parseFloat(getComputedStyle(icon).width) : 0,
+      iconFilter:icon ? getComputedStyle(icon).filter : 'none'
+    };
+  });
+  expect(weatherEmphasis.locationSize).toBeGreaterThanOrEqual(16);
+  expect(weatherEmphasis.temperatureSize).toBeGreaterThanOrEqual(64);
+  expect(weatherEmphasis.locationShadow).not.toBe('none');
+  expect(weatherEmphasis.temperatureShadow).not.toBe('none');
+  expect(weatherEmphasis.iconWidth).toBeGreaterThanOrEqual(82);
+  expect(weatherEmphasis.iconFilter).not.toBe('none');
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
   expect(previewRequests.at(-1)).toMatchObject({
     name:'Комсомольск-на-Амуре',

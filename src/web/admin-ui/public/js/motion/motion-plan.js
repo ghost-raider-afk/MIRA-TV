@@ -127,8 +127,8 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
         kind: 'promo-glow', animation: ['wave', 'fill', 'gloss'].includes(animation) ? animation : 'wave', activeFraction,
-        opacity: gain === 0 ? 0 : clamp(0.18 + gain * 0.48, 0.18, 0.66),
-        glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 36)
+        opacity: gain === 0 ? 0 : clamp(0.24 + gain * 0.54, 0.24, 0.78),
+        glowRadius: clamp((Number(profile.promotion_glow_radius) || 18) * gain, 0, 38)
       }),
       timing: Object.freeze({ duration, delay: 0, easing: 'linear', loop: true })
     })];
