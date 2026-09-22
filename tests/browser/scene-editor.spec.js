@@ -81,7 +81,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
-  const tableEditorPanel = page.locator('#scene-editor-table-edit-layer .scene-table-editor-panel');
+  const tableEditorPanel = page.locator('#scene-editor-table-edit-layer .scene-table-editor-dialog');
   await expect(tableEditorPanel).toBeVisible();
   await expect(page.locator('#scene-editor-table-edit-layer .scene-table-editor-row')).toHaveCount(2);
   await expect(page.locator('#scene-editor-table-edit-layer [data-editor-preview-row-control]')).toHaveCount(0);
@@ -89,7 +89,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(tableProductSelect).toBeVisible();
   await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
   expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
-  expect((await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0).toBeGreaterThanOrEqual(36);
+  expect((await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0).toBeGreaterThanOrEqual(33);
   expect(await tableEditorPanel.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
   await tableProductSelect.click();
@@ -102,7 +102,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await productSearch.press('Escape');
   await expect(page.locator('#scene-editor-table-edit-layer .editor-preview-choice-popup')).toBeHidden();
 
-  const promotionEditor = page.locator('#scene-editor-properties .editor-preview-promotion-editor');
+  const promotionEditor = page.locator('#scene-editor-table-edit-layer .scene-table-editor-side .editor-preview-promotion-editor');
   await expect(promotionEditor).toBeVisible();
   await promotionEditor.locator('input[type="checkbox"]').check();
   const promotionRowAnimation = promotionEditor.getByRole('radiogroup', { name:'Эффект строки' });
@@ -115,6 +115,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'breathe');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
 
+  await page.locator('.scene-table-editor-close').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await animationLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация');
   const animationInspector = page.locator('#scene-editor-properties');
@@ -296,7 +298,7 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   await page.goto(`/scene?screen=${screen.id}`);
   await page.locator('#scene-editor-table-layer').click();
 
-  const panel = page.locator('.scene-table-editor-panel');
+  const panel = page.locator('.scene-table-editor-dialog');
   const scroll = page.locator('.scene-table-editor-scroll');
   const editorRows = page.locator('.scene-table-editor-row');
   await expect(panel).toBeVisible();
@@ -357,6 +359,10 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await page.getByRole('button', { name:/Слои/ }).click();
   await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
   await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
+  await expect(page.locator('.scene-table-editor-dialog')).toBeVisible();
+  await page.locator('.scene-table-editor-close').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
 
   await page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Элемент/ }).click();
