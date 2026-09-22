@@ -8,7 +8,6 @@ import {
   PROMOTION_ROW_ANIMATION_OPTIONS,
   renderTableEditorRows
 } from '../editor/rows.js';
-import { buildRenderModel } from '../editor/renderer.js';
 import { createEditorHistory } from '../editor/history.js';
 import { createEditorState, replaceEditorState } from '../editor/state.js';
 import {
@@ -184,6 +183,7 @@ export function initialiseSceneEditor() {
   let resizeObserver = null;
   let interactionActive = false;
   let selectedOwner = 'none';
+  let tableEditorOpen = false;
   const history = createEditorHistory(state);
 
   const active = () => !disposed && token === generation && document.body.dataset.page === 'scene';
@@ -406,25 +406,26 @@ export function initialiseSceneEditor() {
     }
   }
 
-  function tableEditModel() {
-    if (!state.screen) return null;
-    return buildRenderModel(state, resolutionOf(state.screen));
+  function closeTableEditor({ restoreFocus = true } = {}) {
+    if (!tableEditorOpen && tableEditLayer.hidden) return;
+    tableEditorOpen = false;
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
+    document.body.classList.remove('scene-table-editor-open');
+    scheduleDocumentRender();
+    if (restoreFocus) requestAnimationFrame(() => tableLayer.focus({ preventScroll:true }));
   }
 
   function renderTableEditLayer({ rebuildInspector = false } = {}) {
-    const activeTable = selectedOwner === 'table';
+    const activeTable = selectedOwner === 'table' && tableEditorOpen;
     tableEditLayer.hidden = !activeTable;
+    document.body.classList.toggle('scene-table-editor-open', activeTable);
     if (!activeTable) {
       tableEditLayer.replaceChildren();
       return;
     }
-    const model = tableEditModel();
-    if (!model) return;
-    const rowInspector = propertiesRoot.querySelector('[data-scene-table-row-inspector]');
     renderTableEditorRows(state, {
       target: tableEditLayer,
-      inspector: rowInspector,
-      model,
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
       onBeforeMutate: () => history.checkpoint(),
@@ -438,9 +439,22 @@ export function initialiseSceneEditor() {
         setDirty();
         scheduleDocumentRender();
         renderTableEditLayer({ rebuildInspector:true });
-      }
+      },
+      onClose: () => closeTableEditor()
     });
     if (rebuildInspector) setSelectionStatus();
+  }
+
+  function openTableEditor() {
+    if (selectedOwner !== 'table') {
+      selectedOwner = 'table';
+      state.selectedElementId = null;
+      renderLayers();
+      renderInspector();
+      syncOverlaySelection();
+    }
+    tableEditorOpen = true;
+    renderTableEditLayer();
   }
 
   function renderBackgroundInspector() {
