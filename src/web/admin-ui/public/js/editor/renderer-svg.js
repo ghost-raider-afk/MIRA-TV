@@ -103,16 +103,17 @@ function promotionMarkup(line, x, box, scale, typography, horizontal, textBaseli
     <g class="promotion-badge" data-promotion-badge-shape="${shapeKey}">
       <path d="${shape}" fill="url(#mira-promo-badge-depth)" stroke="rgba(255,255,255,.30)" stroke-width="${Math.max(.7, .85 * fontScale)}" filter="url(#mira-promo-badge-depth-shadow)"/>
       <rect x="${x}" y="${top}" width="${width}" height="${height * .48}" fill="url(#mira-promo-badge-bevel)" clip-path="url(#${clipId})" pointer-events="none"/>
+      <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
+        <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${shineTravel}" opacity="0">
+          <rect x="${x - shineWidth}" y="${top - height * .28}" width="${shineWidth}" height="${height * 1.56}" fill="url(#mira-promo-badge-shine)" transform="skewX(-18)"/>
+        </g>
+        <g class="promotion-badge-sparkle" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${sparkleTravel}" opacity="0">
+          <circle cx="${sparkleStartX}" cy="${sparkleY}" r="${sparkleRadius * 1.8}" fill="url(#mira-promo-badge-sparkle)"/>
+          <line x1="${sparkleStartX - sparkleRadius * 2.2}" y1="${sparkleY}" x2="${sparkleStartX + sparkleRadius * 2.2}" y2="${sparkleY}" stroke="#fff" stroke-width="${Math.max(.7, .75 * fontScale)}" stroke-linecap="round"/>
+          <line x1="${sparkleStartX}" y1="${sparkleY - sparkleRadius * 2.2}" x2="${sparkleStartX}" y2="${sparkleY + sparkleRadius * 2.2}" stroke="#fff" stroke-width="${Math.max(.7, .75 * fontScale)}" stroke-linecap="round"/>
+        </g>
+      </g>
       <text x="${textCenter}" y="${textY}" class="promotion" transform="translate(0 ${textY}) scale(1 ${promoHeight}) translate(0 ${-textY})" ${textAttributes({ size: promoSize, weight: promoWeight, fill: '#FFFFFF', letterSpacing: promoTracking, anchor: 'middle', fontFamily: promoFont.family }, promoFont)}>${escapeXml(text)}</text>
-    </g>
-    <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
-      <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${shineTravel}" opacity="0">
-        <rect x="${x - shineWidth}" y="${top - height * .28}" width="${shineWidth}" height="${height * 1.56}" fill="url(#mira-promo-badge-shine)" transform="skewX(-18)"/>
-      </g>
-      <g class="promotion-badge-sparkle" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${sparkleTravel}" opacity="0">
-        <circle cx="${sparkleStartX}" cy="${sparkleY}" r="${sparkleRadius * 1.8}" fill="url(#mira-promo-badge-sparkle)"/>
-        <path d="M${sparkleStartX - sparkleRadius * 2.2} ${sparkleY}H${sparkleStartX + sparkleRadius * 2.2}M${sparkleStartX} ${sparkleY - sparkleRadius * 2.2}V${sparkleY + sparkleRadius * 2.2}" stroke="#fff" stroke-width="${Math.max(.7, .75 * fontScale)}" stroke-linecap="round"/>
-      </g>
     </g>`,
     glow: `<g class="promotion-row-clip" clip-path="url(#${rowClipId})" pointer-events="none"><g class="promotion-row-glow" data-promotion-row-animation="${rowAnimation}" opacity="0"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-promo-row-glow)"/></g></g>`
   };
