@@ -96,7 +96,7 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     const surface = row.locator(':scope > .row-motion-surface-item');
     const badge = row.locator(':scope > g.promotion-badge');
     const badgeGlow = row.locator(':scope > g.promotion-badge-glow');
-    const badgeEffects = row.locator(':scope > g.promotion-badge-effects-clip');
+    const badgeEffects = badge.locator(':scope > g.promotion-badge-effects-clip');
     const badgeShine = badgeEffects.locator(':scope > g.promotion-badge-shine');
     const badgeSparkle = badgeEffects.locator(':scope > g.promotion-badge-sparkle');
     const clip = row.locator(':scope > g.promotion-row-clip');
