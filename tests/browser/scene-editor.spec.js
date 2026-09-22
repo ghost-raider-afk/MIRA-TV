@@ -111,10 +111,10 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
   const promotionVisual = await page.locator('#scene-editor-stage .promotion-badge').first().evaluate((node) => {
-    const text = node.querySelector('.promotion');
+    const row = node.closest('.table-item');
+    const text = row?.querySelector('.promotion-badge-label .promotion');
     const path = node.querySelector('path');
     const glowStops = [...node.ownerSVGElement.querySelectorAll('#mira-promo-row-glow stop')];
-    const row = node.closest('.table-item');
     const itemName = row?.querySelector('.item-name');
     return {
       textSize:Number(text?.getAttribute('font-size') || 0),
