@@ -223,8 +223,12 @@ function createContent(config, data, state) {
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
-  card.style.setProperty('--weather-temperature-scale', String(config.temperature_size_percent / 100));
-  card.style.setProperty('--weather-location-scale', String(config.location_size_percent / 100));
+  const temperatureScale = config.temperature_size_percent / 100;
+  const locationScale = config.location_size_percent / 100;
+  card.style.setProperty('--weather-temperature-cqw', `${12 * temperatureScale}cqw`);
+  card.style.setProperty('--weather-temperature-cqh', `${20 * temperatureScale}cqh`);
+  card.style.setProperty('--weather-location-cqw', `${3.5 * locationScale}cqw`);
+  card.style.setProperty('--weather-location-cqh', `${6.2 * locationScale}cqh`);
   card.style.setProperty('--weather-temperature-font', WEATHER_FONTS[config.temperature_font_family] || WEATHER_FONTS.arial);
   if (config.embedded) {
     card.dataset.weatherEmbedded = 'true';
