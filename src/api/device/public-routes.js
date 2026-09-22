@@ -39,6 +39,15 @@ function persistentDeviceKey(value) {
   return /^[a-zA-Z0-9_-]{16,128}$/.test(key) ? key : null;
 }
 
+function deviceDescriptor(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const clean = (input, max) => String(input || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
+  return {
+    manufacturer: clean(source.manufacturer, 80),
+    model: clean(source.model, 120)
+  };
+}
+
 function publicScreen(session) {
   return {
     id: session.screen_id,
@@ -117,6 +126,7 @@ function playerLogBatch(value, config) {
 async function createPendingActivation(store, config, request) {
   const expiresAt = new Date(Date.now() + config.deviceActivationTtlMinutes * 60_000).toISOString();
   const deviceKey = persistentDeviceKey(request.body?.device_key) || crypto.randomUUID();
+  const descriptor = deviceDescriptor(request.body?.device_info);
   let lastError;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const credentials = createActivationCredentials();
@@ -129,7 +139,9 @@ async function createPendingActivation(store, config, request) {
         reserveCodeHash: tokenHash(credentials.reserveCode),
         expiresAt,
         userAgent: userAgent(request),
-        remoteAddress: remoteAddress(request)
+        remoteAddress: remoteAddress(request),
+        manufacturer: descriptor.manufacturer,
+        model: descriptor.model
       });
       return { credentials, expiresAt, deviceKey };
     } catch (error) {
@@ -221,6 +233,8 @@ export function createDevicePublicRouter({ store, config, realtime }) {
         label: screen.name,
         userAgent: activation.user_agent,
         remoteAddress: activation.remote_address,
+        manufacturer: activation.manufacturer,
+        model: activation.model,
         authorizedBy: activation.approved_by
       });
       const sessionId = crypto.randomUUID();
