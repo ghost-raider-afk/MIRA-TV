@@ -61,8 +61,7 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
     </defs>
     <g class="promotion-badge-glow" data-promotion-badge-animation="${badgeAnimation}" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
     <g class="promotion-badge">
-      <path d="${shape}" fill="url(#mira-promo-badge-depth)" filter="url(#mira-promo-badge-depth-shadow)"/>
-      <path d="${shape}" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="${Math.max(.7, .8 * fontScale)}"/>
+      <path d="${shape}" fill="url(#mira-promo-badge-depth)" stroke="rgba(255,255,255,.22)" stroke-width="${Math.max(.7, .8 * fontScale)}" filter="url(#mira-promo-badge-depth-shadow)"/>
       <text x="${x + (width - notch) / 2}" y="${top + 20.3 * fontScale}" class="promotion" ${textAttributes({ size: 14 * fontScale, weight: 850, fill: '#FFFFFF', letterSpacing: 0.25 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
     </g>
     <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
