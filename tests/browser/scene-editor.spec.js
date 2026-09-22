@@ -309,7 +309,9 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
     return {
       clientHeight:scroller?.clientHeight || 0,
       scrollHeight:scroller?.scrollHeight || 0,
+      rowGap:parseFloat(getComputedStyle(scroller).rowGap || getComputedStyle(scroller).gap || '0'),
       fontSizes:rows.map((row) => parseFloat(getComputedStyle(row.querySelector('.editor-preview-inline-control') || row).fontSize)),
+      controlHeights:rows.map((row) => (row.querySelector('.editor-preview-inline-control') || row).getBoundingClientRect().height),
       boxes:rows.map((row) => {
         const rect = row.getBoundingClientRect();
         return { top:rect.top, bottom:rect.bottom, height:rect.height };
@@ -317,8 +319,10 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
     };
   });
   expect(density.scrollHeight).toBeGreaterThan(density.clientHeight);
+  expect(density.rowGap).toBeLessThanOrEqual(1);
   expect(density.fontSizes.every((size) => size >= 11)).toBe(true);
-  expect(density.boxes.every((box) => box.height >= 36)).toBe(true);
+  expect(density.controlHeights.every((height) => height >= 32)).toBe(true);
+  expect(density.boxes.every((box) => box.height >= 33 && box.height <= 35)).toBe(true);
   for (let index = 1; index < density.boxes.length; index += 1) {
     expect(density.boxes[index].top).toBeGreaterThanOrEqual(density.boxes[index - 1].bottom);
   }
