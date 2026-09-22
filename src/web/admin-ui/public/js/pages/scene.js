@@ -3,7 +3,6 @@ import { api } from '../core/api.js';
 import { element, setMessage, setPending } from '../core/dom.js';
 import { updateSceneElement, selectSceneElement } from '../editor/commands.js';
 import {
-  appendRow,
   PROMOTION_BADGE_ANIMATION_OPTIONS,
   PROMOTION_ROW_ANIMATION_OPTIONS,
   renderTableEditorRows
