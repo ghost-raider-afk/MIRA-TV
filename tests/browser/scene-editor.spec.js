@@ -88,8 +88,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
   expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
   const compactRowHeight = (await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0;
-  expect(compactRowHeight).toBeGreaterThanOrEqual(28);
-  expect(compactRowHeight).toBeLessThanOrEqual(30);
+  expect(compactRowHeight).toBeGreaterThanOrEqual(24);
+  expect(compactRowHeight).toBeLessThanOrEqual(26);
   expect(await page.locator('#scene-editor-table-edit-layer .scene-table-editor-scroll').evaluate((node) => getComputedStyle(node).rowGap)).toBe('0px');
   expect(await tableEditorPanel.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
@@ -248,24 +248,20 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(weatherElement).toHaveCount(1);
   await expect(weatherContent).toHaveCount(1);
   await expect(inspector.locator('summary[aria-label^="Погода:"]')).toBeVisible();
-  await expect(inspector.getByLabel('Автомасштаб при resize')).toBeChecked();
-  await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveValue('100');
+  await expect(inspector.getByLabel('Автомасштаб при resize')).toHaveCount(0);
+  await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveCount(0);
+  await expect(inspector.getByLabel('Шрифт температуры')).toHaveValue('arial');
+  await inspector.getByLabel('Размер температуры, %').fill('130');
+  await inspector.getByLabel('Размер города, %').fill('115');
 
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
   await inspector.getByLabel('Высота', { exact:true }).fill('180');
-  await expect.poll(() => weatherContent.evaluate((node) => {
-    const scale = Number(node.dataset.sceneContentScale);
-    return scale > .47 && scale <= .5;
-  })).toBe(true);
-
-  await inspector.getByLabel('Масштаб внутри, %').fill('80');
-  await expect.poll(() => weatherContent.evaluate((node) => {
-    const scale = Number(node.dataset.sceneContentScale);
-    return Math.abs(scale - .4) < .01;
-  })).toBe(true);
-
-  await inspector.getByLabel('Автомасштаб при resize').uncheck();
-  await expect.poll(() => weatherContent.evaluate((node) => node.style.transform)).toContain('scale(0.8)');
+  await expect.poll(() => weatherContent.evaluate((node) => ({
+    scale:Number(node.dataset.sceneContentScale),
+    width:node.style.width,
+    height:node.style.height,
+    transform:node.style.transform
+  }))).toEqual({ scale:1, width:'100%', height:'100%', transform:'none' });
 
   await page.locator('#scene-editor-add').click();
   await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
@@ -285,6 +281,13 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[0].text.runs[0].value).toBe('бар маяк');
   expect(stored.draft.scene.elements[0].x).toBe(300);
   expect(stored.draft.scene.elements[1].type).toBe('weather');
+  expect(stored.draft.scene.elements[1].weather.temperature_size_percent).toBe(130);
+  expect(stored.draft.scene.elements[1].weather.location_size_percent).toBe(115);
+  expect(stored.draft.settings.promotion_badge_shape).toBe('chevron');
+  expect(stored.draft.settings.promotion_font_size_percent).toBe(120);
+  expect(stored.draft.settings.promotion_font_weight).toBe(800);
+  expect(stored.draft.settings.promotion_font_height_percent).toBe(125);
+  expect(stored.draft.settings.promotion_letter_spacing_px).toBe(1);
   const storedPromotion = stored.draft.rows.find((row) => row.kind === 'item');
   expect(storedPromotion.promotion).toBe(true);
   expect(storedPromotion.promotion_animation).toBe('fill');
@@ -364,8 +367,8 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   expect(density.scrollHeight).toBeGreaterThan(density.clientHeight);
   expect(density.rowGap).toBeLessThanOrEqual(1);
   expect(density.fontSizes.every((size) => size >= 11)).toBe(true);
-  expect(density.controlHeights.every((height) => height >= 28 && height <= 29)).toBe(true);
-  expect(density.boxes.every((box) => box.height >= 28 && box.height <= 30)).toBe(true);
+  expect(density.controlHeights.every((height) => height >= 24 && height <= 25)).toBe(true);
+  expect(density.boxes.every((box) => box.height >= 24 && box.height <= 26)).toBe(true);
   for (let index = 1; index < density.boxes.length; index += 1) {
     expect(density.boxes[index].top).toBeGreaterThanOrEqual(density.boxes[index - 1].bottom);
   }
@@ -647,10 +650,13 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const weatherContentScaleBefore = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
   const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
 
+  await page.locator('#scene-editor-promotion-row-layer').click();
+  await page.locator('#scene-editor-properties').getByRole('radiogroup', { name:'Тип эффекта' }).getByRole('radio', { name:'Заполнение' }).click();
+  await page.locator('#scene-editor-promotion-layer').click();
+  const badgeMotion = page.locator('#scene-editor-properties').getByRole('radiogroup', { name:'Эффект плашки' });
+  await badgeMotion.getByRole('radio', { name:'Breathing Glow' }).click();
+  await badgeMotion.getByRole('radio', { name:'Gloss Shine' }).click();
   await page.locator('#scene-editor-animation-layer').click();
-  const weatherAnimationInspector = page.locator('#scene-editor-properties');
-  await weatherAnimationInspector.getByRole('radiogroup', { name:'Эффект строки' }).getByRole('radio', { name:'Заполнение' }).click();
-  await weatherAnimationInspector.getByRole('radiogroup', { name:'Эффект плашки' }).getByRole('radio', { name:'Breathing Glow' }).click();
   const animationScale = page.locator('#animation-scale');
   const animationBrightness = page.locator('#animation-brightness');
   await animationScale.fill('0.09');
@@ -674,8 +680,8 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
       timeSize:time ? parseFloat(getComputedStyle(time).fontSize) : 0
     };
   });
-  expect(weatherType.factsSize).toBeGreaterThanOrEqual(15);
-  expect(weatherType.timeSize).toBeGreaterThanOrEqual(14);
+  expect(weatherType.factsSize).toBeGreaterThanOrEqual(12);
+  expect(weatherType.timeSize).toBeGreaterThanOrEqual(11);
   const weatherEmphasis = await weatherNode.evaluate((node) => {
     const location = node.querySelector('.weather-widget-location');
     const temperature = node.querySelector('.weather-widget-temperature');
@@ -691,11 +697,11 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
       iconFilter:icon ? getComputedStyle(icon).filter : 'none'
     };
   });
-  expect(weatherEmphasis.locationSize).toBeGreaterThanOrEqual(16);
-  expect(weatherEmphasis.temperatureSize).toBeGreaterThanOrEqual(64);
+  expect(weatherEmphasis.locationSize).toBeGreaterThanOrEqual(12);
+  expect(weatherEmphasis.temperatureSize).toBeGreaterThanOrEqual(40);
   expect(weatherEmphasis.locationShadow).not.toBe('none');
   expect(weatherEmphasis.temperatureShadow).not.toBe('none');
-  expect(weatherEmphasis.iconWidth).toBeGreaterThanOrEqual(82);
+  expect(weatherEmphasis.iconWidth).toBeGreaterThanOrEqual(50);
   expect(weatherEmphasis.iconFilter).not.toBe('none');
   await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
   expect(previewRequests.at(-1)).toMatchObject({
@@ -732,6 +738,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect(weatherNode).toHaveCSS('overflow', 'hidden');
   await expect(weatherNode.locator('.weather-widget-visual')).toHaveCSS('overflow', 'hidden');
   const effectiveScale = Number(await weatherNode.locator('[data-scene-weather-mount]').getAttribute('data-scene-content-scale'));
-  expect(effectiveScale).toBeGreaterThan(0);
-  expect(effectiveScale).toBeLessThan(1);
+  expect(effectiveScale).toBe(1);
+  await expect(weatherNode.locator('[data-scene-weather-mount]')).toHaveCSS('width', '250px');
+  await expect(weatherNode.locator('[data-scene-weather-mount]')).toHaveCSS('height', '150px');
 });
