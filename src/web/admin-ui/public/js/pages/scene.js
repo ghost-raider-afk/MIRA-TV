@@ -882,9 +882,12 @@ export function initialiseSceneEditor() {
       const width = Math.max(1, Number(state.settings.table_width_px || 1));
       const height = Math.max(1, Number(state.settings.table_height_px || 1));
       const rect = shell.getBoundingClientRect();
+      let moved = false;
       tableBox.setPointerCapture?.(event.pointerId);
 
       const move = (moveEvent) => {
+        if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) >= 4) moved = true;
+        if (!moved) return;
         const deltaX = (moveEvent.clientX - startX) * (SCENE_WIDTH / Math.max(1, rect.width));
         const deltaY = (moveEvent.clientY - startY) * (SCENE_HEIGHT / Math.max(1, rect.height));
         state.settings = {
@@ -898,13 +901,15 @@ export function initialiseSceneEditor() {
         applyTableGeometry();
         scheduleDocumentRender();
       };
-      const end = () => {
+      const end = (endEvent) => {
+        const shouldOpenEditor = endEvent.type === 'pointerup' && !moved;
         interactionActive = false;
         tableBox.removeEventListener('pointermove', move);
         tableBox.removeEventListener('pointerup', end);
         tableBox.removeEventListener('pointercancel', end);
         renderSelectionOwners();
         scheduleDocumentRender();
+        if (shouldOpenEditor) openTableEditor();
       };
       tableBox.addEventListener('pointermove', move);
       tableBox.addEventListener('pointerup', end);
