@@ -578,15 +578,79 @@ function tableEditorControl(editorState, group, options) {
 
 export function renderTableEditorRows(editorState, {
   target,
-  inspector,
-  model,
   products = [],
   packaging = [],
   onBeforeMutate,
   onVisualChange,
-  onStructureChange
+  onStructureChange,
+  onClose
 }) {
-  if (!(target instanceof HTMLElement) || !model) return;
+  if (!(target instanceof HTMLElement)) return;
+  target.replaceChildren();
+
+  const dialog = document.createElement('section');
+  dialog.className = 'scene-table-editor-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-label', 'Редактор таблицы меню');
+
+  const head = document.createElement('header');
+  head.className = 'scene-table-editor-head';
+
+  const headCopy = document.createElement('div');
+  const eyebrow = document.createElement('span');
+  eyebrow.textContent = 'РЕДАКТИРОВАНИЕ ТАБЛИЦЫ';
+  const title = document.createElement('strong');
+  title.textContent = 'Содержимое меню';
+  headCopy.append(eyebrow, title);
+
+  const headActions = document.createElement('div');
+  headActions.className = 'scene-table-editor-head-actions';
+
+  const counter = document.createElement('span');
+  counter.className = 'scene-table-editor-count';
+  counter.textContent = `${editorState.rows.filter((row) => row?.enabled !== false).length} строк`;
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'scene-table-editor-close';
+  close.setAttribute('aria-label', 'Применить изменения и закрыть редактор таблицы');
+  close.title = 'Применить и закрыть';
+  close.textContent = '×';
+  close.addEventListener('click', () => onClose?.());
+
+  headActions.append(counter, close);
+  head.append(headCopy, headActions);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'scene-table-editor-toolbar';
+  const toolbarLabel = document.createElement('span');
+  toolbarLabel.textContent = 'Добавить';
+  toolbar.append(toolbarLabel);
+  for (const [label, kind] of [['Раздел','section'],['Продукт','item'],['Тара','packaging']]) {
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'scene-table-editor-add';
+    add.textContent = `+ ${label}`;
+    add.addEventListener('click', () => {
+      onBeforeMutate?.();
+      appendRow(editorState, kind);
+      onStructureChange?.();
+    });
+    toolbar.append(add);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'scene-table-editor-body';
+
+  const scroll = document.createElement('div');
+  scroll.className = 'scene-table-editor-scroll';
+
+  const inspector = document.createElement('aside');
+  inspector.className = 'scene-table-editor-side';
+  inspector.dataset.sceneTableModalInspector = '';
+  inspector.setAttribute('aria-label', 'Настройки выбранной строки');
+
   const options = {
     inspector,
     products,
@@ -596,39 +660,12 @@ export function renderTableEditorRows(editorState, {
     onStructureChange,
     editorTarget:target
   };
-  target.replaceChildren();
-
-  const panel = document.createElement('section');
-  panel.className = 'scene-table-editor-panel';
-  panel.setAttribute('aria-label', 'Редактор таблицы меню');
-  const frame = tableEditorFrame(model);
-  panel.style.left = percent(frame.x, model.viewport.width);
-  panel.style.top = percent(frame.y, model.viewport.height);
-  panel.style.width = percent(frame.width, model.viewport.width);
-  panel.style.height = percent(frame.height, model.viewport.height);
-
-  const head = document.createElement('header');
-  head.className = 'scene-table-editor-head';
-  const headCopy = document.createElement('div');
-  const eyebrow = document.createElement('span');
-  eyebrow.textContent = 'РЕДАКТИРОВАНИЕ ТАБЛИЦЫ';
-  const title = document.createElement('strong');
-  title.textContent = 'Содержимое меню';
-  headCopy.append(eyebrow, title);
-  const counter = document.createElement('span');
-  const visibleCount = editorState.rows.filter((row) => row?.enabled !== false).length;
-  counter.className = 'scene-table-editor-count';
-  counter.textContent = `${visibleCount} строк`;
-  head.append(headCopy, counter);
-
-  const scroll = document.createElement('div');
-  scroll.className = 'scene-table-editor-scroll';
 
   const groups = tableEditorGroups(editorState);
   if (!groups.length) {
     const empty = document.createElement('p');
     empty.className = 'scene-table-editor-empty';
-    empty.textContent = 'Таблица пуста. Добавьте раздел, продукцию или тару справа.';
+    empty.textContent = 'Таблица пуста. Добавьте раздел, продукцию или тару.';
     scroll.append(empty);
   }
 
@@ -654,9 +691,16 @@ export function renderTableEditorRows(editorState, {
     scroll.append(rowNode);
   }
 
-  panel.append(head, scroll);
-  target.append(panel);
+  body.append(scroll, inspector);
+  dialog.append(head, toolbar, body);
+  target.append(dialog);
   renderInspector(editorState, options);
+
+  requestAnimationFrame(() => {
+    const selected = dialog.querySelector('.scene-table-editor-row.is-selected');
+    selected?.scrollIntoView?.({ block:'nearest' });
+    close.focus({ preventScroll:true });
+  });
 }
 
 export function renderPreviewRows(editorState, {
