@@ -30,7 +30,7 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.ok(badge, 'promotion-badge group must exist');
   assert.match(badge, /fill="url\(#mira-promo-badge-depth\)"/);
   assert.match(badge, /filter="url\(#mira-promo-badge-depth-shadow\)"/);
-  assert.match(badge, /class="promotion"[^>]*font-size="14\\.7/);
+  assert.match(badge, /class="promotion"[^>]*font-size="14[.]7/);
   assert.match(svg, /id="mira-promo-row-glow"[\\s\\S]*stop-opacity="0\\.72"/);
   assert.match(badge, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
   assert.match(svg, /class="promotion-badge-glow" data-promotion-badge-animation="shine" opacity="0"/);
