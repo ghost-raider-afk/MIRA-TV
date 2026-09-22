@@ -34,6 +34,10 @@ export const DEFAULT_ANIMATION_PROFILE = Object.freeze({
   promotion_glow_radius: 28,
   promotion_shine_speed: 1,
   promotion_shine_frequency_per_minute: 8,
+  promotion_row_intensity: 96,
+  promotion_row_cycle_seconds: 4.8,
+  promotion_row_event_duration_ms: 1800,
+  promotion_row_glow_radius: 28,
   promotion_easing: 'smooth'
 });
 
@@ -94,6 +98,10 @@ function canonicalCurrent(source) {
     promotion_glow_radius: clamp(number(present(source.promotion_glow_radius, DEFAULT_ANIMATION_PROFILE.promotion_glow_radius), DEFAULT_ANIMATION_PROFILE.promotion_glow_radius), 0, 48),
     promotion_shine_speed: clamp(number(present(source.promotion_shine_speed, DEFAULT_ANIMATION_PROFILE.promotion_shine_speed), DEFAULT_ANIMATION_PROFILE.promotion_shine_speed), 0.5, 3),
     promotion_shine_frequency_per_minute: clamp(number(present(source.promotion_shine_frequency_per_minute, DEFAULT_ANIMATION_PROFILE.promotion_shine_frequency_per_minute), DEFAULT_ANIMATION_PROFILE.promotion_shine_frequency_per_minute), 2, 20),
+    promotion_row_intensity: clamp(number(present(source.promotion_row_intensity, present(source.promotion_intensity, DEFAULT_ANIMATION_PROFILE.promotion_row_intensity)), DEFAULT_ANIMATION_PROFILE.promotion_row_intensity), 0, 100),
+    promotion_row_cycle_seconds: clamp(number(present(source.promotion_row_cycle_seconds, present(source.promotion_cycle_seconds, DEFAULT_ANIMATION_PROFILE.promotion_row_cycle_seconds)), DEFAULT_ANIMATION_PROFILE.promotion_row_cycle_seconds), 2, 30),
+    promotion_row_event_duration_ms: clamp(number(present(source.promotion_row_event_duration_ms, present(source.promotion_event_duration_ms, DEFAULT_ANIMATION_PROFILE.promotion_row_event_duration_ms)), DEFAULT_ANIMATION_PROFILE.promotion_row_event_duration_ms), 300, 6000),
+    promotion_row_glow_radius: clamp(number(present(source.promotion_row_glow_radius, present(source.promotion_glow_radius, DEFAULT_ANIMATION_PROFILE.promotion_row_glow_radius)), DEFAULT_ANIMATION_PROFILE.promotion_row_glow_radius), 0, 48),
     promotion_easing: canonicalPromotionEasing(present(source.promotion_easing, DEFAULT_ANIMATION_PROFILE.promotion_easing))
   };
 }
