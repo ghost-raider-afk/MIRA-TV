@@ -96,6 +96,8 @@ test('first section is a real editable row and never inherits the monitor name',
   await expect(preview.locator('.section-title').first()).toHaveText('ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ');
   await expect(preview.locator('.price-label')).toHaveCount(2);
 
+  await page.locator('.scene-table-editor-close').click();
+  await expect(editLayer).toBeHidden();
   await page.locator('#scene-editor-save').click();
   await expect(page.locator('#scene-editor-message')).toContainText(/сохранена/i);
 
