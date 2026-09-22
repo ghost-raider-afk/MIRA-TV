@@ -351,8 +351,8 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
   expect(density.scrollHeight).toBeGreaterThan(density.clientHeight);
   expect(density.rowGap).toBeLessThanOrEqual(1);
   expect(density.fontSizes.every((size) => size >= 11)).toBe(true);
-  expect(density.controlHeights.every((height) => height >= 32)).toBe(true);
-  expect(density.boxes.every((box) => box.height >= 33 && box.height <= 35)).toBe(true);
+  expect(density.controlHeights.every((height) => height >= 28 && height <= 29)).toBe(true);
+  expect(density.boxes.every((box) => box.height >= 28 && box.height <= 30)).toBe(true);
   for (let index = 1; index < density.boxes.length; index += 1) {
     expect(density.boxes[index].top).toBeGreaterThanOrEqual(density.boxes[index - 1].bottom);
   }
@@ -456,6 +456,7 @@ test('Glass table modal updates canonical Preview live and never changes table g
   expect(Number(await page.locator('#scene-editor-properties').getByLabel('Ширина таблицы').inputValue())).toBe(1374);
 
   const tableBox = page.locator('.scene-editor-table-selection-box');
+  await expect(tableBox).toBeVisible();
   const dragBox = await tableBox.boundingBox();
   expect(dragBox).not.toBeNull();
   await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
