@@ -188,8 +188,11 @@ export function initialiseShell() {
   if (!shell || !content) return;
   if (shell.querySelector('.ui-rail')) {
     refreshShellRoute();
+    shell.classList.add('ui-shell-ready');
     return;
   }
+
+  shell.classList.add('ui-shell-bootstrapping');
 
   const { section, currentPage } = navigationState();
   document.body.dataset.appPage = currentPage;
@@ -212,4 +215,6 @@ export function initialiseShell() {
 
   wireContext(shell, rail, context, header);
   refreshShellRoute();
+  shell.classList.add('ui-shell-ready');
+  requestAnimationFrame(() => shell.classList.remove('ui-shell-bootstrapping'));
 }
