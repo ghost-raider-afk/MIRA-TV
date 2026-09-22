@@ -276,6 +276,7 @@ export function initialiseSceneEditor() {
   }
 
   function selectOwner(owner, elementId = null) {
+    if (owner !== 'table' && tableEditorOpen) closeTableEditor({ restoreFocus:false });
     selectedOwner = owner;
     if (owner === 'element' && elementId) selectSceneElement(state, elementId);
     else state.selectedElementId = null;
@@ -329,9 +330,6 @@ export function initialiseSceneEditor() {
     state.dirty = true;
     setDirty();
     setSelectionStatus();
-    if (selectedOwner === 'table' && ['table_x','table_y','table_width_px','table_height_px'].some((key) => Object.hasOwn(patch, key))) {
-      renderTableEditLayer();
-    }
     scheduleDocumentRender();
   }
 
@@ -777,32 +775,19 @@ export function initialiseSceneEditor() {
     content.append(Object.assign(document.createElement('summary'), { textContent:'Содержимое' }));
     const contentPanel = document.createElement('div');
     contentPanel.className = 'scene-editor-inspector-panel';
-    const rowActions = document.createElement('div');
-    rowActions.className = 'scene-editor-table-row-actions';
-    for (const [label, kind] of [['+ Раздел','section'],['+ Продукт','item'],['+ Тара','packaging']]) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'button button-secondary';
-      button.textContent = label;
-      button.addEventListener('click', () => {
-        history.checkpoint();
-        appendRow(state, kind);
-        state.dirty = true;
-        setDirty();
-        renderTableEditLayer({ rebuildInspector:true });
-        scheduleDocumentRender();
-      });
-      rowActions.append(button);
-    }
-    const rowInspector = document.createElement('div');
-    rowInspector.className = 'scene-editor-table-row-inspector';
-    rowInspector.dataset.sceneTableRowInspector = '';
-    contentPanel.append(rowActions, rowInspector);
+    const openEditor = document.createElement('button');
+    openEditor.type = 'button';
+    openEditor.className = 'button button-secondary scene-editor-open-table-editor';
+    openEditor.textContent = 'Редактировать содержимое';
+    openEditor.addEventListener('click', openTableEditor);
+    const rowCount = document.createElement('small');
+    rowCount.className = 'scene-editor-table-content-state';
+    rowCount.textContent = `${state.rows.filter((row) => row?.enabled !== false).length} строк · изменения сразу видны в Preview`;
+    contentPanel.append(openEditor, rowCount);
     content.append(contentPanel);
 
     stack.append(geometry, typography, palette, content);
     propertiesRoot.append(stack);
-    renderTableEditLayer();
   }
 
   function refreshSelectionOverlay() {
@@ -1178,7 +1163,7 @@ export function initialiseSceneEditor() {
     await renderer.render(sceneContext(), ['screen', 'menu', 'scene', 'animation']);
     fitPreviewShell();
     refreshSelectionOverlay();
-    if (selectedOwner === 'table') renderTableEditLayer();
+    if (selectedOwner === 'table' && tableEditorOpen) renderTableEditLayer();
   }
 
   function hydrate(bundle) {
@@ -1200,6 +1185,10 @@ export function initialiseSceneEditor() {
       draftRevision:Number(bundle.draft?.revision || 0)
     });
     selectedOwner = 'none';
+    tableEditorOpen = false;
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
+    document.body.classList.remove('scene-table-editor-open');
     history.clear();
     const resolution = element('scene-editor-resolution');
     if (resolution) resolution.textContent = state.screen?.resolution || '—';
@@ -1321,7 +1310,10 @@ export function initialiseSceneEditor() {
 
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
   animationLayer.addEventListener('click', () => selectOwner('animation'));
-  tableLayer.addEventListener('click', () => selectOwner('table'));
+  tableLayer.addEventListener('click', () => {
+    selectOwner('table');
+    openTableEditor();
+  });
 
   mobileToolbar?.querySelectorAll('[data-scene-mobile-panel]').forEach((button) => {
     button.addEventListener('click', () => {
