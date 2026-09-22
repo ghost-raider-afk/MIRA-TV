@@ -21,10 +21,13 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   const svg = buildTableSvg(model, lines);
   const rowStart = svg.indexOf('<g class="table-item');
   const badgeStart = svg.indexOf('<g class="promotion-badge"', rowStart);
-  const badgeEnd = svg.indexOf('<g class="table-item-content">', badgeStart);
+  const badgeEnd = svg.indexOf('</g>', badgeStart);
+  const labelStart = svg.indexOf('<g class="promotion-badge-label"', badgeStart);
+  const labelEnd = svg.indexOf('</g>', labelStart);
   const pricesStart = svg.indexOf('<g class="table-item-prices">', rowStart);
   const rowEnd = svg.indexOf('</g>', pricesStart);
-  const badge = badgeStart >= 0 && badgeEnd > badgeStart ? svg.slice(badgeStart, badgeEnd) : '';
+  const badge = badgeStart >= 0 && badgeEnd > badgeStart ? svg.slice(badgeStart, badgeEnd + 4) : '';
+  const label = labelStart >= 0 && labelEnd > labelStart ? svg.slice(labelStart, labelEnd + 4) : '';
 
   assert.ok(rowStart >= 0, 'whole item row must exist');
   assert.ok(badge, 'promotion-badge group must exist');
@@ -33,8 +36,8 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.equal((badge.match(/<path\b/g) || []).length, 1, 'canonical promotion badge must keep one shape path');
   assert.match(badge, /data-promotion-badge-shape="base"/);
   assert.match(badge, /mira-promo-badge-bevel/);
-  const promotionText = badge.match(/<text\b[^>]*class="promotion"[^>]*>/)?.[0] || '';
-  assert.ok(promotionText, 'promotion text must exist');
+  const promotionText = label.match(/<text\b[^>]*class="promotion"[^>]*>/)?.[0] || '';
+  assert.ok(promotionText, 'promotion text must exist in its static label layer');
   assert.ok(Number(promotionText.match(/font-size="([^"]+)"/)?.[1] || 0) >= 15);
   assert.ok(Number(promotionText.match(/font-weight="([^"]+)"/)?.[1] || 0) >= 900);
   assert.match(promotionText, /transform="[^"]*scale\(1 1[.]12\)[^"]*"/);
@@ -42,7 +45,8 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   const promoGlowEnd = svg.indexOf('</linearGradient>', promoGlowStart);
   const promoGlowDefinition = promoGlowStart >= 0 && promoGlowEnd > promoGlowStart ? svg.slice(promoGlowStart, promoGlowEnd) : '';
   assert.ok(promoGlowDefinition.includes('stop-opacity="0.72"'));
-  assert.match(badge, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
+  assert.match(label, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
+  assert.ok(svg.indexOf('promotion-badge-effects-clip', badgeStart) < labelStart, 'shine must render below static promotion text');
   assert.match(svg, /class="promotion-badge-glow" data-promotion-badge-animation="shine" opacity="0"/);
   assert.match(svg, /class="promotion-badge-effects-clip"[^>]*clip-path="url\(#mira-promo-badge-clip-/);
   assert.match(svg, /class="promotion-badge-shine" data-promotion-badge-animation="shine" data-promotion-travel=/);
