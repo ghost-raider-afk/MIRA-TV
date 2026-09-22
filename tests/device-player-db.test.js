@@ -92,9 +92,15 @@ test('TV activation carries persistent identity through a first-class monitor bi
   const binding = await repository.getActiveDeviceBindingByScreen(screenId);
   assert.equal(binding.device_id, device.id);
   assert.equal(binding.device_key, deviceKey);
-  const listed = (await repository.listDeviceBindings()).find((item) => item.device_id === device.id);
+  let listed = (await repository.listDeviceBindings()).find((item) => item.device_id === device.id);
   assert.equal(listed.manufacturer, 'Xiaomi');
   assert.equal(listed.model, 'MIBOX4');
+
+  await repository.updateDeviceIdentification(device.id, { manufacturer:'Xiaomi', model:'Mi Box S 2nd Gen', userAgent:'updated-tv-agent' });
+  listed = (await repository.listDeviceBindings()).find((item) => item.device_id === device.id);
+  assert.equal(listed.manufacturer, 'Xiaomi');
+  assert.equal(listed.model, 'Mi Box S 2nd Gen');
+  assert.equal(listed.user_agent, 'updated-tv-agent');
 });
 
 test('same physical TV moves between monitors without creating a parallel device', async () => {
