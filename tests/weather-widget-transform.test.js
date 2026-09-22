@@ -43,11 +43,16 @@ test('weather geometry is isolated from menu and promotion rerenders', async () 
   assert.doesNotMatch(scenePage, /renderer\.render\(sceneContext\(\), \['screen', 'menu'\]\)/);
   assert.match(playerRenderer, /if \(dirty\.has\('scene'\) \|\| dirty\.has\('screen'\)\)/);
   assert.doesNotMatch(playerRenderer, /dirty\.has\('scene'\) \|\| dirty\.has\('screen'\) \|\| menuDirty/);
-  assert.match(elementRenderer, /if \(element\?\.type === 'weather'\) \{\s*return Math\.max\(\.01, nominal \* manual\);/);
+  assert.match(elementRenderer, /function responsiveContent\(element\)/);
+  assert.match(elementRenderer, /\['weather', 'image', 'video', 'logo'\]\.includes/);
+  assert.match(elementRenderer, /content\.dataset\.sceneContentScale = '1'/);
   assert.match(weatherWidget, /summary\.append\(icon, primary\)/);
   assert.match(weatherWidget, /top\.append\(summary, visual\)/);
   assert.match(weatherCss, /\.weather-widget-summary\s*\{[\s\S]*grid-template-columns:\s*85px minmax\(0,1fr\)/);
   assert.match(weatherCss, /\.weather-widget-icon\s*\{[\s\S]*transform:\s*none/);
+  assert.match(weatherCss, /data-weather-embedded="true"[\s\S]*container-type:size/);
+  assert.match(weatherCss, /--weather-temperature-cqw/);
+  assert.match(weatherCss, /--weather-location-cqw/);
 });
 
 test('weather coordinates preserve provider precision without artificial step rounding', async () => {
@@ -140,7 +145,7 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
     read('src/web/admin-ui/public/js/editor/preview.js')
   ]);
 
-  for (const field of ['animation_enabled','animation_speed','animation_intensity','widget_motion_enabled']) {
+  for (const field of ['animation_enabled','animation_speed','animation_intensity','widget_motion_enabled','temperature_font_family','temperature_size_percent','location_size_percent']) {
     assert.ok(elements.includes(field), field);
   }
   assert.doesNotMatch(elements, /weather-target-list|weather-apply|weatherStudioSettings/);
