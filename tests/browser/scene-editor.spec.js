@@ -662,7 +662,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
       temperatureSize:temperatureStyle ? parseFloat(temperatureStyle.fontSize) : 0,
       locationShadow:locationStyle?.textShadow || 'none',
       temperatureShadow:temperatureStyle?.textShadow || 'none',
-      iconWidth:icon?.getBoundingClientRect().width || 0,
+      iconWidth:icon ? parseFloat(getComputedStyle(icon).width) : 0,
       iconFilter:icon ? getComputedStyle(icon).filter : 'none'
     };
   });
