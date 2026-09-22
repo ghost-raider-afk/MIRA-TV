@@ -20,7 +20,7 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   const lines = buildDisplayLines(model);
   const svg = buildTableSvg(model, lines);
   const rowStart = svg.indexOf('<g class="table-item');
-  const badgeStart = svg.indexOf('<g class="promotion-badge">', rowStart);
+  const badgeStart = svg.indexOf('<g class="promotion-badge"', rowStart);
   const badgeEnd = svg.indexOf('</g>', badgeStart);
   const pricesStart = svg.indexOf('<g class="table-item-prices">', rowStart);
   const rowEnd = svg.indexOf('</g>', pricesStart);
@@ -30,6 +30,9 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.ok(badge, 'promotion-badge group must exist');
   assert.match(badge, /fill="url\(#mira-promo-badge-depth\)"/);
   assert.match(badge, /filter="url\(#mira-promo-badge-depth-shadow\)"/);
+  assert.equal((badge.match(/<path\b/g) || []).length, 1, 'canonical promotion badge must keep one shape path');
+  assert.match(badge, /data-promotion-badge-shape="base"/);
+  assert.match(badge, /mira-promo-badge-bevel/);
   const promotionText = badge.match(/<text\b[^>]*class="promotion"[^>]*>/)?.[0] || '';
   assert.ok(promotionText, 'promotion text must exist');
   assert.ok(Number(promotionText.match(/font-size="([^"]+)"/)?.[1] || 0) >= 15);
@@ -61,6 +64,20 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   const itemNameY = Number(metadataSvg.match(/<text\b[^>]*y="([^"]+)"[^>]*class="item-name"/)?.[1] || NaN);
   assert.ok(Number.isFinite(promotionY) && Number.isFinite(itemNameY), 'promotion and title baselines must be measurable');
   assert.ok(Math.abs(promotionY - itemNameY) < 0.001, 'promotion badge text must share the product title baseline');
+
+  for (const shape of ['base','capsule','cut','chevron','tag']) {
+    const shaped = buildRenderModel({
+      settings:{ promotion_badge_shape:shape, promotion_font_family:'tahoma-bold', promotion_font_size_percent:125, promotion_font_weight:800, promotion_font_height_percent:124, promotion_letter_spacing_px:2 },
+      rows:[
+        { id:'section', kind:'section', name:'Меню', enabled:true },
+        { id:'item', kind:'item', name:'Тест', promotion:true, promotion_text:'АКЦИЯ', enabled:true }
+      ]
+    }, { width:1920, height:1080 });
+    const shapedSvg = buildTableSvg(shaped, buildDisplayLines(shaped));
+    assert.match(shapedSvg, new RegExp(`data-promotion-badge-shape="${shape}"`));
+    assert.match(shapedSvg, /font-family="Tahoma, Arial, sans-serif"/);
+    assert.match(shapedSvg, /font-weight="800"/);
+  }
 });
 
 test('DOM scene graph animates light surfaces while row text and prices remain static', async () => {
@@ -95,6 +112,8 @@ test('DOM scene graph animates light surfaces while row text and prices remain s
   assert.match(driver, /spec\.kind === 'promo-glow'/);
   assert.match(driver, /spec\.animation === 'fill'/);
   assert.match(driver, /spec\.animation === 'gloss'/);
+  assert.match(driver, /spec\.animation === 'pulse'/);
+  assert.match(driver, /spec\.animation === 'runner'/);
   assert.doesNotMatch(driver, /spec\.kind === 'promo-badge'/);
   assert.doesNotMatch(driver, /_mira_promo_scale\(/);
   assert.doesNotMatch(driver, /_mira_promo_wave_progress/);
