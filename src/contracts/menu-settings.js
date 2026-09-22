@@ -5,6 +5,7 @@ const BACKGROUND_URL = /^\/site-assets\/screens\/background-[0-9a-f-]{36}\.(?:jp
 const MIN_FONT_SCALE = 55;
 const MAX_FONT_SCALE = 130;
 const DEFAULT_FONT_FAMILY = 'arial-narrow';
+const PROMOTION_SHAPES = new Set(['base', 'capsule', 'cut', 'chevron', 'tag']);
 const FONT_FAMILIES = new Set([
   'arial-narrow',
   'tahoma-bold',
@@ -32,9 +33,15 @@ function fontScale(value) {
   return number;
 }
 
-function fontFamily(value) {
-  if (value === undefined || value === null || value === '') return DEFAULT_FONT_FAMILY;
-  if (typeof value !== 'string' || !FONT_FAMILIES.has(value)) throw new ValidationError('Шрифт таблицы выбран неверно.');
+function fontFamily(value, field = 'Шрифт таблицы', fallback = DEFAULT_FONT_FAMILY) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value !== 'string' || !FONT_FAMILIES.has(value)) throw new ValidationError(`${field} выбран неверно.`);
+  return value;
+}
+
+function promotionShape(value) {
+  if (value === undefined || value === null || value === '') return 'base';
+  if (typeof value !== 'string' || !PROMOTION_SHAPES.has(value)) throw new ValidationError('Форма плашки акции выбрана неверно.');
   return value;
 }
 
@@ -70,6 +77,12 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
     text_color: color(source.text_color, 'text_color', '#F8FAFC'),
     font_scale_percent: fontScale(source.font_scale_percent),
     font_family: fontFamily(source.font_family),
+    promotion_badge_shape: promotionShape(source.promotion_badge_shape),
+    promotion_font_family: fontFamily(source.promotion_font_family, 'Шрифт акции', DEFAULT_FONT_FAMILY),
+    promotion_font_size_percent: integer(source.promotion_font_size_percent, 'promotion_font_size_percent', 100, 60, 180),
+    promotion_font_weight: integer(source.promotion_font_weight, 'promotion_font_weight', 900, 400, 900),
+    promotion_font_height_percent: integer(source.promotion_font_height_percent, 'promotion_font_height_percent', 112, 70, 180),
+    promotion_letter_spacing_px: integer(source.promotion_letter_spacing_px, 'promotion_letter_spacing_px', 0, -2, 8),
     table_x,
     table_y,
     table_width_px,
@@ -79,4 +92,5 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
 
 export const MENU_FONT_SCALE_RANGE = Object.freeze({ minimum: MIN_FONT_SCALE, maximum: MAX_FONT_SCALE });
 export const MENU_FONT_FAMILIES = Object.freeze([...FONT_FAMILIES]);
+export const MENU_PROMOTION_SHAPES = Object.freeze([...PROMOTION_SHAPES]);
 export const MENU_DEFAULT_GEOMETRY = DEFAULT_GEOMETRY;
