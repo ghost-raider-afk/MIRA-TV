@@ -170,7 +170,7 @@ export function formatProductMetadata(product) {
   ].filter(Boolean).join(' · ');
 }
 
-function fontDefinition(value) {
+export function fontDefinition(value) {
   return MENU_FONT_OPTIONS.find((font) => font.key === value)
     || MENU_FONT_OPTIONS.find((font) => font.key === DEFAULT_FONT_KEY);
 }
