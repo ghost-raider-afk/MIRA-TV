@@ -14,6 +14,8 @@ test('monitor settings contract stores only canonical renderer fields', () => {
     background_color: '#101828',
     background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.png',
     accent_color: '#F4C915', text_color: '#F8FAFC', font_scale_percent: 92, font_family: 'tahoma-bold',
+    promotion_badge_shape: 'base', promotion_font_family: 'arial-narrow', promotion_font_size_percent: 100,
+    promotion_font_weight: 900, promotion_font_height_percent: 112, promotion_letter_spacing_px: 0,
     table_x: 40, table_y: 20, table_width_px: 1200, table_height_px: 700
   });
   assert.equal(Object.hasOwn(settings, 'font_scale'), false);
@@ -33,6 +35,25 @@ test('table font is allowlisted and defaults to Arial Narrow', () => {
   assert.equal(menuSettingsInput({}).font_family, 'arial-narrow');
   assert.equal(menuSettingsInput({ font_family: 'tahoma-bold' }).font_family, 'tahoma-bold');
   assert.throws(() => menuSettingsInput({ font_family: 'external-font' }), /Шрифт таблицы/);
+});
+
+test('promotion badge shape and typography are allowlisted', () => {
+  const settings = menuSettingsInput({
+    promotion_badge_shape:'chevron',
+    promotion_font_family:'tahoma-bold',
+    promotion_font_size_percent:128,
+    promotion_font_weight:800,
+    promotion_font_height_percent:124,
+    promotion_letter_spacing_px:2
+  });
+  assert.equal(settings.promotion_badge_shape, 'chevron');
+  assert.equal(settings.promotion_font_family, 'tahoma-bold');
+  assert.equal(settings.promotion_font_size_percent, 128);
+  assert.equal(settings.promotion_font_weight, 800);
+  assert.equal(settings.promotion_font_height_percent, 124);
+  assert.equal(settings.promotion_letter_spacing_px, 2);
+  assert.throws(() => menuSettingsInput({ promotion_badge_shape:'starburst' }), /Форма плашки/);
+  assert.throws(() => menuSettingsInput({ promotion_font_family:'remote-font' }), /Шрифт акции/);
 });
 
 test('table geometry is bounded by monitor dimensions', () => {
