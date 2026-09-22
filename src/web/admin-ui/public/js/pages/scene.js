@@ -31,7 +31,9 @@ const ELEMENT_LABELS = Object.freeze({
   video: 'Видео',
   weather: 'Погода',
   background: 'Фон',
-  animation: 'Анимация',
+  promotion: 'Акция',
+  'promotion-row': 'Акционная строка',
+  animation: 'Анимация сцены',
   table: 'Таблица меню'
 });
 const ELEMENT_ICONS = Object.freeze({
@@ -41,6 +43,8 @@ const ELEMENT_ICONS = Object.freeze({
   video: '▶',
   weather: '☁',
   background: '▧',
+  promotion: '◆',
+  'promotion-row': '═',
   animation: '∿',
   table: '▦'
 });
@@ -54,11 +58,31 @@ const TABLE_FONTS = Object.freeze([
 ]);
 
 function systemOwnerIcon(type) {
-  if (!['background','animation','table'].includes(type)) return null;
+  if (!['background','promotion','promotion-row','animation','table'].includes(type)) return null;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
+
+  if (type === 'promotion') {
+    const tag = document.createElementNS(svg.namespaceURI, 'path');
+    tag.setAttribute('d', 'M4 7h12l4 5-4 5H4zM8 10h5M8 14h7');
+    svg.append(tag);
+    return svg;
+  }
+
+  if (type === 'promotion-row') {
+    const row = document.createElementNS(svg.namespaceURI, 'rect');
+    row.setAttribute('x', '3.5');
+    row.setAttribute('y', '7');
+    row.setAttribute('width', '17');
+    row.setAttribute('height', '10');
+    row.setAttribute('rx', '2');
+    const line = document.createElementNS(svg.namespaceURI, 'path');
+    line.setAttribute('d', 'M6 12h12');
+    svg.append(row, line);
+    return svg;
+  }
 
   if (type === 'animation') {
     const wave = document.createElementNS(svg.namespaceURI, 'path');
@@ -141,6 +165,8 @@ export function initialiseSceneEditor() {
   const addButton = element('scene-editor-add');
   const addMenu = element('scene-editor-add-menu');
   const backgroundLayer = element('scene-editor-background-layer');
+  const promotionLayer = element('scene-editor-promotion-layer');
+  const promotionRowLayer = element('scene-editor-promotion-row-layer');
   const animationLayer = element('scene-editor-animation-layer');
   const tableLayer = element('scene-editor-table-layer');
   const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
@@ -158,6 +184,8 @@ export function initialiseSceneEditor() {
       || !(addButton instanceof HTMLButtonElement)
       || !(addMenu instanceof HTMLElement)
       || !(backgroundLayer instanceof HTMLButtonElement)
+      || !(promotionLayer instanceof HTMLButtonElement)
+      || !(promotionRowLayer instanceof HTMLButtonElement)
       || !(animationLayer instanceof HTMLButtonElement)
       || !(tableLayer instanceof HTMLButtonElement)
       || !(undoButton instanceof HTMLButtonElement)
@@ -211,13 +239,17 @@ export function initialiseSceneEditor() {
     const ownerType = selectedOwner === 'element' ? selected?.type : selectedOwner;
     const caption = selectedOwner === 'background'
       ? 'Фон'
-      : selectedOwner === 'animation'
-        ? 'Анимация'
-        : selectedOwner === 'table'
-          ? 'Таблица меню'
-          : selected
-            ? `Элемент ${index + 1}`
-            : 'Элемент не выбран';
+      : selectedOwner === 'promotion'
+        ? 'Акция'
+        : selectedOwner === 'promotion-row'
+          ? 'Акционная строка'
+          : selectedOwner === 'animation'
+            ? 'Анимация сцены'
+            : selectedOwner === 'table'
+              ? 'Таблица меню'
+              : selected
+                ? `Элемент ${index + 1}`
+                : 'Элемент не выбран';
 
     if (status) {
       status.textContent = selected
@@ -269,6 +301,8 @@ export function initialiseSceneEditor() {
     });
     selectionLayer.querySelector('.scene-editor-table-selection-box')?.classList.toggle('is-selected', selectedOwner === 'table');
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
+    promotionLayer.classList.toggle('is-selected', selectedOwner === 'promotion');
+    promotionRowLayer.classList.toggle('is-selected', selectedOwner === 'promotion-row');
     animationLayer.classList.toggle('is-selected', selectedOwner === 'animation');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     setSelectionStatus();
@@ -1086,6 +1120,8 @@ export function initialiseSceneEditor() {
 
   function renderLayers() {
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
+    promotionLayer.classList.toggle('is-selected', selectedOwner === 'promotion');
+    promotionRowLayer.classList.toggle('is-selected', selectedOwner === 'promotion-row');
     animationLayer.classList.toggle('is-selected', selectedOwner === 'animation');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     renderSceneLayerList(state, {
@@ -1117,6 +1153,16 @@ export function initialiseSceneEditor() {
   function renderInspector() {
     if (selectedOwner === 'background') {
       renderBackgroundInspector();
+      setSelectionStatus();
+      return;
+    }
+    if (selectedOwner === 'promotion') {
+      renderPromotionInspector();
+      setSelectionStatus();
+      return;
+    }
+    if (selectedOwner === 'promotion-row') {
+      renderPromotionRowInspector();
       setSelectionStatus();
       return;
     }
@@ -1211,6 +1257,8 @@ export function initialiseSceneEditor() {
     screenSelect.disabled = true;
     addButton.disabled = true;
     backgroundLayer.disabled = true;
+    promotionLayer.disabled = true;
+    promotionRowLayer.disabled = true;
     animationLayer.disabled = true;
     tableLayer.disabled = true;
     const saveButton = element('scene-editor-save');
@@ -1227,6 +1275,8 @@ export function initialiseSceneEditor() {
     element('scene-editor-save').disabled = false;
     addButton.disabled = false;
     backgroundLayer.disabled = false;
+    promotionLayer.disabled = false;
+    promotionRowLayer.disabled = false;
     animationLayer.disabled = false;
     tableLayer.disabled = false;
     syncAddMenuAvailability();
@@ -1320,6 +1370,8 @@ export function initialiseSceneEditor() {
   form.addEventListener('keydown', onEditorKeydown);
 
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
+  promotionLayer.addEventListener('click', () => selectOwner('promotion'));
+  promotionRowLayer.addEventListener('click', () => selectOwner('promotion-row'));
   animationLayer.addEventListener('click', () => selectOwner('animation'));
   tableLayer.addEventListener('click', () => {
     selectOwner('table');
