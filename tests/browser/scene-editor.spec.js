@@ -89,7 +89,10 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(tableProductSelect).toBeVisible();
   await expect(tableProductSelect).toHaveAttribute('role', 'combobox');
   expect(parseFloat(await tableProductSelect.evaluate((node) => getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
-  expect((await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0).toBeGreaterThanOrEqual(33);
+  const compactRowHeight = (await page.locator('#scene-editor-table-edit-layer .scene-table-editor-row').first().boundingBox())?.height || 0;
+  expect(compactRowHeight).toBeGreaterThanOrEqual(28);
+  expect(compactRowHeight).toBeLessThanOrEqual(30);
+  expect(await page.locator('#scene-editor-table-edit-layer .scene-table-editor-scroll').evaluate((node) => getComputedStyle(node).rowGap)).toBe('0px');
   expect(await tableEditorPanel.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   await expect(page.locator('#scene-editor-table-edit-layer select[data-preview-product-select]')).toHaveCount(0);
   await tableProductSelect.click();
@@ -118,14 +121,22 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     const text = node.querySelector('.promotion');
     const path = node.querySelector('path');
     const glowStops = [...node.ownerSVGElement.querySelectorAll('#mira-promo-row-glow stop')];
+    const row = node.closest('.table-item');
+    const itemName = row?.querySelector('.item-name');
     return {
       textSize:Number(text?.getAttribute('font-size') || 0),
+      textWeight:Number(text?.getAttribute('font-weight') || 0),
+      textTransform:text?.getAttribute('transform') || '',
+      baselineDelta:Math.abs(Number(text?.getAttribute('y') || 0) - Number(itemName?.getAttribute('y') || 0)),
       badgeHeight:path?.getBBox?.().height || 0,
       badgeFill:path?.getAttribute('fill') || '',
       maxGlowOpacity:Math.max(0, ...glowStops.map((stop) => Number(stop.getAttribute('stop-opacity') || 0)))
     };
   });
-  expect(promotionVisual.textSize).toBeGreaterThanOrEqual(14);
+  expect(promotionVisual.textSize).toBeGreaterThanOrEqual(15);
+  expect(promotionVisual.textWeight).toBeGreaterThanOrEqual(900);
+  expect(promotionVisual.textTransform).toContain('scale(1 1.12)');
+  expect(promotionVisual.baselineDelta).toBeLessThan(.1);
   expect(promotionVisual.badgeHeight).toBeGreaterThanOrEqual(29);
   expect(promotionVisual.badgeFill).toContain('mira-promo-badge-depth');
   expect(promotionVisual.maxGlowOpacity).toBeGreaterThanOrEqual(.7);
