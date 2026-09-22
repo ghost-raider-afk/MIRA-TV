@@ -34,13 +34,18 @@ function priceMarkup(value, x, baseline, scale, toneColor, typography, className
   return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-16 * fontScale}" font-size="${14 * fontScale}" font-weight="700" fill="${toneColor}">${escapeXml(parts.cents)}</tspan></text>`;
 }
 
-function promotionMarkup(line, x, box, scale, typography, horizontal) {
+function promotionMarkup(line, x, box, scale, typography, horizontal, textBaseline) {
   if (!line.promotion || !line.promotionText) return { markup: '', glow: '', width: 0 };
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const text = truncateText(line.promotionText, 12);
   const width = Math.min(143 * fontScale, Math.max(75 * fontScale, ([...text].length * 9.8 + 26) * fontScale));
   const height = 29.7 * fontScale;
-  const top = box.top + Math.max(2 * scale, (box.height - height) / 2);
+  const preferredTextY = Number.isFinite(textBaseline) ? textBaseline : box.top + 20.3 * fontScale;
+  const preferredTop = preferredTextY - 20.3 * fontScale;
+  const minTop = box.top + 0.35 * scale;
+  const maxTop = Math.max(minTop, box.bottom - height - 0.35 * scale);
+  const top = Math.min(maxTop, Math.max(minTop, preferredTop));
+  const textY = top + 20.3 * fontScale;
   const notch = 9.9 * fontScale;
   const shape = `M${x} ${top}H${x + width - notch}L${x + width} ${top + height / 2}L${x + width - notch} ${top + height}H${x}Z`;
   const clipId = `mira-promo-badge-clip-${Math.round(box.top * 10)}-${Math.round(x * 10)}`;
@@ -62,7 +67,7 @@ function promotionMarkup(line, x, box, scale, typography, horizontal) {
     <g class="promotion-badge-glow" data-promotion-badge-animation="${badgeAnimation}" opacity="0" pointer-events="none"><path d="${shape}" fill="${MENU_TABLE_STYLE.promotion}"/></g>
     <g class="promotion-badge">
       <path d="${shape}" fill="url(#mira-promo-badge-depth)" stroke="rgba(255,255,255,.22)" stroke-width="${Math.max(.7, .8 * fontScale)}" filter="url(#mira-promo-badge-depth-shadow)"/>
-      <text x="${x + (width - notch) / 2}" y="${top + 20.3 * fontScale}" class="promotion" ${textAttributes({ size: 14 * fontScale, weight: 850, fill: '#FFFFFF', letterSpacing: 0.25 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
+      <text x="${x + (width - notch) / 2}" y="${textY}" class="promotion" transform="translate(0 ${textY}) scale(1 1.12) translate(0 ${-textY})" ${textAttributes({ size: 15 * fontScale, weight: 900, fill: '#FFFFFF', letterSpacing: 0.18 * scale, anchor: 'middle' }, typography)}>${escapeXml(text)}</text>
     </g>
     <g class="promotion-badge-effects-clip" clip-path="url(#${clipId})" pointer-events="none">
       <g class="promotion-badge-shine" data-promotion-badge-animation="${badgeAnimation}" data-promotion-travel="${shineTravel}" opacity="0">
@@ -96,16 +101,16 @@ function itemMarkup(line, box, horizontal, palette, scale, typography) {
   const toneColor = line.tone === 'accent' ? palette.accentText : palette.primaryText;
   const metaColor = line.tone === 'accent' ? palette.accentSecondaryText : palette.secondaryText;
   const nameX = horizontal.left + 22 * horizontal.scaleX;
-  const promotion = promotionMarkup(line, nameX, box, scale, typography, horizontal);
-  const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
-  const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
-  const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
   const priceBaseline = box.top + 35 * fontScale;
   const hasMetadata = Boolean(line.metadata);
   const nameBaseline = hasMetadata ? box.top + 21 * fontScale : priceBaseline;
   const metaBaseline = box.top + 46.5 * fontScale;
   const nameSize = (hasMetadata ? 24 : 25) * fontScale;
   const metaSize = 13.5 * fontScale;
+  const promotion = promotionMarkup(line, nameX, box, scale, typography, horizontal, nameBaseline);
+  const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
+  const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
+  const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
   return `<g class="table-item tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale)}
     ${motionSurfaceMarkup(box, horizontal, scale, 'item')}
