@@ -896,7 +896,8 @@ function inspectorGroups(element, sections) {
     return [
       ['Трансформация', sections.slice(0, 1), true],
       ['Погода', sections.slice(1, 3), true],
-      ['Анимация', sections.slice(3), false]
+      ['Типографика', sections.slice(3, 4), true],
+      ['Анимация', sections.slice(4), false]
     ];
   }
   return [
