@@ -31,7 +31,10 @@ test('promotion badge remains one SVG object and promo uses a full-row soft glow
   assert.match(badge, /fill="url\(#mira-promo-badge-depth\)"/);
   assert.match(badge, /filter="url\(#mira-promo-badge-depth-shadow\)"/);
   assert.match(badge, /class="promotion"[^>]*font-size="14[.]7/);
-  assert.match(svg, /id="mira-promo-row-glow"[\\s\\S]*stop-opacity="0\\.72"/);
+  const promoGlowStart = svg.indexOf('id="mira-promo-row-glow"');
+  const promoGlowEnd = svg.indexOf('</linearGradient>', promoGlowStart);
+  const promoGlowDefinition = promoGlowStart >= 0 && promoGlowEnd > promoGlowStart ? svg.slice(promoGlowStart, promoGlowEnd) : '';
+  assert.ok(promoGlowDefinition.includes('stop-opacity="0.72"'));
   assert.match(badge, /<text\b[^>]*class="promotion"[^>]*>АКЦИЯ<\/text>/);
   assert.match(svg, /class="promotion-badge-glow" data-promotion-badge-animation="shine" opacity="0"/);
   assert.match(svg, /class="promotion-badge-effects-clip"[^>]*clip-path="url\(#mira-promo-badge-clip-/);
