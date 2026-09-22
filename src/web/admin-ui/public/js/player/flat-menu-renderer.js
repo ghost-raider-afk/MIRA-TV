@@ -131,7 +131,12 @@ export class FlatMenuRenderer {
     layer.dataset.vectorMenu = 'true';
     const stage = layer.closest('.player-scene-stage');
     this.stage = stage instanceof HTMLElement ? stage : null;
-    fitStage(this.stage, width, height);
+
+    // PlayerSceneRenderer is the canonical owner of logical viewport geometry.
+    // Never let the menu renderer overwrite its fixed 1920×1080 stage with a
+    // responsive 100%/auto layout; that was the root cause of the menu table
+    // expanding to the whole Scene Editor canvas after a menu-only rerender.
+    if (!this.stage?.dataset.sceneViewportWidth) fitStage(this.stage, width, height);
     return generation === this.generation && layer === this.layer;
   }
 }
