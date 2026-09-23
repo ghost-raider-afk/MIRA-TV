@@ -252,8 +252,15 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveCount(0);
   await expect(inspector.locator('summary[aria-label^="Типографика:"]')).toBeVisible();
   await expect(inspector.getByLabel('Шрифт температуры')).toHaveValue('arial');
-  await inspector.getByLabel('Размер температуры, %').fill('130');
-  await inspector.getByLabel('Размер города, %').fill('115');
+  const weatherFontOptions = await inspector.getByLabel('Шрифт температуры').locator('option').allTextContents();
+  expect(weatherFontOptions).toEqual(expect.arrayContaining(['MIRA Sans Condensed','MIRA Serif','Oswald','Georgia']));
+  await inspector.getByLabel('Шрифт температуры').selectOption('oswald');
+  await inspector.getByLabel('Кегль температуры, pt').fill('62');
+  await inspector.getByLabel('Кегль города, pt').fill('16');
+  await inspector.getByLabel('Масштаб иконок, %').fill('150');
+  await expect.poll(() => weatherElement.locator('.weather-widget').evaluate((node) =>
+    node.style.getPropertyValue('--weather-icon-size-px')
+  )).toBe('124.5px');
 
   await inspector.getByLabel('Ширина', { exact:true }).fill('260');
   await inspector.getByLabel('Высота', { exact:true }).fill('180');
@@ -282,8 +289,10 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[0].text.runs[0].value).toBe('бар маяк');
   expect(stored.draft.scene.elements[0].x).toBe(300);
   expect(stored.draft.scene.elements[1].type).toBe('weather');
-  expect(stored.draft.scene.elements[1].weather.temperature_size_percent).toBe(130);
-  expect(stored.draft.scene.elements[1].weather.location_size_percent).toBe(115);
+  expect(stored.draft.scene.elements[1].weather.temperature_font_family).toBe('oswald');
+  expect(stored.draft.scene.elements[1].weather.temperature_font_size_pt).toBe(62);
+  expect(stored.draft.scene.elements[1].weather.location_font_size_pt).toBe(16);
+  expect(stored.draft.scene.elements[1].weather.icon_scale_percent).toBe(150);
   expect(stored.draft.settings.promotion_badge_shape).toBe('chevron');
   expect(stored.draft.settings.promotion_font_size_percent).toBe(120);
   expect(stored.draft.settings.promotion_font_weight).toBe(800);
