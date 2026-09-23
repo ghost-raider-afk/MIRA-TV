@@ -49,8 +49,8 @@ test('weather geometry is isolated from menu and promotion rerenders', async () 
   assert.match(elementRenderer, /content\.dataset\.sceneContentScale = '1'/);
   assert.match(weatherWidget, /summary\.append\(icon, primary\)/);
   assert.match(weatherWidget, /top\.append\(summary, visual\)/);
-  assert.match(weatherCss, /\.weather-widget-summary\s*\{[\s\S]*grid-template-columns:\s*85px minmax\(0,1fr\)/);
-  assert.match(weatherCss, /\.weather-widget-icon\s*\{[\s\S]*transform:\s*none/);
+  assert.match(weatherCss, /\.weather-widget-summary\s*\{[\s\S]*grid-template-columns:\s*var\(--weather-icon-column-px,85px\) minmax\(0,1fr\)/);
+  assert.match(weatherCss, /\.weather-widget-icon\s*\{[\s\S]*width:\s*var\(--weather-icon-size-px,83px\)[\s\S]*transform:\s*none/);
   assert.match(weatherCss, /data-weather-embedded="true"[\s\S]*container-type:size/);
   assert.match(weatherCss, /--weather-temperature-cqw/);
   assert.match(weatherCss, /--weather-location-cqw/);
