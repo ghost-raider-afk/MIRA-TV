@@ -82,8 +82,11 @@ test('browser and server weather models preserve empty coordinates as unconfigur
 
 test('weather forecast filtering follows provider city wall clock instead of server timezone', async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({
-    timezone:'Asia/Vladivostok',
+  let requestedTimezone = '';
+  globalThis.fetch = async (input) => {
+    requestedTimezone = new URL(String(input)).searchParams.get('timezone') || '';
+    return new Response(JSON.stringify({
+    timezone:'UTC',
     current:{
       time:'2026-09-20T22:10',
       temperature_2m:9,
@@ -100,6 +103,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
       precipitation_probability:[10,10,10,10]
     }
   }), { status:200, headers:{'content-type':'application/json'} });
+  };
   try {
     const snapshot = await getWeatherSnapshot({
       location_name:'Комсомольск-на-Амуре',
@@ -111,6 +115,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
       weatherFetchTimeoutMs:1000,
       weatherCacheSeconds:600
     }, { force:true });
+    assert.equal(requestedTimezone, 'Asia/Vladivostok');
     assert.equal(snapshot.timezone, 'Asia/Vladivostok');
     assert.deepEqual(snapshot.forecast.slice(0, 3).map((item) => item.time), [
       '2026-09-20T23:00',
