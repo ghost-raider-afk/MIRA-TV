@@ -27,7 +27,14 @@ test('admin retires a legacy root-scoped Player worker before shared runtime mod
       await data.put('/__player-data-probe', new Response('data'));
     });
 
+    let mainFrameNavigations = 0;
+    const onNavigation = (frame) => {
+      if (frame === page.mainFrame()) mainFrameNavigations += 1;
+    };
+    page.on('framenavigated', onNavigation);
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect.poll(() => mainFrameNavigations, { timeout: 8000 }).toBeGreaterThanOrEqual(2);
+    page.off('framenavigated', onNavigation);
     await page.waitForLoadState('domcontentloaded');
 
     await expect.poll(() => page.evaluate(async () => {
