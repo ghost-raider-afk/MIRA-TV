@@ -117,13 +117,6 @@ export class WeatherService {
         provider,
         message:`${label} снова доступен.`
       });
-    } else if (status === 'unconfigured') {
-      await this.event({
-        action:'weather.provider.unconfigured',
-        severity:'warning',
-        provider,
-        message:`${label} не настроен. Используется резервный источник.`
-      });
     }
     return transition.current;
   }
