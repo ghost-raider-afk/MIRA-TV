@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v35';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v36';
-const SHELL_CACHE = 'mira-tv-player-shell-v37';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v36';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v37';
+const SHELL_CACHE = 'mira-tv-player-shell-v38';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: weather provider egress and selected-city timezone are authoritative.
+// Source revision: persistent multi-provider weather collector.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
