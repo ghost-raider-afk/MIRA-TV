@@ -57,6 +57,17 @@ function cacheKey(latitude, longitude, timezone) {
   return `${latitude.toFixed(3)}:${longitude.toFixed(3)}:${timezone || 'auto'}`;
 }
 
+function cityTimezone(value) {
+  const timezone = String(value || 'auto').trim() || 'auto';
+  if (timezone === 'auto') return timezone;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date(0));
+    return timezone;
+  } catch {
+    throw new Error('Weather timezone is invalid.');
+  }
+}
+
 function wallClockMs(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(value || ''));
   if (!match) return Number.NaN;
@@ -115,7 +126,7 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
   const latitude = finite(settings?.latitude, -90, 90);
   const longitude = finite(settings?.longitude, -180, 180);
   if (latitude === null || longitude === null) throw new Error('Weather coordinates are not configured.');
-  const timezone = String(settings?.timezone || 'auto');
+  const timezone = cityTimezone(settings?.timezone);
   const key = cacheKey(latitude, longitude, timezone);
   const cached = cache.get(key);
   if (!force && cached && cached.expiresAt > Date.now()) {
@@ -150,7 +161,7 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
     location_name: String(settings?.location_name || '').trim(),
     latitude,
     longitude,
-    timezone: body?.timezone || timezone,
+    timezone: timezone === 'auto' ? cityTimezone(body?.timezone || 'UTC') : timezone,
     updated_at: current.time || new Date().toISOString(),
     temperature: Number(current.temperature_2m),
     apparent_temperature: Number(current.apparent_temperature),
