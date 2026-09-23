@@ -37,7 +37,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v33'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v34'/);
   assert.match(player, /createPlayerStateSync/);
   assert.match(player, /restoreLastKnownGood\(\)/);
   assert.match(player, /syncNow\('boot'\)/);
