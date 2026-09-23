@@ -259,7 +259,7 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
   assert.match(weatherRuntime, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
   assert.match(weatherRuntime, /this\.screenId \? `\$\{CACHE_PREFIX\}\$\{this\.screenId\}` : ''/);
-  assert.match(weatherRuntime, /settings:\s*\{ \.\.\.this\.settings, screen_id: this\.screenId \}/);
+  assert.match(weatherRuntime, /settings:\s*this\.preview \? \{ \.\.\.this\.settings \} : \{ \.\.\.this\.settings, screen_id: this\.screenId \}/);
   assert.match(weatherRuntime, /legacyScreenId === this\.screenId/);
   assert.match(weatherRuntime, /applyContext\(settings, screenId/);
   assert.doesNotMatch(weatherRuntime, /loadLastKnownGood/);
@@ -287,7 +287,7 @@ test('Scene weather preview invalidates stale source data and uses protected pre
   assert.match(runtime, /url\.searchParams\.set\('latitude'/);
   assert.match(runtime, /url\.searchParams\.set\('longitude'/);
   assert.match(runtime, /const PREVIEW_CACHE_KEY = 'mira-tv\.weather\.preview\.last\.v1'/);
-  assert.match(runtime, /this\.preview \? PREVIEW_CACHE_KEY/);
+  assert.match(runtime, /if \(this\.preview\) return PREVIEW_CACHE_KEY/);
   assert.match(runtime, /PREVIEW_RETRY_MS/);
   assert.match(renderer, /weatherPreviewEndpoint = '\/api\/weather\/preview'/);
 });
