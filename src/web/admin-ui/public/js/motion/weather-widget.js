@@ -15,7 +15,13 @@ const WEATHER_FONTS = Object.freeze({
   arial: "Arial, 'Liberation Sans', sans-serif",
   'dejavu-condensed': "'DejaVu Sans Condensed', 'DejaVu Sans', sans-serif",
   'liberation-narrow': "'Liberation Sans Narrow', 'Arial Narrow', Arial, sans-serif",
-  'system-sans': "'MIRA Sans', Arial, sans-serif"
+  'system-sans': "'MIRA Sans', Arial, sans-serif",
+  'mira-condensed': "'MIRA Sans Condensed', 'DejaVu Sans Condensed', sans-serif",
+  'mira-serif': "'MIRA Serif', Georgia, serif",
+  inter: "Inter, 'MIRA Sans', Arial, sans-serif",
+  montserrat: "Montserrat, 'MIRA Sans', Arial, sans-serif",
+  oswald: "Oswald, 'MIRA Sans Condensed', sans-serif",
+  georgia: "Georgia, 'MIRA Serif', serif"
 });
 
 const MOTION_DURATIONS = Object.freeze({
@@ -64,6 +70,13 @@ function nullableCoordinate(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function pointSize(value, legacyPercent, basePt, min, max) {
+  const explicit = Number(value);
+  if (Number.isFinite(explicit)) return clamp(explicit, min, max, basePt);
+  const percent = clamp(legacyPercent, 60, 180, 100);
+  return clamp(Math.round(basePt * percent / 100), min, max, basePt);
+}
+
 export function normaliseWeatherWidget(source = {}) {
   const value = source && typeof source === 'object' ? source : {};
   const position = POSITIONS.has(value.position) ? value.position : 'top-right';
@@ -95,8 +108,9 @@ export function normaliseWeatherWidget(source = {}) {
     show_forecast: value.show_forecast !== false,
     forecast_items: Math.round(clamp(value.forecast_items, 1, 6, 3)),
     temperature_font_family: WEATHER_FONTS[value.temperature_font_family] ? value.temperature_font_family : 'arial',
-    temperature_size_percent: Math.round(clamp(value.temperature_size_percent, 60, 180, 100)),
-    location_size_percent: Math.round(clamp(value.location_size_percent, 60, 180, 100))
+    temperature_font_size_pt: pointSize(value.temperature_font_size_pt, value.temperature_size_percent, 48, 24, 96),
+    location_font_size_pt: pointSize(value.location_font_size_pt, value.location_size_percent, 14, 8, 32),
+    icon_scale_percent: Math.round(clamp(value.icon_scale_percent, 100, 200, 100))
   };
 }
 
@@ -223,12 +237,24 @@ function createContent(config, data, state) {
   card.style.setProperty('--weather-x', String(config.x));
   card.style.setProperty('--weather-y', String(config.y));
   card.style.setProperty('--weather-scale', String(config.scale));
-  const temperatureScale = config.temperature_size_percent / 100;
-  const locationScale = config.location_size_percent / 100;
+  const temperatureScale = config.temperature_font_size_pt / 48;
+  const locationScale = config.location_font_size_pt / 14;
+  const iconScale = config.icon_scale_percent / 100;
+  card.style.setProperty('--weather-temperature-px', `${config.temperature_font_size_pt * (4 / 3)}px`);
+  card.style.setProperty('--weather-location-px', `${config.location_font_size_pt * (4 / 3)}px`);
   card.style.setProperty('--weather-temperature-cqw', `${12 * temperatureScale}cqw`);
   card.style.setProperty('--weather-temperature-cqh', `${20 * temperatureScale}cqh`);
   card.style.setProperty('--weather-location-cqw', `${3.5 * locationScale}cqw`);
   card.style.setProperty('--weather-location-cqh', `${6.2 * locationScale}cqh`);
+  card.style.setProperty('--weather-icon-size-px', `${83 * iconScale}px`);
+  card.style.setProperty('--weather-icon-column-px', `${85 * iconScale}px`);
+  card.style.setProperty('--weather-icon-cqw', `${18 * iconScale}cqw`);
+  card.style.setProperty('--weather-icon-cqh', `${24 * iconScale}cqh`);
+  card.style.setProperty('--weather-icon-max-px', `${96 * iconScale}px`);
+  card.style.setProperty('--weather-icon-column-percent', `${Math.min(46, 28 * iconScale)}%`);
+  card.style.setProperty('--weather-forecast-icon-size-px', `${23 * iconScale}px`);
+  card.style.setProperty('--weather-forecast-icon-column-px', `${25 * iconScale}px`);
+  card.style.setProperty('--weather-forecast-icon-column-percent', `${Math.min(30, 18 * iconScale)}%`);
   card.style.setProperty('--weather-temperature-font', WEATHER_FONTS[config.temperature_font_family] || WEATHER_FONTS.arial);
   if (config.embedded) {
     card.dataset.weatherEmbedded = 'true';
