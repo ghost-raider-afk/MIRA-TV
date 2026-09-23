@@ -17,11 +17,9 @@ const WEATHER_FONTS = Object.freeze({
   'liberation-narrow': "'Liberation Sans Narrow', 'Arial Narrow', Arial, sans-serif",
   'system-sans': "'MIRA Sans', Arial, sans-serif",
   'mira-condensed': "'MIRA Sans Condensed', 'DejaVu Sans Condensed', sans-serif",
+  'mira-mono': "'MIRA Sans Mono', 'DejaVu Sans Mono', monospace",
   'mira-serif': "'MIRA Serif', Georgia, serif",
-  inter: "Inter, 'MIRA Sans', Arial, sans-serif",
-  montserrat: "Montserrat, 'MIRA Sans', Arial, sans-serif",
-  oswald: "Oswald, 'MIRA Sans Condensed', sans-serif",
-  georgia: "Georgia, 'MIRA Serif', serif"
+  'mira-serif-condensed': "'MIRA Serif Condensed', 'DejaVu Serif Condensed', serif"
 });
 
 const MOTION_DURATIONS = Object.freeze({
