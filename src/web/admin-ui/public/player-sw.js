@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v33';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v34';
-const SHELL_CACHE = 'mira-tv-player-shell-v35';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v34';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v35';
+const SHELL_CACHE = 'mira-tv-player-shell-v36';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: Player-only service-worker scope; admin pages must never be controlled by Player shell cache.
+// Source revision: same-origin weather requests are independent of navigator online state.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
