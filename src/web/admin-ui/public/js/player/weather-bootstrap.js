@@ -2,6 +2,8 @@ import { normaliseWeatherWidget, renderWeatherWidget } from '../motion/weather-w
 
 const LEGACY_CACHE_KEY = 'mira-tv.weather.last.v1';
 const CACHE_PREFIX = 'mira-tv.weather.last.v2.';
+const PREVIEW_CACHE_KEY = 'mira-tv.weather.preview.last.v1';
+const PREVIEW_RETRY_MS = 1500;
 
 function validScreenId(value) {
   const id = Number(value);
@@ -91,6 +93,7 @@ export class PlayerWeatherRuntime {
   }
 
   cacheKey() {
+    if (this.preview) return PREVIEW_CACHE_KEY;
     return this.screenId ? `${CACHE_PREFIX}${this.screenId}` : '';
   }
 
@@ -115,11 +118,10 @@ export class PlayerWeatherRuntime {
   }
 
   loadCachedWeather(expectedSettings = this.settings) {
-    if (this.preview) return;
     const key = this.cacheKey();
     if (!key) return;
     let record = cachedRecord(key);
-    if (!record) {
+    if (!record && !this.preview) {
       const legacy = cachedRecord(LEGACY_CACHE_KEY);
       const legacyScreenId = validScreenId(legacy?.settings?.screen_id);
       if (legacy && legacyScreenId === this.screenId) {
@@ -133,14 +135,13 @@ export class PlayerWeatherRuntime {
   }
 
   saveCachedWeather() {
-    if (this.preview) return;
     const key = this.cacheKey();
     if (!key) return;
     try {
       if (!this.settings.enabled || !this.snapshot) localStorage.removeItem(key);
       else localStorage.setItem(key, JSON.stringify({
-        screen_id: this.screenId,
-        settings: { ...this.settings, screen_id: this.screenId },
+        screen_id: this.preview ? undefined : this.screenId,
+        settings: this.preview ? { ...this.settings } : { ...this.settings, screen_id: this.screenId },
         snapshot: this.snapshot,
         saved_at: new Date().toISOString()
       }));
@@ -210,7 +211,7 @@ export class PlayerWeatherRuntime {
       this.schedule(configurationChanged ? Math.min(this.settings.refresh_minutes * 60_000, 60_000) : undefined);
     } catch (error) {
       console.warn('MIRA-TV weather refresh failed', error);
-      this.schedule(60_000);
+      this.schedule(this.preview ? PREVIEW_RETRY_MS : 60_000);
     }
   }
 
@@ -227,7 +228,7 @@ export class PlayerWeatherRuntime {
       this.generation += 1;
       this.clearTimer();
       this.snapshot = null;
-      if (screenChanged) this.loadCachedWeather(this.settings);
+      this.loadCachedWeather(this.settings);
     }
 
     if (!this.settings.enabled || !hasWeatherCoordinates(this.settings)) {
