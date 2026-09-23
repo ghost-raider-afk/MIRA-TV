@@ -29,16 +29,14 @@ const FONTS = Object.freeze([
 const WEATHER_FONTS = Object.freeze([
   ['system-sans', 'MIRA Sans'],
   ['mira-condensed', 'MIRA Sans Condensed'],
+  ['mira-mono', 'MIRA Sans Mono'],
   ['mira-serif', 'MIRA Serif'],
-  ['arial', 'Arial'],
-  ['arial-narrow', 'Arial Narrow'],
-  ['tahoma-bold', 'Tahoma Bold'],
-  ['dejavu-condensed', 'DejaVu Sans Condensed'],
-  ['liberation-narrow', 'Liberation Sans Narrow'],
-  ['inter', 'Inter'],
-  ['montserrat', 'Montserrat'],
-  ['oswald', 'Oswald'],
-  ['georgia', 'Georgia']
+  ['mira-serif-condensed', 'MIRA Serif Condensed'],
+  ['arial', 'Arial (совместимость)'],
+  ['arial-narrow', 'Arial Narrow (совместимость)'],
+  ['tahoma-bold', 'Tahoma Bold (совместимость)'],
+  ['dejavu-condensed', 'DejaVu Sans Condensed (совместимость)'],
+  ['liberation-narrow', 'Liberation Sans Narrow (совместимость)']
 ]);
 
 function uid() {
