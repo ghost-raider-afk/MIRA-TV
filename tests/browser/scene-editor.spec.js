@@ -765,3 +765,94 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(fillGeometry).not.toBeNull();
   for (const delta of Object.values(fillGeometry)) expect(delta).toBeLessThan(.1);
 });
+
+
+test('Scene weather uses same-origin preview even when navigator reports offline', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable:true, get:() => false });
+  });
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen } = await fixture(page);
+
+  const editorResponse = await page.request.get(`/api/screens/${screen.id}/editor`);
+  expect(editorResponse.ok()).toBeTruthy();
+  const editor = await editorResponse.json();
+  const weatherElement = {
+    id:'weather-offline-probe',
+    type:'weather',
+    enabled:true,
+    x:1400,
+    y:0,
+    width:520,
+    height:360,
+    z_index:20,
+    opacity:1,
+    rotation_deg:0,
+    content_auto_scale:true,
+    content_scale_percent:100,
+    content_reference_width:520,
+    content_reference_height:360,
+    weather:{
+      mode:'current-and-forecast',
+      location_name:'Комсомольск-на-Амуре',
+      latitude:50.55034,
+      longitude:137.00995,
+      timezone:'Asia/Vladivostok',
+      refresh_minutes:15,
+      show_location:true,
+      show_condition:true,
+      show_feels_like:true,
+      show_humidity:true,
+      show_wind:true,
+      show_forecast:true,
+      forecast_items:3,
+      temperature_font_family:'arial',
+      temperature_size_percent:100,
+      location_size_percent:100,
+      animation_enabled:true,
+      animation_speed:1,
+      animation_intensity:1,
+      widget_motion_enabled:true
+    }
+  };
+  const save = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
+    revision:editor.draft.revision,
+    rows:editor.draft.rows,
+    settings:editor.draft.settings,
+    scene:{ version:1, elements:[weatherElement] }
+  } });
+  expect(save.ok()).toBeTruthy();
+
+  let previewRequests = 0;
+  await page.route('**/api/weather/preview**', async (route) => {
+    previewRequests += 1;
+    const url = new URL(route.request().url());
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify({
+        location_name:url.searchParams.get('name'),
+        latitude:Number(url.searchParams.get('latitude')),
+        longitude:Number(url.searchParams.get('longitude')),
+        timezone:url.searchParams.get('timezone'),
+        temperature:9,
+        apparent_temperature:7,
+        humidity:68,
+        wind_speed:11,
+        weather_code:3,
+        is_day:true,
+        condition:'Облачно',
+        icon:'cloud',
+        updated_at:new Date().toISOString(),
+        forecast:[]
+      })
+    });
+  });
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  const weather = page.locator('[data-scene-element-id="weather-offline-probe"]');
+  await expect(weather.locator('.weather-widget-location')).toHaveText('Комсомольск-на-Амуре', { timeout:5000 });
+  await expect(weather.locator('.weather-widget-temperature')).toHaveText('9°');
+  expect(previewRequests).toBeGreaterThanOrEqual(1);
+});

@@ -268,13 +268,20 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v35'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v36'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v33'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v34'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v34'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v35'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 
+
+test('weather runtime never gates same-origin requests on navigator.onLine', async () => {
+  const runtime = await read('src/web/admin-ui/public/js/player/weather-bootstrap.js');
+  assert.doesNotMatch(runtime, /navigator\.onLine/);
+  assert.doesNotMatch(runtime, /addEventListener\('offline'/);
+  assert.doesNotMatch(runtime, /addEventListener\('online'/);
+});
 
 test('Scene weather preview invalidates stale source data and uses protected preview endpoint', async () => {
   const [runtime, renderer] = await Promise.all([

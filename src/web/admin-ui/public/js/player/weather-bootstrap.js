@@ -65,13 +65,8 @@ export class PlayerWeatherRuntime {
       if (this.visible) this.schedule(1000);
       else this.clearTimer();
     };
-    this.handleOnline = () => this.schedule(1000);
-    this.handleOffline = () => this.clearTimer();
-
     this.stage.addEventListener('mira:player-active', this.handlePlayerActivity);
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    window.addEventListener('online', this.handleOnline);
-    window.addEventListener('offline', this.handleOffline);
   }
 
   setLayer(layer) {
@@ -163,7 +158,7 @@ export class PlayerWeatherRuntime {
 
   schedule(delay) {
     this.clearTimer();
-    if (this.destroyed || !this.settings.enabled || !hasWeatherCoordinates(this.settings) || !this.active || !this.visible || !navigator.onLine) return;
+    if (this.destroyed || !this.settings.enabled || !hasWeatherCoordinates(this.settings) || !this.active || !this.visible) return;
     const wait = Number.isFinite(Number(delay)) ? Number(delay) : this.settings.refresh_minutes * 60_000;
     const minimumDelay = this.preview ? 200 : 1000;
     this.timer = setTimeout(() => {
@@ -183,7 +178,7 @@ export class PlayerWeatherRuntime {
   }
 
   async refresh({ configurationChanged = false } = {}) {
-    if (this.destroyed || !this.active || !this.visible || !navigator.onLine || !this.settings.enabled || !hasWeatherCoordinates(this.settings)) return;
+    if (this.destroyed || !this.active || !this.visible || !this.settings.enabled || !hasWeatherCoordinates(this.settings)) return;
     const currentGeneration = ++this.generation;
     try {
       const response = await fetch(this.requestUrl(), { cache: 'no-store', credentials: 'same-origin' });
@@ -240,7 +235,7 @@ export class PlayerWeatherRuntime {
     }
 
     if (menuChanged || screenChanged || sourceChanged || configurationChanged) this.render();
-    if (navigator.onLine && this.active && this.visible && (screenChanged || sourceChanged || !this.snapshot)) {
+    if (this.active && this.visible && (screenChanged || sourceChanged || !this.snapshot)) {
       this.schedule(sourceChanged ? 250 : 1000);
     } else {
       this.schedule();
@@ -254,8 +249,6 @@ export class PlayerWeatherRuntime {
     this.clearTimer();
     this.stage.removeEventListener('mira:player-active', this.handlePlayerActivity);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('offline', this.handleOffline);
     this.layer?.replaceChildren();
     this.layer = null;
     this.snapshot = null;
