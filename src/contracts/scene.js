@@ -16,6 +16,13 @@ const FONT_FAMILIES = new Set([
   'liberation-narrow',
   'system-sans'
 ]);
+const WEATHER_FONT_FAMILIES = new Set([
+  ...FONT_FAMILIES,
+  'mira-condensed',
+  'mira-mono',
+  'mira-serif',
+  'mira-serif-condensed'
+]);
 const TEXT_TRANSFORMS = new Set(['none', 'uppercase', 'lowercase']);
 const HORIZONTAL_ALIGNMENTS = new Set(['left', 'center', 'right']);
 const VERTICAL_ALIGNMENTS = new Set(['top', 'center', 'bottom']);
@@ -202,6 +209,15 @@ function weatherTimezone(value) {
   throw new ValidationError('Поле «weather.timezone» содержит недопустимый часовой пояс.');
 }
 
+function legacyWeatherPointSize(source, pointKey, percentKey, basePt, minimum, maximum) {
+  const explicit = source[pointKey];
+  if (explicit !== undefined && explicit !== null && explicit !== '') {
+    return number(explicit, `weather.${pointKey}`, basePt, minimum, maximum);
+  }
+  const percent = integer(source[percentKey], `weather.${percentKey}`, 100, 60, 180);
+  return Math.max(minimum, Math.min(maximum, Math.round(basePt * percent / 100)));
+}
+
 function weatherInput(value) {
   const source = record(value);
   return {
@@ -218,9 +234,12 @@ function weatherInput(value) {
     show_wind: source.show_wind !== false,
     show_forecast: source.show_forecast !== false,
     forecast_items: integer(source.forecast_items, 'weather.forecast_items', 3, 1, 6),
-    temperature_font_family: enumValue(source.temperature_font_family, 'weather.temperature_font_family', FONT_FAMILIES, 'arial'),
+    temperature_font_family: enumValue(source.temperature_font_family, 'weather.temperature_font_family', WEATHER_FONT_FAMILIES, 'arial'),
+    temperature_font_size_pt: legacyWeatherPointSize(source, 'temperature_font_size_pt', 'temperature_size_percent', 48, 24, 96),
+    location_font_size_pt: legacyWeatherPointSize(source, 'location_font_size_pt', 'location_size_percent', 14, 8, 32),
     temperature_size_percent: integer(source.temperature_size_percent, 'weather.temperature_size_percent', 100, 60, 180),
     location_size_percent: integer(source.location_size_percent, 'weather.location_size_percent', 100, 60, 180),
+    icon_scale_percent: integer(source.icon_scale_percent, 'weather.icon_scale_percent', 100, 100, 200),
     animation_enabled: source.animation_enabled !== false,
     animation_speed: number(source.animation_speed, 'weather.animation_speed', 1, 0.25, 2),
     animation_intensity: number(source.animation_intensity, 'weather.animation_intensity', 1, 0.25, 2),
