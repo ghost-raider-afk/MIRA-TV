@@ -270,8 +270,8 @@ test('Player shell changes rotate only the offline shell cache and preserve down
   const worker = await read('src/web/admin-ui/public/player-sw.js');
   assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v34'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v31'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v32'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v32'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v33'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 
