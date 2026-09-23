@@ -32,7 +32,10 @@ export const DEFAULT_WEATHER_WIDGET = Object.freeze({
   show_humidity: true,
   show_wind: true,
   show_forecast: true,
-  forecast_items: 3
+  forecast_items: 3,
+  temperature_font_size_pt: 48,
+  location_font_size_pt: 14,
+  icon_scale_percent: 100
 });
 
 function booleanValue(value, fallback) {
@@ -90,7 +93,10 @@ export function completeWeatherWidget(source = {}) {
     show_humidity: booleanValue(value.show_humidity, DEFAULT_WEATHER_WIDGET.show_humidity),
     show_wind: booleanValue(value.show_wind, DEFAULT_WEATHER_WIDGET.show_wind),
     show_forecast: booleanValue(value.show_forecast, DEFAULT_WEATHER_WIDGET.show_forecast),
-    forecast_items: integerValue(value.forecast_items, DEFAULT_WEATHER_WIDGET.forecast_items, 1, 6)
+    forecast_items: integerValue(value.forecast_items, DEFAULT_WEATHER_WIDGET.forecast_items, 1, 6),
+    temperature_font_size_pt: numberValue(value.temperature_font_size_pt, DEFAULT_WEATHER_WIDGET.temperature_font_size_pt, 24, 96),
+    location_font_size_pt: numberValue(value.location_font_size_pt, DEFAULT_WEATHER_WIDGET.location_font_size_pt, 8, 32),
+    icon_scale_percent: integerValue(value.icon_scale_percent, DEFAULT_WEATHER_WIDGET.icon_scale_percent, 100, 200)
   };
 }
 
