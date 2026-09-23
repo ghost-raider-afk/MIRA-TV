@@ -276,6 +276,13 @@ test('Player shell changes rotate only the offline shell cache and preserve down
 });
 
 
+test('weather runtime never gates same-origin requests on navigator.onLine', async () => {
+  const runtime = await read('src/web/admin-ui/public/js/player/weather-bootstrap.js');
+  assert.doesNotMatch(runtime, /navigator\.onLine/);
+  assert.doesNotMatch(runtime, /addEventListener\('offline'/);
+  assert.doesNotMatch(runtime, /addEventListener\('online'/);
+});
+
 test('Scene weather preview invalidates stale source data and uses protected preview endpoint', async () => {
   const [runtime, renderer] = await Promise.all([
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js'),
