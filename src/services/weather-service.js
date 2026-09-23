@@ -44,8 +44,17 @@ function providerOrder(config) {
   return valid.length ? valid : ['met-no','open-meteo'];
 }
 
-function fresh(record) {
-  return Boolean(record?.snapshot && Date.parse(record.fresh_until) > Date.now());
+function refreshIntervalMs(settings, config) {
+  const minutes = Number(settings?.refresh_minutes);
+  if (Number.isFinite(minutes) && minutes >= 1) return minutes * 60 * 1000;
+  return Math.max(60, Number(config.weatherCacheSeconds) || 600) * 1000;
+}
+
+function fresh(record, settings, config) {
+  if (!record?.snapshot) return false;
+  const fetchedAt = Date.parse(record.fetched_at);
+  if (!Number.isFinite(fetchedAt)) return false;
+  return fetchedAt + refreshIntervalMs(settings, config) > Date.now();
 }
 
 function providerError(error) {
@@ -188,7 +197,7 @@ export class WeatherService {
           provider,
           snapshot,
           fetched_at:now.toISOString(),
-          fresh_until:new Date(now.getTime() + this.config.weatherCacheSeconds * 1000).toISOString()
+          fresh_until:new Date(now.getTime() + refreshIntervalMs(settings, this.config)).toISOString()
         });
         return decorate(saved, settings);
       } catch (error) {
@@ -204,7 +213,7 @@ export class WeatherService {
     if (!hasWeatherCoordinates(settings)) throw new Error('Weather coordinates are not configured.');
     const key = weatherSourceKey(settings);
     const stored = await this.store.getWeatherSnapshotRecord(key);
-    if (!force && fresh(stored)) return decorate(stored, settings);
+    if (!force && fresh(stored, settings, this.config)) return decorate(stored, settings);
     if (!force && stored?.snapshot) {
       void this.refresh(settings, stored).catch((error) => {
         this.logger.warn?.('Weather background refresh failed', { error });
@@ -221,12 +230,16 @@ export class WeatherService {
     for (const document of documents) {
       const settings = sceneWeatherSettings(document.scene, document.screen_id);
       if (!settings?.enabled || !hasWeatherCoordinates(settings)) continue;
-      unique.set(weatherSourceKey(settings), settings);
+      const key = weatherSourceKey(settings);
+      const current = unique.get(key);
+      if (!current || Number(settings.refresh_minutes || 15) < Number(current.refresh_minutes || 15)) {
+        unique.set(key, settings);
+      }
     }
     for (const settings of unique.values()) {
       try {
         const record = await this.store.getWeatherSnapshotRecord(weatherSourceKey(settings));
-        if (!fresh(record)) await this.refresh(settings, record);
+        if (!fresh(record, settings, this.config)) await this.refresh(settings, record);
       } catch (error) {
         this.logger.warn?.('Weather collector refresh failed', {
           location:settings.location_name,
