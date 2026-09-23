@@ -132,7 +132,18 @@ export async function getWeatherSnapshot(settings, config, { force = false } = {
   url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability');
   url.searchParams.set('forecast_days', '2');
   url.searchParams.set('wind_speed_unit', 'kmh');
-  const body = await fetchJson(url, config);
+  let body;
+  try {
+    body = await fetchJson(url, config);
+  } catch (error) {
+    if (!force && cached?.value) {
+      const locationName = String(settings?.location_name || '').trim();
+      return cached.value.location_name === locationName
+        ? cached.value
+        : Object.freeze({ ...cached.value, location_name: locationName });
+    }
+    throw error;
+  }
   const current = body?.current || {};
   const isDay = Number(current.is_day) !== 0;
   const value = Object.freeze({
