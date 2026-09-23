@@ -10,7 +10,9 @@ const playerSceneRenderer = fs.readFileSync('src/web/admin-ui/public/js/player/p
 const requiredFamilies = [
   'MIRA Sans',
   'MIRA Sans Condensed',
+  'MIRA Sans Mono',
   'MIRA Serif',
+  'MIRA Serif Condensed',
   'Inter',
   'Arial',
   'Montserrat',
@@ -27,7 +29,11 @@ const requiredFontAssets = [
   '/fonts/DejaVuSansCondensed.ttf',
   '/fonts/DejaVuSansCondensed-Bold.ttf',
   '/fonts/DejaVuSerif.ttf',
-  '/fonts/DejaVuSerif-Bold.ttf'
+  '/fonts/DejaVuSerif-Bold.ttf',
+  '/fonts/DejaVuSansMono.ttf',
+  '/fonts/DejaVuSansMono-Bold.ttf',
+  '/fonts/DejaVuSerifCondensed.ttf',
+  '/fonts/DejaVuSerifCondensed-Bold.ttf'
 ];
 
 test('Player owns deterministic local font aliases instead of relying on TV system fonts', () => {
@@ -38,7 +44,7 @@ test('Player owns deterministic local font aliases instead of relying on TV syst
     assert.ok(fonts.includes(asset), `fonts.css must reference ${asset}`);
     assert.ok(serviceWorker.includes(`'${asset}'`), `Player shell cache must include ${asset}`);
   }
-  assert.match(serviceWorker, /const SHELL_CACHE = 'mira-tv-player-shell-v38'/);
+  assert.match(serviceWorker, /const SHELL_CACHE = 'mira-tv-player-shell-v39'/);
   assert.match(serviceWorker, /mira-tv-player-data-v18/);
 });
 
