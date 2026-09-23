@@ -1,5 +1,17 @@
 # История изменений
 
+## 1.13.20
+
+Hotfix same-origin weather connectivity после v1.13.19.
+
+- Устранена причина, по которой элемент «Погода» мог оставаться пустым при корректных координатах и доступном MIRA-TV: runtime больше не блокирует запросы к собственному `/api/weather/*` по значению `navigator.onLine`.
+- Preview и TV теперь всегда пытаются обратиться к своему MIRA-TV серверу, если runtime активен, видим и погода настроена. Состояние Интернет-доступа, которое сообщает ОС браузеру/Android TV, больше не является источником истины для доступности same-origin API.
+- Удалены обработчики `online/offline`, которые раньше могли отменять погодный таймер до выполнения запроса.
+- Сохранены существующие last-known-good cache, быстрый Preview retry и серверный stale snapshot fallback.
+- Добавлена browser-регрессия: `navigator.onLine=false`, но `/api/weather/preview` доступен и возвращает данные — город и температура обязаны появиться в Scene Editor.
+- Добавлена unit-регрессия, запрещающая повторное использование `navigator.onLine` внутри canonical weather runtime.
+- Player build поднят до 1.13.20, offline Player shell — до v36.
+
 ## 1.13.19
 
 Hotfix изоляции Player Service Worker от административного интерфейса.
