@@ -1,11 +1,9 @@
 import { sceneWeatherSettings } from '../contracts/scene.js';
 import { cityTimezone, fetchJson, weatherCoordinates, weatherSourceKey } from './weather/providers/common.js';
-import { fetchYandex, yandexConfigured } from './weather/providers/yandex.js';
 import { fetchMetNo } from './weather/providers/met-no.js';
 import { fetchOpenMeteo } from './weather/providers/open-meteo.js';
 
 const PROVIDERS = Object.freeze({
-  yandex: Object.freeze({ label:'Яндекс Погода', fetch:fetchYandex }),
   'met-no': Object.freeze({ label:'MET Norway', fetch:fetchMetNo }),
   'open-meteo': Object.freeze({ label:'Open-Meteo', fetch:fetchOpenMeteo })
 });
@@ -43,7 +41,7 @@ export async function searchWeatherLocations(query, config) {
 function providerOrder(config) {
   const requested = Array.isArray(config.weatherProviderOrder) ? config.weatherProviderOrder : [];
   const valid = requested.filter((provider, index) => PROVIDERS[provider] && requested.indexOf(provider) === index);
-  return valid.length ? valid : ['yandex','met-no','open-meteo'];
+  return valid.length ? valid : ['met-no','open-meteo'];
 }
 
 function fresh(record) {
@@ -156,10 +154,6 @@ export class WeatherService {
   }
 
   async providerAvailable(provider) {
-    if (provider === 'yandex' && !yandexConfigured(this.config)) {
-      await this.setProviderState('yandex', 'unconfigured');
-      return false;
-    }
     const status = await this.store.getWeatherProviderStatus?.(provider);
     return !(status?.status === 'failed' && status.cooldown_until && Date.parse(status.cooldown_until) > Date.now());
   }
@@ -174,10 +168,6 @@ export class WeatherService {
         await this.setSystemState('healthy');
         return { provider, snapshot };
       } catch (error) {
-        if (error?.code === 'WEATHER_PROVIDER_NOT_CONFIGURED') {
-          await this.setProviderState(provider, 'unconfigured');
-          continue;
-        }
         const message = providerError(error);
         failures.push(`${PROVIDERS[provider].label}: ${message}`);
         const cooldownUntil = new Date(Date.now() + this.config.weatherProviderCooldownSeconds * 1000).toISOString();
