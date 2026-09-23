@@ -84,12 +84,12 @@ test('weather typography uses point sizes and keeps legacy percent settings comp
 
   const configured = normaliseWeatherWidget({
     enabled:true,
-    temperature_font_family:'oswald',
+    temperature_font_family:'mira-mono',
     temperature_font_size_pt:72,
     location_font_size_pt:20,
     icon_scale_percent:175
   });
-  assert.equal(configured.temperature_font_family, 'oswald');
+  assert.equal(configured.temperature_font_family, 'mira-mono');
   assert.equal(configured.temperature_font_size_pt, 72);
   assert.equal(configured.location_font_size_pt, 20);
   assert.equal(configured.icon_scale_percent, 175);
