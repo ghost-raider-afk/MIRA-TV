@@ -254,3 +254,70 @@ test('collector de-duplicates the same city used by multiple TV scenes', async (
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test('collector uses the shortest refresh interval for a city shared by multiple screens', async () => {
+  const originalFetch = globalThis.fetch;
+  const store = storeFixture();
+  const sourceKey = '50.5503:137.0100:Asia/Vladivostok';
+  const now = Date.now();
+  store.snapshots.set(sourceKey, {
+    source_key:sourceKey,
+    location_name:SETTINGS.location_name,
+    latitude:SETTINGS.latitude,
+    longitude:SETTINGS.longitude,
+    timezone:SETTINGS.timezone,
+    provider:'met-no',
+    snapshot:{
+      location_name:SETTINGS.location_name,
+      latitude:SETTINGS.latitude,
+      longitude:SETTINGS.longitude,
+      timezone:SETTINGS.timezone,
+      updated_at:'2026-09-23T15:00',
+      temperature:13,
+      apparent_temperature:13,
+      humidity:35,
+      wind_speed:8,
+      weather_code:2,
+      is_day:true,
+      condition:'Переменная облачность',
+      icon:'partly-cloudy',
+      forecast:[]
+    },
+    fetched_at:new Date(now - 6 * 60 * 1000).toISOString(),
+    fresh_until:new Date(now + 9 * 60 * 1000).toISOString(),
+    updated_at:new Date(now - 6 * 60 * 1000).toISOString()
+  });
+  const element = (id, refreshMinutes) => ({
+    id,
+    type:'weather',
+    enabled:true,
+    width:520,
+    weather:{
+      location_name:SETTINGS.location_name,
+      latitude:SETTINGS.latitude,
+      longitude:SETTINGS.longitude,
+      timezone:SETTINGS.timezone,
+      refresh_minutes:refreshMinutes
+    }
+  });
+  store.documents = [
+    { screen_id:1, scene:{ version:1, elements:[element('weather-a', 15)] } },
+    { screen_id:2, scene:{ version:1, elements:[element('weather-b', 5)] } }
+  ];
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests += 1;
+    return json(metResponse());
+  };
+  try {
+    const service = new WeatherService({ store, config:CONFIG });
+    await service.refreshConfiguredSources();
+    assert.equal(requests, 1);
+    const saved = store.snapshots.get(sourceKey);
+    const lifetimeMs = Date.parse(saved.fresh_until) - Date.parse(saved.fetched_at);
+    assert.equal(lifetimeMs, 5 * 60 * 1000);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
