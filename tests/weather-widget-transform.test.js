@@ -72,6 +72,32 @@ test('weather coordinates preserve provider precision without artificial step ro
   assert.match(elements, /longitude = input\('number',[\s\S]*step: 'any'/);
 });
 
+test('weather typography uses point sizes and keeps legacy percent settings compatible', () => {
+  const legacy = normaliseWeatherWidget({
+    enabled:true,
+    temperature_size_percent:130,
+    location_size_percent:115
+  });
+  assert.equal(legacy.temperature_font_size_pt, 62);
+  assert.equal(legacy.location_font_size_pt, 16);
+  assert.equal(legacy.icon_scale_percent, 100);
+
+  const configured = normaliseWeatherWidget({
+    enabled:true,
+    temperature_font_family:'oswald',
+    temperature_font_size_pt:72,
+    location_font_size_pt:20,
+    icon_scale_percent:175
+  });
+  assert.equal(configured.temperature_font_family, 'oswald');
+  assert.equal(configured.temperature_font_size_pt, 72);
+  assert.equal(configured.location_font_size_pt, 20);
+  assert.equal(configured.icon_scale_percent, 175);
+
+  const bounded = normaliseWeatherWidget({ enabled:true, icon_scale_percent:40 });
+  assert.equal(bounded.icon_scale_percent, 100);
+});
+
 test('browser and server weather models preserve empty coordinates as unconfigured', () => {
   const value = normaliseWeatherWidget({ enabled:true, latitude:null, longitude:'' });
   assert.equal(value.latitude, null);
@@ -150,7 +176,7 @@ test('generic weather element controls atmosphere motion inside monitor scene', 
     read('src/web/admin-ui/public/js/editor/preview.js')
   ]);
 
-  for (const field of ['animation_enabled','animation_speed','animation_intensity','widget_motion_enabled','temperature_font_family','temperature_size_percent','location_size_percent']) {
+  for (const field of ['animation_enabled','animation_speed','animation_intensity','widget_motion_enabled','temperature_font_family','temperature_font_size_pt','location_font_size_pt','icon_scale_percent']) {
     assert.ok(elements.includes(field), field);
   }
   assert.doesNotMatch(elements, /weather-target-list|weather-apply|weatherStudioSettings/);
