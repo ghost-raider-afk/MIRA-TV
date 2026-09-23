@@ -1,4 +1,14 @@
-const cache = new Map();
+import { sceneWeatherSettings } from '../contracts/scene.js';
+import { cityTimezone, fetchJson, weatherCoordinates, weatherSourceKey } from './weather/providers/common.js';
+import { fetchYandex, yandexConfigured } from './weather/providers/yandex.js';
+import { fetchMetNo } from './weather/providers/met-no.js';
+import { fetchOpenMeteo } from './weather/providers/open-meteo.js';
+
+const PROVIDERS = Object.freeze({
+  yandex: Object.freeze({ label:'Яндекс Погода', fetch:fetchYandex }),
+  'met-no': Object.freeze({ label:'MET Norway', fetch:fetchMetNo }),
+  'open-meteo': Object.freeze({ label:'Open-Meteo', fetch:fetchOpenMeteo })
+});
 
 function finite(value, min, max) {
   if (value === null || value === undefined || value === '') return null;
@@ -11,98 +21,6 @@ export function hasWeatherCoordinates(settings) {
     && finite(settings?.longitude, -180, 180) !== null;
 }
 
-function controller(timeoutMs) {
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), timeoutMs);
-  return { signal: abort.signal, done: () => clearTimeout(timer) };
-}
-
-async function fetchJson(url, config) {
-  const request = controller(config.weatherFetchTimeoutMs);
-  try {
-    const response = await fetch(url, { signal: request.signal, headers: { accept: 'application/json' } });
-    if (!response.ok) throw new Error(`Weather provider HTTP ${response.status}`);
-    return await response.json();
-  } finally {
-    request.done();
-  }
-}
-
-function condition(code) {
-  const value = Number(code);
-  if (value === 0) return 'Ясно';
-  if ([1, 2].includes(value)) return 'Переменная облачность';
-  if (value === 3) return 'Облачно';
-  if ([45, 48].includes(value)) return 'Туман';
-  if ([51, 53, 55, 56, 57].includes(value)) return 'Морось';
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(value)) return 'Дождь';
-  if ([71, 73, 75, 77, 85, 86].includes(value)) return 'Снег';
-  if ([95, 96, 99].includes(value)) return 'Гроза';
-  return 'Погода';
-}
-
-function icon(code, isDay = true) {
-  const value = Number(code);
-  if (value === 0) return isDay ? 'sun' : 'moon';
-  if ([1, 2].includes(value)) return isDay ? 'partly-cloudy' : 'cloudy-night';
-  if (value === 3) return 'cloud';
-  if ([45, 48].includes(value)) return 'fog';
-  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(value)) return 'rain';
-  if ([71, 73, 75, 77, 85, 86].includes(value)) return 'snow';
-  if ([95, 96, 99].includes(value)) return 'storm';
-  return 'cloud';
-}
-
-function cacheKey(latitude, longitude, timezone) {
-  return `${latitude.toFixed(3)}:${longitude.toFixed(3)}:${timezone || 'auto'}`;
-}
-
-function cityTimezone(value) {
-  const timezone = String(value || 'auto').trim() || 'auto';
-  if (timezone === 'auto') return timezone;
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date(0));
-    return timezone;
-  } catch {
-    throw new Error('Weather timezone is invalid.');
-  }
-}
-
-function wallClockMs(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(value || ''));
-  if (!match) return Number.NaN;
-  return Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-    Number(match[4]),
-    Number(match[5]),
-    Number(match[6] || 0)
-  );
-}
-
-function forecastItems(hourly, count, currentTime) {
-  const times = Array.isArray(hourly?.time) ? hourly.time : [];
-  const temperatures = Array.isArray(hourly?.temperature_2m) ? hourly.temperature_2m : [];
-  const codes = Array.isArray(hourly?.weather_code) ? hourly.weather_code : [];
-  const probabilities = Array.isArray(hourly?.precipitation_probability) ? hourly.precipitation_probability : [];
-  const currentWallClock = wallClockMs(currentTime);
-  const threshold = Number.isFinite(currentWallClock) ? currentWallClock + 45 * 60 * 1000 : Number.NEGATIVE_INFINITY;
-  const result = [];
-  for (let index = 0; index < times.length && result.length < count; index += 1) {
-    const timestamp = wallClockMs(times[index]);
-    if (!Number.isFinite(timestamp) || timestamp < threshold) continue;
-    result.push({
-      time: times[index],
-      temperature: Number(temperatures[index]),
-      weather_code: Number(codes[index]),
-      icon: icon(codes[index], true),
-      precipitation_probability: Number(probabilities[index] || 0)
-    });
-  }
-  return result;
-}
-
 export async function searchWeatherLocations(query, config) {
   const name = String(query || '').trim();
   if (name.length < 2 || name.length > 120) return [];
@@ -111,74 +29,247 @@ export async function searchWeatherLocations(query, config) {
   url.searchParams.set('count', '8');
   url.searchParams.set('language', 'ru');
   url.searchParams.set('format', 'json');
-  const body = await fetchJson(url, config);
+  const body = await fetchJson(url, { timeoutMs:config.weatherFetchTimeoutMs });
   return (Array.isArray(body?.results) ? body.results : []).map((item) => ({
-    name: item.name || '',
-    admin1: item.admin1 || '',
-    country: item.country || '',
-    latitude: Number(item.latitude),
-    longitude: Number(item.longitude),
-    timezone: item.timezone || 'auto'
+    name:item.name || '',
+    admin1:item.admin1 || '',
+    country:item.country || '',
+    latitude:Number(item.latitude),
+    longitude:Number(item.longitude),
+    timezone:item.timezone || 'auto'
   })).filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude));
 }
 
-export async function getWeatherSnapshot(settings, config, { force = false } = {}) {
-  const latitude = finite(settings?.latitude, -90, 90);
-  const longitude = finite(settings?.longitude, -180, 180);
-  if (latitude === null || longitude === null) throw new Error('Weather coordinates are not configured.');
-  const timezone = cityTimezone(settings?.timezone);
-  const key = cacheKey(latitude, longitude, timezone);
-  const cached = cache.get(key);
-  if (!force && cached && cached.expiresAt > Date.now()) {
-    const locationName = String(settings?.location_name || '').trim();
-    if (cached.value.location_name === locationName) return cached.value;
-    return Object.freeze({ ...cached.value, location_name: locationName });
+function providerOrder(config) {
+  const requested = Array.isArray(config.weatherProviderOrder) ? config.weatherProviderOrder : [];
+  const valid = requested.filter((provider, index) => PROVIDERS[provider] && requested.indexOf(provider) === index);
+  return valid.length ? valid : ['yandex','met-no','open-meteo'];
+}
+
+function fresh(record) {
+  return Boolean(record?.snapshot && Date.parse(record.fresh_until) > Date.now());
+}
+
+function providerError(error) {
+  if (!error) return 'Неизвестная ошибка погодного провайдера.';
+  if (error.name === 'AbortError' || error.name === 'TimeoutError') return 'Превышено время ожидания ответа.';
+  return String(error.message || error).slice(0, 2000);
+}
+
+function decorate(record, settings, { stale = false } = {}) {
+  if (!record?.snapshot) return null;
+  return Object.freeze({
+    ...record.snapshot,
+    location_name:String(settings?.location_name || record.location_name || '').trim(),
+    timezone:cityTimezone(settings?.timezone, record.timezone || record.snapshot.timezone || 'UTC'),
+    provider:record.provider,
+    provider_updated_at:record.fetched_at,
+    fetched_at:record.fetched_at,
+    stale
+  });
+}
+
+export class WeatherService {
+  constructor({ store, config, logger = console }) {
+    this.store = store;
+    this.config = config;
+    this.logger = logger;
+    this.inFlight = new Map();
+    this.timer = null;
   }
 
-  const url = new URL('/v1/forecast', config.weatherProviderBaseUrl);
-  url.searchParams.set('latitude', String(latitude));
-  url.searchParams.set('longitude', String(longitude));
-  url.searchParams.set('timezone', timezone || 'auto');
-  url.searchParams.set('current', 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day');
-  url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability');
-  url.searchParams.set('forecast_days', '2');
-  url.searchParams.set('wind_speed_unit', 'kmh');
-  let body;
-  try {
-    body = await fetchJson(url, config);
-  } catch (error) {
-    if (!force && cached?.value) {
-      const locationName = String(settings?.location_name || '').trim();
-      return cached.value.location_name === locationName
-        ? cached.value
-        : Object.freeze({ ...cached.value, location_name: locationName });
+  async event({ action, severity, message, provider = null, details = '', metadata = {} }) {
+    if (typeof this.store?.recordActivity !== 'function') return;
+    try {
+      await this.store.recordActivity({
+        actor_username:'system',
+        action,
+        entity_type:provider ? 'weather_provider' : 'weather_system',
+        entity_id:provider,
+        message,
+        severity,
+        category:'weather',
+        details,
+        metadata
+      });
+    } catch (error) {
+      this.logger.warn?.('Weather event could not be recorded', { error });
     }
+  }
+
+  async setProviderState(provider, status, error = '', cooldownUntil = null) {
+    if (typeof this.store?.setWeatherProviderStatus !== 'function') return null;
+    const transition = await this.store.setWeatherProviderStatus({
+      provider, status, error, cooldownUntil
+    });
+    if (transition?.previous?.status === status) return transition.current;
+    const label = PROVIDERS[provider]?.label || provider;
+    if (status === 'failed') {
+      await this.event({
+        action:'weather.provider.failed',
+        severity:'warning',
+        provider,
+        message:`${label} недоступен. MIRA-TV переключается на резервный источник.`,
+        details:error
+      });
+    } else if (status === 'healthy' && transition?.previous?.status === 'failed') {
+      await this.event({
+        action:'weather.provider.recovered',
+        severity:'info',
+        provider,
+        message:`${label} снова доступен.`
+      });
+    } else if (status === 'unconfigured') {
+      await this.event({
+        action:'weather.provider.unconfigured',
+        severity:'warning',
+        provider,
+        message:`${label} не настроен. Используется резервный источник.`
+      });
+    }
+    return transition.current;
+  }
+
+  async setSystemState(status, details = '') {
+    if (typeof this.store?.setWeatherProviderStatus !== 'function') return;
+    const transition = await this.store.setWeatherProviderStatus({
+      provider:'weather-system',
+      status,
+      error:details,
+      cooldownUntil:null
+    });
+    if (transition?.previous?.status === status) return;
+    if (status === 'failed') {
+      await this.event({
+        action:'weather.system.failed',
+        severity:'error',
+        message:'Все погодные источники недоступны. Используются последние сохранённые данные.',
+        details
+      });
+    } else if (status === 'healthy' && transition?.previous?.status === 'failed') {
+      await this.event({
+        action:'weather.system.recovered',
+        severity:'info',
+        message:'Получение свежих погодных данных восстановлено.'
+      });
+    }
+  }
+
+  async providerAvailable(provider) {
+    if (provider === 'yandex' && !yandexConfigured(this.config)) {
+      await this.setProviderState('yandex', 'unconfigured');
+      return false;
+    }
+    const status = await this.store.getWeatherProviderStatus?.(provider);
+    return !(status?.status === 'failed' && status.cooldown_until && Date.parse(status.cooldown_until) > Date.now());
+  }
+
+  async fetchFromProviders(settings) {
+    const failures = [];
+    for (const provider of providerOrder(this.config)) {
+      if (!await this.providerAvailable(provider)) continue;
+      try {
+        const snapshot = await PROVIDERS[provider].fetch(settings, this.config);
+        await this.setProviderState(provider, 'healthy');
+        await this.setSystemState('healthy');
+        return { provider, snapshot };
+      } catch (error) {
+        if (error?.code === 'WEATHER_PROVIDER_NOT_CONFIGURED') {
+          await this.setProviderState(provider, 'unconfigured');
+          continue;
+        }
+        const message = providerError(error);
+        failures.push(`${PROVIDERS[provider].label}: ${message}`);
+        const cooldownUntil = new Date(Date.now() + this.config.weatherProviderCooldownSeconds * 1000).toISOString();
+        await this.setProviderState(provider, 'failed', message, cooldownUntil);
+      }
+    }
+    await this.setSystemState('failed', failures.join('\n'));
+    const error = new Error(failures.length ? failures.join('; ') : 'Нет доступных погодных провайдеров.');
+    error.code = 'WEATHER_PROVIDERS_UNAVAILABLE';
     throw error;
   }
-  const current = body?.current || {};
-  const isDay = Number(current.is_day) !== 0;
-  const value = Object.freeze({
-    location_name: String(settings?.location_name || '').trim(),
-    latitude,
-    longitude,
-    timezone: timezone === 'auto' ? cityTimezone(body?.timezone || 'UTC') : timezone,
-    updated_at: current.time || new Date().toISOString(),
-    temperature: Number(current.temperature_2m),
-    apparent_temperature: Number(current.apparent_temperature),
-    humidity: Number(current.relative_humidity_2m),
-    wind_speed: Number(current.wind_speed_10m),
-    weather_code: Number(current.weather_code),
-    is_day: isDay,
-    condition: condition(current.weather_code),
-    icon: icon(current.weather_code, isDay),
-    forecast: forecastItems(body?.hourly, 6, current.time)
-  });
-  cache.set(key, { expiresAt: Date.now() + config.weatherCacheSeconds * 1000, value });
-  if (cache.size > 256) {
-    for (const [candidate, record] of cache) {
-      if (record.expiresAt <= Date.now()) cache.delete(candidate);
-      if (cache.size <= 192) break;
+
+  async refresh(settings, existing = null) {
+    const key = weatherSourceKey(settings);
+    if (this.inFlight.has(key)) return this.inFlight.get(key);
+    const task = (async () => {
+      try {
+        const { provider, snapshot } = await this.fetchFromProviders(settings);
+        const now = new Date();
+        const saved = await this.store.upsertWeatherSnapshotRecord({
+          source_key:key,
+          location_name:String(settings?.location_name || '').trim(),
+          ...weatherCoordinates(settings),
+          timezone:cityTimezone(settings?.timezone, snapshot.timezone || 'UTC'),
+          provider,
+          snapshot,
+          fetched_at:now.toISOString(),
+          fresh_until:new Date(now.getTime() + this.config.weatherCacheSeconds * 1000).toISOString()
+        });
+        return decorate(saved, settings);
+      } catch (error) {
+        if (existing?.snapshot) return decorate(existing, settings, { stale:true });
+        throw error;
+      }
+    })().finally(() => this.inFlight.delete(key));
+    this.inFlight.set(key, task);
+    return task;
+  }
+
+  async getSnapshot(settings, { force = false } = {}) {
+    if (!hasWeatherCoordinates(settings)) throw new Error('Weather coordinates are not configured.');
+    const key = weatherSourceKey(settings);
+    const stored = await this.store.getWeatherSnapshotRecord(key);
+    if (!force && fresh(stored)) return decorate(stored, settings);
+    if (!force && stored?.snapshot) {
+      void this.refresh(settings, stored).catch((error) => {
+        this.logger.warn?.('Weather background refresh failed', { error });
+      });
+      return decorate(stored, settings, { stale:true });
+    }
+    return this.refresh(settings, stored);
+  }
+
+  async refreshConfiguredSources() {
+    if (typeof this.store?.listWeatherSceneDocuments !== 'function') return;
+    const documents = await this.store.listWeatherSceneDocuments();
+    const unique = new Map();
+    for (const document of documents) {
+      const settings = sceneWeatherSettings(document.scene, document.screen_id);
+      if (!settings?.enabled || !hasWeatherCoordinates(settings)) continue;
+      unique.set(weatherSourceKey(settings), settings);
+    }
+    for (const settings of unique.values()) {
+      try {
+        const record = await this.store.getWeatherSnapshotRecord(weatherSourceKey(settings));
+        if (!fresh(record)) await this.refresh(settings, record);
+      } catch (error) {
+        this.logger.warn?.('Weather collector refresh failed', {
+          location:settings.location_name,
+          error
+        });
+      }
     }
   }
-  return value;
+
+  start() {
+    if (this.timer) return;
+    void this.refreshConfiguredSources();
+    this.timer = setInterval(
+      () => void this.refreshConfiguredSources(),
+      this.config.weatherCollectorIntervalSeconds * 1000
+    );
+    this.timer.unref?.();
+  }
+
+  stop() {
+    if (!this.timer) return;
+    clearInterval(this.timer);
+    this.timer = null;
+  }
+}
+
+export function createWeatherService(dependencies) {
+  return new WeatherService(dependencies);
 }
