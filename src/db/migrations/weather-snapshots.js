@@ -18,7 +18,7 @@ export async function migrateWeatherSnapshots(pool) {
 
     CREATE TABLE IF NOT EXISTS weather_provider_status (
       provider TEXT PRIMARY KEY,
-      status TEXT NOT NULL CHECK(status IN ('healthy', 'failed', 'unconfigured')),
+      status TEXT NOT NULL CHECK(status IN ('healthy', 'failed')),
       failure_count INTEGER NOT NULL DEFAULT 0,
       last_error TEXT NOT NULL DEFAULT '',
       last_checked_at TIMESTAMPTZ,
