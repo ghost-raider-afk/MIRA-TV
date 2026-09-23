@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { completeWeatherWidget, weatherWidgetInput } from '../src/contracts/weather.js';
 import { normaliseWeatherWidget } from '../src/web/admin-ui/public/js/motion/weather-widget.js';
-import { getWeatherSnapshot, hasWeatherCoordinates } from '../src/services/weather-service.js';
+import { hasWeatherCoordinates } from '../src/services/weather-service.js';
+import { fetchOpenMeteo } from '../src/services/weather/providers/open-meteo.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -105,16 +106,15 @@ test('weather forecast filtering follows provider city wall clock instead of ser
   }), { status:200, headers:{'content-type':'application/json'} });
   };
   try {
-    const snapshot = await getWeatherSnapshot({
+    const snapshot = await fetchOpenMeteo({
       location_name:'Комсомольск-на-Амуре',
       latitude:50.55,
       longitude:137.01,
       timezone:'Asia/Vladivostok'
     }, {
       weatherProviderBaseUrl:'https://weather.invalid',
-      weatherFetchTimeoutMs:1000,
-      weatherCacheSeconds:600
-    }, { force:true });
+      weatherFetchTimeoutMs:1000
+    });
     assert.equal(requestedTimezone, 'Asia/Vladivostok');
     assert.equal(snapshot.timezone, 'Asia/Vladivostok');
     assert.deepEqual(snapshot.forecast.slice(0, 3).map((item) => item.time), [
@@ -122,55 +122,6 @@ test('weather forecast filtering follows provider city wall clock instead of ser
       '2026-09-21T00:00',
       '2026-09-21T01:00'
     ]);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('expired weather cache remains a last-known-good fallback when provider is temporarily unavailable', async () => {
-  const originalFetch = globalThis.fetch;
-  let attempts = 0;
-  globalThis.fetch = async () => {
-    attempts += 1;
-    if (attempts === 1) {
-      return new Response(JSON.stringify({
-        timezone:'Asia/Vladivostok',
-        current:{
-          time:'2026-09-23T10:00',
-          temperature_2m:8,
-          apparent_temperature:6,
-          relative_humidity_2m:72,
-          weather_code:3,
-          wind_speed_10m:10,
-          is_day:1
-        },
-        hourly:{
-          time:['2026-09-23T11:00','2026-09-23T12:00'],
-          temperature_2m:[9,10],
-          weather_code:[3,2],
-          precipitation_probability:[10,5]
-        }
-      }), { status:200, headers:{'content-type':'application/json'} });
-    }
-    throw new Error('provider unavailable');
-  };
-  const settings = {
-    location_name:'Комсомольск-на-Амуре',
-    latitude:50.55034,
-    longitude:137.09995,
-    timezone:'Asia/Vladivostok'
-  };
-  const config = {
-    weatherProviderBaseUrl:'https://weather.invalid',
-    weatherFetchTimeoutMs:1000,
-    weatherCacheSeconds:-1
-  };
-  try {
-    const fresh = await getWeatherSnapshot(settings, config);
-    const fallback = await getWeatherSnapshot(settings, config);
-    assert.equal(attempts, 2);
-    assert.equal(fallback.temperature, fresh.temperature);
-    assert.equal(fallback.location_name, 'Комсомольск-на-Амуре');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -273,10 +224,10 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v37'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v38'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v35'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v36'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v36'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v37'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 

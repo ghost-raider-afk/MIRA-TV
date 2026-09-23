@@ -13,6 +13,7 @@ import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
 import { cleanupUnreferencedSceneAssets } from './services/scene-assets-service.js';
+import { createWeatherService } from './services/weather-service.js';
 import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, MANAGER_PAGE, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
@@ -134,7 +135,7 @@ function configureSecurity(app, config) {
   app.use(express.json({ limit: config.jsonBodyMaxBytes }));
 }
 
-function mountPublicRoutes(app, { store, config, realtime }) {
+function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
   let readiness = { checkedAt: 0, ok: false };
   app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'mira-tv' }));
   app.get('/readyz', async (_request, response) => {
@@ -157,7 +158,7 @@ function mountPublicRoutes(app, { store, config, realtime }) {
     const site = siteSettingsResponse(await store.getSiteSettings(), config);
     response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
   });
-  app.use('/api/device', createDevicePublicRouter({ store, config, realtime }));
+  app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService }));
 }
 
 function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole) {
@@ -219,23 +220,25 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   await initialiseStore(store, config);
   await recoverRuntimeState(store, config);
   const realtime = createPlayerRealtime({ store });
+  const weatherService = createWeatherService({ store, config, logger });
   const app = express();
   configureSecurity(app, config);
-  mountPublicRoutes(app, { store, config, realtime });
+  mountPublicRoutes(app, { store, config, realtime, weatherService });
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession, requireApiRole, requirePageRole } = createSessionMiddleware(resolveSession);
-  const dependencies = { store, config, realtime };
+  const dependencies = { store, config, realtime, weatherService };
   mountProtectedApi(app, dependencies, requireApiSession, requireApiRole);
   mountFrontend(app, requirePageSession, requirePageRole);
   app.use(errorHandler);
-  return { app, store, config, realtime };
+  return { app, store, config, realtime, weatherService };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const service = await createApp();
   const server = service.app.listen(service.config.port, service.config.host, () => logger.info('MIRA-TV server started', { app: service.config.appName, host: service.config.host, port: service.config.port }));
   service.realtime.attach(server);
+  service.weatherService.start();
   const maintenanceTimer = setInterval(() => {
     void cleanupDeviceActivations(service.store, service.config);
     void cleanupEvents(service.store, service.config);
@@ -247,6 +250,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.once(signal, () => {
       clearInterval(maintenanceTimer);
+      service.weatherService.stop();
       service.realtime.close();
       logger.info('MIRA-TV server stopping', { signal });
       server.close(() => void service.store.close());

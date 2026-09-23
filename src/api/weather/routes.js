@@ -1,14 +1,14 @@
 import express from 'express';
 import { weatherWidgetInput } from '../../contracts/weather.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
-import { getWeatherSnapshot, hasWeatherCoordinates, searchWeatherLocations } from '../../services/weather-service.js';
+import { hasWeatherCoordinates, searchWeatherLocations } from '../../services/weather-service.js';
 
 function screenId(value) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-export function createWeatherRouter({ store, config }) {
+export function createWeatherRouter({ store, config, weatherService }) {
   const router = express.Router();
 
   router.get('/screens/:screenId/snapshot', async (request, response) => {
@@ -21,7 +21,7 @@ export function createWeatherRouter({ store, config }) {
     if (!settings?.enabled || !hasWeatherCoordinates(settings)) {
       return response.status(204).end();
     }
-    return response.json({ settings, snapshot: await getWeatherSnapshot(settings, config) });
+    return response.json({ settings, snapshot: await weatherService.getSnapshot(settings) });
   });
 
   router.get('/locations', async (request, response) => {
@@ -36,7 +36,7 @@ export function createWeatherRouter({ store, config }) {
       longitude: request.query.longitude,
       timezone: String(request.query.timezone || 'auto')
     });
-    response.json(await getWeatherSnapshot(settings, config));
+    response.json(await weatherService.getSnapshot(settings));
   });
 
   return router;

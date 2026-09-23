@@ -1,7 +1,6 @@
 import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
-import { getWeatherSnapshot } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 
 async function publishedScreen(store, id) {
@@ -12,7 +11,7 @@ async function publishedScreen(store, id) {
   return screen;
 }
 
-export function createManagerViewRouter({ store, config }) {
+export function createManagerViewRouter({ store, config, weatherService }) {
   const router = express.Router();
 
   router.use((_request, response, next) => {
@@ -57,7 +56,7 @@ export function createManagerViewRouter({ store, config }) {
     const draft = await store.getScreenDraft(id);
     const settings = sceneWeatherSettings(draft?.scene, id);
     if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
-    const snapshot = await getWeatherSnapshot(settings, config);
+    const snapshot = await weatherService.getSnapshot(settings);
     response.json({ settings: { ...settings, screen_id: id }, snapshot });
   });
 

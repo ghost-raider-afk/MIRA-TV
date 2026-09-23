@@ -18,7 +18,7 @@ import {
   fullPlayerContext,
   playerRuntimeHash
 } from '../../services/player-context-service.js';
-import { getWeatherSnapshot, hasWeatherCoordinates } from '../../services/weather-service.js';
+import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 
 const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime']);
@@ -180,7 +180,7 @@ async function renderRevision(store, screenId) {
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
-export function createDevicePublicRouter({ store, config, realtime }) {
+export function createDevicePublicRouter({ store, config, realtime, weatherService }) {
   const router = express.Router();
   const activationLimiter = createIpRateLimiter({
     maxAttempts: config.deviceActivationMaxAttempts,
@@ -336,7 +336,7 @@ export function createDevicePublicRouter({ store, config, realtime }) {
     const draft = await store.getScreenDraft(session.screen_id);
     const settings = sceneWeatherSettings(draft?.scene, session.screen_id);
     if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
-    const snapshot = await getWeatherSnapshot(settings, config);
+    const snapshot = await weatherService.getSnapshot(settings);
     response.setHeader('Cache-Control', 'private, no-store');
     return response.json({ settings, snapshot });
   });

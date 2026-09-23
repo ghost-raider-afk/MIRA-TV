@@ -6,7 +6,7 @@ import { formatDate } from './presentation.js';
 
 const PHONE_BREAKPOINT = 960;
 const SEVERITY_LABELS = Object.freeze({ success: 'Успешно', warning: 'Предупреждение', error: 'Ошибка', info: 'Информация' });
-const CATEGORY_LABELS = Object.freeze({ interface: 'Интерфейс', catalog: 'Каталог', monitors: 'Мониторы', tv: 'ТВ', auth: 'Авторизация', settings: 'Настройки', system: 'Система' });
+const CATEGORY_LABELS = Object.freeze({ interface: 'Интерфейс', catalog: 'Каталог', monitors: 'Мониторы', tv: 'ТВ', auth: 'Авторизация', settings: 'Настройки', weather: 'Погода', system: 'Система' });
 
 function eventRow(event) {
   const row = document.createElement('article');
