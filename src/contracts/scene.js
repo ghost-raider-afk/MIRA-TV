@@ -19,11 +19,9 @@ const FONT_FAMILIES = new Set([
 const WEATHER_FONT_FAMILIES = new Set([
   ...FONT_FAMILIES,
   'mira-condensed',
+  'mira-mono',
   'mira-serif',
-  'inter',
-  'montserrat',
-  'oswald',
-  'georgia'
+  'mira-serif-condensed'
 ]);
 const TEXT_TRANSFORMS = new Set(['none', 'uppercase', 'lowercase']);
 const HORIZONTAL_ALIGNMENTS = new Set(['left', 'center', 'right']);
