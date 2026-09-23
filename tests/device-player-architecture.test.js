@@ -21,6 +21,19 @@ test('player is public while TV connection page remains admin protected', async 
   assert.match(connectHtml, /Сканировать QR-код/);
 });
 
+test('admin retires legacy root-scoped Player service worker before loading application modules', async () => {
+  const app = await read('src/web/admin-ui/public/app.js');
+  assert.match(app, /navigator\.serviceWorker\.getRegistrations/);
+  assert.match(app, /scope\.pathname === '\/'/);
+  assert.match(app, /script\.pathname === '\/player-sw\.js'/);
+  assert.match(app, /name\.startsWith\('mira-tv-player-shell-'\)/);
+  assert.doesNotMatch(app, /name\.startsWith\('mira-tv-player-data-'\)/);
+  assert.ok(
+    app.indexOf('await retireLegacyRootPlayerWorker()') < app.indexOf("import('/js/application.js')"),
+    'legacy Player service worker must be retired before admin modules load'
+  );
+});
+
 test('real TV player uses one generic scene owner and one offline-first state owner', async () => {
   const [worker, player, sceneRenderer, sync, store, realtimeClient, sceneMotionRuntime, layerComposer, publicRoutes, playerContextService, flatRenderer, weatherRuntime] = await Promise.all([
     read('src/web/admin-ui/public/player-sw.js'),
