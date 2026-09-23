@@ -18,6 +18,7 @@ import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { migratePlayerMetrics } from './migrations/player-metrics.js';
 import { migrateDeviceIdentification } from './migrations/device-identification.js';
+import { migrateWeatherSnapshots } from './migrations/weather-snapshots.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -39,6 +40,7 @@ import { createDevicesRepository } from './devices.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
 import { createPlayerMetricsRepository } from './player-metrics.js';
 import { createScreenRenderJournalRepository } from './screen-render-journal.js';
+import { createWeatherRepository } from './weather.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -66,7 +68,8 @@ const MIGRATIONS = Object.freeze([
   { name: '023-scene-ownership-cleanup', run: retireLegacySceneOwnership },
   { name: '024-scene-legacy-elements-cleanup', run: removeLegacySceneElements },
   { name: '025-player-metrics', run: migratePlayerMetrics },
-  { name: '026-device-identification', run: migrateDeviceIdentification }
+  { name: '026-device-identification', run: migrateDeviceIdentification },
+  { name: '027-weather-snapshots', run: migrateWeatherSnapshots }
 ]);
 
 function createRepositories(queryable) {
@@ -84,7 +87,8 @@ function createRepositories(queryable) {
     createDevicesRepository(queryable),
     createPlayerTelemetryRepository(queryable),
     createPlayerMetricsRepository(queryable),
-    createScreenRenderJournalRepository(queryable)
+    createScreenRenderJournalRepository(queryable),
+    createWeatherRepository(queryable)
   );
 }
 
