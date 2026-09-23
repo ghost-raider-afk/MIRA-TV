@@ -205,6 +205,32 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
 
   await page.locator('.scene-table-editor-close').click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await page.route('**/api/weather/preview**', async (route) => {
+    const url = new URL(route.request().url());
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify({
+        location_name:'Тестовый город',
+        latitude:Number(url.searchParams.get('latitude')),
+        longitude:Number(url.searchParams.get('longitude')),
+        timezone:url.searchParams.get('timezone') || 'UTC',
+        temperature:9,
+        apparent_temperature:7,
+        humidity:68,
+        wind_speed:11,
+        weather_code:3,
+        is_day:true,
+        condition:'Облачно',
+        icon:'cloud',
+        updated_at:'2026-09-23T18:00',
+        forecast:[
+          { time:'2026-09-23T19:00', temperature:8, weather_code:3, icon:'cloud' }
+        ]
+      })
+    });
+  });
+
   await page.locator('#scene-editor-add').click();
   const addMenu = page.locator('#scene-editor-add-menu');
   await expect(addMenu).toBeVisible();
@@ -252,9 +278,15 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(inspector.getByLabel('Масштаб внутри, %')).toHaveCount(0);
   await expect(inspector.locator('summary[aria-label^="Типографика:"]')).toBeVisible();
   await expect(inspector.getByLabel('Шрифт температуры')).toHaveValue('arial');
+  await inspector.getByLabel('Широта').fill('50.55034');
+  await inspector.getByLabel('Долгота').fill('137.00995');
+  await expect(weatherElement.locator('.weather-widget')).toBeVisible({ timeout:5000 });
+
   const weatherFontOptions = await inspector.getByLabel('Шрифт температуры').locator('option').allTextContents();
-  expect(weatherFontOptions).toEqual(expect.arrayContaining(['MIRA Sans Condensed','MIRA Serif','Oswald','Georgia']));
-  await inspector.getByLabel('Шрифт температуры').selectOption('oswald');
+  expect(weatherFontOptions).toEqual(expect.arrayContaining([
+    'MIRA Sans','MIRA Sans Condensed','MIRA Sans Mono','MIRA Serif','MIRA Serif Condensed'
+  ]));
+  await inspector.getByLabel('Шрифт температуры').selectOption('mira-mono');
   await inspector.getByLabel('Кегль температуры, pt').fill('62');
   await inspector.getByLabel('Кегль города, pt').fill('16');
   await inspector.getByLabel('Масштаб иконок, %').fill('150');
@@ -289,7 +321,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[0].text.runs[0].value).toBe('бар маяк');
   expect(stored.draft.scene.elements[0].x).toBe(300);
   expect(stored.draft.scene.elements[1].type).toBe('weather');
-  expect(stored.draft.scene.elements[1].weather.temperature_font_family).toBe('oswald');
+  expect(stored.draft.scene.elements[1].weather.temperature_font_family).toBe('mira-mono');
   expect(stored.draft.scene.elements[1].weather.temperature_font_size_pt).toBe(62);
   expect(stored.draft.scene.elements[1].weather.location_font_size_pt).toBe(16);
   expect(stored.draft.scene.elements[1].weather.icon_scale_percent).toBe(150);
