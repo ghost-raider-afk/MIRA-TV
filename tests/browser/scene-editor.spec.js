@@ -543,9 +543,15 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
     });
   });
   const previewRequests = [];
+  let previewAttempts = 0;
   await page.route('**/api/weather/preview**', async (route) => {
     const url = new URL(route.request().url());
     previewRequests.push(Object.fromEntries(url.searchParams));
+    previewAttempts += 1;
+    if (previewAttempts === 1) {
+      await route.fulfill({ status:503, contentType:'application/json', body:JSON.stringify({ error:'temporary weather provider failure' }) });
+      return;
+    }
     await route.fulfill({
       status:200,
       contentType:'application/json',
@@ -708,7 +714,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(weatherEmphasis.temperatureShadow).not.toBe('none');
   expect(weatherEmphasis.iconWidth).toBeGreaterThanOrEqual(50);
   expect(weatherEmphasis.iconFilter).not.toBe('none');
-  await expect.poll(() => previewRequests.length).toBeGreaterThan(0);
+  await expect.poll(() => previewRequests.length, { timeout:7000 }).toBeGreaterThanOrEqual(2);
   expect(previewRequests.at(-1)).toMatchObject({
     name:'Комсомольск-на-Амуре',
     latitude:'50.5503',
