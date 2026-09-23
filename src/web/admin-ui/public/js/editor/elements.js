@@ -23,7 +23,22 @@ const FONTS = Object.freeze([
   ['arial', 'Arial'],
   ['dejavu-condensed', 'DejaVu Sans Condensed'],
   ['liberation-narrow', 'Liberation Sans Narrow'],
-  ['system-sans', 'Системный sans-serif']
+  ['system-sans', 'MIRA Sans']
+]);
+
+const WEATHER_FONTS = Object.freeze([
+  ['system-sans', 'MIRA Sans'],
+  ['mira-condensed', 'MIRA Sans Condensed'],
+  ['mira-serif', 'MIRA Serif'],
+  ['arial', 'Arial'],
+  ['arial-narrow', 'Arial Narrow'],
+  ['tahoma-bold', 'Tahoma Bold'],
+  ['dejavu-condensed', 'DejaVu Sans Condensed'],
+  ['liberation-narrow', 'Liberation Sans Narrow'],
+  ['inter', 'Inter'],
+  ['montserrat', 'Montserrat'],
+  ['oswald', 'Oswald'],
+  ['georgia', 'Georgia']
 ]);
 
 function uid() {
@@ -75,8 +90,9 @@ function defaultWeather() {
     show_forecast: true,
     forecast_items: 3,
     temperature_font_family: 'arial',
-    temperature_size_percent: 100,
-    location_size_percent: 100,
+    temperature_font_size_pt: 48,
+    location_font_size_pt: 14,
+    icon_scale_percent: 100,
     animation_enabled: true,
     animation_speed: 1,
     animation_intensity: 1,
@@ -583,22 +599,25 @@ function weatherSettings(state, element, options) {
   }
   visibility.append(visibilityGrid);
 
-  const typography = section('Типографика', 'Размеры автоматически подстраиваются под окно погоды');
+  const typography = section('Типографика', 'Кегль задаётся в pt и адаптивно масштабируется внутри окна погоды');
   const typographyGrid = document.createElement('div');
   typographyGrid.className = 'compact-form-grid';
-  const temperatureFont = select(weather.temperature_font_family || 'arial', FONTS);
+  const temperatureFont = select(weather.temperature_font_family || 'arial', WEATHER_FONTS);
   bind(temperatureFont, 'change', () => mutateWeather(state, element.id, (next) => {
     next.temperature_font_family = temperatureFont.value;
   }), options);
   typographyGrid.append(label('Шрифт температуры', temperatureFont));
 
-  for (const [caption, key, fallback] of [
-    ['Размер температуры, %', 'temperature_size_percent', 100],
-    ['Размер города, %', 'location_size_percent', 100]
+  const legacyTemperaturePt = Math.round(48 * Number(weather.temperature_size_percent || 100) / 100);
+  const legacyLocationPt = Math.round(14 * Number(weather.location_size_percent || 100) / 100);
+  for (const [caption, key, fallback, min, max] of [
+    ['Кегль температуры, pt', 'temperature_font_size_pt', legacyTemperaturePt || 48, 24, 96],
+    ['Кегль города, pt', 'location_font_size_pt', legacyLocationPt || 14, 8, 32],
+    ['Масштаб иконок, %', 'icon_scale_percent', 100, 100, 200]
   ]) {
-    const control = input('number', weather[key] ?? fallback, { min: 60, max: 180, step: 1 });
+    const control = input('number', weather[key] ?? fallback, { min, max, step: 1 });
     bind(control, 'input', () => mutateWeather(state, element.id, (next) => {
-      next[key] = numberValue(control, fallback);
+      next[key] = Math.max(min, Math.min(max, numberValue(control, fallback)));
     }), options);
     typographyGrid.append(label(caption, control));
   }
