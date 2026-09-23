@@ -38,7 +38,7 @@ test('Player owns deterministic local font aliases instead of relying on TV syst
     assert.ok(fonts.includes(asset), `fonts.css must reference ${asset}`);
     assert.ok(serviceWorker.includes(`'${asset}'`), `Player shell cache must include ${asset}`);
   }
-  assert.match(serviceWorker, /const SHELL_CACHE = 'mira-tv-player-shell-v34'/);
+  assert.match(serviceWorker, /const SHELL_CACHE = 'mira-tv-player-shell-v35'/);
   assert.match(serviceWorker, /mira-tv-player-data-v18/);
 });
 

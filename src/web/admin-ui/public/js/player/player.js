@@ -6,7 +6,7 @@ import { createPlayerMetricsCollector } from './player-metrics.js';
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.13.18';
+const PLAYER_BUILD_VERSION = '1.13.19';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
@@ -559,12 +559,39 @@ function waitForServiceWorkerActivation(worker) {
   });
 }
 
+function isLegacyRootPlayerRegistration(registration) {
+  try {
+    const scope = new URL(registration?.scope || '', window.location.origin);
+    const scriptUrl = registration?.active?.scriptURL
+      || registration?.waiting?.scriptURL
+      || registration?.installing?.scriptURL
+      || '';
+    const script = new URL(scriptUrl, window.location.origin);
+    return scope.origin === window.location.origin
+      && scope.pathname === '/'
+      && script.origin === window.location.origin
+      && script.pathname === '/player-sw.js';
+  } catch {
+    return false;
+  }
+}
+
+async function retireLegacyRootPlayerRegistration() {
+  if (typeof navigator.serviceWorker.getRegistrations !== 'function') return;
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations
+    .filter(isLegacyRootPlayerRegistration)
+    .map((registration) => registration.unregister().catch(() => false)));
+}
+
 async function registerOfflinePlayer() {
   if (!('serviceWorker' in navigator)) return null;
   if (!offlinePlayerRegistrationPromise) {
     offlinePlayerRegistrationPromise = (async () => {
-      const registration = await navigator.serviceWorker.register('/player-sw.js', { scope: '/' });
-      await navigator.serviceWorker.ready;
+      await retireLegacyRootPlayerRegistration();
+      const registration = await navigator.serviceWorker.register('/player-sw.js', { scope: '/player' });
+      const candidate = registration.installing || registration.waiting;
+      if (candidate) await waitForServiceWorkerActivation(candidate);
       return registration;
     })().catch((error) => {
       offlinePlayerRegistrationPromise = null;
