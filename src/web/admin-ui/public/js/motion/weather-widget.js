@@ -71,8 +71,10 @@ function nullableCoordinate(value) {
 }
 
 function pointSize(value, legacyPercent, basePt, min, max) {
-  const explicit = Number(value);
-  if (Number.isFinite(explicit)) return clamp(explicit, min, max, basePt);
+  if (value !== null && value !== undefined && value !== '') {
+    const explicit = Number(value);
+    if (Number.isFinite(explicit)) return clamp(explicit, min, max, basePt);
+  }
   const percent = clamp(legacyPercent, 60, 180, 100);
   return clamp(Math.round(basePt * percent / 100), min, max, basePt);
 }
