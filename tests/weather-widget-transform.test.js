@@ -82,8 +82,11 @@ test('browser and server weather models preserve empty coordinates as unconfigur
 
 test('weather forecast filtering follows provider city wall clock instead of server timezone', async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({
-    timezone:'Asia/Vladivostok',
+  let requestedTimezone = '';
+  globalThis.fetch = async (input) => {
+    requestedTimezone = new URL(String(input)).searchParams.get('timezone') || '';
+    return new Response(JSON.stringify({
+    timezone:'UTC',
     current:{
       time:'2026-09-20T22:10',
       temperature_2m:9,
@@ -100,6 +103,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
       precipitation_probability:[10,10,10,10]
     }
   }), { status:200, headers:{'content-type':'application/json'} });
+  };
   try {
     const snapshot = await getWeatherSnapshot({
       location_name:'Комсомольск-на-Амуре',
@@ -111,6 +115,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
       weatherFetchTimeoutMs:1000,
       weatherCacheSeconds:600
     }, { force:true });
+    assert.equal(requestedTimezone, 'Asia/Vladivostok');
     assert.equal(snapshot.timezone, 'Asia/Vladivostok');
     assert.deepEqual(snapshot.forecast.slice(0, 3).map((item) => item.time), [
       '2026-09-20T23:00',
@@ -268,10 +273,10 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v36'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v37'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v34'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v35'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v35'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v36'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 

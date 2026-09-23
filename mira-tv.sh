@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 PROGRAM_NAME="MIRA-TV"
-SCRIPT_VERSION="1.13.20"
+SCRIPT_VERSION="1.13.21"
 INSTALL_DIR="/opt/MIRA-TV"
 PERSIST_DIR="/var/lib/mira-tv"
 PERSIST_ENV="${PERSIST_DIR}/install.env"
@@ -43,10 +43,17 @@ require_ubuntu() {
 }
 
 install_prerequisites() { export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl git openssl dnsutils; }
+compose_supports_gateway_priority() {
+  local current minimum='2.33.1'
+  current="$(docker compose version --short 2>/dev/null | sed -E 's/^v//')" || return 1
+  [[ -n "$current" ]] || return 1
+  [[ "$(printf '%s\n%s\n' "$minimum" "$current" | sort -V | head -n 1)" == "$minimum" ]]
+}
 install_docker() {
-  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then return; fi
-  log 'Установка Docker Engine и Docker Compose'; curl -fsSL https://get.docker.com | sh; systemctl enable --now docker
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 && compose_supports_gateway_priority; then return; fi
+  log 'Установка или обновление Docker Engine и Docker Compose'; curl -fsSL https://get.docker.com | sh; systemctl enable --now docker
   docker compose version >/dev/null 2>&1 || die 'Docker Compose не установлен.'
+  compose_supports_gateway_priority || die 'Требуется Docker Compose 2.33.1 или новее для корректного сетевого маршрута MIRA-TV.'
 }
 random_hex() { local length="$1" raw; raw="$(openssl rand -hex 64)"; printf '%s' "${raw:0:length}"; }
 generated_admin_password() { printf 'Aa1!%s' "$(random_hex 16)"; }
