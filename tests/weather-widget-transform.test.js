@@ -122,6 +122,55 @@ test('weather forecast filtering follows provider city wall clock instead of ser
   }
 });
 
+test('expired weather cache remains a last-known-good fallback when provider is temporarily unavailable', async () => {
+  const originalFetch = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      return new Response(JSON.stringify({
+        timezone:'Asia/Vladivostok',
+        current:{
+          time:'2026-09-23T10:00',
+          temperature_2m:8,
+          apparent_temperature:6,
+          relative_humidity_2m:72,
+          weather_code:3,
+          wind_speed_10m:10,
+          is_day:1
+        },
+        hourly:{
+          time:['2026-09-23T11:00','2026-09-23T12:00'],
+          temperature_2m:[9,10],
+          weather_code:[3,2],
+          precipitation_probability:[10,5]
+        }
+      }), { status:200, headers:{'content-type':'application/json'} });
+    }
+    throw new Error('provider unavailable');
+  };
+  const settings = {
+    location_name:'Комсомольск-на-Амуре',
+    latitude:50.55034,
+    longitude:137.09995,
+    timezone:'Asia/Vladivostok'
+  };
+  const config = {
+    weatherProviderBaseUrl:'https://weather.invalid',
+    weatherFetchTimeoutMs:1000,
+    weatherCacheSeconds:-1
+  };
+  try {
+    const fresh = await getWeatherSnapshot(settings, config);
+    const fallback = await getWeatherSnapshot(settings, config);
+    assert.equal(attempts, 2);
+    assert.equal(fallback.temperature, fresh.temperature);
+    assert.equal(fallback.location_name, 'Комсомольск-на-Амуре');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('legacy weather settings keep animation enabled with safe defaults', () => {
   assert.deepEqual(
     (({ x, y }) => ({ x, y }))(completeWeatherWidget({ position: 'bottom-left' })),
@@ -210,7 +259,7 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
   assert.match(weatherRuntime, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
   assert.match(weatherRuntime, /this\.screenId \? `\$\{CACHE_PREFIX\}\$\{this\.screenId\}` : ''/);
-  assert.match(weatherRuntime, /settings:\s*\{ \.\.\.this\.settings, screen_id: this\.screenId \}/);
+  assert.match(weatherRuntime, /settings:\s*this\.preview \? \{ \.\.\.this\.settings \} : \{ \.\.\.this\.settings, screen_id: this\.screenId \}/);
   assert.match(weatherRuntime, /legacyScreenId === this\.screenId/);
   assert.match(weatherRuntime, /applyContext\(settings, screenId/);
   assert.doesNotMatch(weatherRuntime, /loadLastKnownGood/);
@@ -219,10 +268,10 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v33'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v34'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v31'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v32'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v32'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v33'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 
@@ -237,6 +286,8 @@ test('Scene weather preview invalidates stale source data and uses protected pre
   assert.match(runtime, /hasWeatherCoordinates\(this\.settings\)/);
   assert.match(runtime, /url\.searchParams\.set\('latitude'/);
   assert.match(runtime, /url\.searchParams\.set\('longitude'/);
-  assert.match(runtime, /if \(this\.preview\)/);
+  assert.match(runtime, /const PREVIEW_CACHE_KEY = 'mira-tv\.weather\.preview\.last\.v1'/);
+  assert.match(runtime, /if \(this\.preview\) return PREVIEW_CACHE_KEY/);
+  assert.match(runtime, /PREVIEW_RETRY_MS/);
   assert.match(renderer, /weatherPreviewEndpoint = '\/api\/weather\/preview'/);
 });

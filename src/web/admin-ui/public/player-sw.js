@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v31';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v32';
-const SHELL_CACHE = 'mira-tv-player-shell-v33';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v32';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v33';
+const SHELL_CACHE = 'mira-tv-player-shell-v34';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: responsive scene elements, split promotion editors, cyclic promotion motion and device identification. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
+// Source revision: resilient weather snapshot/cache/retry runtime. A changed service-worker script reinstalls and refreshes SHELL_ASSETS in-place.
 const SHELL_ASSETS = [
   '/player.html',
   '/css/fonts.css',
