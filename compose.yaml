@@ -54,7 +54,10 @@ services:
         condition: service_completed_successfully
     volumes:
       - mira-tv-site-assets:${SITE_ASSETS_ROOT}
-    networks: [mira-tv-internal, mira-tv-proxy]
+    networks:
+      mira-tv-internal:
+      mira-tv-proxy:
+        gw_priority: 1
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
