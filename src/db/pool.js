@@ -1,7 +1,16 @@
 import { Pool } from 'pg';
+import { logger } from '../logger/index.js';
+
+export function attachDatabasePoolErrorHandler(pool, log = logger) {
+  if (!pool || typeof pool.on !== 'function') throw new TypeError('PostgreSQL pool must support error events.');
+  pool.on('error', (error) => {
+    log.warn('PostgreSQL idle connection lost; pool will reconnect on demand', { error });
+  });
+  return pool;
+}
 
 export function createDatabasePool(dbConfig) {
-  return new Pool({
+  const pool = new Pool({
     host: dbConfig.host,
     port: dbConfig.port,
     database: dbConfig.database,
@@ -11,4 +20,5 @@ export function createDatabasePool(dbConfig) {
     idleTimeoutMillis: dbConfig.idleTimeoutMs,
     connectionTimeoutMillis: dbConfig.connectionTimeoutMs
   });
+  return attachDatabasePoolErrorHandler(pool);
 }
