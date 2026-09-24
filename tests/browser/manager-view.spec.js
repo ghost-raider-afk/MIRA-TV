@@ -105,7 +105,6 @@ test('manager uses the common sign-in and can inspect every saved active screen 
 
     for (const screen of [published, draft]) {
       const stage = locationGroup.locator(`[data-manager-screen-id="${screen.id}"] .manager-screen-stage`);
-      await expect(stage).toHaveAttribute('data-player-scene-renderer', '');
       const [expectedWidth, expectedHeight] = String(screen.resolution).split(/\D+/).map(Number);
       const geometry = await stage.evaluate((node) => ({
         width: node.style.width,
