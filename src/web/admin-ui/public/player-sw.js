@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v38';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v39';
-const SHELL_CACHE = 'mira-tv-player-shell-v40';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v39';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v40';
+const SHELL_CACHE = 'mira-tv-player-shell-v41';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: bulk scene apply, interface scaling and compact menu metadata spacing.
+// Source revision: installable Player shortcut and configurable menu price typography.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
