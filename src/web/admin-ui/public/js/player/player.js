@@ -16,6 +16,8 @@ const reserveCode = document.querySelector('[data-reserve-code]');
 const activationExpiry = document.querySelector('[data-activation-expiry]');
 const activationStatus = document.querySelector('[data-activation-status]');
 const activationLead = document.querySelector('.activation-lead');
+const installPlayerButton = document.querySelector('[data-install-player]');
+const installPlayerHint = document.querySelector('[data-install-player-hint]');
 const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
@@ -36,6 +38,7 @@ let previewTimer = null;
 let previewInFlight = false;
 let previewCaptureIntervalMs = null;
 let previewMaxBytes = null;
+let playerInstallPrompt = null;
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -46,6 +49,65 @@ if ('serviceWorker' in navigator) {
 function setHidden(element, hidden) {
   element?.classList.toggle('is-hidden', hidden);
 }
+
+function playerRunsStandalone() {
+  return Boolean(
+    window.matchMedia?.('(display-mode: standalone)').matches
+    || window.matchMedia?.('(display-mode: fullscreen)').matches
+    || navigator.standalone === true
+  );
+}
+
+function setInstallPlayerHint(text = '') {
+  if (!installPlayerHint) return;
+  installPlayerHint.textContent = text;
+  setHidden(installPlayerHint, !text);
+}
+
+function playerInstallFallbackText() {
+  const ua = String(navigator.userAgent || '');
+  if (/iPad|iPhone|iPod/i.test(ua)) return 'В Safari нажмите «Поделиться» → «На экран Домой».';
+  if (/Android/i.test(ua)) return 'Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».';
+  if (/Windows/i.test(ua)) return 'Браузер не предложил установку. Используйте «Скачать ярлык для Windows» ниже или пункт установки приложения в меню браузера.';
+  return 'Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».';
+}
+
+async function installPlayerShortcut() {
+  if (playerRunsStandalone()) {
+    setInstallPlayerHint('MIRA-TV Player уже запущен как установленное приложение.');
+    return;
+  }
+  if (!playerInstallPrompt) {
+    setInstallPlayerHint(playerInstallFallbackText());
+    return;
+  }
+
+  const prompt = playerInstallPrompt;
+  playerInstallPrompt = null;
+  try {
+    await prompt.prompt();
+    const choice = await Promise.resolve(prompt.userChoice);
+    if (choice?.outcome === 'accepted') {
+      setInstallPlayerHint('Установка подтверждена. Ярлык MIRA-TV Player появится в системе.');
+      if (installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player устанавливается';
+      return;
+    }
+  } catch {}
+  setInstallPlayerHint(playerInstallFallbackText());
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  playerInstallPrompt = event;
+  if (installPlayerButton) installPlayerButton.textContent = 'Установить MIRA-TV Player';
+  setInstallPlayerHint('');
+});
+
+window.addEventListener('appinstalled', () => {
+  playerInstallPrompt = null;
+  if (installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
+  setInstallPlayerHint('Ярлык MIRA-TV Player установлен.');
+});
 
 function dispatchPlayerActivity(active) {
   const value = active === true;
@@ -701,6 +763,8 @@ async function initialisePlayer() {
   });
 
   showActivationButton.addEventListener('click', () => void createActivation());
+  installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
+  if (playerRunsStandalone() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {
     syncPlayerPageVisibility();

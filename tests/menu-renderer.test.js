@@ -22,14 +22,15 @@ const product = Object.freeze({
   active: true
 });
 
-function state(count = 4, scale = 100, fontFamily = 'arial-narrow') {
+function state(count = 4, scale = 100, fontFamily = 'arial-narrow', priceFontSizePt = 27) {
   return {
     settings: {
       background_color: '#101828',
       accent_color: '#F6C90E',
       text_color: '#F8FAFC',
       font_scale_percent: scale,
-      font_family: fontFamily
+      font_family: fontFamily,
+      price_font_size_pt: priceFontSizePt
     },
     rows: [
       { id: 'section', kind: 'section', name: 'ПИВО СВЕТЛОЕ НЕФИЛЬТРОВАННОЕ', enabled: true },
@@ -38,8 +39,8 @@ function state(count = 4, scale = 100, fontFamily = 'arial-narrow') {
   };
 }
 
-function rendered(count = 4, scale = 100, fontFamily = 'arial-narrow') {
-  const model = buildRenderModel(state(count, scale, fontFamily), { width: 1920, height: 1080 });
+function rendered(count = 4, scale = 100, fontFamily = 'arial-narrow', priceFontSizePt = 27) {
+  const model = buildRenderModel(state(count, scale, fontFamily, priceFontSizePt), { width: 1920, height: 1080 });
   const lines = buildDisplayLines(model, { products: [product] });
   const layout = buildRenderLayout(model, lines);
   return { model, lines, layout, svg: buildTableSvg(model, lines, layout) };
@@ -118,6 +119,17 @@ test('item metadata sits slightly closer to the primary name without changing fo
   assert.ok(metaY - nameY < 25);
   assert.match(svg, /class="item-name"[^>]*font-size="25\.2[0-9]*"/);
   assert.match(svg, /class="item-meta"[^>]*font-size="14\.175"/);
+});
+
+test('price point size changes only the shared canonical price typography', () => {
+  const small = rendered(4, 100, 'arial-narrow', 18).svg;
+  const large = rendered(4, 100, 'arial-narrow', 40).svg;
+  assert.match(small, /class="price"[^>]*font-size="18\.9[0-9]*"/);
+  assert.match(large, /class="price"[^>]*font-size="42"/);
+  assert.match(small, /class="cents"[^>]*font-size="9\.8/);
+  assert.match(large, /class="cents"[^>]*font-size="21\.7/);
+  assert.match(small, /class="item-name"[^>]*font-size="25\.2[0-9]*"/);
+  assert.match(large, /class="item-name"[^>]*font-size="25\.2[0-9]*"/);
 });
 
 test('Tahoma Bold is a real renderer option and enforces bold text floor', () => {

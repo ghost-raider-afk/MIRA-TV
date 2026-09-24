@@ -135,8 +135,25 @@ function configureSecurity(app, config) {
   app.use(express.json({ limit: config.jsonBodyMaxBytes }));
 }
 
+function configuredPlayerUrl(config) {
+  const domain = String(config?.domain || '').trim();
+  const local = /^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(domain);
+  const source = /^https?:\/\//i.test(domain) ? domain : `${local ? 'http' : 'https'}://${domain}`;
+  const url = new URL(source);
+  url.pathname = '/player';
+  url.search = '';
+  url.hash = '';
+  return url.href;
+}
+
 function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
   let readiness = { checkedAt: 0, ok: false };
+  app.get('/player-shortcut.url', (_request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('Content-Type', 'application/internet-shortcut; charset=utf-8');
+    response.setHeader('Content-Disposition', 'attachment; filename="MIRA-TV-Player.url"');
+    response.send(`[InternetShortcut]\r\nURL=${configuredPlayerUrl(config)}\r\n`);
+  });
   app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'mira-tv' }));
   app.get('/readyz', async (_request, response) => {
     const now = Date.now();

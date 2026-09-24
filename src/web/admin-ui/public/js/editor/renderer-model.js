@@ -3,6 +3,7 @@ const DEFAULT_HEIGHT = 1080;
 const HEX = /^#[0-9a-f]{6}$/i;
 const DEFAULT_FONT_KEY = 'arial-narrow';
 export const TV1_REFERENCE_SCALE = 1.05;
+export const MENU_PRICE_FONT_SIZE = Object.freeze({ defaultPt: 27, minPt: 18, maxPt: 40 });
 
 export const MENU_FONT_OPTIONS = Object.freeze([
   Object.freeze({ key: 'arial-narrow', label: 'Arial Narrow', family: 'Arial Narrow, Liberation Sans Narrow, DejaVu Sans Condensed, Arial, sans-serif', weightFloor: 400 }),
@@ -198,6 +199,14 @@ export function requestedFontScalePercent(settings = {}) {
   );
 }
 
+export function requestedPriceFontSizePt(settings = {}) {
+  return clamp(
+    Math.round(numeric(settings.price_font_size_pt, MENU_PRICE_FONT_SIZE.defaultPt)),
+    MENU_PRICE_FONT_SIZE.minPt,
+    MENU_PRICE_FONT_SIZE.maxPt
+  );
+}
+
 export function buildRenderModel(editorState, viewport = {}) {
   const width = Math.max(1, Math.round(numeric(viewport.width, DEFAULT_WIDTH)));
   const height = Math.max(1, Math.round(numeric(viewport.height, DEFAULT_HEIGHT)));
@@ -345,7 +354,8 @@ export function buildRenderLayout(model, lines) {
       boxes: Object.freeze(boxes)
     }),
     palette: buildMenuPalette(model.settings),
-    typography: fontDefinition(model.settings.font_family)
+    typography: fontDefinition(model.settings.font_family),
+    priceFontSizePt: requestedPriceFontSizePt(model.settings)
   });
 }
 

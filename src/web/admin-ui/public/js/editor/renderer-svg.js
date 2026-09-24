@@ -1,5 +1,6 @@
 import {
   MENU_REFERENCE,
+  MENU_PRICE_FONT_SIZE,
   MENU_TABLE_STYLE,
   TV1_REFERENCE_SCALE,
   buildRenderLayout,
@@ -27,12 +28,16 @@ function motionSurfaceMarkup(box, horizontal, scale, kind) {
   return `<rect class="row-motion-surface row-motion-surface-${kind}" x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-row-motion-surface)" opacity="0" pointer-events="none"/>`;
 }
 
-function priceMarkup(value, x, baseline, scale, toneColor, typography, className = 'price') {
+function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFontSizePt, className = 'price') {
   const parts = priceParts(value);
   const fontScale = TV1_REFERENCE_SCALE * scale;
-  const attributes = textAttributes({ size: 27 * fontScale, weight: 700, fill: toneColor, anchor: 'end' }, typography);
+  const baseSize = Math.max(MENU_PRICE_FONT_SIZE.minPt, Math.min(MENU_PRICE_FONT_SIZE.maxPt, Number(priceFontSizePt) || MENU_PRICE_FONT_SIZE.defaultPt));
+  const wholeSize = baseSize * fontScale;
+  const centsSize = wholeSize * (14 / 27);
+  const centsLift = wholeSize * (16 / 27);
+  const attributes = textAttributes({ size: wholeSize, weight: 700, fill: toneColor, anchor: 'end' }, typography);
   if (!parts) return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>—</text>`;
-  return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-16 * fontScale}" font-size="${14 * fontScale}" font-weight="700" fill="${toneColor}">${escapeXml(parts.cents)}</tspan></text>`;
+  return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-centsLift}" font-size="${centsSize}" font-weight="700" fill="${toneColor}">${escapeXml(parts.cents)}</tspan></text>`;
 }
 
 function promotionShapePath(shape, x, top, width, height, notch) {
@@ -135,7 +140,7 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography) {
   return `<g class="table-section"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="5" ry="5" fill="${palette.accent}"/>${motionSurfaceMarkup(box, horizontal, scale, 'section')}<text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: 28 * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3 }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
 }
 
-function itemMarkup(line, box, horizontal, palette, scale, typography, settings) {
+function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const toneColor = line.tone === 'accent' ? palette.accentText : palette.primaryText;
   const metaColor = line.tone === 'accent' ? palette.accentSecondaryText : palette.secondaryText;
@@ -156,11 +161,11 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings)
     ${promotion.glow}
     ${promotion.markup}
     <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor }, typography)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
-    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, toneColor, typography)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, toneColor, typography)}</g>
+    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, toneColor, typography, priceFontSizePt)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, toneColor, typography, priceFontSizePt)}</g>
   </g>`;
 }
 
-function packagingMarkup(line, box, horizontal, palette, scale, typography) {
+function packagingMarkup(line, box, horizontal, palette, scale, typography, priceFontSizePt) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const gap = 34 * horizontal.scaleX;
   const cellWidth = (horizontal.tableWidth - gap) / 2;
@@ -170,7 +175,7 @@ function packagingMarkup(line, box, horizontal, palette, scale, typography) {
     const right = x + cellWidth;
     const toneColor = item.tone === 'accent' ? palette.accentText : palette.primaryText;
     const maximumCharacters = Math.max(8, Math.floor((cellWidth - 175 * horizontal.scaleX) / (13 * fontScale)));
-    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, typography, 'packaging-price')}</g></g>`;
+    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, typography, priceFontSizePt, 'packaging-price')}</g></g>`;
   }).join('\n');
   return `<g class="table-packaging">${separatorMarkup(box, horizontal, scale)}${motionSurfaceMarkup(box, horizontal, scale, 'packaging')}${cells}</g>`;
 }
@@ -181,8 +186,8 @@ export function buildTableSvg(model, lines, layout = buildRenderLayout(model, li
   const content = lines.map((line, index) => {
     const box = vertical.boxes[index];
     if (line.kind === 'section') return sectionMarkup(line, box, horizontal, palette, scale, typography);
-    if (line.kind === 'packaging') return packagingMarkup(line, box, horizontal, palette, scale, typography);
-    return itemMarkup(line, box, horizontal, palette, scale, typography, model.settings);
+    if (line.kind === 'packaging') return packagingMarkup(line, box, horizontal, palette, scale, typography, layout.priceFontSizePt);
+    return itemMarkup(line, box, horizontal, palette, scale, typography, model.settings, layout.priceFontSizePt);
   }).join('\n');
   return `<svg xmlns="http://www.w3.org/2000/svg" class="menu-table-svg" width="${model.viewport.width}" height="${model.viewport.height}" viewBox="0 0 ${model.viewport.width} ${model.viewport.height}" preserveAspectRatio="xMinYMin meet" aria-label="Предпросмотр таблицы меню" font-family="${escapeXml(typography.family)}">
     <defs>

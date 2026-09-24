@@ -1,0 +1,28 @@
+{
+  "id": "/player",
+  "name": "MIRA-TV Player",
+  "short_name": "MIRA-TV",
+  "description": "MIRA-TV Player для телевизоров и экранов цифрового меню",
+  "lang": "ru",
+  "start_url": "/player",
+  "scope": "/player",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#090d14",
+  "theme_color": "#090d14",
+  "icons": [
+    {
+      "src": "/brand/player-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/player-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

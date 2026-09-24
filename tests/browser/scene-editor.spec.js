@@ -137,6 +137,13 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.locator('.scene-table-editor-close').click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
 
+  const priceSize = page.locator('#scene-editor-properties').getByLabel('Кегль цен');
+  await expect(priceSize).toHaveValue('27');
+  await priceSize.fill('34');
+  await expect.poll(() => page.locator('#scene-editor-stage .price').first().evaluate((node) =>
+    Number(node.getAttribute('font-size'))
+  )).toBeCloseTo(35.7, 1);
+
   await promotionRowLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Акционная строка');
   const rowInspector = page.locator('#scene-editor-properties');
@@ -325,6 +332,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.scene.elements[1].weather.temperature_font_size_pt).toBe(62);
   expect(stored.draft.scene.elements[1].weather.location_font_size_pt).toBe(16);
   expect(stored.draft.scene.elements[1].weather.icon_scale_percent).toBe(150);
+  expect(stored.draft.settings.price_font_size_pt).toBe(34);
   expect(stored.draft.settings.promotion_badge_shape).toBe('chevron');
   expect(stored.draft.settings.promotion_font_size_percent).toBe(120);
   expect(stored.draft.settings.promotion_font_weight).toBe(800);
