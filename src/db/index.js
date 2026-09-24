@@ -19,6 +19,7 @@ import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
 import { migratePlayerMetrics } from './migrations/player-metrics.js';
 import { migrateDeviceIdentification } from './migrations/device-identification.js';
 import { migrateWeatherSnapshots } from './migrations/weather-snapshots.js';
+import { migrateSiteUiScale } from './migrations/site-ui-scale.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -69,7 +70,8 @@ const MIGRATIONS = Object.freeze([
   { name: '024-scene-legacy-elements-cleanup', run: removeLegacySceneElements },
   { name: '025-player-metrics', run: migratePlayerMetrics },
   { name: '026-device-identification', run: migrateDeviceIdentification },
-  { name: '027-weather-snapshots', run: migrateWeatherSnapshots }
+  { name: '027-weather-snapshots', run: migrateWeatherSnapshots },
+  { name: '028-site-ui-scale', run: migrateSiteUiScale }
 ]);
 
 function createRepositories(queryable) {
