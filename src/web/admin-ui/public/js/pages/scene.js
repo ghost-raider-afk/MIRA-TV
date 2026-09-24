@@ -9,6 +9,7 @@ import {
 } from '../editor/rows.js';
 import { createEditorHistory } from '../editor/history.js';
 import { createEditorState, replaceEditorState } from '../editor/state.js';
+import { MENU_PRICE_FONT_SIZE } from '../editor/renderer.js';
 import {
   appendSceneElement,
   renderSceneElementInspector,
@@ -980,12 +981,12 @@ export function initialiseSceneEditor() {
       const value = Number(scale.value);
       if (Number.isFinite(value)) patchMenuSettings({ font_scale_percent:clamp(Math.round(value),55,130) });
     });
-    const priceSize = compactInput('number', state.settings.price_font_size_pt || 27, { min:18,max:40,step:1 });
+    const priceSize = compactInput('number', state.settings.price_font_size_pt || MENU_PRICE_FONT_SIZE.defaultPt, { min:MENU_PRICE_FONT_SIZE.minPt,max:MENU_PRICE_FONT_SIZE.maxPt,step:1 });
     priceSize.setAttribute('aria-label','Кегль цен');
     checkpointControl(priceSize);
     priceSize.addEventListener('input', () => {
       const value = Number(priceSize.value);
-      if (Number.isFinite(value)) patchMenuSettings({ price_font_size_pt:clamp(Math.round(value),18,40) });
+      if (Number.isFinite(value)) patchMenuSettings({ price_font_size_pt:clamp(Math.round(value),MENU_PRICE_FONT_SIZE.minPt,MENU_PRICE_FONT_SIZE.maxPt) });
     });
     typePanel.append(makeField('Шрифт',font), makeField('Масштаб, %',scale), makeField('Кегль цен, pt',priceSize));
     typography.append(typePanel);
