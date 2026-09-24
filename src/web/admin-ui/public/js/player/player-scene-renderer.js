@@ -97,7 +97,6 @@ export class PlayerSceneRenderer {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Player scene renderer requires an HTMLElement stage.');
     this.stage = stage;
     this.stage.classList.add('player-scene-stage');
-    this.stage.setAttribute('data-player-scene-renderer', '');
     this.autoplay = autoplay !== false;
     this.weatherPreview = weatherPreview === true;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
@@ -247,7 +246,6 @@ export class PlayerSceneRenderer {
     this.viewportObserver?.disconnect();
     this.viewportObserver = null;
     this.weatherElementId = null;
-    this.stage?.removeAttribute('data-player-scene-renderer');
     this.stage = null;
   }
 }
