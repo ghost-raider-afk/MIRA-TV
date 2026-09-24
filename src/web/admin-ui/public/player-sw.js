@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v40';
-const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v41';
-const SHELL_CACHE = 'mira-tv-player-shell-v42';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v41';
+const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
+const SHELL_CACHE = 'mira-tv-player-shell-v43';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: Android TV-only Player installation and manager saved-screen preview access.
+// Source revision: manager viewer polish, PostgreSQL restart resilience and targeted TV pairing.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
