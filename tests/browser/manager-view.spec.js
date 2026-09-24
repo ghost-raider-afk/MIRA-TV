@@ -43,7 +43,7 @@ async function publishScreen(adminPage, screen) {
   return saved.screen;
 }
 
-test('manager uses the common sign-in and can only inspect published screens', async ({ browser }) => {
+test('manager uses the common sign-in and can inspect every saved active screen without edit access', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const managerContext = await browser.newContext({ baseURL, viewport: { width: 1440, height: 900 }, serviceWorkers: 'block' });
   const adminPage = await adminContext.newPage();
@@ -91,10 +91,11 @@ test('manager uses the common sign-in and can only inspect published screens', a
     await expect(managerPage.locator('#manager-locations')).toContainText(location.name);
 
     const cards = managerPage.locator('[data-manager-screen-id]');
-    await expect(cards).toHaveCount(1);
-    await expect(cards.first()).toContainText(published.name);
-    await expect(managerPage.locator('body')).not.toContainText(draft.name);
-    await expect(cards.first().locator('svg.menu-table-svg')).toHaveCount(1, { timeout: 5000 });
+    await expect(cards).toHaveCount(2);
+    await expect(managerPage.locator(`[data-manager-screen-id="${published.id}"]`)).toContainText(published.name);
+    await expect(managerPage.locator(`[data-manager-screen-id="${draft.id}"]`)).toContainText(draft.name);
+    await expect(managerPage.locator(`[data-manager-screen-id="${published.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
+    await expect(managerPage.locator(`[data-manager-screen-id="${draft.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
 
     const forbiddenScreens = await managerPage.request.get('/api/screens');
     expect(forbiddenScreens.status()).toBe(403);
@@ -102,18 +103,21 @@ test('manager uses the common sign-in and can only inspect published screens', a
       data: { name: 'Forbidden manager write', address: '', active: true }
     });
     expect(forbiddenWrite.status()).toBe(403);
-    const hiddenDraft = await managerPage.request.get(`/api/manager/screens/${draft.id}/context`);
-    expect(hiddenDraft.status()).toBe(404);
+    const savedDraft = await managerPage.request.get(`/api/manager/screens/${draft.id}/context`);
+    expect(savedDraft.status()).toBe(200);
+    const draftContext = await savedDraft.json();
+    expect(draftContext.screen.id).toBe(draft.id);
+    expect(draftContext.screen.status).toBe('draft');
 
     await managerPage.goto('/settings');
     await expect(managerPage).toHaveURL(/\/manager$/);
     await expect(managerPage.locator('#manager-create-form')).toHaveCount(0);
 
-    await managerPage.locator(`[data-manager-screen-id="${published.id}"]`).click();
+    await managerPage.locator(`[data-manager-screen-id="${draft.id}"]`).click();
     const fullscreen = managerPage.locator('#manager-fullscreen');
     await expect(fullscreen).not.toHaveClass(/is-hidden/);
     await expect(managerPage.locator('#manager-fullscreen-stage svg.menu-table-svg')).toHaveCount(1, { timeout: 5000 });
-    await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(published.name);
+    await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
   } finally {
     await managerContext.close();
     if (adminPage.isClosed() === false) {
