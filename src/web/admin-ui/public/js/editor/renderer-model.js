@@ -30,7 +30,10 @@ export const MENU_REFERENCE = Object.freeze({
   rightZoneX: 1495,
   bottomZoneY: 940,
   fontScaleMinPercent: 55,
-  fontScaleMaxPercent: 130
+  fontScaleMaxPercent: 130,
+  priceFontSizePt: 27,
+  priceFontSizeMinPt: 18,
+  priceFontSizeMaxPt: 40
 });
 
 export const MENU_TABLE_STYLE = Object.freeze({
@@ -198,6 +201,14 @@ export function requestedFontScalePercent(settings = {}) {
   );
 }
 
+export function requestedPriceFontSizePt(settings = {}) {
+  return clamp(
+    Math.round(numeric(settings.price_font_size_pt, MENU_REFERENCE.priceFontSizePt)),
+    MENU_REFERENCE.priceFontSizeMinPt,
+    MENU_REFERENCE.priceFontSizeMaxPt
+  );
+}
+
 export function buildRenderModel(editorState, viewport = {}) {
   const width = Math.max(1, Math.round(numeric(viewport.width, DEFAULT_WIDTH)));
   const height = Math.max(1, Math.round(numeric(viewport.height, DEFAULT_HEIGHT)));
@@ -345,7 +356,8 @@ export function buildRenderLayout(model, lines) {
       boxes: Object.freeze(boxes)
     }),
     palette: buildMenuPalette(model.settings),
-    typography: fontDefinition(model.settings.font_family)
+    typography: fontDefinition(model.settings.font_family),
+    priceFontSizePt: requestedPriceFontSizePt(model.settings)
   });
 }
 
