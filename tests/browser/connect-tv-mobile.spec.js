@@ -68,3 +68,69 @@ test('mobile TV pairing is styled after SPA navigation and keeps one active step
   await expect(page.getByRole('button', { name: 'Закрыть сканер' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ввести 6-значный код' })).toBeVisible();
 });
+
+
+test('TV network connect action keeps pairing locked to the selected TV screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page);
+
+  const stamp = Date.now();
+  let locationId = null;
+  let screenId = null;
+
+  try {
+    const locationResponse = await page.request.post('/api/locations', {
+      data: { name: `Targeted TV ${stamp}`, address: 'Тестовая точка подключения', active: true }
+    });
+    expect(locationResponse.ok()).toBeTruthy();
+    const location = await locationResponse.json();
+    locationId = location.id;
+
+    const screenResponse = await page.request.post(`/api/locations/${location.id}/screens`, { data: {} });
+    expect(screenResponse.ok()).toBeTruthy();
+    const screen = await screenResponse.json();
+    screenId = screen.id;
+    const tvName = `TV ${screen.location_number || screen.id}`;
+
+    await page.goto('/screens');
+    const unit = page.locator(`[data-tv-unit][data-screen-id="${screen.id}"]`);
+    await expect(unit).toBeVisible();
+    const connect = unit.locator('[data-tv-bind-action]');
+    await expect(connect).toHaveAttribute('href', `/connect-tv?screen=${screen.id}`);
+    await expect(connect).toHaveAttribute('aria-label', `Подключить ${tvName}`);
+
+    await connect.click();
+    await expect(page).toHaveURL(new RegExp(`/connect-tv\\?screen=${screen.id}$`));
+    await expect(page.locator('.connect-tv-flow')).toHaveClass(/is-targeted/);
+    await expect(page.locator('.connect-tv-heading h1')).toHaveText(`Подключить ${tvName}`);
+    await expect(page.locator('.connect-tv-heading-copy')).toContainText(location.name);
+    await expect(page.locator('[data-connect-step="location"]')).toBeHidden();
+    await expect(page.locator('[data-progress-step="location"]')).toBeHidden();
+    await expect(page.locator('[data-progress-step="screen"] b')).toHaveText('2');
+
+    await page.route('**/api/device-admin/resolve', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ activation_id: `targeted-${stamp}` })
+      });
+    });
+
+    await page.getByRole('button', { name: /ввести код/i }).first().click();
+    await page.getByLabel('6-значный резервный код').fill('123456');
+    await page.getByRole('button', { name: 'Продолжить' }).click();
+
+    const screenStep = page.locator('[data-connect-step="screen"]');
+    await expect(screenStep).not.toHaveClass(/is-disabled/);
+    const options = screenStep.locator('.connect-tv-option');
+    await expect(options).toHaveCount(1);
+    await expect(options.first()).toHaveClass(/is-selected/);
+    await expect(options.first()).toContainText(screen.name);
+    const authorize = page.locator('[data-authorize]');
+    await expect(authorize).toBeEnabled();
+    await expect(authorize).toHaveText(`Подключить к ${tvName}`);
+  } finally {
+    if (screenId) await page.request.delete(`/api/screens/${screenId}`).catch(() => undefined);
+    if (locationId) await page.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
+  }
+});
