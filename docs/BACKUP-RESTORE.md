@@ -44,7 +44,7 @@ sudo mira-tv backup
 По умолчанию файл создаётся в:
 
 ```text
-/var/lib/mira-tv/backups/
+/var/backups/mira-tv/
 ```
 
 Можно указать другой файл или каталог:
