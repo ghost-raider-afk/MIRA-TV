@@ -12,10 +12,10 @@
       const stored = Number(localStorage.getItem('mira-tv-ui-scale-percent') || 100);
       const percent = Number.isFinite(stored) ? Math.max(70, Math.min(140, Math.round(stored))) : 100;
       document.documentElement.dataset.uiScalePercent = String(percent);
-      document.documentElement.style.zoom = String(Math.round((1.25 * percent / 100) * 1000) / 1000);
+      document.documentElement.style.setProperty('--ui-scale-factor', String(Math.round((1.25 * percent / 100) * 1000) / 1000));
     }
   } catch {
-    if (!/^\/(?:signin|player)(?:\/|$)/.test(window.location.pathname)) document.documentElement.style.zoom = '1.25';
+    if (!/^\/(?:signin|player)(?:\/|$)/.test(window.location.pathname)) document.documentElement.style.setProperty('--ui-scale-factor', '1.25');
   }
 
   if (/^MIRA-TV(?: 2)?/.test(document.title)) {
