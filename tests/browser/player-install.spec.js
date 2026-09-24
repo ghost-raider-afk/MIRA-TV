@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-test('Player exposes an installable PWA and a downloadable desktop shortcut', async ({ page }) => {
+test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 12; Android TV) AppleWebKit/537.36 Chrome/153.0.0.0 Safari/537.36' });
+
+test('Player exposes an installable PWA for Android TV', async ({ page }) => {
   const manifestResponse = await page.request.get('/player.webmanifest');
   expect(manifestResponse.ok()).toBeTruthy();
   const manifest = await manifestResponse.json();
@@ -16,19 +18,13 @@ test('Player exposes an installable PWA and a downloadable desktop shortcut', as
     expect(response.headers()['content-type']).toContain('image/png');
   }
 
-  const shortcutResponse = await page.request.get('/player-shortcut.url');
-  expect(shortcutResponse.ok()).toBeTruthy();
-  expect(shortcutResponse.headers()['content-disposition']).toContain('MIRA-TV-Player.url');
-  expect(await shortcutResponse.text()).toMatch(/\[InternetShortcut\]\r?\nURL=https?:\/\/[^\r\n]+\/player\r?\n/);
-
   await page.route('**/api/device/session', (route) =>
     route.fulfill({ status:401, contentType:'application/json', body:'{}' })
   );
   await page.goto('/player');
 
-  const install = page.getByRole('button', { name:'Добавить ярлык MIRA-TV Player' });
+  const install = page.getByRole('button', { name:'Добавить MIRA-TV Player на главный экран' });
   await expect(install).toBeVisible();
-  await expect(page.getByRole('link', { name:'Скачать ярлык для Windows' })).toHaveAttribute('href', '/player-shortcut.url');
 
   await page.evaluate(() => {
     const event = new Event('beforeinstallprompt', { cancelable:true });
