@@ -143,7 +143,7 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings)
   const priceBaseline = box.top + 35 * fontScale;
   const hasMetadata = Boolean(line.metadata);
   const nameBaseline = hasMetadata ? box.top + 21 * fontScale : priceBaseline;
-  const metaBaseline = box.top + 46.5 * fontScale;
+  const metaBaseline = box.top + 44.5 * fontScale;
   const nameSize = (hasMetadata ? 24 : 25) * fontScale;
   const metaSize = 13.5 * fontScale;
   const promotion = promotionMarkup(line, nameX, box, scale, typography, horizontal, nameBaseline, settings);

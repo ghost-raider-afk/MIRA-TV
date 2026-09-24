@@ -169,6 +169,17 @@ function logoSize(value) {
   return Number(source);
 }
 
+function uiScalePercent(value) {
+  if (value === undefined || value === null || value === '') return 100;
+  const source = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : '';
+  if (!/^\d{2,3}$/.test(source)) throw new ValidationError('Масштаб интерфейса должен быть целым числом от 70 до 140 процентов.');
+  const number = Number(source);
+  if (!Number.isSafeInteger(number) || number < 70 || number > 140) {
+    throw new ValidationError('Масштаб интерфейса должен быть целым числом от 70 до 140 процентов.');
+  }
+  return number;
+}
+
 export function siteSettingsInput(body, config) {
   const application_name = requireText(body.application_name, 'application_name', { max: 80 });
   const accent_color = requireText(body.accent_color, 'accent_color', { max: 7 });
@@ -199,6 +210,7 @@ export function siteSettingsInput(body, config) {
     date_format,
     dashboard_refresh_seconds,
     default_screen_resolution,
-    signin_logo_size: logoSize(body.signin_logo_size ?? 1)
+    signin_logo_size: logoSize(body.signin_logo_size ?? 1),
+    ui_scale_percent: uiScalePercent(body.ui_scale_percent)
   };
 }

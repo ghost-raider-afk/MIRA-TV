@@ -109,6 +109,17 @@ test('canonical SVG uses MIRA-TV 1 typography ratios and remains CSP-safe', () =
   assert.match(svg, /font-family="Arial Narrow, Liberation Sans Narrow, DejaVu Sans Condensed, Arial, sans-serif"/);
 });
 
+test('item metadata sits slightly closer to the primary name without changing font sizes', () => {
+  const { svg } = rendered();
+  const nameY = Number(svg.match(/<text x="[^"]+" y="([^"]+)" class="item-name"/)?.[1]);
+  const metaY = Number(svg.match(/<text x="[^"]+" y="([^"]+)" class="item-meta"/)?.[1]);
+  assert.ok(Number.isFinite(nameY) && Number.isFinite(metaY));
+  assert.ok(metaY - nameY > 23);
+  assert.ok(metaY - nameY < 25);
+  assert.match(svg, /class="item-name"[^>]*font-size="25\.2[0-9]*"/);
+  assert.match(svg, /class="item-meta"[^>]*font-size="14\.175"/);
+});
+
 test('Tahoma Bold is a real renderer option and enforces bold text floor', () => {
   const { svg } = rendered(4, 100, 'tahoma-bold');
   assert.match(svg, /font-family="Tahoma, Arial, sans-serif"/);

@@ -55,6 +55,45 @@ test('site name updates the persistent application shell immediately after save'
   await expect(page).toHaveTitle(`${original} — Настройки сайта`);
 });
 
+test('site interface scale uses 100% as the enlarged 125% baseline and can move both directions', async ({ page }) => {
+  await login(page);
+  await page.goto('/settings');
+  await waitForRouteReady(page);
+
+  const input = page.locator('#site-ui-scale');
+  await expect(input).toBeVisible();
+  const original = Number(await input.inputValue()) || 100;
+
+  await input.fill('80');
+  await page.locator('#site-settings-submit').click();
+  await expect(page.locator('#site-settings-message')).toContainText('сохранены');
+  await expect(page.locator('html')).toHaveAttribute('data-ui-scale-percent', '80');
+  expect(await page.locator('html').evaluate((node) => node.style.getPropertyValue('--ui-scale-factor'))).toBe('1');
+  expect(await page.locator('body').evaluate((node) => getComputedStyle(node).fontSize)).toBe('13px');
+  expect(Math.round((await input.boundingBox()).height)).toBe(32);
+  const buttonHeightAt80 = (await page.locator('#site-settings-submit').boundingBox()).height;
+  expect(buttonHeightAt80).toBeGreaterThanOrEqual(32);
+  expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('');
+
+  await input.fill('100');
+  await page.locator('#site-settings-submit').click();
+  await expect(page.locator('#site-settings-message')).toContainText('сохранены');
+  await expect(page.locator('html')).toHaveAttribute('data-ui-scale-percent', '100');
+  expect(await page.locator('html').evaluate((node) => node.style.getPropertyValue('--ui-scale-factor'))).toBe('1.25');
+  expect(await page.locator('body').evaluate((node) => getComputedStyle(node).fontSize)).toBe('16.25px');
+  expect(Math.round((await input.boundingBox()).height)).toBe(40);
+  const buttonHeightAt100 = (await page.locator('#site-settings-submit').boundingBox()).height;
+  expect(buttonHeightAt100).toBeGreaterThan(buttonHeightAt80);
+  expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('');
+  expect(await page.evaluate(() => localStorage.getItem('mira-tv-ui-scale-percent'))).toBe('100');
+
+  if (original !== 100) {
+    await input.fill(String(original));
+    await page.locator('#site-settings-submit').click();
+    await expect(page.locator('#site-settings-message')).toContainText('сохранены');
+  }
+});
+
 test('light theme uses light semantic chrome and editor surfaces', async ({ page }) => {
   await login(page);
   await forceLightTheme(page);

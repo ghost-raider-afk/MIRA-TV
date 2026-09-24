@@ -40,9 +40,14 @@ test('positive ids reject trailing characters and unsafe integers', () => {
 test('site settings validate refresh interval and seven login logo sizes', () => {
   const base = { application_name: 'MIRA-TV', accent_color: '#F4C915', timezone: 'Europe/Moscow', date_format: 'DD.MM.YYYY', default_screen_resolution: '1920×1080', signin_logo_size: 1 };
   assert.equal(siteSettingsInput({ ...base, dashboard_refresh_seconds: '30' }, config()).dashboard_refresh_seconds, 30);
-  assert.equal(siteSettingsInput({ ...base, dashboard_refresh_seconds: '30', signin_logo_size: 7 }, config()).signin_logo_size, 7);
+  assert.equal(siteSettingsInput({ ...base, dashboard_refresh_seconds: '30' }, config()).ui_scale_percent, 100);
+  assert.equal(siteSettingsInput({ ...base, dashboard_refresh_seconds: '30', signin_logo_size: 7, ui_scale_percent: 80 }, config()).signin_logo_size, 7);
+  assert.equal(siteSettingsInput({ ...base, dashboard_refresh_seconds: '30', ui_scale_percent: 80 }, config()).ui_scale_percent, 80);
+  assert.equal(siteSettingsInput({ ...base, dashboard_refresh_seconds: '30', ui_scale_percent: 140 }, config()).ui_scale_percent, 140);
   assert.throws(() => siteSettingsInput({ ...base, dashboard_refresh_seconds: '30seconds' }, config()), /Интервал обновления/);
   assert.throws(() => siteSettingsInput({ ...base, dashboard_refresh_seconds: 30, signin_logo_size: 8 }, config()), /размер логотипа/i);
+  assert.throws(() => siteSettingsInput({ ...base, dashboard_refresh_seconds: 30, ui_scale_percent: 69 }, config()), /Масштаб интерфейса/);
+  assert.throws(() => siteSettingsInput({ ...base, dashboard_refresh_seconds: 30, ui_scale_percent: 141 }, config()), /Масштаб интерфейса/);
 });
 
 test('table font uses a closed allowlist and includes Tahoma Bold', () => {

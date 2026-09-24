@@ -2,6 +2,8 @@ import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
 import { animationSettingsInput } from '../../contracts/animation.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
+import { sceneInput } from '../../contracts/scene.js';
+import { ValidationError } from '../../shared/errors.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
 import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
@@ -69,6 +71,58 @@ function changedDraftComponents(currentScreen, currentDraft, nextScreen, nextDra
   return changed;
 }
 
+const BULK_SCENE_KINDS = new Set(['weather', 'image', 'video']);
+
+function bulkTargetScreenIds(value, sourceScreenId) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
+    throw new ValidationError('Выберите от 1 до 100 мониторов для применения настроек.');
+  }
+  const ids = [...new Set(value.map((item) => positiveId(item, 'target_screen_ids')))].sort((a, b) => a - b);
+  if (ids.includes(sourceScreenId)) throw new ValidationError('Текущий монитор нельзя выбирать как целевой.');
+  return ids;
+}
+
+function bulkElementTypeIndex(value) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0 || number > 63) {
+    throw new ValidationError('Позиция элемента для комплексного применения некорректна.');
+  }
+  return number;
+}
+
+function copiedElementId(sourceElement, targetScreenId, typeIndex) {
+  return `applied-${sourceElement.type}-${targetScreenId}-${typeIndex + 1}`.slice(0, 120);
+}
+
+function applyElementToScene(scene, sourceElement, typeIndex, targetScreenId, config) {
+  const elements = structuredClone(Array.isArray(scene?.elements) ? scene.elements : []);
+  const fallbackId = copiedElementId(sourceElement, targetScreenId, typeIndex);
+  let targetIndex = elements.findIndex((item) => item?.type === sourceElement.type && item?.id === sourceElement.id);
+  if (targetIndex < 0) targetIndex = elements.findIndex((item) => item?.type === sourceElement.type && item?.id === fallbackId);
+
+  const sameTypeIndexes = elements
+    .map((item, index) => item?.type === sourceElement.type ? index : -1)
+    .filter((index) => index >= 0);
+  if (targetIndex < 0) {
+    targetIndex = sourceElement.type === 'weather'
+      ? (sameTypeIndexes[0] ?? -1)
+      : (sameTypeIndexes[typeIndex] ?? -1);
+  }
+
+  const nextElement = structuredClone(sourceElement);
+  if (targetIndex >= 0) {
+    nextElement.id = elements[targetIndex].id;
+    elements[targetIndex] = nextElement;
+  } else {
+    if (elements.some((item) => item?.id === nextElement.id)) nextElement.id = fallbackId;
+    if (elements.some((item) => item?.id === nextElement.id)) {
+      throw new ValidationError('На целевом мониторе конфликт идентификаторов элементов. Переименуйте конфликтующий элемент и повторите применение.');
+    }
+    elements.push(nextElement);
+  }
+  return sceneInput({ version: 1, elements }, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
+}
+
 export function createScreensRouter({ store, config, realtime }) {
   const router = express.Router();
 
@@ -114,6 +168,94 @@ export function createScreensRouter({ store, config, realtime }) {
       message: `Загружен медиафайл элемента для монитора «${screen.name}».`
     });
     response.status(201).json(asset);
+  });
+
+  router.put('/screens/:id/scene/apply', async (request, response) => {
+    const sourceScreenId = positiveId(request.params.id, 'id');
+    const sourceScreen = await store.getScreen(sourceScreenId);
+    if (!sourceScreen) throw notFound();
+
+    const kind = String(request.body?.kind || '');
+    if (kind !== 'background' && !BULK_SCENE_KINDS.has(kind)) {
+      throw new ValidationError('Комплексное применение поддерживает фон, погоду, картинку и видео.');
+    }
+    const targetScreenIds = bulkTargetScreenIds(request.body?.target_screen_ids, sourceScreenId);
+    const typeIndex = kind === 'background' ? 0 : bulkElementTypeIndex(request.body?.type_index ?? 0);
+    const sourceElement = kind === 'background'
+      ? null
+      : sceneInput(
+        { version: 1, elements: [request.body?.element] },
+        { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight }
+      ).elements[0];
+    if (sourceElement && sourceElement.type !== kind) {
+      throw new ValidationError('Тип применяемого элемента не совпадает с выбранным свойством.');
+    }
+
+    const result = await store.transaction(async (tx) => {
+      const appliedScreenIds = [];
+      const droppedBackgrounds = [];
+      const droppedSceneAssets = [];
+
+      for (const targetId of targetScreenIds) {
+        if (!await tx.lockScreen(targetId)) throw new ValidationError('Один или несколько выбранных мониторов больше не существуют. Обновите список и повторите применение.');
+        const draft = await tx.getScreenDraft(targetId);
+        let nextSettings = draft.settings || {};
+        let nextScene = draft.scene || { version: 1, elements: [] };
+
+        if (kind === 'background') {
+          const previousBackground = String(nextSettings.background_image_url || '');
+          const background = request.body?.background && typeof request.body.background === 'object' && !Array.isArray(request.body.background)
+            ? request.body.background
+            : {};
+          nextSettings = menuSettingsInput({
+            ...nextSettings,
+            background_color: background.background_color ?? nextSettings.background_color,
+            background_image_url: background.background_image_url ?? nextSettings.background_image_url
+          }, settingsOptions(config));
+          if (previousBackground && previousBackground !== nextSettings.background_image_url) droppedBackgrounds.push(previousBackground);
+        } else {
+          const previousAssets = new Set(sceneAssetUrls(nextScene));
+          nextScene = applyElementToScene(nextScene, sourceElement, typeIndex, targetId, config);
+          const nextAssets = new Set(sceneAssetUrls(nextScene));
+          droppedSceneAssets.push(...[...previousAssets].filter((url) => !nextAssets.has(url)));
+        }
+
+        const saved = await tx.saveScreenDraft(targetId, {
+          rows: draft.rows || [],
+          settings: nextSettings,
+          scene: nextScene
+        }, Number(draft.revision || 0));
+        if (!saved) throw conflict('Один из выбранных мониторов был изменён параллельно. Повторите применение.');
+        appliedScreenIds.push(targetId);
+      }
+
+      const revisions = await tx.markScreenRenderChanged(
+        appliedScreenIds,
+        [kind === 'background' ? 'menu' : 'scene'],
+        'screen.scene_settings.applied',
+        request.session.sub
+      );
+      return { appliedScreenIds, revisions, droppedBackgrounds, droppedSceneAssets };
+    });
+
+    await Promise.all([
+      ...new Set(result.droppedBackgrounds).values()
+    ].map((url) => deleteScreenBackground(url, { store, config })));
+    await Promise.all([
+      ...new Set(result.droppedSceneAssets).values()
+    ].map((url) => deleteSceneAsset(url, { store, config })));
+
+    await activity(store, request, {
+      action: 'screen.scene_settings.applied',
+      entity_type: 'screen',
+      entity_id: result.appliedScreenIds.join(','),
+      message: `${kind === 'background' ? 'Фон' : 'Элемент сцены'} применён к мониторам: ${result.appliedScreenIds.join(', ')}.`
+    });
+    notifyRevisions(realtime, result.revisions);
+    response.json({
+      applied_screen_ids: result.appliedScreenIds,
+      applied_screens: result.revisions.map((item) => ({ screen_id: item.screen_id, revision: item.revision }))
+    });
   });
 
   router.put('/screens/:id/draft', async (request, response) => {

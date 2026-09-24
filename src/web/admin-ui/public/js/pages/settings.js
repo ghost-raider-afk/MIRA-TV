@@ -11,6 +11,7 @@ function populateSiteForm(site) {
   element('site-domain').value = site.domain;
   element('site-accent-color').value = site.accent_color;
   element('site-signin-logo-size').value = String(site.signin_logo_size || 1);
+  element('site-ui-scale').value = String(site.ui_scale_percent || 100);
   element('site-timezone').value = site.timezone;
   element('site-date-format').value = site.date_format;
   element('site-refresh-seconds').value = String(site.dashboard_refresh_seconds);
@@ -161,6 +162,7 @@ export function initialiseSettings() {
         application_name: element('site-app-name').value,
         accent_color: element('site-accent-color').value,
         signin_logo_size: Number(element('site-signin-logo-size').value),
+        ui_scale_percent: Number(element('site-ui-scale').value),
         timezone: element('site-timezone').value,
         date_format: element('site-date-format').value,
         dashboard_refresh_seconds: Number(element('site-refresh-seconds').value),
