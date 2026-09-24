@@ -12,6 +12,8 @@ test('installer remains valid bash after backup/restore extension', () => {
 
 test('full backup contract preserves server identity and checks integrity', () => {
   assert.match(installer, /FULL_BACKUP_FORMAT_VERSION="1"/);
+  assert.match(installer, /^BACKUP_DIR="\/var\/backups\/mira-tv"$/m);
+  assert.doesNotMatch(installer, /BACKUP_DIR="\$\{PERSIST_DIR\}/);
   assert.match(installer, /sha256sum manifest\.env \.env database\.dump site-assets\.tar\.gz letsencrypt\.tar\.gz/);
   assert.match(installer, /pg_dump .*--format=custom --no-owner --no-privileges/);
   assert.match(installer, /backup_persistent_volume_to 'site-assets'/);
