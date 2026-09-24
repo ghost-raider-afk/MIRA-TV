@@ -21,6 +21,8 @@ let screenOptions;
 let authorizeButton;
 let success;
 let successText;
+let headingTitle;
+let headingCopy;
 
 function bindDom() {
   message = document.querySelector('#connect-tv-message');
@@ -43,13 +45,15 @@ function bindDom() {
   authorizeButton = document.querySelector('[data-authorize]');
   success = document.querySelector('[data-connect-success]');
   successText = document.querySelector('[data-connect-success-text]');
+  headingTitle = document.querySelector('.connect-tv-heading h1');
+  headingCopy = document.querySelector('.connect-tv-heading-copy');
 }
 
 function releaseDom() {
   message = scanButton = scanner = scannerClose = scannerCode = scannerStatus = null;
   video = scanCanvas = codeToggle = codePanel = codeInput = codeButton = null;
   deviceFound = locationStep = screenStep = locationOptions = screenOptions = null;
-  authorizeButton = success = successText = null;
+  authorizeButton = success = successText = headingTitle = headingCopy = null;
 }
 
 let activationId = null;
@@ -58,6 +62,9 @@ let screens = [];
 let bindings = [];
 let selectedLocationId = null;
 let selectedScreenId = null;
+let requestedScreenId = null;
+let requestedScreen = null;
+let requestedLocation = null;
 let mediaStream = null;
 let scannerRunning = false;
 let scanDetector = null;
@@ -74,7 +81,7 @@ function setMessage(text = '', error = false) {
 }
 
 function setProgress(step) {
-  const order = ['scan', 'location', 'screen'];
+  const order = requestedScreenId ? ['scan', 'screen'] : ['scan', 'location', 'screen'];
   const current = order.indexOf(step);
   document.querySelectorAll('[data-progress-step]').forEach((item) => {
     const index = order.indexOf(item.dataset.progressStep);
@@ -109,6 +116,73 @@ function resetSelection() {
   deviceFound?.classList.add('is-hidden'); success?.classList.add('is-hidden'); setProgress('scan');
 }
 
+function requestedScreenIdFromUrl() {
+  const id = Number(new URLSearchParams(window.location.search).get('screen'));
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function tvLabel(screen) {
+  return `TV ${Number(screen?.location_number) || screen?.id}`;
+}
+
+function resetTargetPresentation() {
+  document.querySelector('.connect-tv-flow')?.classList.remove('is-targeted');
+  document.querySelector('[data-progress-step="location"]')?.classList.remove('is-hidden');
+  const screenProgress = document.querySelector('[data-progress-step="screen"]');
+  const progressNumber = screenProgress?.querySelector('b');
+  const progressLabel = screenProgress?.querySelector('em');
+  if (progressNumber) progressNumber.textContent = '3';
+  if (progressLabel) progressLabel.textContent = 'Монитор';
+  const stepNumber = screenStep?.querySelector('.connect-tv-step');
+  const stepTitle = screenStep?.querySelector('h2');
+  const stepCopy = screenStep?.querySelector('p');
+  if (stepNumber) stepNumber.textContent = '3';
+  if (stepTitle) stepTitle.textContent = 'Монитор';
+  if (stepCopy) stepCopy.textContent = 'Какое меню должен показывать телевизор?';
+  if (headingTitle) headingTitle.textContent = 'Подключить новый ТВ';
+  if (headingCopy) headingCopy.textContent = 'Отсканируйте код с телевизора и выберите, что он должен показывать.';
+}
+
+function configureRequestedScreen() {
+  requestedScreen = requestedScreenId
+    ? screens.find((screen) => Number(screen.id) === Number(requestedScreenId) && screen.active !== false) || null
+    : null;
+  requestedLocation = requestedScreen
+    ? locations.find((location) => Number(location.id) === Number(requestedScreen.location_id) && location.active !== false) || null
+    : null;
+
+  if (!requestedScreen || !requestedLocation) {
+    requestedScreenId = null;
+    requestedScreen = null;
+    requestedLocation = null;
+    resetTargetPresentation();
+    return false;
+  }
+
+  selectedLocationId = Number(requestedLocation.id);
+  selectedScreenId = Number(requestedScreen.id);
+  document.querySelector('.connect-tv-flow')?.classList.add('is-targeted');
+  document.querySelector('[data-progress-step="location"]')?.classList.add('is-hidden');
+  locationStep?.classList.add('is-hidden');
+
+  const screenProgress = document.querySelector('[data-progress-step="screen"]');
+  const progressNumber = screenProgress?.querySelector('b');
+  const progressLabel = screenProgress?.querySelector('em');
+  if (progressNumber) progressNumber.textContent = '2';
+  if (progressLabel) progressLabel.textContent = tvLabel(requestedScreen);
+
+  const stepNumber = screenStep?.querySelector('.connect-tv-step');
+  const stepTitle = screenStep?.querySelector('h2');
+  const stepCopy = screenStep?.querySelector('p');
+  if (stepNumber) stepNumber.textContent = '2';
+  if (stepTitle) stepTitle.textContent = tvLabel(requestedScreen);
+  if (stepCopy) stepCopy.textContent = 'Этот телевизор будет привязан именно к выбранному экрану.';
+
+  if (headingTitle) headingTitle.textContent = `Подключить ${tvLabel(requestedScreen)}`;
+  if (headingCopy) headingCopy.textContent = `${requestedLocation.name} · ${requestedScreen.name} · ${requestedScreen.resolution || '1920×1080'}`;
+  return true;
+}
+
 function bindingForScreen(screenId) { return bindings.find((binding) => Number(binding.screen_id) === Number(screenId)) || null; }
 
 function optionButton({ title, subtitle = '', selected = false, occupied = false, onClick }) {
@@ -122,7 +196,11 @@ function optionButton({ title, subtitle = '', selected = false, occupied = false
 
 function renderScreens() {
   screenOptions.innerHTML = '';
-  const available = screens.filter((screen) => Number(screen.location_id) === Number(selectedLocationId) && screen.active !== false);
+  const available = screens.filter((screen) =>
+    Number(screen.location_id) === Number(selectedLocationId)
+    && screen.active !== false
+    && (!requestedScreenId || Number(screen.id) === Number(requestedScreenId))
+  );
   if (!available.length) {
     const empty = document.createElement('p'); empty.className = 'connect-tv-empty'; empty.textContent = 'В этой торговой точке нет активных мониторов.';
     screenOptions.append(empty); authorizeButton.disabled = true; return;
@@ -132,7 +210,13 @@ function renderScreens() {
     screenOptions.append(optionButton({
       title: screen.name, subtitle: `${screen.resolution || '1920×1080'} · ТВ ${screen.location_number || screen.id}`,
       selected: Number(screen.id) === Number(selectedScreenId), occupied: Boolean(binding),
-      onClick: () => { selectedScreenId = Number(screen.id); renderScreens(); authorizeButton.disabled = false; authorizeButton.textContent = binding ? 'Заменить подключённый ТВ' : 'Подключить ТВ'; }
+      onClick: () => {
+        if (requestedScreenId && Number(screen.id) !== Number(requestedScreenId)) return;
+        selectedScreenId = Number(screen.id);
+        renderScreens();
+        authorizeButton.disabled = false;
+        authorizeButton.textContent = binding ? 'Заменить подключённый ТВ' : requestedScreenId ? `Подключить к ${tvLabel(screen)}` : 'Подключить ТВ';
+      }
     }));
   }
 }
@@ -155,6 +239,19 @@ async function loadStructure() {
   if (!Array.isArray(bindings)) bindings = [];
 }
 
+async function prepareRequestedScreen() {
+  if (!requestedScreenId) return false;
+  try {
+    await loadStructure();
+    const configured = configureRequestedScreen();
+    if (!configured) setMessage('Выбранный телевизор больше недоступен. Используйте общее подключение ТВ.', true);
+    return configured;
+  } catch (error) {
+    setMessage(error.message || 'Не удалось загрузить выбранный телевизор.', true);
+    return false;
+  }
+}
+
 async function resolveActivation(payload) {
   setMessage('Проверяем телевизор…');
   try {
@@ -162,8 +259,25 @@ async function resolveActivation(payload) {
     const activation = await api.post(API.deviceResolve, body);
     activationId = activation.activation_id;
     await loadStructure();
-    deviceFound.textContent = 'Телевизор найден ✓'; deviceFound.classList.remove('is-hidden'); locationStep?.classList.remove('is-disabled');
-    setMessage(''); stopCamera(); renderLocations(); focusStep(locationStep, 'location');
+    const targeted = configureRequestedScreen();
+    deviceFound.textContent = 'Телевизор найден ✓';
+    deviceFound.classList.remove('is-hidden');
+    setMessage('');
+    stopCamera();
+
+    if (targeted) {
+      screenStep?.classList.remove('is-disabled');
+      renderScreens();
+      const binding = bindingForScreen(selectedScreenId);
+      authorizeButton.disabled = false;
+      authorizeButton.textContent = binding ? 'Заменить подключённый ТВ' : `Подключить к ${tvLabel(requestedScreen)}`;
+      focusStep(screenStep, 'screen');
+      return;
+    }
+
+    locationStep?.classList.remove('is-disabled');
+    renderLocations();
+    focusStep(locationStep, 'location');
   } catch (error) {
     activationId = null; const text = error.message || 'Не удалось проверить код подключения.'; setMessage(text, true);
     if (!scanner?.classList.contains('is-hidden')) scannerStatus.textContent = text;
@@ -330,7 +444,11 @@ async function authorize() {
 
 export function initialiseConnectTv() {
   bindDom();
+  requestedScreenId = requestedScreenIdFromUrl();
+  requestedScreen = null;
+  requestedLocation = null;
   resetSelection();
+  if (requestedScreenId) void prepareRequestedScreen();
   void ensureJsQr().catch((error) => console.warn('MIRA-TV local QR decoder preload failed', error));
   scanButton?.addEventListener('click', () => void startScanner());
   scannerClose?.addEventListener('click', stopCamera);
@@ -350,6 +468,9 @@ export function initialiseConnectTv() {
       window.removeEventListener('pagehide', onPageHide);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       stopCamera();
+      requestedScreenId = null;
+      requestedScreen = null;
+      requestedLocation = null;
       releaseDom();
     }
   };
