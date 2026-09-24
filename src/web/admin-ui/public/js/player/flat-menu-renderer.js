@@ -132,11 +132,10 @@ export class FlatMenuRenderer {
     const stage = layer.closest('.player-scene-stage');
     this.stage = stage instanceof HTMLElement ? stage : null;
 
-    // PlayerSceneRenderer owns canonical viewport fitting everywhere it is used.
-    // Flat menu rendering must not overwrite that stage geometry; standalone
-    // menu-only surfaces still use their legacy responsive host fitting.
-    const canonicalStage = this.stage?.hasAttribute('data-player-scene-renderer')
-      || this.stage?.matches('[data-player-stage], .manager-fullscreen-stage, #scene-editor-stage')
+    // Full Player/Scene surfaces own their logical viewport geometry.
+    // Manager TV cards also use the shared PlayerSceneRenderer canonical fit;
+    // standalone menu-only previews keep their existing responsive fitting.
+    const canonicalStage = this.stage?.matches('[data-player-stage], .manager-fullscreen-stage, .manager-screen-stage, #scene-editor-stage')
       || this.stage?.closest('.scene-editor-stage-shell');
     if (!canonicalStage) fitStage(this.stage, width, height);
     return generation === this.generation && layer === this.layer;
