@@ -6,8 +6,9 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('player is public while TV connection page remains admin protected', async () => {
-  const [server, frontendRoutes, playerHtml, connectHtml] = await Promise.all([
-    read('src/server.js'), read('src/web/admin-ui/routes.js'), read('src/web/admin-ui/public/player.html'), read('src/web/admin-ui/public/connect-tv.html')
+  const [server, frontendRoutes, playerHtml, connectHtml, manifest, player] = await Promise.all([
+    read('src/server.js'), read('src/web/admin-ui/routes.js'), read('src/web/admin-ui/public/player.html'), read('src/web/admin-ui/public/connect-tv.html'),
+    read('src/web/admin-ui/public/player.webmanifest'), read('src/web/admin-ui/public/js/player/player.js')
   ]);
   const protectedPages = frontendRoutes.match(/export const AUTHENTICATED_PAGES = Object\.freeze\(\[[\s\S]*?\]\);/)?.[0] || '';
   assert.match(protectedPages, /path:\s*'\/connect-tv'/);
@@ -18,6 +19,17 @@ test('player is public while TV connection page remains admin protected', async 
   assert.match(server, /app\.use\('\/api\/device-admin', createDeviceAdminRouter/);
   assert.match(playerHtml, /data-activation-view/);
   assert.match(playerHtml, /data-tv-player/);
+  assert.match(playerHtml, /rel="manifest" href="\/player\.webmanifest"/);
+  assert.match(playerHtml, /data-install-player/);
+  assert.match(playerHtml, /href="\/player-shortcut\.url"/);
+  assert.match(server, /app\.get\('\/player-shortcut\.url'/);
+  assert.match(player, /beforeinstallprompt/);
+  assert.match(player, /appinstalled/);
+  const parsedManifest = JSON.parse(manifest);
+  assert.equal(parsedManifest.start_url, '/player');
+  assert.equal(parsedManifest.scope, '/player');
+  assert.equal(parsedManifest.name, 'MIRA-TV Player');
+  assert.deepEqual(parsedManifest.icons.map((icon) => icon.sizes), ['192x192', '512x512']);
   assert.match(connectHtml, /Сканировать QR-код/);
 });
 
