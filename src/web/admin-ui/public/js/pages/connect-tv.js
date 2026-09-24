@@ -128,6 +128,7 @@ function tvLabel(screen) {
 function resetTargetPresentation() {
   document.querySelector('.connect-tv-flow')?.classList.remove('is-targeted');
   document.querySelector('[data-progress-step="location"]')?.classList.remove('is-hidden');
+  locationStep?.classList.remove('is-hidden');
   const screenProgress = document.querySelector('[data-progress-step="screen"]');
   const progressNumber = screenProgress?.querySelector('b');
   const progressLabel = screenProgress?.querySelector('em');
@@ -448,6 +449,8 @@ export function initialiseConnectTv() {
   requestedScreen = null;
   requestedLocation = null;
   resetSelection();
+  resetTargetPresentation();
+  setProgress('scan');
   if (requestedScreenId) void prepareRequestedScreen();
   void ensureJsQr().catch((error) => console.warn('MIRA-TV local QR decoder preload failed', error));
   scanButton?.addEventListener('click', () => void startScanner());
