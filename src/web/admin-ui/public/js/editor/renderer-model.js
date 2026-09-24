@@ -3,6 +3,7 @@ const DEFAULT_HEIGHT = 1080;
 const HEX = /^#[0-9a-f]{6}$/i;
 const DEFAULT_FONT_KEY = 'arial-narrow';
 export const TV1_REFERENCE_SCALE = 1.05;
+export const MENU_PRICE_FONT_SIZE = Object.freeze({ defaultPt: 27, minPt: 18, maxPt: 40 });
 
 export const MENU_FONT_OPTIONS = Object.freeze([
   Object.freeze({ key: 'arial-narrow', label: 'Arial Narrow', family: 'Arial Narrow, Liberation Sans Narrow, DejaVu Sans Condensed, Arial, sans-serif', weightFloor: 400 }),
@@ -30,10 +31,7 @@ export const MENU_REFERENCE = Object.freeze({
   rightZoneX: 1495,
   bottomZoneY: 940,
   fontScaleMinPercent: 55,
-  fontScaleMaxPercent: 130,
-  priceFontSizePt: 27,
-  priceFontSizeMinPt: 18,
-  priceFontSizeMaxPt: 40
+  fontScaleMaxPercent: 130
 });
 
 export const MENU_TABLE_STYLE = Object.freeze({
@@ -203,9 +201,9 @@ export function requestedFontScalePercent(settings = {}) {
 
 export function requestedPriceFontSizePt(settings = {}) {
   return clamp(
-    Math.round(numeric(settings.price_font_size_pt, MENU_REFERENCE.priceFontSizePt)),
-    MENU_REFERENCE.priceFontSizeMinPt,
-    MENU_REFERENCE.priceFontSizeMaxPt
+    Math.round(numeric(settings.price_font_size_pt, MENU_PRICE_FONT_SIZE.defaultPt)),
+    MENU_PRICE_FONT_SIZE.minPt,
+    MENU_PRICE_FONT_SIZE.maxPt
   );
 }
 
