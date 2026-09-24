@@ -16,6 +16,7 @@ const PUBLIC_DOCS = [
   'PERFORMANCE.md',
   'TROUBLESHOOTING.md',
   'DEPLOYMENT-CHECKLIST.md',
+  'BACKUP-RESTORE.md',
   'BRANDING.md',
   'ROADMAP.md'
 ];
