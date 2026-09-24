@@ -21,10 +21,12 @@ test('player is public while TV connection page remains admin protected', async 
   assert.match(playerHtml, /data-tv-player/);
   assert.match(playerHtml, /rel="manifest" href="\/player\.webmanifest"/);
   assert.match(playerHtml, /data-install-player/);
-  assert.match(playerHtml, /href="\/player-shortcut\.url"/);
-  assert.match(server, /app\.get\('\/player-shortcut\.url'/);
   assert.match(player, /beforeinstallprompt/);
   assert.match(player, /appinstalled/);
+  assert.match(player, /playerInstallSupportedPlatform/);
+  assert.match(player, /Android TV \/ Google TV/);
+  assert.doesNotMatch(server, /player-shortcut\.url|InternetShortcut/);
+  assert.doesNotMatch(playerHtml, /Windows|player-shortcut\.url|apple-mobile-web-app/);
   const parsedManifest = JSON.parse(manifest);
   assert.equal(parsedManifest.start_url, '/player');
   assert.equal(parsedManifest.scope, '/player');
