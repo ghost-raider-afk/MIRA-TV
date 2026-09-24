@@ -169,8 +169,9 @@ function createTvUnit(screen) {
   scene.textContent = 'Сцена';
   const bind = document.createElement('a');
   bind.className = 'button button-secondary';
-  bind.href = '/connect-tv';
+  bind.href = `/connect-tv?screen=${encodeURIComponent(screen.id)}`;
   bind.textContent = 'Подключить';
+  bind.setAttribute('aria-label', `Подключить ${tvLabel(screen)}`);
   bind.dataset.tvBindAction = '';
   const unbind = makeButton('Отвязать', 'secondary', () => void unbindScreen(screen));
   unbind.dataset.tvUnbindAction = '';
