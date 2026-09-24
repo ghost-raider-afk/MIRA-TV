@@ -348,6 +348,83 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
 });
 
+test('background, weather, image and video settings apply atomically to selected monitors', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen } = await fixture(page);
+  const targetResponse = await page.request.post(`/api/locations/${screen.location_id}/screens`, { data:{} });
+  expect(targetResponse.status()).toBe(201);
+  const target = await targetResponse.json();
+
+  const targetBefore = await (await page.request.get(`/api/screens/${target.id}/editor`)).json();
+  const rejected = await page.request.put(`/api/screens/${screen.id}/scene/apply`, { data:{
+    kind:'background',
+    target_screen_ids:[target.id, 99999999],
+    background:{ background_color:'#223344', background_image_url:'' }
+  } });
+  expect(rejected.status()).toBe(400);
+  const targetAfterRejected = await (await page.request.get(`/api/screens/${target.id}/editor`)).json();
+  expect(targetAfterRejected.draft.revision).toBe(targetBefore.draft.revision);
+  expect(targetAfterRejected.draft.settings.background_color || '#101828').not.toBe('#223344');
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  const inspector = page.locator('#scene-editor-properties');
+
+  await page.locator('#scene-editor-background-layer').click();
+  await inspector.getByLabel('Цвет фона').evaluate((node) => {
+    node.value = '#223344';
+    node.dispatchEvent(new Event('input', { bubbles:true }));
+  });
+  let applyGroup = inspector.locator('.scene-editor-multi-apply');
+  await expect(applyGroup.locator('summary')).toHaveText('Применить к мониторам');
+  await applyGroup.locator('summary').click();
+  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
+  await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
+
+  const add = page.locator('#scene-editor-add');
+  const addMenu = page.locator('#scene-editor-add-menu');
+
+  await add.click();
+  await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
+  await inspector.getByLabel('X', { exact:true }).fill('410');
+  await inspector.getByLabel('Y', { exact:true }).fill('180');
+  applyGroup = inspector.locator('.scene-editor-multi-apply');
+  await applyGroup.locator('summary').click();
+  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
+  await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
+
+  await add.click();
+  await addMenu.getByRole('menuitem', { name:/Картинка/ }).click();
+  await inspector.getByLabel('X', { exact:true }).fill('520');
+  await inspector.getByLabel('Ширина', { exact:true }).fill('360');
+  applyGroup = inspector.locator('.scene-editor-multi-apply');
+  await applyGroup.locator('summary').click();
+  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
+  await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
+
+  await add.click();
+  await addMenu.getByRole('menuitem', { name:/Видео/ }).click();
+  await inspector.getByLabel('Y', { exact:true }).fill('470');
+  await inspector.getByLabel('Высота', { exact:true }).fill('280');
+  applyGroup = inspector.locator('.scene-editor-multi-apply');
+  await applyGroup.locator('summary').click();
+  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
+  await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
+
+  const storedTarget = await (await page.request.get(`/api/screens/${target.id}/editor`)).json();
+  expect(storedTarget.draft.settings.background_color).toBe('#223344');
+  const weather = storedTarget.draft.scene.elements.find((item) => item.type === 'weather');
+  const image = storedTarget.draft.scene.elements.find((item) => item.type === 'image');
+  const video = storedTarget.draft.scene.elements.find((item) => item.type === 'video');
+  expect({ x:weather.x, y:weather.y }).toEqual({ x:410, y:180 });
+  expect({ x:image.x, width:image.width }).toEqual({ x:520, width:360 });
+  expect({ y:video.y, height:video.height }).toEqual({ y:470, height:280 });
+});
+
 test('Scene table editor stays readable and scrollable with a dense menu', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
