@@ -90,9 +90,9 @@ function uiScalePercent(value) {
 
 function applyInterfaceScale(site) {
   const percent = uiScalePercent(site?.ui_scale_percent);
-  const zoom = UI_SCALE_BASE * (percent / 100);
+  const factor = UI_SCALE_BASE * (percent / 100);
   document.documentElement.dataset.uiScalePercent = String(percent);
-  document.documentElement.style.zoom = String(Math.round(zoom * 1000) / 1000);
+  document.documentElement.style.setProperty('--ui-scale-factor', String(Math.round(factor * 1000) / 1000));
   try { window.localStorage.setItem('mira-tv-ui-scale-percent', String(percent)); } catch { /* Storage can be unavailable. */ }
 }
 
