@@ -54,7 +54,7 @@ function screenCard(screen, location) {
   stage.className = 'manager-screen-stage animation-stage';
   const loading = document.createElement('div');
   loading.className = 'manager-preview-loading';
-  loading.textContent = 'Загружаем опубликованный экран…';
+  loading.textContent = 'Загружаем сохранённый экран…';
   shell.append(stage, loading);
 
   const copy = document.createElement('div');

@@ -64,11 +64,12 @@ function setInstallPlayerHint(text = '') {
   setHidden(installPlayerHint, !text);
 }
 
+function playerInstallSupportedPlatform() {
+  return /Android/i.test(String(navigator.userAgent || ''));
+}
+
 function playerInstallFallbackText() {
-  const ua = String(navigator.userAgent || '');
-  if (/iPad|iPhone|iPod/i.test(ua)) return 'В Safari нажмите «Поделиться» → «На экран Домой».';
-  if (/Android/i.test(ua)) return 'Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».';
-  if (/Windows/i.test(ua)) return 'Браузер не предложил установку. Используйте «Скачать ярлык для Windows» ниже или пункт установки приложения в меню браузера.';
+  if (!playerInstallSupportedPlatform()) return 'Установка MIRA-TV Player предназначена для Android TV / Google TV.';
   return 'Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».';
 }
 
@@ -97,6 +98,7 @@ async function installPlayerShortcut() {
 }
 
 window.addEventListener('beforeinstallprompt', (event) => {
+  if (!playerInstallSupportedPlatform()) return;
   event.preventDefault();
   playerInstallPrompt = event;
   if (installPlayerButton) installPlayerButton.textContent = 'Установить MIRA-TV Player';
@@ -764,6 +766,7 @@ async function initialisePlayer() {
 
   showActivationButton.addEventListener('click', () => void createActivation());
   installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
+  if (!playerInstallSupportedPlatform() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player — только Android TV';
   if (playerRunsStandalone() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {

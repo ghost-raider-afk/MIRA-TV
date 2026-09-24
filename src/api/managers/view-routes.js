@@ -3,9 +3,9 @@ import { positiveId } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 
-async function publishedScreen(store, id) {
+async function savedVisibleScreen(store, id) {
   const screen = await store.getScreen(id);
-  if (!screen || screen.active === false || screen.status !== 'published') return null;
+  if (!screen || screen.active === false) return null;
   const location = await store.getLocation(screen.location_id);
   if (!location || location.active === false) return null;
   return screen;
@@ -21,7 +21,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
 
   router.get('/overview', async (_request, response) => {
     const [locations, screens] = await Promise.all([store.listLocations(), store.listScreens()]);
-    const visibleScreens = screens.filter((screen) => screen.active !== false && screen.status === 'published');
+    const visibleScreens = screens.filter((screen) => screen.active !== false);
     const groups = locations
       .filter((location) => location.active !== false)
       .map((location) => ({
@@ -44,7 +44,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
 
   router.get('/screens/:id/context', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
-    if (!await publishedScreen(store, id)) return response.status(404).json({ error: 'Опубликованный монитор не найден.' });
+    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый монитор не найден.' });
     const state = await buildPlayerState(store, { screen_id: id }, config);
     if (!state) return response.status(404).json({ error: 'Монитор недоступен.' });
     response.json(fullPlayerContext(state));
@@ -52,7 +52,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
 
   router.get('/screens/:id/weather', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
-    if (!await publishedScreen(store, id)) return response.status(404).json({ error: 'Опубликованный монитор не найден.' });
+    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый монитор не найден.' });
     const draft = await store.getScreenDraft(id);
     const settings = sceneWeatherSettings(draft?.scene, id);
     if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();

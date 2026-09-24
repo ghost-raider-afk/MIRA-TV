@@ -11,14 +11,14 @@
   <body data-page="manager">
     <main class="manager-view">
       <header class="manager-header">
-        <div class="manager-brand"><strong data-manager-app-name>MIRA-TV</strong><span>Контроль опубликованных экранов</span></div>
+        <div class="manager-brand"><strong data-manager-app-name>MIRA-TV</strong><span>Контроль сохранённых экранов</span></div>
         <div class="manager-header-actions"><span data-manager-user></span><button class="button button-secondary" id="manager-refresh" type="button">Обновить</button><button class="button button-secondary" id="manager-logout" type="button">Выйти</button></div>
       </header>
       <section class="manager-content" aria-labelledby="manager-title">
-        <div class="manager-heading"><div><p class="eyebrow">РЕЖИМ ПРОСМОТРА</p><h1 id="manager-title">Торговые точки и телевизоры</h1></div><p>Только опубликованные экраны. Изменение настроек недоступно.</p></div>
+        <div class="manager-heading"><div><p class="eyebrow">РЕЖИМ ПРОСМОТРА</p><h1 id="manager-title">Торговые точки и телевизоры</h1></div><p>Все сохранённые экраны, включая неопубликованные. Изменение настроек недоступно.</p></div>
         <p class="form-message is-hidden" id="manager-message" role="status" aria-live="polite"></p>
         <div class="manager-locations" id="manager-locations" aria-live="polite"></div>
-        <p class="empty-state is-hidden" id="manager-empty">Нет опубликованных мониторов.</p>
+        <p class="empty-state is-hidden" id="manager-empty">Нет сохранённых мониторов.</p>
       </section>
     </main>
     <div class="manager-fullscreen is-hidden" id="manager-fullscreen" role="dialog" aria-modal="true" aria-label="Полноэкранный просмотр телевизора">
