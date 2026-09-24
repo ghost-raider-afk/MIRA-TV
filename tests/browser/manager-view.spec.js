@@ -88,16 +88,36 @@ test('manager uses the common sign-in and can inspect every saved active screen 
 
     await expect(managerPage.locator('.ui-rail')).toHaveCount(0);
     await expect(managerPage.locator('.ui-context')).toHaveCount(0);
+    await expect(managerPage.locator('.manager-brand span')).toHaveCount(0);
+    await expect(managerPage.locator('body')).not.toContainText('Контроль сохранённых экранов');
+    await expect(managerPage.locator('body')).not.toContainText('Все сохранённые экраны, включая неопубликованные. Изменение настроек недоступно.');
     await expect(managerPage.locator('#manager-locations')).toContainText(location.name);
 
     const locationGroup = managerPage.locator('.manager-location').filter({ hasText: location.name });
     await expect(locationGroup).toHaveCount(1);
     const cards = locationGroup.locator('[data-manager-screen-id]');
     await expect(cards).toHaveCount(2);
+    await expect(locationGroup.locator('.manager-location-count')).toHaveText('2 телевизора');
     await expect(locationGroup.locator(`[data-manager-screen-id="${published.id}"]`)).toContainText(published.name);
     await expect(locationGroup.locator(`[data-manager-screen-id="${draft.id}"]`)).toContainText(draft.name);
     await expect(locationGroup.locator(`[data-manager-screen-id="${published.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
     await expect(locationGroup.locator(`[data-manager-screen-id="${draft.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
+
+    for (const screen of [published, draft]) {
+      const stage = locationGroup.locator(`[data-manager-screen-id="${screen.id}"] .manager-screen-stage`);
+      const [expectedWidth, expectedHeight] = String(screen.resolution).split(/\D+/).map(Number);
+      const geometry = await stage.evaluate((node) => ({
+        width: node.style.width,
+        height: node.style.height,
+        transform: node.style.transform,
+        scale: Number(node.dataset.sceneViewportScale)
+      }));
+      expect(geometry.width).toBe(`${expectedWidth}px`);
+      expect(geometry.height).toBe(`${expectedHeight}px`);
+      expect(geometry.transform).toContain('scale(');
+      expect(geometry.scale).toBeGreaterThan(0);
+      expect(geometry.scale).toBeLessThan(1);
+    }
 
     const forbiddenScreens = await managerPage.request.get('/api/screens');
     expect(forbiddenScreens.status()).toBe(403);
@@ -115,10 +135,24 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await expect(managerPage).toHaveURL(/\/manager$/);
     await expect(managerPage.locator('#manager-create-form')).toHaveCount(0);
 
-    await managerPage.locator(`[data-manager-screen-id="${draft.id}"]`).click();
+    await managerPage.locator(`[data-manager-screen-id="${published.id}"]`).click();
     const fullscreen = managerPage.locator('#manager-fullscreen');
+    const previous = managerPage.getByRole('button', { name:'Предыдущий телевизор' });
+    const next = managerPage.getByRole('button', { name:'Следующий телевизор' });
     await expect(fullscreen).not.toHaveClass(/is-hidden/);
     await expect(managerPage.locator('#manager-fullscreen-stage svg.menu-table-svg')).toHaveCount(1, { timeout: 5000 });
+    await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(published.name);
+    await expect(previous).toBeVisible();
+    await expect(next).toBeVisible();
+
+    await next.click();
+    await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
+    await expect(managerPage.locator('#manager-fullscreen-stage svg.menu-table-svg')).toHaveCount(1, { timeout: 5000 });
+
+    await managerPage.keyboard.press('ArrowLeft');
+    await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(published.name);
+
+    await managerPage.keyboard.press('ArrowRight');
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
   } finally {
     await managerContext.close();

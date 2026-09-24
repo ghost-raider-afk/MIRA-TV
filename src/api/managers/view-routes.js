@@ -44,15 +44,15 @@ export function createManagerViewRouter({ store, config, weatherService }) {
 
   router.get('/screens/:id/context', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
-    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый монитор не найден.' });
+    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
     const state = await buildPlayerState(store, { screen_id: id }, config);
-    if (!state) return response.status(404).json({ error: 'Монитор недоступен.' });
+    if (!state) return response.status(404).json({ error: 'Телевизор недоступен.' });
     response.json(fullPlayerContext(state));
   });
 
   router.get('/screens/:id/weather', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
-    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый монитор не найден.' });
+    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
     const draft = await store.getScreenDraft(id);
     const settings = sceneWeatherSettings(draft?.scene, id);
     if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
