@@ -980,7 +980,14 @@ export function initialiseSceneEditor() {
       const value = Number(scale.value);
       if (Number.isFinite(value)) patchMenuSettings({ font_scale_percent:clamp(Math.round(value),55,130) });
     });
-    typePanel.append(makeField('Шрифт',font), makeField('Масштаб, %',scale));
+    const priceSize = compactInput('number', state.settings.price_font_size_pt || 27, { min:18,max:40,step:1 });
+    priceSize.setAttribute('aria-label','Кегль цен');
+    checkpointControl(priceSize);
+    priceSize.addEventListener('input', () => {
+      const value = Number(priceSize.value);
+      if (Number.isFinite(value)) patchMenuSettings({ price_font_size_pt:clamp(Math.round(value),18,40) });
+    });
+    typePanel.append(makeField('Шрифт',font), makeField('Масштаб, %',scale), makeField('Кегль цен, pt',priceSize));
     typography.append(typePanel);
 
     const palette = document.createElement('details');
