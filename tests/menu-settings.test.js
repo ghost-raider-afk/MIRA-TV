@@ -14,6 +14,7 @@ test('monitor settings contract stores only canonical renderer fields', () => {
     background_color: '#101828',
     background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.png',
     accent_color: '#F4C915', text_color: '#F8FAFC', font_scale_percent: 92, font_family: 'tahoma-bold',
+    price_font_size_pt: 27,
     promotion_badge_shape: 'base', promotion_font_family: 'arial-narrow', promotion_font_size_percent: 100,
     promotion_font_weight: 900, promotion_font_height_percent: 112, promotion_letter_spacing_px: 0,
     table_x: 40, table_y: 20, table_width_px: 1200, table_height_px: 700
@@ -29,6 +30,14 @@ test('menu font scale has one validated range', () => {
   assert.throws(() => menuSettingsInput({ font_scale_percent: 54 }), /55 до 130/);
   assert.throws(() => menuSettingsInput({ font_scale_percent: 131 }), /55 до 130/);
   assert.throws(() => menuSettingsInput({ font_scale_percent: '90.5' }), /55 до 130/);
+});
+
+test('price font size uses independent point-size limits and keeps the legacy default', () => {
+  assert.equal(menuSettingsInput({}).price_font_size_pt, 27);
+  assert.equal(menuSettingsInput({ price_font_size_pt: 18 }).price_font_size_pt, 18);
+  assert.equal(menuSettingsInput({ price_font_size_pt: 40 }).price_font_size_pt, 40);
+  assert.throws(() => menuSettingsInput({ price_font_size_pt: 17 }), /price_font_size_pt/);
+  assert.throws(() => menuSettingsInput({ price_font_size_pt: 41 }), /price_font_size_pt/);
 });
 
 test('table font is allowlisted and defaults to Arial Narrow', () => {
