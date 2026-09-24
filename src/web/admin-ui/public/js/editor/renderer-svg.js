@@ -27,12 +27,16 @@ function motionSurfaceMarkup(box, horizontal, scale, kind) {
   return `<rect class="row-motion-surface row-motion-surface-${kind}" x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${box.height}" rx="${Math.max(4, 6 * scale)}" fill="url(#mira-row-motion-surface)" opacity="0" pointer-events="none"/>`;
 }
 
-function priceMarkup(value, x, baseline, scale, toneColor, typography, className = 'price') {
+function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFontSizePt, className = 'price') {
   const parts = priceParts(value);
   const fontScale = TV1_REFERENCE_SCALE * scale;
-  const attributes = textAttributes({ size: 27 * fontScale, weight: 700, fill: toneColor, anchor: 'end' }, typography);
+  const baseSize = Math.max(MENU_REFERENCE.priceFontSizeMinPt, Math.min(MENU_REFERENCE.priceFontSizeMaxPt, Number(priceFontSizePt) || MENU_REFERENCE.priceFontSizePt));
+  const wholeSize = baseSize * fontScale;
+  const centsSize = wholeSize * (14 / 27);
+  const centsLift = wholeSize * (16 / 27);
+  const attributes = textAttributes({ size: wholeSize, weight: 700, fill: toneColor, anchor: 'end' }, typography);
   if (!parts) return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>—</text>`;
-  return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-16 * fontScale}" font-size="${14 * fontScale}" font-weight="700" fill="${toneColor}">${escapeXml(parts.cents)}</tspan></text>`;
+  return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-centsLift}" font-size="${centsSize}" font-weight="700" fill="${toneColor}">${escapeXml(parts.cents)}</tspan></text>`;
 }
 
 function promotionShapePath(shape, x, top, width, height, notch) {
@@ -156,7 +160,7 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings)
     ${promotion.glow}
     ${promotion.markup}
     <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor }, typography)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
-    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, toneColor, typography)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, toneColor, typography)}</g>
+    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, toneColor, typography, layout.priceFontSizePt)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, toneColor, typography, layout.priceFontSizePt)}</g>
   </g>`;
 }
 
@@ -170,7 +174,7 @@ function packagingMarkup(line, box, horizontal, palette, scale, typography) {
     const right = x + cellWidth;
     const toneColor = item.tone === 'accent' ? palette.accentText : palette.primaryText;
     const maximumCharacters = Math.max(8, Math.floor((cellWidth - 175 * horizontal.scaleX) / (13 * fontScale)));
-    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, typography, 'packaging-price')}</g></g>`;
+    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, typography, layout.priceFontSizePt, 'packaging-price')}</g></g>`;
   }).join('\n');
   return `<g class="table-packaging">${separatorMarkup(box, horizontal, scale)}${motionSurfaceMarkup(box, horizontal, scale, 'packaging')}${cells}</g>`;
 }
