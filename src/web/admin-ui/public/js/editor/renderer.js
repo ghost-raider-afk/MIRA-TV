@@ -9,7 +9,8 @@ export {
   formatProductMetadata,
   formatStrength,
   renderFingerprint,
-  requestedFontScalePercent
+  requestedFontScalePercent,
+  requestedPriceFontSizePt
 } from './renderer-model.js';
 
 export { buildTableSvg } from './renderer-svg.js';
