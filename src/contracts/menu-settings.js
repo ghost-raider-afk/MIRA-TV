@@ -77,6 +77,7 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
     text_color: color(source.text_color, 'text_color', '#F8FAFC'),
     font_scale_percent: fontScale(source.font_scale_percent),
     font_family: fontFamily(source.font_family),
+    price_font_size_pt: integer(source.price_font_size_pt, 'price_font_size_pt', 27, 18, 40),
     promotion_badge_shape: promotionShape(source.promotion_badge_shape),
     promotion_font_family: fontFamily(source.promotion_font_family, 'Шрифт акции', DEFAULT_FONT_FAMILY),
     promotion_font_size_percent: integer(source.promotion_font_size_percent, 'promotion_font_size_percent', 100, 60, 180),
