@@ -1,4 +1,4 @@
-import { MENU_FONT_OPTIONS, MENU_REFERENCE } from './renderer.js';
+import { MENU_FONT_OPTIONS, MENU_PRICE_FONT_SIZE, MENU_REFERENCE } from './renderer.js';
 
 const SCREEN_BACKGROUND_URL = /^\/site-assets\/screens\/background-[0-9a-f-]{36}\.(?:jpg|png|webp)$/i;
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -28,7 +28,7 @@ export function normaliseEditorSettings(settings = {}) {
     text_color: HEX.test(settings.text_color || '') ? String(settings.text_color).toUpperCase() : '#F8FAFC',
     font_scale_percent: fontScalePercent(settings.font_scale_percent),
     font_family: fontFamily(settings.font_family),
-    price_font_size_pt: Math.max(18, Math.min(40, integer(settings.price_font_size_pt, 27, 1))),
+    price_font_size_pt: Math.max(MENU_PRICE_FONT_SIZE.minPt, Math.min(MENU_PRICE_FONT_SIZE.maxPt, integer(settings.price_font_size_pt, MENU_PRICE_FONT_SIZE.defaultPt, 1))),
     table_x: integer(settings.table_x, MENU_REFERENCE.tableX),
     table_y: integer(settings.table_y, MENU_REFERENCE.tableTop),
     table_width_px: integer(settings.table_width_px, MENU_REFERENCE.tableWidth, 1),
