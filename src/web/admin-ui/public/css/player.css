@@ -67,8 +67,9 @@ button { font: inherit; }
 @media (max-height: 760px) {
   .activation-card { padding: 20px 30px; }
   .activation-card h1,.activation-lead { display: none; }
-  .activation-install { margin-bottom: 8px; gap: 3px; }
-  .activation-shortcut-download { display: none; }
+  .activation-install { margin-bottom: 8px; gap: 2px; }
+  .activation-install-link { padding-block: 1px; }
+  .activation-shortcut-download,.activation-install-hint { font-size: 11px; line-height: 1.2; }
   .activation-qr { width: min(42vh, 300px); }
   .activation-pairing { gap: 12px; margin-top: 18px; }
 }
