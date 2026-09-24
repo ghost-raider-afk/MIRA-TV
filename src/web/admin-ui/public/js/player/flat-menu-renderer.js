@@ -137,7 +137,8 @@ export class FlatMenuRenderer {
     // keep their existing responsive host fitting because the host itself is
     // the preview surface. This prevents menu-only renders from overwriting
     // canonical Scene/TV geometry without changing compact preview semantics.
-    const canonicalStage = this.stage?.matches('[data-player-stage], .manager-fullscreen-stage, #scene-editor-stage')
+    const canonicalStage = this.stage?.hasAttribute('data-player-scene-renderer')
+      || this.stage?.matches('[data-player-stage], .manager-fullscreen-stage, #scene-editor-stage')
       || this.stage?.closest('.scene-editor-stage-shell');
     if (!canonicalStage) fitStage(this.stage, width, height);
     return generation === this.generation && layer === this.layer;
