@@ -90,12 +90,14 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await expect(managerPage.locator('.ui-context')).toHaveCount(0);
     await expect(managerPage.locator('#manager-locations')).toContainText(location.name);
 
-    const cards = managerPage.locator('[data-manager-screen-id]');
+    const locationGroup = managerPage.locator('.manager-location').filter({ hasText: location.name });
+    await expect(locationGroup).toHaveCount(1);
+    const cards = locationGroup.locator('[data-manager-screen-id]');
     await expect(cards).toHaveCount(2);
-    await expect(managerPage.locator(`[data-manager-screen-id="${published.id}"]`)).toContainText(published.name);
-    await expect(managerPage.locator(`[data-manager-screen-id="${draft.id}"]`)).toContainText(draft.name);
-    await expect(managerPage.locator(`[data-manager-screen-id="${published.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
-    await expect(managerPage.locator(`[data-manager-screen-id="${draft.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
+    await expect(locationGroup.locator(`[data-manager-screen-id="${published.id}"]`)).toContainText(published.name);
+    await expect(locationGroup.locator(`[data-manager-screen-id="${draft.id}"]`)).toContainText(draft.name);
+    await expect(locationGroup.locator(`[data-manager-screen-id="${published.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
+    await expect(locationGroup.locator(`[data-manager-screen-id="${draft.id}"] svg.menu-table-svg`)).toHaveCount(1, { timeout: 5000 });
 
     const forbiddenScreens = await managerPage.request.get('/api/screens');
     expect(forbiddenScreens.status()).toBe(403);
