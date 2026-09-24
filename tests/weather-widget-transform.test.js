@@ -250,10 +250,10 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v39'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v40'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v37'/);
-  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v38'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v38'/);
+  assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v39'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
 
