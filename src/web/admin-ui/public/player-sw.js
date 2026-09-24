@@ -5,6 +5,9 @@ const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: bulk scene apply, interface scaling and compact menu metadata spacing.
 const SHELL_ASSETS = [
   '/player.html',
+  '/player.webmanifest',
+  '/brand/player-icon-192.png',
+  '/brand/player-icon-512.png',
   '/css/fonts.css',
   '/fonts/DejaVuSans.ttf',
   '/fonts/DejaVuSans-Bold.ttf',
