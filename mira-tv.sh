@@ -206,6 +206,10 @@ create_full_backup() {
   [[ -f "$INSTALL_DIR/.env" ]] || die 'Не найден /opt/MIRA-TV/.env.'
   version="$(installed_version)" || die 'Не удалось определить установленную версию MIRA-TV.'
   revision="$(git -C "$INSTALL_DIR" rev-parse HEAD)" || die 'Не удалось определить Git revision.'
+  local release_revision
+  release_revision="$(git -C "$INSTALL_DIR" rev-parse "v${version}^{commit}" 2>/dev/null)" || die "Не найден локальный стабильный тег v$version. Полный backup остановлен."
+  [[ "$revision" == "$release_revision" ]] || die "Текущий код не совпадает со стабильным релизом v$version. Сначала завершите штатное обновление или восстановите релиз."
+  git -C "$INSTALL_DIR" diff --quiet && git -C "$INSTALL_DIR" diff --cached --quiet || die 'В исходном коде MIRA-TV есть локальные изменения. Полный backup остановлен.'
   domain="$(sed -nE 's/^MIRA_TV_DOMAIN=(.+)$/\1/p' "$INSTALL_DIR/.env" | head -n 1)"
   validate_domain "$domain"
   timestamp="$(date -u +'%Y%m%dT%H%M%SZ')"
