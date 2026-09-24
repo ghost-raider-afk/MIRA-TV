@@ -39,11 +39,10 @@ button { font: inherit; }
 .activation-card h1 { margin: 0; font-size: clamp(28px, 4vw, 50px); line-height: 1.04; }
 .activation-lead { margin: clamp(8px, 1.5vh, 16px) 0 clamp(10px, 1.5vh, 16px); color: #b8c0cc; font-size: clamp(16px, 1.8vw, 23px); }
 .activation-install { display: grid; justify-items: center; gap: 5px; margin: 0 0 clamp(10px, 1.6vh, 16px); }
-.activation-install-link,.activation-shortcut-download { color: #f6c90e; font-size: clamp(13px, 1.2vw, 16px); font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
+.activation-install-link { color: #f6c90e; font-size: clamp(13px, 1.2vw, 16px); font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
 .activation-install-link { padding: 3px 6px; border: 0; background: transparent; cursor: pointer; }
-.activation-install-link:hover,.activation-shortcut-download:hover { color: #ffe16a; }
-.activation-install-link:focus-visible,.activation-shortcut-download:focus-visible { outline: 3px solid rgba(246, 201, 14, 0.34); outline-offset: 3px; border-radius: 6px; }
-.activation-shortcut-download { color: #b8c0cc; font-size: clamp(11px, 1vw, 14px); }
+.activation-install-link:hover { color: #ffe16a; }
+.activation-install-link:focus-visible { outline: 3px solid rgba(246, 201, 14, 0.34); outline-offset: 3px; border-radius: 6px; }
 .activation-install-hint { max-width: 560px; margin: 2px 0 0; color: #98a2b3; font-size: clamp(11px, 1vw, 14px); line-height: 1.35; }
 .activation-button { min-width: min(100%, 320px); padding: 13px 24px; border: 0; border-radius: 14px; background: #f6c90e; color: #101317; font-weight: 800; cursor: pointer; }
 .activation-button:focus-visible { outline: 4px solid rgba(246, 201, 14, 0.35); outline-offset: 4px; }
@@ -69,7 +68,7 @@ button { font: inherit; }
   .activation-card h1,.activation-lead { display: none; }
   .activation-install { margin-bottom: 8px; gap: 2px; }
   .activation-install-link { padding-block: 1px; }
-  .activation-shortcut-download,.activation-install-hint { font-size: 11px; line-height: 1.2; }
+  .activation-install-hint { font-size: 11px; line-height: 1.2; }
   .activation-qr { width: min(42vh, 300px); }
   .activation-pairing { gap: 12px; margin-top: 18px; }
 }
