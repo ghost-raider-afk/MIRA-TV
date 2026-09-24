@@ -68,13 +68,17 @@ test('site interface scale uses 100% as the enlarged 125% baseline and can move 
   await page.locator('#site-settings-submit').click();
   await expect(page.locator('#site-settings-message')).toContainText('сохранены');
   await expect(page.locator('html')).toHaveAttribute('data-ui-scale-percent', '80');
-  expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('1');
+  expect(await page.locator('html').evaluate((node) => node.style.getPropertyValue('--ui-scale-factor'))).toBe('1');
+  expect(await page.locator('body').evaluate((node) => getComputedStyle(node).fontSize)).toBe('13px');
+  expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('');
 
   await input.fill('100');
   await page.locator('#site-settings-submit').click();
   await expect(page.locator('#site-settings-message')).toContainText('сохранены');
   await expect(page.locator('html')).toHaveAttribute('data-ui-scale-percent', '100');
-  expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('1.25');
+  expect(await page.locator('html').evaluate((node) => node.style.getPropertyValue('--ui-scale-factor'))).toBe('1.25');
+  expect(await page.locator('body').evaluate((node) => getComputedStyle(node).fontSize)).toBe('16.25px');
+  expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('');
   expect(await page.evaluate(() => localStorage.getItem('mira-tv-ui-scale-percent'))).toBe('100');
 
   if (original !== 100) {
