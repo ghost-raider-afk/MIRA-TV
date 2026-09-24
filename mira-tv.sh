@@ -14,7 +14,7 @@ TEMP_BACKUP_DIR=""
 KEEP_TEMP_BACKUP=false
 FULL_BACKUP_WORKDIR=""
 FULL_BACKUP_FORMAT_VERSION="1"
-BACKUP_DIR="${PERSIST_DIR}/backups"
+BACKUP_DIR="/var/backups/mira-tv"
 
 log() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
@@ -289,10 +289,10 @@ restore_full_backup() {
   env_domain="$(sed -nE 's/^MIRA_TV_DOMAIN=(.+)$/\1/p' "$FULL_BACKUP_WORKDIR/.env" | head -n 1)"
   [[ "$env_domain" == "$domain" ]] || die 'Домен в manifest и .env резервной копии не совпадает.'
 
+  [[ ! -e "$INSTALL_DIR" ]] || die "$INSTALL_DIR уже существует. Восстановление полного сервера разрешено только на чистую установку."
+
   install_prerequisites
   install_docker
-
-  [[ ! -e "$INSTALL_DIR" ]] || die "$INSTALL_DIR уже существует. Восстановление полного сервера разрешено только на чистую установку."
   for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
     if docker volume inspect "$volume" >/dev/null 2>&1; then
       die "Обнаружены существующие данные MIRA-TV ($volume). Очистите старую установку перед полным восстановлением."
