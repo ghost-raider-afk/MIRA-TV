@@ -37,7 +37,7 @@ async function fixture(page) {
     screen:{ location_id:screen.location_id, name:screen.name, resolution:'1920×1080', status:'draft', active:true }
   } });
   expect(saved.ok()).toBeTruthy();
-  return { screen, product };
+  return { screen, product, location };
 }
 
 test('Scene editor keeps layers, shared Player preview and contextual properties on one desktop page', async ({ page }) => {
@@ -351,7 +351,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
 test('background, weather, image and video settings apply atomically to selected monitors', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
-  const { screen } = await fixture(page);
+  const { screen, location } = await fixture(page);
   const targetResponse = await page.request.post(`/api/locations/${screen.location_id}/screens`, { data:{} });
   expect(targetResponse.status()).toBe(201);
   const target = await targetResponse.json();
@@ -378,7 +378,7 @@ test('background, weather, image and video settings apply atomically to selected
   let applyGroup = inspector.locator('.scene-editor-multi-apply');
   await expect(applyGroup.locator('summary')).toHaveText('Применить к мониторам');
   await applyGroup.locator('summary').click();
-  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('checkbox', { name:`Применить к ${location.name} — ${target.name}`, exact:true }).check();
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
@@ -391,7 +391,7 @@ test('background, weather, image and video settings apply atomically to selected
   await inspector.getByLabel('Y', { exact:true }).fill('180');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
   await applyGroup.locator('summary').click();
-  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('checkbox', { name:`Применить к ${location.name} — ${target.name}`, exact:true }).check();
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
@@ -401,7 +401,7 @@ test('background, weather, image and video settings apply atomically to selected
   await inspector.getByLabel('Ширина', { exact:true }).fill('360');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
   await applyGroup.locator('summary').click();
-  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('checkbox', { name:`Применить к ${location.name} — ${target.name}`, exact:true }).check();
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
@@ -411,7 +411,7 @@ test('background, weather, image and video settings apply atomically to selected
   await inspector.getByLabel('Высота', { exact:true }).fill('280');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
   await applyGroup.locator('summary').click();
-  await applyGroup.getByLabel(/Применить к /).check();
+  await applyGroup.getByRole('checkbox', { name:`Применить к ${location.name} — ${target.name}`, exact:true }).check();
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
