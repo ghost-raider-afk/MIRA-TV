@@ -143,19 +143,27 @@ restore_site_assets() {
     < "$TEMP_BACKUP_DIR/site-assets.tar.gz" || return 1
 }
 
-backup_named_volume_to() {
-  local volume="$1" output="$2"
-  docker volume inspect "$volume" >/dev/null 2>&1 || die "Docker volume $volume не найден."
-  docker run --rm -v "$volume:/source:ro" "$BACKUP_HELPER_IMAGE" sh -ec 'tar -C /source -czf - .' > "$output"
-  [[ -s "$output" ]] || die "Резервная копия Docker volume $volume пуста."
+backup_persistent_volume_to() {
+  local kind="$1" output="$2" target
+  case "$kind" in
+    site-assets) target='/backup/site-assets' ;;
+    letsencrypt) target='/backup/letsencrypt' ;;
+    *) die "Неизвестное постоянное хранилище backup: $kind" ;;
+  esac
+  compose run --rm --no-deps -T -e BACKUP_TARGET="$target" backup-helper sh -ec 'tar -C "$BACKUP_TARGET" -czf - .' > "$output"
+  [[ -s "$output" ]] || die "Резервная копия хранилища $kind пуста."
 }
 
-restore_named_volume_from() {
-  local volume="$1" input="$2"
-  [[ -s "$input" ]] || die "Не найден архив данных для Docker volume $volume."
-  docker volume create "$volume" >/dev/null
-  docker run --rm -i -v "$volume:/target" "$BACKUP_HELPER_IMAGE" sh -ec \
-    'find /target -mindepth 1 -delete; tar -C /target -xzf -' < "$input"
+restore_persistent_volume_from() {
+  local kind="$1" input="$2" target
+  [[ -s "$input" ]] || die "Не найден архив данных для хранилища $kind."
+  case "$kind" in
+    site-assets) target='/backup/site-assets' ;;
+    letsencrypt) target='/backup/letsencrypt' ;;
+    *) die "Неизвестное постоянное хранилище restore: $kind" ;;
+  esac
+  compose run --rm --no-deps -T -e BACKUP_TARGET="$target" backup-helper sh -ec \
+    'find "$BACKUP_TARGET" -mindepth 1 -delete; tar -C "$BACKUP_TARGET" -xzf -' < "$input"
 }
 
 manifest_value() {
@@ -222,8 +230,8 @@ create_full_backup() {
   compose up -d --wait db
   compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$FULL_BACKUP_WORKDIR/database.dump"
   [[ -s "$FULL_BACKUP_WORKDIR/database.dump" ]] || die 'Резервная копия PostgreSQL пуста.'
-  backup_named_volume_to 'mira-tv-site-assets' "$FULL_BACKUP_WORKDIR/site-assets.tar.gz"
-  backup_named_volume_to 'mira-tv-letsencrypt' "$FULL_BACKUP_WORKDIR/letsencrypt.tar.gz"
+  backup_persistent_volume_to 'site-assets' "$FULL_BACKUP_WORKDIR/site-assets.tar.gz"
+  backup_persistent_volume_to 'letsencrypt' "$FULL_BACKUP_WORKDIR/letsencrypt.tar.gz"
 
   {
     printf 'format_version=%s\n' "$FULL_BACKUP_FORMAT_VERSION"
@@ -271,8 +279,6 @@ restore_full_backup() {
   if [[ -z "$archive" ]]; then read -r -p 'Путь к файлу .mirabackup: ' archive; fi
   require_root restore-backup "$archive"
   require_ubuntu
-  install_prerequisites
-  install_docker
 
   FULL_BACKUP_WORKDIR="$(mktemp -d -t 'mira-tv.restore.XXXXXX')"
   chmod 700 "$FULL_BACKUP_WORKDIR"
@@ -284,6 +290,9 @@ restore_full_backup() {
   env_domain="$(sed -nE 's/^MIRA_TV_DOMAIN=(.+)$/\1/p' "$FULL_BACKUP_WORKDIR/.env" | head -n 1)"
   [[ "$env_domain" == "$domain" ]] || die 'Домен в manifest и .env резервной копии не совпадает.'
 
+  install_prerequisites
+  install_docker
+
   [[ ! -e "$INSTALL_DIR" ]] || die "$INSTALL_DIR уже существует. Восстановление полного сервера разрешено только на чистую установку."
   for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
     if docker volume inspect "$volume" >/dev/null 2>&1; then
@@ -293,9 +302,10 @@ restore_full_backup() {
 
   tag="v$version"
   log "Восстановление MIRA-TV $version из полной резервной копии"
-  git clone --depth 1 --branch "$tag" "$REPO_URL" "$INSTALL_DIR" || die "Не удалось получить релиз $tag."
-  restored_revision="$(git -C "$INSTALL_DIR" rev-parse HEAD)"
+  git clone --depth 1 --branch "$tag" "$REPO_URL" "$FULL_BACKUP_WORKDIR/source" || die "Не удалось получить релиз $tag."
+  restored_revision="$(git -C "$FULL_BACKUP_WORKDIR/source" rev-parse HEAD)"
   [[ "$restored_revision" == "$revision" ]] || die 'Git revision релиза не совпадает с revision в backup; восстановление остановлено.'
+  mv "$FULL_BACKUP_WORKDIR/source" "$INSTALL_DIR"
 
   cp "$FULL_BACKUP_WORKDIR/.env" "$INSTALL_DIR/.env"
   chmod 600 "$INSTALL_DIR/.env"
@@ -304,8 +314,8 @@ restore_full_backup() {
 
   compose up -d --wait db
   restore_database_exact "$FULL_BACKUP_WORKDIR/database.dump" || die 'Не удалось восстановить PostgreSQL.'
-  restore_named_volume_from 'mira-tv-site-assets' "$FULL_BACKUP_WORKDIR/site-assets.tar.gz"
-  restore_named_volume_from 'mira-tv-letsencrypt' "$FULL_BACKUP_WORKDIR/letsencrypt.tar.gz"
+  restore_persistent_volume_from 'site-assets' "$FULL_BACKUP_WORKDIR/site-assets.tar.gz"
+  restore_persistent_volume_from 'letsencrypt' "$FULL_BACKUP_WORKDIR/letsencrypt.tar.gz"
   start_stack
   install -m 0755 "$INSTALL_DIR/mira-tv.sh" "$LAUNCHER_PATH"
   persist_env
@@ -467,12 +477,10 @@ show_menu() {
   esac
 }
 
-COMMAND="${1:-menu}"
-shift || true
-case "$COMMAND" in
+case "${1:-menu}" in
   install) install_app ;; update) update_app ;; status) status_app ;; restart) restart_app ;; logs) logs_app ;;
   reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;;
-  backup) create_full_backup "${1:-}" ;; verify-backup) verify_full_backup "${1:-}" ;; restore-backup) restore_full_backup "${1:-}" ;;
+  backup) create_full_backup "${2:-}" ;; verify-backup) verify_full_backup "${2:-}" ;; restore-backup) restore_full_backup "${2:-}" ;;
   menu) show_menu ;;
   *) die 'Команды: install | update | status | restart | logs | reset-admin-password | backup | verify-backup | restore-backup | remove | purge | menu' ;;
 esac
