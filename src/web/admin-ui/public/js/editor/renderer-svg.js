@@ -1,5 +1,6 @@
 import {
   MENU_REFERENCE,
+  MENU_PRICE_FONT_SIZE,
   MENU_TABLE_STYLE,
   TV1_REFERENCE_SCALE,
   buildRenderLayout,
@@ -30,7 +31,7 @@ function motionSurfaceMarkup(box, horizontal, scale, kind) {
 function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFontSizePt, className = 'price') {
   const parts = priceParts(value);
   const fontScale = TV1_REFERENCE_SCALE * scale;
-  const baseSize = Math.max(MENU_REFERENCE.priceFontSizeMinPt, Math.min(MENU_REFERENCE.priceFontSizeMaxPt, Number(priceFontSizePt) || MENU_REFERENCE.priceFontSizePt));
+  const baseSize = Math.max(MENU_PRICE_FONT_SIZE.minPt, Math.min(MENU_PRICE_FONT_SIZE.maxPt, Number(priceFontSizePt) || MENU_PRICE_FONT_SIZE.defaultPt));
   const wholeSize = baseSize * fontScale;
   const centsSize = wholeSize * (14 / 27);
   const centsLift = wholeSize * (16 / 27);
