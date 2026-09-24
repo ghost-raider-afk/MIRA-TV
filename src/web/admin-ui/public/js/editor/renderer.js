@@ -1,5 +1,6 @@
 export {
   MENU_FONT_OPTIONS,
+  MENU_PRICE_FONT_SIZE,
   MENU_REFERENCE,
   MENU_TABLE_STYLE,
   buildDisplayLines,
