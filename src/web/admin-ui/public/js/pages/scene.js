@@ -385,6 +385,90 @@ export function initialiseSceneEditor() {
     return input;
   }
 
+  function multiScreenApplyGroup(kind, sceneElement = null) {
+    const group = document.createElement('details');
+    group.className = 'scene-editor-inspector-group scene-editor-multi-apply';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Применить к мониторам';
+    const panel = document.createElement('div');
+    panel.className = 'scene-editor-inspector-panel scene-editor-multi-apply-panel';
+
+    const targets = screens.filter((screen) => Number(screen.id) !== Number(currentScreenId));
+    const note = document.createElement('small');
+    note.className = 'scene-editor-multi-apply-note';
+    note.textContent = kind === 'background'
+      ? 'Цвет и фоновое изображение будут одинаково применены к выбранным мониторам.'
+      : 'Положение, размер и все настройки этого элемента будут применены к выбранным мониторам.';
+    panel.append(note);
+
+    if (!targets.length) {
+      const empty = document.createElement('small');
+      empty.className = 'scene-editor-multi-apply-empty';
+      empty.textContent = 'Других мониторов пока нет.';
+      panel.append(empty);
+      group.append(summary, panel);
+      return group;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'scene-editor-multi-apply-list';
+    const inputs = [];
+    for (const target of targets) {
+      const row = document.createElement('label');
+      row.className = 'scene-editor-multi-apply-target';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = String(target.id);
+      checkbox.setAttribute('aria-label', `Применить к ${labelForScreen(target)}`);
+      const caption = document.createElement('span');
+      caption.textContent = labelForScreen(target);
+      row.append(checkbox, caption);
+      list.append(row);
+      inputs.push(checkbox);
+    }
+
+    const apply = document.createElement('button');
+    apply.type = 'button';
+    apply.className = 'button button-secondary scene-editor-multi-apply-button';
+    apply.textContent = 'Применить к выбранным';
+    apply.disabled = true;
+    const syncButton = () => { apply.disabled = !inputs.some((input) => input.checked); };
+    inputs.forEach((input) => input.addEventListener('change', syncButton));
+
+    apply.addEventListener('click', async () => {
+      const targetIds = inputs.filter((input) => input.checked).map((input) => Number(input.value));
+      if (!targetIds.length || !currentScreenId) return;
+      const payload = { kind, target_screen_ids: targetIds };
+      if (kind === 'background') {
+        payload.background = {
+          background_color: state.settings.background_color || '#101828',
+          background_image_url: state.settings.background_image_url || ''
+        };
+      } else {
+        const current = state.scene?.elements?.find((item) => item.id === sceneElement?.id);
+        if (!current) return;
+        const sameType = state.scene.elements.filter((item) => item?.type === current.type);
+        payload.element = structuredClone(current);
+        payload.type_index = Math.max(0, sameType.findIndex((item) => item.id === current.id));
+      }
+
+      setPending(apply, true, 'Применяем…');
+      try {
+        const result = await api.put(`${API.screens}/${currentScreenId}/scene/apply`, payload);
+        const count = Array.isArray(result.applied_screen_ids) ? result.applied_screen_ids.length : targetIds.length;
+        setMessage('scene-editor-message', `Настройки применены к ${count} ${count === 1 ? 'монитору' : 'мониторам'}.`, 'success');
+      } catch (error) {
+        if (active()) setMessage('scene-editor-message', error.message);
+      } finally {
+        if (active()) setPending(apply, false, 'Применяем…');
+      }
+    });
+
+    panel.append(list, apply);
+    group.append(summary, panel);
+    return group;
+  }
+
   async function applyBackgroundUpload(file) {
     if (!currentScreenId || !file) return;
     const upload = propertiesRoot.querySelector('[data-scene-background-upload]');
@@ -540,7 +624,7 @@ export function initialiseSceneEditor() {
     actions.append(upload, remove);
     appearancePanel.append(makeField('Изображение', file), status, actions);
     appearance.append(appearanceSummary, appearancePanel);
-    stack.append(appearance);
+    stack.append(appearance, multiScreenApplyGroup('background'));
     propertiesRoot.append(stack);
   }
 
@@ -1306,6 +1390,9 @@ export function initialiseSceneEditor() {
       },
       onUpload: uploadSceneAsset
     });
+    if (selected && ['weather', 'image', 'video'].includes(selected.type)) {
+      propertiesRoot.querySelector('.scene-editor-inspector-stack')?.append(multiScreenApplyGroup(selected.type, selected));
+    }
     if (!selected) {
       const title = element('scene-editor-properties-title');
       if (title) title.textContent = 'Элемент не выбран';
