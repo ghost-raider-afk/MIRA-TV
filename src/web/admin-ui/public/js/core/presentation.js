@@ -78,6 +78,24 @@ function applyAccentColor(accent) {
   root.style.setProperty('--ui-accent-on-chrome', accessibleAccentText(accent, chromeBackground, themeTarget));
 }
 
+const UI_SCALE_BASE = 1.25;
+const UI_SCALE_MIN = 70;
+const UI_SCALE_MAX = 140;
+
+function uiScalePercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 100;
+  return Math.max(UI_SCALE_MIN, Math.min(UI_SCALE_MAX, Math.round(number)));
+}
+
+function applyInterfaceScale(site) {
+  const percent = uiScalePercent(site?.ui_scale_percent);
+  const zoom = UI_SCALE_BASE * (percent / 100);
+  document.documentElement.dataset.uiScalePercent = String(percent);
+  document.documentElement.style.zoom = String(Math.round(zoom * 1000) / 1000);
+  try { window.localStorage.setItem('mira-tv-ui-scale-percent', String(percent)); } catch { /* Storage can be unavailable. */ }
+}
+
 function formatByteLimit(value) {
   const bytes = Number(value);
   if (!Number.isFinite(bytes) || bytes <= 0) return 'Лимит загрузки задаётся сервером.';
@@ -90,6 +108,7 @@ export function applyPresentation(site) {
   const name = site.app_name || site.application_name || 'MIRA-TV';
   document.title = name;
   document.documentElement.dataset.signinLogoSize = String(Math.max(1, Math.min(7, Number(site.signin_logo_size) || 1)));
+  applyInterfaceScale(site);
   document.querySelectorAll('[data-app-name]').forEach((node) => { node.textContent = name; });
   document.querySelectorAll('[data-screen-background-limit]').forEach((node) => { node.textContent = formatByteLimit(site.screen_background_max_bytes); });
   if (site.accent_color) applyAccentColor(site.accent_color);
