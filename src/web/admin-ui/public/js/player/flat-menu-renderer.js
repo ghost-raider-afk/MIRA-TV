@@ -132,11 +132,9 @@ export class FlatMenuRenderer {
     const stage = layer.closest('.player-scene-stage');
     this.stage = stage instanceof HTMLElement ? stage : null;
 
-    // Scene Editor and the real TV keep one fixed logical Player stage and
-    // scale the completed frame externally. Read-only card/settings previews
-    // keep their existing responsive host fitting because the host itself is
-    // the preview surface. This prevents menu-only renders from overwriting
-    // canonical Scene/TV geometry without changing compact preview semantics.
+    // PlayerSceneRenderer owns canonical viewport fitting everywhere it is used.
+    // Flat menu rendering must not overwrite that stage geometry; standalone
+    // menu-only surfaces still use their legacy responsive host fitting.
     const canonicalStage = this.stage?.hasAttribute('data-player-scene-renderer')
       || this.stage?.matches('[data-player-stage], .manager-fullscreen-stage, #scene-editor-stage')
       || this.stage?.closest('.scene-editor-stage-shell');
