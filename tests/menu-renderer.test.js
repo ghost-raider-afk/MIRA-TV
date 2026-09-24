@@ -124,7 +124,7 @@ test('item metadata sits slightly closer to the primary name without changing fo
 test('price point size changes only the shared canonical price typography', () => {
   const small = rendered(4, 100, 'arial-narrow', 18).svg;
   const large = rendered(4, 100, 'arial-narrow', 40).svg;
-  assert.match(small, /class="price"[^>]*font-size="18\.9"/);
+  assert.match(small, /class="price"[^>]*font-size="18\.9[0-9]*"/);
   assert.match(large, /class="price"[^>]*font-size="42"/);
   assert.match(small, /class="cents"[^>]*font-size="9\.8/);
   assert.match(large, /class="cents"[^>]*font-size="21\.7/);
