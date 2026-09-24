@@ -14,8 +14,8 @@ test('full backup contract preserves server identity and checks integrity', () =
   assert.match(installer, /FULL_BACKUP_FORMAT_VERSION="1"/);
   assert.match(installer, /sha256sum manifest\.env \.env database\.dump site-assets\.tar\.gz letsencrypt\.tar\.gz/);
   assert.match(installer, /pg_dump .*--format=custom --no-owner --no-privileges/);
-  assert.match(installer, /backup_named_volume_to 'mira-tv-site-assets'/);
-  assert.match(installer, /backup_named_volume_to 'mira-tv-letsencrypt'/);
+  assert.match(installer, /backup_persistent_volume_to 'site-assets'/);
+  assert.match(installer, /backup_persistent_volume_to 'letsencrypt'/);
   assert.match(installer, /cp "\$INSTALL_DIR\/\.env" "\$FULL_BACKUP_WORKDIR\/\.env"/);
 });
 
@@ -24,12 +24,14 @@ test('full restore is exact and refuses an existing installation', () => {
   assert.match(installer, /git clone --depth 1 --branch "\$tag"/);
   assert.match(installer, /Git revision релиза не совпадает с revision в backup/);
   assert.match(installer, /restore_database_exact "\$FULL_BACKUP_WORKDIR\/database\.dump"/);
-  assert.match(installer, /restore_named_volume_from 'mira-tv-site-assets'/);
-  assert.match(installer, /restore_named_volume_from 'mira-tv-letsencrypt'/);
+  assert.match(installer, /restore_persistent_volume_from 'site-assets'/);
+  assert.match(installer, /restore_persistent_volume_from 'letsencrypt'/);
   assert.match(installer, /После переключения DNS телевизоры продолжат работу с прежними идентификаторами и привязками/);
 });
 
-test('backup verifier rejects unexpected archive members before extraction', () => {
+test('backup helper stays inside Docker Compose and verifier rejects unexpected members', () => {
+  assert.doesNotMatch(installer, /\bdocker\s+run\b/);
+  assert.match(installer, /compose run --rm --no-deps -T -e BACKUP_TARGET=/);
   assert.match(installer, /Структура резервной копии не соответствует формату MIRA-TV/);
   assert.match(installer, /tar --no-same-owner --no-same-permissions -xzf/);
   assert.match(installer, /Список контрольных сумм резервной копии некорректен/);
