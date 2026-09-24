@@ -46,6 +46,13 @@ async function hydratePreview(stage, screenId, loading) {
   }
 }
 
+function screenAspectRatio(resolution) {
+  const match = String(resolution || '').match(/(\d+)\D+(\d+)/);
+  const width = Number(match?.[1]) || 1920;
+  const height = Number(match?.[2]) || 1080;
+  return `${width} / ${height}`;
+}
+
 function screenCard(screen, location, orderIndex) {
   const card = document.createElement('button');
   card.className = 'manager-screen-card';
@@ -54,6 +61,7 @@ function screenCard(screen, location, orderIndex) {
 
   const shell = document.createElement('div');
   shell.className = 'manager-screen-preview-shell';
+  shell.style.aspectRatio = screenAspectRatio(screen.resolution);
   const stage = document.createElement('div');
   stage.className = 'manager-screen-stage animation-stage';
   const loading = document.createElement('div');
