@@ -16,7 +16,7 @@ test('full backup contract preserves server identity and checks integrity', () =
   assert.doesNotMatch(installer, /BACKUP_DIR="\$\{PERSIST_DIR\}/);
   assert.match(installer, /sha256sum manifest\.env \.env database\.dump site-assets\.tar\.gz letsencrypt\.tar\.gz/);
   assert.match(installer, /pg_dump .*--format=custom --no-owner --no-privileges/);
-  assert.match(installer, /rev-parse "v\\\$\{version\}\^\{commit\}"/);
+  assert.match(installer, /rev-parse "v\$\{version\}\^\{commit\}"/);
   assert.match(installer, /Текущий код не совпадает со стабильным релизом/);
   assert.match(installer, /git -C "\$INSTALL_DIR" diff --quiet/);
   assert.match(installer, /backup_persistent_volume_to 'site-assets'/);
