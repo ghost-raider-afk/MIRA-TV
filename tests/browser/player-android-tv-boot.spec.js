@@ -101,7 +101,7 @@ test('pending Android TV activation never leaves a blank screen while status req
   await expect(page.locator('[data-tv-player]')).toHaveClass(/is-hidden/);
 });
 
-test('authorized Android TV keeps pairing recovery until Device Session is confirmed', async ({ page }) => {
+test('authorized Android TV finalizes Device Session with top-level navigation', async ({ page }) => {
   const pending = {
     activation_id: 'android-tv-handoff-1234',
     poll_secret: 'android-tv-handoff-secret-1234',
@@ -116,32 +116,56 @@ test('authorized Android TV keeps pairing recovery until Device Session is confi
     localStorage.setItem('mira-tv.device-activation.v2', JSON.stringify(record));
   }, pending);
 
-  let statusCalls = 0;
-  let handoffRetrySeen = false;
-  await page.route('**/api/device/session', (route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+  let completionCalls = 0;
+  let completionBody = '';
+  await page.route('**/api/device/session', (route) => {
+    const cookie = route.request().headers().cookie || '';
+    if (cookie.includes('mira_tv_device_session=dvs_navigation_test')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          authorized: true,
+          device_key: pending.device_key,
+          screen: { id: 77 }
+        })
+      });
+    }
+    return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+  });
+  await page.route('**/api/device/player-delta', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ full_snapshot_required: true, context: contextPayload })
+  }));
+  await page.route('**/api/device/player-logs', (route) =>
+    route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ accepted_through: 999 }) })
   );
-  await page.route('**/api/device/player-delta', (route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
-  );
-  await page.route('**/api/device/activations/*/status', (route) => {
-    statusCalls += 1;
-    if (route.request().headers()['x-mira-device-handoff-retry'] === '1') handoffRetrySeen = true;
+  await page.route('**/api/device/activations/*/status', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ status: 'authorized', screen: { id: 77 } })
+  }));
+  await page.route('**/api/device/activations/*/complete', (route) => {
+    completionCalls += 1;
+    completionBody = route.request().postData() || '';
     return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ status: 'authorized', screen: { id: 77 } })
+      status: 303,
+      headers: {
+        location: '/player',
+        'set-cookie': 'mira_tv_device_session=dvs_navigation_test; Path=/; HttpOnly; SameSite=Strict'
+      },
+      body: ''
     });
   });
 
   await page.goto('/player');
 
-  await expect(page.locator('[data-player-boot]')).toBeVisible();
-  await expect(page.locator('[data-player-boot-status]')).toContainText('Подтверждаем сессию телевизора', { timeout: 6000 });
-  await expect.poll(() => statusCalls, { timeout: 6000 }).toBeGreaterThanOrEqual(2);
-  await expect.poll(() => handoffRetrySeen, { timeout: 6000 }).toBe(true);
-  await expect.poll(() => page.evaluate(() => Boolean(localStorage.getItem('mira-tv.device-activation.v2')))).toBe(true);
-  await expect(page.locator('[data-activation-view]')).toHaveClass(/is-hidden/);
+  await expect.poll(() => completionCalls, { timeout: 6000 }).toBe(1);
+  expect(completionBody).toContain('poll_secret=android-tv-handoff-secret-1234');
+  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/, { timeout: 7000 });
+  await expect(page.locator('[data-player-boot]')).toHaveClass(/is-hidden/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('mira-tv.device-activation.v2'))).toBeNull();
 });
 
 test('Android TV shows a recovery message when Player module cannot start', async ({ page }) => {
