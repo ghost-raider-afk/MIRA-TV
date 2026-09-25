@@ -21,6 +21,12 @@ test('player is public while TV connection page remains admin protected', async 
   assert.match(playerHtml, /data-tv-player/);
   assert.match(playerHtml, /rel="manifest" href="\/player\.webmanifest"/);
   assert.match(playerHtml, /data-install-player/);
+  assert.match(playerHtml, /data-player-boot/);
+  assert.match(playerHtml, /<script src="\/js\/player\/player-boot\.js" defer><\/script>/);
+  assert.ok(
+    playerHtml.indexOf('/js/player/player-boot.js') < playerHtml.indexOf('/js/player/player.js'),
+    'classic Player boot guard must load before the module entrypoint'
+  );
   assert.match(player, /beforeinstallprompt/);
   assert.match(player, /appinstalled/);
   assert.match(player, /playerInstallSupportedPlatform/);
@@ -33,6 +39,23 @@ test('player is public while TV connection page remains admin protected', async 
   assert.equal(parsedManifest.name, 'MIRA-TV Player');
   assert.deepEqual(parsedManifest.icons.map((icon) => icon.sizes), ['192x192', '512x512']);
   assert.match(connectHtml, /Сканировать QR-код/);
+});
+
+test('Player boot guard stays classic and can recover only Player shell caches', async () => {
+  const [html, boot, player] = await Promise.all([
+    read('src/web/admin-ui/public/player.html'),
+    read('src/web/admin-ui/public/js/player/player-boot.js'),
+    read('src/web/admin-ui/public/js/player/player.js')
+  ]);
+  assert.match(html, /data-player-boot-status/);
+  assert.doesNotMatch(boot, /=>|\bconst\b|\blet\b|\?\./);
+  assert.match(boot, /mira-tv-player-shell-/);
+  assert.doesNotMatch(boot, /mira-tv-player-data-/);
+  assert.match(boot, /registration\.unregister/);
+  assert.match(boot, /window\.location\.reload\(\)/);
+  assert.match(player, /window\.__miraPlayerModuleStarted = true/);
+  assert.match(player, /showBootstrapUnavailable\('Проверяем сохранённое подключение телевизора…'\)/);
+  assert.match(player, /function keepNeutralBoot\(\) \{\s*showBootstrapUnavailable\('Проверяем сохранённое подключение телевизора…'\);\s*\}/);
 });
 
 test('admin retires legacy root-scoped Player service worker before loading application modules', async () => {
@@ -65,6 +88,8 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   ]);
 
   assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v43'/);
+  assert.match(worker, /'\/js\/player\/player-boot\.js'/);
+  assert.match(worker, /'\/js\/player\/fetch-timeout\.js'/);
   assert.match(player, /createPlayerStateSync/);
   assert.match(player, /navigator\.serviceWorker\.register\('\/player-sw\.js', \{ scope: '\/player' \}\)/);
   assert.doesNotMatch(player, /register\('\/player-sw\.js', \{ scope: '\/' \}\)/);
@@ -72,7 +97,8 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(player, /syncNow\('boot'\)/);
   assert.match(store, /const DB_NAME = 'mira-tv-player'/);
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
-  assert.match(sync, /fetch\('\/api\/device\/player-delta'/);
+  assert.match(sync, /fetchWithTimeout\('\/api\/device\/player-delta'/);
+  assert.doesNotMatch(sync, /new AbortController\(\)/);
   assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
   assert.match(sync, /function enabledSceneMedia\(context\)[\s\S]*?element\?\.enabled !== false[\s\S]*?\['image', 'logo', 'video'\]\.includes/);
   assert.match(sync, /enabledSceneMedia\(context\)\.map\(\(element\) => element\.media\.source_url\)/);

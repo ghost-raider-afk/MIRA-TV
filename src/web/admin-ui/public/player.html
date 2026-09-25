@@ -13,10 +13,17 @@
     <link rel="stylesheet" href="/css/player-scene.css" />
     <link rel="stylesheet" href="/css/weather-widget.css" />
     <link rel="stylesheet" href="/css/scene-playlist.css" />
+    <script src="/js/player/player-boot.js" defer></script>
     <script type="module" src="/js/player/player.js"></script>
   </head>
   <body>
     <main class="player-root">
+      <section class="player-boot" data-player-boot role="status" aria-live="polite">
+        <div class="player-boot-card">
+          <strong>MIRA-TV</strong>
+          <p data-player-boot-status>Запуск MIRA-TV Player…</p>
+        </div>
+      </section>
       <section class="activation-view is-hidden" data-activation-view>
         <div class="activation-card">
           <p class="activation-eyebrow">MIRA-TV</p>

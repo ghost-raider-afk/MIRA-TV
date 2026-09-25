@@ -2,6 +2,9 @@ import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
 import { publishPlayerPreview } from './player-preview-capture.js';
 import { createPlayerMetricsCollector } from './player-metrics.js';
+import { fetchWithTimeout } from './fetch-timeout.js';
+
+window.__miraPlayerModuleStarted = true;
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
@@ -48,6 +51,15 @@ if ('serviceWorker' in navigator) {
 
 function setHidden(element, hidden) {
   element?.classList.toggle('is-hidden', hidden);
+}
+
+function finishPlayerBoot() {
+  window.__miraPlayerBootReady = true;
+  if (typeof window.__miraPlayerFinishBoot === 'function') {
+    window.__miraPlayerFinishBoot();
+    return;
+  }
+  setHidden(document.querySelector('[data-player-boot]'), true);
 }
 
 function playerRunsStandalone() {
@@ -291,6 +303,7 @@ async function enterImmersiveMode() {
 }
 
 function showActivationScreen() {
+  finishPlayerBoot();
   playerMetrics.stop();
   playerStateSync?.stop();
   playerSceneRenderer.reset();
@@ -312,14 +325,21 @@ function showPairingIntro() {
 }
 
 function keepNeutralBoot() {
-  showBootstrapUnavailable('Проверяем сохранённое подключение…');
+  showBootstrapUnavailable('Проверяем сохранённое подключение телевизора…');
 }
 
 function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
-  showActivationScreen();
-  setActivationLead(text);
-  setHidden(pairing, true);
-  setHidden(showActivationButton, true);
+  playerMetrics.stop();
+  playerStateSync?.stop();
+  playerSceneRenderer.reset();
+  setHidden(player, true);
+  dispatchPlayerActivity(false);
+  setHidden(activationView, true);
+  setHidden(playerMessage, true);
+  const boot = document.querySelector('[data-player-boot]');
+  const status = document.querySelector('[data-player-boot-status]');
+  setHidden(boot, false);
+  if (status) status.textContent = text;
 }
 
 function scheduleBootstrapRetry(delay = 3000) {
@@ -370,10 +390,10 @@ function schedulePoll(record, options = {}) {
 async function pollActivation(record, { revealPending = true } = {}) {
   if (Date.parse(record.expires_at) <= Date.now()) return;
   try {
-    const response = await fetch(`/api/device/activations/${encodeURIComponent(record.activation_id)}/status`, {
+    const response = await fetchWithTimeout(`/api/device/activations/${encodeURIComponent(record.activation_id)}/status`, {
       headers: { 'x-device-activation-secret': record.poll_secret },
       cache: 'no-store'
-    });
+    }, 5000);
     if (response.status === 410 || response.status === 404) {
       clearActivation();
       if (revealPending) invalidatePairing();
@@ -427,12 +447,12 @@ async function createActivation({ automatic = false } = {}) {
   try {
     await enterImmersiveMode();
     const deviceInfo = await detectDeviceInfo();
-    const response = await fetch('/api/device/activations', {
+    const response = await fetchWithTimeout('/api/device/activations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ device_key: currentDeviceKey() || undefined, device_info: deviceInfo }),
       cache: 'no-store'
-    });
+    }, 7000);
     if (!response.ok) throw await activationRequestError(response);
     const record = await response.json();
     rememberDeviceKey(record.device_key);
@@ -512,6 +532,7 @@ function showConnectionMessage(message) {
 async function applySyncedContext(context, changedNames, { source } = {}) {
   clearPairingTimers();
   await playerSceneRenderer.render(context, changedNames);
+  finishPlayerBoot();
   reconcilePlayerBuild(context, changedNames, source);
   const configuredMetricsInterval = Number(context?.metrics_interval_ms);
   playerMetrics.configure({ intervalMs:configuredMetricsInterval });
@@ -561,16 +582,10 @@ async function fetchDeviceSession(timeoutMs = 3500) {
   const headers = {};
   if (deviceInfo.manufacturer) headers['x-mira-device-manufacturer'] = deviceInfo.manufacturer;
   if (deviceInfo.model) headers['x-mira-device-model'] = deviceInfo.model;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch('/api/device/session', { cache: 'no-store', signal: controller.signal, headers });
-    if (response.status === 401 || response.status === 403) return { unauthorized: true };
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return { session: await response.json().catch(() => null) };
-  } finally {
-    clearTimeout(timer);
-  }
+  const response = await fetchWithTimeout('/api/device/session', { cache: 'no-store', headers }, timeoutMs);
+  if (response.status === 401 || response.status === 403) return { unauthorized: true };
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return { session: await response.json().catch(() => null) };
 }
 
 async function loadPlayer({ fallbackToActivation = true } = {}) {

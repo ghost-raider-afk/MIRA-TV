@@ -13,8 +13,38 @@ body {
 button { font: inherit; }
 
 .player-root,
+.player-boot,
 .activation-view,
 .tv-player { width: 100%; height: 100%; }
+
+.player-boot {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #090d14;
+}
+
+.player-boot-card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 760px;
+  padding: 28px 34px;
+  text-align: center;
+}
+
+.player-boot-card strong {
+  color: #f6c90e;
+  font-size: clamp(24px, 4vw, 52px);
+  letter-spacing: .14em;
+}
+
+.player-boot-card p {
+  margin: 0;
+  color: #d0d5dd;
+  font-size: clamp(16px, 2vw, 24px);
+  line-height: 1.45;
+}
 
 .activation-view {
   display: grid;

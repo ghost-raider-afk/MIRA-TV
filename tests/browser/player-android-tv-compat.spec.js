@@ -121,7 +121,9 @@ test('Player never leaves Android TV on a blank screen while a saved pairing is 
 
   await page.goto('/player');
 
-  const activation = page.locator('[data-activation-view]');
-  await expect(activation).not.toHaveClass(/is-hidden/);
-  await expect(page.locator('.activation-lead')).toContainText('Проверяем сохранённое подключение');
+  const boot = page.locator('[data-player-boot]');
+  await expect(boot).toBeVisible();
+  await expect(page.locator('[data-player-boot-status]')).toContainText('Проверяем сохранённое подключение');
+  await expect(page.locator('[data-activation-view]')).toHaveClass(/is-hidden/);
+  await expect(page.locator('[data-tv-player]')).toHaveClass(/is-hidden/);
 });
