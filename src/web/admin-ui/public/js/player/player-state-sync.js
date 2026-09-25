@@ -1,4 +1,5 @@
 import { createPlayerRealtimeClient } from './player-realtime-client.js';
+import { fetchWithTimeout } from './fetch-timeout.js';
 import {
   acknowledgePlayerLogs,
   appendPlayerLog,
@@ -296,26 +297,19 @@ export function createPlayerStateSync({
   }
 
   async function fetchDelta() {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    try {
-      const response = await fetch('/api/device/player-delta', {
-        method: 'POST',
-        credentials: 'same-origin',
-        cache: 'no-store',
-        signal: controller.signal,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          schema_version: active?.schema_version || 0,
-          hashes: active?.hashes || {}
-        })
-      });
-      if (response.status === 401 || response.status === 403) return { unauthorized: true };
-      if (!response.ok) throw new Error(`Player delta failed: HTTP ${response.status}`);
-      return { body: await response.json() };
-    } finally {
-      clearTimeout(timeout);
-    }
+    const response = await fetchWithTimeout('/api/device/player-delta', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        schema_version: active?.schema_version || 0,
+        hashes: active?.hashes || {}
+      })
+    }, 5000);
+    if (response.status === 401 || response.status === 403) return { unauthorized: true };
+    if (!response.ok) throw new Error(`Player delta failed: HTTP ${response.status}`);
+    return { body: await response.json() };
   }
 
   async function performSync(reason) {
