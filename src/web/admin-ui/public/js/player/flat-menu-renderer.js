@@ -25,7 +25,7 @@ async function ensureMenuFonts(typography) {
     try { await fonts.ready; } catch {}
     return;
   }
-  const token = /\s/.test(family) ? `"${family.replaceAll('"', '\\"')}"` : family;
+  const token = /\s/.test(family) ? `"${family.replace(/"/g, '\\"')}"` : family;
   const floor = Math.max(400, Number(typography?.weightFloor) || 400);
   const weights = floor >= 700 ? [700] : [400, 700];
   try {
