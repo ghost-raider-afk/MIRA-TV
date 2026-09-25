@@ -189,7 +189,7 @@ export async function publishPlayerPreview(stage, { maxBytes } = {}) {
   if (!(frame instanceof Blob) || frame.size < 1) return false;
   const response = await fetch('/api/device/preview', {
     method:'POST',
-    credentials:'same-origin',
+    credentials:'include',
     cache:'no-store',
     headers:{ 'content-type':frame.type || 'image/webp' },
     body:frame
