@@ -122,11 +122,11 @@ function readableColor(source, background) {
 
 export function escapeXml(value) {
   return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 export function truncateText(value, maximum) {
@@ -147,7 +147,7 @@ export function formatStrength(value) {
   const compact = text.replace(/\s+/g, '');
   const numericStrength = compact.match(/^(\d+(?:[.,]\d+)?)(?:°|%|об\.?%?)?$/i);
   if (numericStrength) return `${numericStrength[1]}%`;
-  return text.replaceAll('°', '%');
+  return text.replace(/°/g, '%');
 }
 
 function beverageColorLabel(value) {
@@ -207,15 +207,23 @@ export function requestedPriceFontSizePt(settings = {}) {
   );
 }
 
+function cloneRenderValue(value) {
+  if (Array.isArray(value)) return value.map((entry) => cloneRenderValue(entry));
+  if (!value || typeof value !== 'object') return value;
+  const clone = {};
+  for (const key of Object.keys(value)) clone[key] = cloneRenderValue(value[key]);
+  return clone;
+}
+
 export function buildRenderModel(editorState, viewport = {}) {
   const width = Math.max(1, Math.round(numeric(viewport.width, DEFAULT_WIDTH)));
   const height = Math.max(1, Math.round(numeric(viewport.height, DEFAULT_HEIGHT)));
-  const settings = structuredClone(editorState?.settings || {});
+  const settings = cloneRenderValue(editorState?.settings || {});
   const rows = enabledRows(Array.isArray(editorState?.rows) ? editorState.rows : []);
   return Object.freeze({
     viewport: Object.freeze({ width, height, aspectRatio: width / height }),
     settings: Object.freeze(settings),
-    rows: Object.freeze(rows.map((row, index) => Object.freeze({ ...structuredClone(row), renderIndex: index })))
+    rows: Object.freeze(rows.map((row, index) => Object.freeze({ ...cloneRenderValue(row), renderIndex: index })))
   });
 }
 
@@ -279,7 +287,7 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         tone: toneIndex % 2 === 0 ? 'light' : 'accent'
       });
       toneIndex += 1;
-      const previous = lines.at(-1);
+      const previous = lines.length ? lines[lines.length - 1] : undefined;
       if (previous?.kind === 'packaging' && previous.items.length < 2) {
         lines[lines.length - 1] = Object.freeze({
           ...previous,
