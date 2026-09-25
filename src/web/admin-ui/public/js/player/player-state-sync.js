@@ -195,7 +195,6 @@ export function createPlayerStateSync({
   }
 
   function reportDiagnostic(type, data = {}, level = 'warn') {
-    if (!navigator.onLine) return;
     diagnosticSequence += 1;
     const event = {
       seq: diagnosticSequence,
