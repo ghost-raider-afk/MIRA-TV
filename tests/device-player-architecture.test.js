@@ -55,7 +55,7 @@ test('Player boot guard stays classic and can recover only Player shell caches',
   assert.match(boot, /window\.location\.reload\(\)/);
   assert.match(player, /window\.__miraPlayerModuleStarted = true/);
   assert.match(player, /showBootstrapUnavailable\('Проверяем сохранённое подключение телевизора…'\)/);
-  assert.doesNotMatch(player, /function keepNeutralBoot/);
+  assert.match(player, /function keepNeutralBoot\(\) \{\s*showBootstrapUnavailable\('Проверяем сохранённое подключение телевизора…'\);\s*\}/);
 });
 
 test('admin retires legacy root-scoped Player service worker before loading application modules', async () => {
