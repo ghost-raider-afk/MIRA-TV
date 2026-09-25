@@ -387,11 +387,14 @@ function schedulePoll(record, options = {}) {
   pollTimer = setTimeout(() => void pollActivation(record, options), delay);
 }
 
-async function pollActivation(record, { revealPending = true } = {}) {
+async function pollActivation(record, { revealPending = true, handoffRetry = false } = {}) {
   if (Date.parse(record.expires_at) <= Date.now()) return;
   try {
+    const headers = { 'x-device-activation-secret': record.poll_secret };
+    if (handoffRetry) headers['x-mira-device-handoff-retry'] = '1';
     const response = await fetchWithTimeout(`/api/device/activations/${encodeURIComponent(record.activation_id)}/status`, {
-      headers: { 'x-device-activation-secret': record.poll_secret },
+      headers,
+      credentials: 'include',
       cache: 'no-store'
     }, 5000);
     if (response.status === 410 || response.status === 404) {
@@ -406,6 +409,12 @@ async function pollActivation(record, { revealPending = true } = {}) {
     if (body.status === 'authorized') {
       clearPairingTimers();
       activationStatus.textContent = 'Авторизовано. Запускаем MIRA-TV…';
+      const sessionResult = await fetchDeviceSession();
+      if (sessionResult.unauthorized) {
+        showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
+        schedulePoll(record, { revealPending: false, handoffRetry: true });
+        return;
+      }
       const started = await loadPlayer({ fallbackToActivation: false });
       if (started) {
         clearActivation();
@@ -413,7 +422,7 @@ async function pollActivation(record, { revealPending = true } = {}) {
         return;
       }
       showBootstrapUnavailable('Авторизация получена. Завершаем подключение…');
-      schedulePoll(record, { revealPending: false });
+      schedulePoll(record, { revealPending: false, handoffRetry: true });
       return;
     }
     if (!revealPending) showPairing(record);
@@ -426,7 +435,7 @@ async function pollActivation(record, { revealPending = true } = {}) {
       showBootstrapUnavailable('Проверяем сохранённое подключение…');
     }
   }
-  if (Date.parse(record.expires_at) > Date.now()) schedulePoll(record, { revealPending });
+  if (Date.parse(record.expires_at) > Date.now()) schedulePoll(record, { revealPending, handoffRetry });
 }
 
 async function createActivation({ automatic = false } = {}) {
@@ -449,6 +458,7 @@ async function createActivation({ automatic = false } = {}) {
     const deviceInfo = await detectDeviceInfo();
     const response = await fetchWithTimeout('/api/device/activations', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ device_key: currentDeviceKey() || undefined, device_info: deviceInfo }),
       cache: 'no-store'
@@ -573,6 +583,10 @@ function playerConnectivityChanged(state) {
 function playerUnauthorized() {
   playerMetrics.stop();
   stopPreviewPublishing();
+  if (activationFromStorage()) {
+    showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
+    return;
+  }
   clearActivation();
   showPairingIntro();
 }
@@ -582,7 +596,11 @@ async function fetchDeviceSession(timeoutMs = 3500) {
   const headers = {};
   if (deviceInfo.manufacturer) headers['x-mira-device-manufacturer'] = deviceInfo.manufacturer;
   if (deviceInfo.model) headers['x-mira-device-model'] = deviceInfo.model;
-  const response = await fetchWithTimeout('/api/device/session', { cache: 'no-store', headers }, timeoutMs);
+  const response = await fetchWithTimeout('/api/device/session', {
+    cache: 'no-store',
+    credentials: 'include',
+    headers
+  }, timeoutMs);
   if (response.status === 401 || response.status === 403) return { unauthorized: true };
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return { session: await response.json().catch(() => null) };
