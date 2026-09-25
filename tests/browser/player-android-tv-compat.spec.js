@@ -58,10 +58,11 @@ async function emulateOlderAndroidTvApis(page) {
     Object.defineProperty(String.prototype, 'replaceAll', { configurable: true, writable: true, value: undefined });
     Object.defineProperty(Array.prototype, 'at', { configurable: true, writable: true, value: undefined });
     Object.defineProperty(globalThis, 'structuredClone', { configurable: true, writable: true, value: undefined });
+    Object.defineProperty(Element.prototype, 'replaceChildren', { configurable: true, writable: true, value: undefined });
   });
 }
 
-test('Player renders on Android TV Chromium without replaceAll, Array.at or structuredClone', async ({ page }) => {
+test('Player renders on Android TV Chromium without newer JS and DOM APIs', async ({ page }) => {
   await emulateOlderAndroidTvApis(page);
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -90,9 +91,15 @@ test('Player renders on Android TV Chromium without replaceAll, Array.at or stru
   const unsupported = await page.evaluate(() => ({
     replaceAll: typeof String.prototype.replaceAll,
     arrayAt: typeof Array.prototype.at,
-    structuredClone: typeof globalThis.structuredClone
+    structuredClone: typeof globalThis.structuredClone,
+    replaceChildren: typeof Element.prototype.replaceChildren
   }));
-  expect(unsupported).toEqual({ replaceAll: 'undefined', arrayAt: 'undefined', structuredClone: 'undefined' });
+  expect(unsupported).toEqual({
+    replaceAll: 'undefined',
+    arrayAt: 'undefined',
+    structuredClone: 'undefined',
+    replaceChildren: 'undefined'
+  });
   expect(errors).toEqual([]);
 });
 
