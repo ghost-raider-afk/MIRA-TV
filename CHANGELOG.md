@@ -1,5 +1,20 @@
 # История изменений
 
+## 1.14.8
+
+Исправлен корневой механизм завершения авторизации TV Player после подтверждения QR-кода.
+
+- Проведён аудит Device Session: текущий reverse proxy — Traefik 3.7.12; он не переписывает `Set-Cookie`.
+- Атрибуты Device Session cookie сохранены без ослабления безопасности: `Path=/`, `HttpOnly`, `SameSite=Strict`, `Secure`, `Max-Age`.
+- После статуса `authorized` Player теперь завершает handoff через same-origin top-level POST, а не полагается только на background `fetch()`.
+- Poll secret передаётся только в POST body и не попадает в URL.
+- Сервер использует тот же канонический transaction Device Session, выставляет HttpOnly/Secure cookie и отвечает `303` обратно на `/player`.
+- После навигации обычный Player boot подтверждает Device Session и запускает state sync, renderer и realtime.
+- Существующий status endpoint сохранён для обратной совместимости; параллельная логика сессий не создавалась.
+- Добавлен regression-тест полного Android TV handoff: `authorized → POST → Set-Cookie → 303 → /player → Device Session → renderer`.
+- Offline Player shell поднят до v47.
+- Player build поднят до 1.14.8.
+
 ## 1.14.7
 
 Исправлен переход от подтверждённой авторизации Android TV к рабочей Device Session в телевизионных браузерах.
