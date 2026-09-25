@@ -2,6 +2,7 @@ import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
 import { publishPlayerPreview } from './player-preview-capture.js';
 import { createPlayerMetricsCollector } from './player-metrics.js';
+import { fetchWithTimeout } from './fetch-timeout.js';
 
 window.__miraPlayerModuleStarted = true;
 
@@ -276,28 +277,6 @@ function invalidatePairing(text = 'Обновляем код подключен�
 function retryAfterSeconds(response) {
   const raw = Number.parseInt(response?.headers?.get?.('retry-after') || '', 10);
   return Number.isInteger(raw) && raw > 0 ? raw : 5;
-}
-
-async function fetchWithTimeout(input, options = {}, timeoutMs = 5000) {
-  const controller = typeof AbortController === 'function' ? new AbortController() : null;
-  const requestOptions = { ...options };
-  if (controller) requestOptions.signal = controller.signal;
-
-  let timer = null;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      try { controller?.abort(); } catch {}
-      const error = new Error('MIRA-TV request timeout');
-      error.name = 'TimeoutError';
-      reject(error);
-    }, Math.max(1000, Number(timeoutMs) || 5000));
-  });
-
-  try {
-    return await Promise.race([fetch(input, requestOptions), timeout]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
 }
 
 async function activationRequestError(response) {
