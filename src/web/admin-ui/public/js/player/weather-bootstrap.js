@@ -182,7 +182,7 @@ export class PlayerWeatherRuntime {
     if (this.destroyed || !this.active || !this.visible || !this.settings.enabled || !hasWeatherCoordinates(this.settings)) return;
     const currentGeneration = ++this.generation;
     try {
-      const response = await fetch(this.requestUrl(), { cache: 'no-store', credentials: 'same-origin' });
+      const response = await fetch(this.requestUrl(), { cache: 'no-store', credentials: 'include' });
       if (response.status === 204) {
         this.snapshot = null;
         this.render();

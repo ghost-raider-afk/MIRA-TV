@@ -34,3 +34,12 @@ test('activation rate limit is distinguished from a network outage and respects 
   assert.match(source, /Слишком много запросов на обновление QR/);
   assert.match(source, /delay \* 1000/);
 });
+
+test('TV activation handoff explicitly includes credentials and preserves recovery state', async () => {
+  const source = await playerSource();
+  assert.match(source, /x-mira-device-handoff-retry/);
+  assert.match(source, /credentials: 'include'/);
+  assert.match(source, /const sessionResult = await fetchDeviceSession\(\)/);
+  assert.match(source, /if \(sessionResult\.unauthorized\) \{[\s\S]*schedulePoll\(record, \{ revealPending: false, handoffRetry: true \}\)/);
+  assert.match(source, /function playerUnauthorized\(\) \{[\s\S]*if \(activationFromStorage\(\)\) \{[\s\S]*Подтверждаем сессию телевизора/);
+});

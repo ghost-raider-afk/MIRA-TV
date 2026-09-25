@@ -1,8 +1,8 @@
 const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v41';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v45';
+const SHELL_CACHE = 'mira-tv-player-shell-v46';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: first-boot resilience and direct Player boot diagnostics.
+// Source revision: resilient Device Session handoff for TV browsers.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',

@@ -88,6 +88,7 @@ function diagnosticText(binding) {
   if (!diagnostic || !['warn', 'error'].includes(diagnostic.level)) return '';
   const phase = String(diagnostic.metadata?.phase || '');
   if (diagnostic.event_type === 'asset.preload.degraded') return 'ресурс сцены недоступен';
+  if (diagnostic.event_type === 'session.handoff.pending') return 'браузер не подтвердил сессию TV';
   if (diagnostic.event_type === 'sync.failed') {
     if (phase === 'critical-assets') return 'не загружен ресурс сцены';
     if (phase === 'render') return 'ошибка рендеринга сцены';

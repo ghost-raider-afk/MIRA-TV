@@ -128,7 +128,7 @@ export function createPlayerMetricsCollector({ endpoint = '/api/device/metrics' 
       };
       const response = await fetch(endpoint, {
         method:'POST',
-        credentials:'same-origin',
+        credentials:'include',
         cache:'no-store',
         headers:{ 'content-type':'application/json' },
         body:JSON.stringify(body)

@@ -101,6 +101,49 @@ test('pending Android TV activation never leaves a blank screen while status req
   await expect(page.locator('[data-tv-player]')).toHaveClass(/is-hidden/);
 });
 
+test('authorized Android TV keeps pairing recovery until Device Session is confirmed', async ({ page }) => {
+  const pending = {
+    activation_id: 'android-tv-handoff-1234',
+    poll_secret: 'android-tv-handoff-secret-1234',
+    device_key: 'android-tv-device-key-1234567890',
+    reserve_code: '654321',
+    qr_svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+    expires_at: new Date(Date.now() + 120000).toISOString(),
+    poll_interval_ms: 1000
+  };
+
+  await page.addInitScript((record) => {
+    localStorage.setItem('mira-tv.device-activation.v2', JSON.stringify(record));
+  }, pending);
+
+  let statusCalls = 0;
+  let handoffRetrySeen = false;
+  await page.route('**/api/device/session', (route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+  );
+  await page.route('**/api/device/player-delta', (route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+  );
+  await page.route('**/api/device/activations/*/status', (route) => {
+    statusCalls += 1;
+    if (route.request().headers()['x-mira-device-handoff-retry'] === '1') handoffRetrySeen = true;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'authorized', screen: { id: 77 } })
+    });
+  });
+
+  await page.goto('/player');
+
+  await expect(page.locator('[data-player-boot]')).toBeVisible();
+  await expect(page.locator('[data-player-boot-status]')).toContainText('Подтверждаем сессию телевизора', { timeout: 6000 });
+  await expect.poll(() => statusCalls, { timeout: 6000 }).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => handoffRetrySeen, { timeout: 6000 }).toBe(true);
+  await expect.poll(() => page.evaluate(() => Boolean(localStorage.getItem('mira-tv.device-activation.v2')))).toBe(true);
+  await expect(page.locator('[data-activation-view]')).toHaveClass(/is-hidden/);
+});
+
 test('Android TV shows a recovery message when Player module cannot start', async ({ page }) => {
   await page.addInitScript(() => {
     sessionStorage.setItem('mira-tv.player-boot-recovery.v1', '1');

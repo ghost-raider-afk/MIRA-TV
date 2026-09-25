@@ -106,7 +106,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v45'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v46'/);
   assert.match(worker, /'\/js\/player\/player-boot\.js'/);
   assert.match(worker, /'\/js\/player\/fetch-timeout\.js'/);
   assert.match(worker, /'\/js\/core\/dom-compat\.js'/);
@@ -118,6 +118,10 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(store, /const DB_NAME = 'mira-tv-player'/);
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
   assert.match(sync, /fetchWithTimeout\('\/api\/device\/player-delta'/);
+  assert.match(sync, /credentials: 'include'/);
+  assert.match(player, /x-mira-device-handoff-retry/);
+  assert.match(player, /const sessionResult = await fetchDeviceSession\(\)/);
+  assert.match(publicRoutes, /session\.handoff\.pending/);
   assert.match(sync, /reportDiagnostic\('sync\.failed'/);
   assert.match(sync, /asset\.preload\.degraded/);
   assert.match(sync, /if \(active\?\.context\) \{[\s\S]*?miraPhase = 'critical-assets'/);
@@ -225,6 +229,7 @@ test('TV network status comes from real Player presence, on-demand ping and in-m
   assert.match(screens, /Ping/);
   assert.match(screens, /Диагностика/);
   assert.match(screens, /ошибка рендеринга сцены/);
+  assert.match(screens, /браузер не подтвердил сессию TV/);
   assert.match(screens, /\?measure_ping=1/);
 });
 
