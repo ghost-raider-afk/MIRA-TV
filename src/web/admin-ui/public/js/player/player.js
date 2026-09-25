@@ -387,6 +387,22 @@ function schedulePoll(record, options = {}) {
   pollTimer = setTimeout(() => void pollActivation(record, options), delay);
 }
 
+function completeActivationNavigation(record) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/api/device/activations/${encodeURIComponent(record.activation_id)}/complete`;
+  form.style.display = 'none';
+
+  const secret = document.createElement('input');
+  secret.type = 'hidden';
+  secret.name = 'poll_secret';
+  secret.value = record.poll_secret;
+  form.appendChild(secret);
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 async function pollActivation(record, { revealPending = true, handoffRetry = false } = {}) {
   if (Date.parse(record.expires_at) <= Date.now()) return;
   try {
@@ -409,20 +425,8 @@ async function pollActivation(record, { revealPending = true, handoffRetry = fal
     if (body.status === 'authorized') {
       clearPairingTimers();
       activationStatus.textContent = 'Авторизовано. Запускаем MIRA-TV…';
-      const sessionResult = await fetchDeviceSession();
-      if (sessionResult.unauthorized) {
-        showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
-        schedulePoll(record, { revealPending: false, handoffRetry: true });
-        return;
-      }
-      const started = await loadPlayer({ fallbackToActivation: false });
-      if (started) {
-        clearActivation();
-        clearBootstrapRetry();
-        return;
-      }
-      showBootstrapUnavailable('Авторизация получена. Завершаем подключение…');
-      schedulePoll(record, { revealPending: false, handoffRetry: true });
+      showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
+      completeActivationNavigation(record);
       return;
     }
     if (!revealPending) showPairing(record);
