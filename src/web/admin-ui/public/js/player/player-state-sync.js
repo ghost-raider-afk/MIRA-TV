@@ -95,7 +95,7 @@ async function requireAsset(url, { video = false } = {}) {
   const headers = video ? { Range: 'bytes=0-65535' } : undefined;
   const response = await fetch(url, {
     cache: video ? 'no-cache' : 'force-cache',
-    credentials: 'same-origin',
+    credentials: 'include',
     headers
   });
   const acceptable = video ? response.status === 200 || response.status === 206 : response.ok;
@@ -206,7 +206,7 @@ export function createPlayerStateSync({
     };
     void fetch('/api/device/player-logs', {
       method: 'POST',
-      credentials: 'same-origin',
+      credentials: 'include',
       cache: 'no-store',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ boot_id: diagnosticBootId, events: [event] })
@@ -272,7 +272,7 @@ export function createPlayerStateSync({
         const batch = pending.filter((record) => record.boot_id === batchBootId);
         const response = await fetch('/api/device/player-logs', {
           method: 'POST',
-          credentials: 'same-origin',
+          credentials: 'include',
           cache: 'no-store',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ boot_id: batchBootId, events: batch.map(publicLogRecord) })
@@ -356,7 +356,7 @@ export function createPlayerStateSync({
   async function fetchDelta() {
     const response = await fetchWithTimeout('/api/device/player-delta', {
       method: 'POST',
-      credentials: 'same-origin',
+      credentials: 'include',
       cache: 'no-store',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
