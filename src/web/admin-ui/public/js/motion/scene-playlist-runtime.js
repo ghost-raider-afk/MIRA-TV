@@ -1,3 +1,5 @@
+import { replaceChildrenCompat } from '../core/dom-compat.js';
+
 const SCENE_TYPES = Object.freeze(['promo', 'content']);
 const SCENE_MODES = Object.freeze(['overlay', 'split', 'fullscreen']);
 
@@ -236,8 +238,8 @@ export class ScenePlaylistRuntime {
       const { menuLayer, contentLayer, fxLayer } = this.layers || {};
       if (!(contentLayer instanceof Element) || !(fxLayer instanceof Element)) throw new Error('Scene Playlist layers are unavailable.');
       const fxHost = ensurePlaylistFxHost(fxLayer);
-      contentLayer.replaceChildren(buildSceneContent(scene));
-      fxHost.replaceChildren(buildSceneFx(scene));
+      replaceChildrenCompat(contentLayer, buildSceneContent(scene));
+      replaceChildrenCompat(fxHost, buildSceneFx(scene));
       contentLayer.dataset.scenePlaylistMode = scene.mode;
       fxHost.dataset.scenePlaylistMode = scene.mode;
       if (menuLayer instanceof HTMLElement) menuLayer.classList.toggle('scene-menu-suppressed', scene.mode === 'fullscreen');
@@ -262,12 +264,12 @@ export class ScenePlaylistRuntime {
     this.setFullscreen(false);
     if (menuLayer instanceof HTMLElement) menuLayer.classList.remove('scene-menu-suppressed');
     if (contentLayer instanceof Element) {
-      contentLayer.replaceChildren();
+      replaceChildrenCompat(contentLayer);
       delete contentLayer.dataset.scenePlaylistMode;
     }
     if (fxLayer instanceof Element) {
       const fxHost = fxLayer.querySelector(':scope > [data-scene-playlist-fx-host]');
-      fxHost?.replaceChildren();
+      replaceChildrenCompat(fxHost);
       if (fxHost instanceof HTMLElement) delete fxHost.dataset.scenePlaylistMode;
     }
   }

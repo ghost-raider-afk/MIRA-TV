@@ -1,3 +1,5 @@
+import { replaceChildrenCompat } from '../core/dom-compat.js';
+
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 
@@ -268,7 +270,7 @@ function applyTextRun(span, run, effects) {
 }
 
 function renderText(node, text) {
-  node.replaceChildren();
+  replaceChildrenCompat(node);
   const paragraph = text?.paragraph || {};
   const effects = text?.effects || {};
   node.style.width = '100%';
@@ -425,7 +427,7 @@ export class SceneElementRenderer {
 
       if (entry.type !== element.type || !(entry.content instanceof HTMLElement)) {
         if (entry.content instanceof HTMLVideoElement) entry.content.pause();
-        entry.node.replaceChildren();
+        replaceChildrenCompat(entry.node);
         entry.content = createContent(element.type);
         entry.node.append(entry.content);
         entry.type = element.type;

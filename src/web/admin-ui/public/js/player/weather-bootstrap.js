@@ -1,3 +1,4 @@
+import { replaceChildrenCompat } from '../core/dom-compat.js';
 import { normaliseWeatherWidget, renderWeatherWidget } from '../motion/weather-widget.js';
 
 const LEGACY_CACHE_KEY = 'mira-tv.weather.last.v1';
@@ -72,7 +73,7 @@ export class PlayerWeatherRuntime {
   setLayer(layer) {
     const next = layer instanceof HTMLElement ? layer : null;
     if (next === this.layer) return;
-    this.layer?.replaceChildren();
+    replaceChildrenCompat(this.layer);
     this.layer = next;
     if (this.layer) this.render();
   }
@@ -108,7 +109,7 @@ export class PlayerWeatherRuntime {
     const target = this.ensureLayer();
     if (!target) return;
     if (this.settings.enabled && this.snapshot) renderWeatherWidget(target, this.settings, this.snapshot);
-    else target.replaceChildren();
+    else replaceChildrenCompat(target);
     this.onRender?.(target);
   }
 
@@ -249,7 +250,7 @@ export class PlayerWeatherRuntime {
     this.clearTimer();
     this.stage.removeEventListener('mira:player-active', this.handlePlayerActivity);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    this.layer?.replaceChildren();
+    replaceChildrenCompat(this.layer);
     this.layer = null;
     this.snapshot = null;
     this.onRender = null;
