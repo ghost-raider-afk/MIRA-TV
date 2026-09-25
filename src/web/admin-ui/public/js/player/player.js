@@ -325,7 +325,7 @@ function showPairingIntro() {
 }
 
 function keepNeutralBoot() {
-  showBootstrapUnavailable('Проверяем сохранённое подключение…');
+  showBootstrapUnavailable('Проверяем сохранённое подключение телевизора…');
 }
 
 function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
