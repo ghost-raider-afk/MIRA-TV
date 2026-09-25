@@ -107,10 +107,7 @@
       return;
     }
 
-    if (window.__miraPlayerModuleStarted === true) {
-      setStatus('Подключаемся к MIRA-TV…');
-      return;
-    }
+    if (window.__miraPlayerModuleStarted === true) return;
 
     recoverPlayerShell();
   }
