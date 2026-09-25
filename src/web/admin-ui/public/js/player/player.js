@@ -325,10 +325,17 @@ function showPairingIntro() {
 }
 
 function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
-  showActivationScreen();
-  setActivationLead(text);
-  setHidden(pairing, true);
-  setHidden(showActivationButton, true);
+  playerMetrics.stop();
+  playerStateSync?.stop();
+  playerSceneRenderer.reset();
+  setHidden(player, true);
+  dispatchPlayerActivity(false);
+  setHidden(activationView, true);
+  setHidden(playerMessage, true);
+  const boot = document.querySelector('[data-player-boot]');
+  const status = document.querySelector('[data-player-boot-status]');
+  setHidden(boot, false);
+  if (status) status.textContent = text;
 }
 
 function scheduleBootstrapRetry(delay = 3000) {
@@ -519,9 +526,9 @@ function showConnectionMessage(message) {
 }
 
 async function applySyncedContext(context, changedNames, { source } = {}) {
-  finishPlayerBoot();
   clearPairingTimers();
   await playerSceneRenderer.render(context, changedNames);
+  finishPlayerBoot();
   reconcilePlayerBuild(context, changedNames, source);
   const configuredMetricsInterval = Number(context?.metrics_interval_ms);
   playerMetrics.configure({ intervalMs:configuredMetricsInterval });
