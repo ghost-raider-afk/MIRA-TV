@@ -3,6 +3,8 @@ import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-rende
 import { publishPlayerPreview } from './player-preview-capture.js';
 import { createPlayerMetricsCollector } from './player-metrics.js';
 
+window.__miraPlayerModuleStarted = true;
+
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
@@ -48,6 +50,15 @@ if ('serviceWorker' in navigator) {
 
 function setHidden(element, hidden) {
   element?.classList.toggle('is-hidden', hidden);
+}
+
+function finishPlayerBoot() {
+  window.__miraPlayerBootReady = true;
+  if (typeof window.__miraPlayerFinishBoot === 'function') {
+    window.__miraPlayerFinishBoot();
+    return;
+  }
+  setHidden(document.querySelector('[data-player-boot]'), true);
 }
 
 function playerRunsStandalone() {
@@ -267,6 +278,28 @@ function retryAfterSeconds(response) {
   return Number.isInteger(raw) && raw > 0 ? raw : 5;
 }
 
+async function fetchWithTimeout(input, options = {}, timeoutMs = 5000) {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const requestOptions = { ...options };
+  if (controller) requestOptions.signal = controller.signal;
+
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      try { controller?.abort(); } catch {}
+      const error = new Error('MIRA-TV request timeout');
+      error.name = 'TimeoutError';
+      reject(error);
+    }, Math.max(1000, Number(timeoutMs) || 5000));
+  });
+
+  try {
+    return await Promise.race([fetch(input, requestOptions), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function activationRequestError(response) {
   const body = await response.json().catch(() => null);
   const error = new Error(body?.error || `HTTP ${response.status}`);
@@ -291,6 +324,7 @@ async function enterImmersiveMode() {
 }
 
 function showActivationScreen() {
+  finishPlayerBoot();
   playerMetrics.stop();
   playerStateSync?.stop();
   playerSceneRenderer.reset();
@@ -309,15 +343,6 @@ function showPairingIntro() {
   showActivationButton.disabled = false;
   setHidden(showActivationButton, false);
   setHidden(pairing, true);
-}
-
-function keepNeutralBoot() {
-  clearPairingTimers();
-  clearBootstrapRetry();
-  setHidden(activationView, true);
-  setHidden(player, true);
-  dispatchPlayerActivity(false);
-  setHidden(playerMessage, true);
 }
 
 function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
@@ -375,10 +400,10 @@ function schedulePoll(record, options = {}) {
 async function pollActivation(record, { revealPending = true } = {}) {
   if (Date.parse(record.expires_at) <= Date.now()) return;
   try {
-    const response = await fetch(`/api/device/activations/${encodeURIComponent(record.activation_id)}/status`, {
+    const response = await fetchWithTimeout(`/api/device/activations/${encodeURIComponent(record.activation_id)}/status`, {
       headers: { 'x-device-activation-secret': record.poll_secret },
       cache: 'no-store'
-    });
+    }, 5000);
     if (response.status === 410 || response.status === 404) {
       clearActivation();
       if (revealPending) invalidatePairing();
@@ -432,12 +457,12 @@ async function createActivation({ automatic = false } = {}) {
   try {
     await enterImmersiveMode();
     const deviceInfo = await detectDeviceInfo();
-    const response = await fetch('/api/device/activations', {
+    const response = await fetchWithTimeout('/api/device/activations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ device_key: currentDeviceKey() || undefined, device_info: deviceInfo }),
       cache: 'no-store'
-    });
+    }, 7000);
     if (!response.ok) throw await activationRequestError(response);
     const record = await response.json();
     rememberDeviceKey(record.device_key);
@@ -515,6 +540,7 @@ function showConnectionMessage(message) {
 }
 
 async function applySyncedContext(context, changedNames, { source } = {}) {
+  finishPlayerBoot();
   clearPairingTimers();
   await playerSceneRenderer.render(context, changedNames);
   reconcilePlayerBuild(context, changedNames, source);
@@ -566,16 +592,10 @@ async function fetchDeviceSession(timeoutMs = 3500) {
   const headers = {};
   if (deviceInfo.manufacturer) headers['x-mira-device-manufacturer'] = deviceInfo.manufacturer;
   if (deviceInfo.model) headers['x-mira-device-model'] = deviceInfo.model;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch('/api/device/session', { cache: 'no-store', signal: controller.signal, headers });
-    if (response.status === 401 || response.status === 403) return { unauthorized: true };
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return { session: await response.json().catch(() => null) };
-  } finally {
-    clearTimeout(timer);
-  }
+  const response = await fetchWithTimeout('/api/device/session', { cache: 'no-store', headers }, timeoutMs);
+  if (response.status === 401 || response.status === 403) return { unauthorized: true };
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return { session: await response.json().catch(() => null) };
 }
 
 async function loadPlayer({ fallbackToActivation = true } = {}) {
@@ -738,7 +758,7 @@ async function bootstrapPlayer() {
     const pending = activationFromStorage();
     if (pending) {
       rememberDeviceKey(pending.device_key);
-      keepNeutralBoot();
+      showBootstrapUnavailable('Проверяем сохранённое подключение телевизора…');
       await pollActivation(pending, { revealPending: false });
       return;
     }
@@ -750,7 +770,7 @@ async function bootstrapPlayer() {
   const pending = activationFromStorage();
   if (pending) {
     rememberDeviceKey(pending.device_key);
-    keepNeutralBoot();
+    showBootstrapUnavailable('Проверяем сохранённое подключение телевизора…');
     await pollActivation(pending, { revealPending: false });
     return;
   }
