@@ -95,7 +95,9 @@ export function createDeviceAdminRouter({ store, realtime }) {
 
   router.get('/bindings', async (request, response) => {
     const bindings = await store.listDeviceBindings();
-    const diagnostics = await store.listLatestPlayerLogsByDeviceIds(bindings.map((binding) => binding.device_id));
+    const diagnostics = typeof store.listLatestPlayerLogsByDeviceIds === 'function'
+      ? await store.listLatestPlayerLogsByDeviceIds(bindings.map((binding) => binding.device_id))
+      : [];
     const diagnosticByDevice = new Map(diagnostics.map((entry) => [Number(entry.device_id), entry]));
     const measurePing = request.query.measure_ping === '1';
     const pingResults = new Map();
