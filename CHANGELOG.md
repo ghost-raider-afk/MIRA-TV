@@ -1,5 +1,17 @@
 # История изменений
 
+## 1.14.7
+
+Исправлен переход от подтверждённой авторизации Android TV к рабочей Device Session в телевизионных браузерах.
+
+- Все Device API запросы Player теперь явно используют `credentials: 'include'`, включая activation polling, проверку Device Session, state sync, телеметрию, preview и weather.
+- После ответа activation `authorized` Player сначала подтверждает `/api/device/session` и только затем запускает Player Context/renderer.
+- Если телевизионный браузер ещё не принял HttpOnly Device Session cookie, незавершённая activation больше не удаляется: Player повторно получает cookie без новой привязки телевизора.
+- Повтор handoff помечается отдельным заголовком; сервер пишет диагностику `session.handoff.pending` ещё до успешной cookie-аутентификации.
+- TV-сеть показывает понятную причину «браузер не подтвердил сессию TV», если handoff продолжает не проходить.
+- Добавлена browser regression для состояния `authorized` + `401` на Device Session с сохранением pairing recovery.
+- Player build поднят до 1.14.7, offline Player shell — до v46.
+
 ## 1.14.6
 
 Исправлен первый реальный запуск MIRA-TV Player на Android TV и усилена совместимость с телевизионными браузерами.
