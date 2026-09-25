@@ -29,9 +29,9 @@ test('Scene Playlist owns only content and its FX subhost while MenuScene remain
   ]);
 
   assert.match(runtime, /data-scene-playlist-fx-host/);
-  assert.match(runtime, /contentLayer\.replaceChildren/);
+  assert.match(runtime, /replaceChildrenCompat\(contentLayer/);
   assert.match(runtime, /classList\.toggle\('scene-menu-suppressed', scene\.mode === 'fullscreen'\)/);
-  assert.doesNotMatch(runtime, /menuLayer\.replaceChildren/);
+  assert.doesNotMatch(runtime, /replaceChildrenCompat\(menuLayer/);
   assert.match(sceneMotion, /buildDomMotionScene/);
   assert.match(sceneMotion, /DEFAULT_SCENE_COMPILERS/);
   assert.match(composer, /data-player-menu-layer/);
