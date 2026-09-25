@@ -312,12 +312,7 @@ function showPairingIntro() {
 }
 
 function keepNeutralBoot() {
-  clearPairingTimers();
-  clearBootstrapRetry();
-  setHidden(activationView, true);
-  setHidden(player, true);
-  dispatchPlayerActivity(false);
-  setHidden(playerMessage, true);
+  showBootstrapUnavailable('Проверяем сохранённое подключение…');
 }
 
 function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
@@ -788,4 +783,8 @@ async function initialisePlayer() {
   await bootstrapPlayer();
 }
 
-void initialisePlayer();
+void initialisePlayer().catch((error) => {
+  console.error('MIRA-TV Player boot failed', error);
+  showBootstrapUnavailable('Не удалось запустить Player. Повторяем запуск…');
+  scheduleBootstrapRetry(3000);
+});
