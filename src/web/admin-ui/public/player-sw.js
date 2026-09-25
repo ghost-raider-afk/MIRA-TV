@@ -24,6 +24,8 @@ const SHELL_ASSETS = [
   '/css/weather-widget.css',
   '/css/scene-playlist.css',
   '/js/player/player.js',
+  '/js/player/player-boot.js',
+  '/js/player/fetch-timeout.js',
   '/js/player/player-preview-capture.js',
   '/js/player/player-metrics.js',
   '/js/player/player-scene-renderer.js',
