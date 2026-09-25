@@ -1,3 +1,5 @@
+import { replaceChildrenCompat } from '../core/dom-compat.js';
+
 const POSITIONS = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
 const LEGACY_POSITION = Object.freeze({
   'top-left': Object.freeze({ x: 260, y: 190 }),
@@ -339,7 +341,7 @@ function applyMotionSettings(layer, config) {
 export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) {
   if (!(layer instanceof HTMLElement)) return;
   const config = normaliseWeatherWidget(settings);
-  layer.replaceChildren();
+  replaceChildrenCompat(layer);
   layer.className = 'weather-widget-layer';
   const sceneScale = Number(layer.dataset.weatherSceneScale);
   if (!Number.isFinite(sceneScale) || sceneScale <= 0) layer.dataset.weatherSceneScale = '1';
