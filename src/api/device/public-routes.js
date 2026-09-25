@@ -250,6 +250,20 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     if (result.status === 'missing') return response.status(404).json({ error: 'Активация не найдена.' });
     if (result.status === 'expired') return response.status(410).json({ status: 'expired' });
     if (result.status === 'pending') return response.json({ status: 'pending', expires_at: result.expiresAt });
+
+    const handoffRetry = request.get('x-mira-device-handoff-retry') === '1';
+    if (handoffRetry && result.session?.device_id && typeof store.insertPlayerLogBatch === 'function') {
+      const handoffBootId = `handoff_${String(id).replace(/-/g, '')}`.slice(0, 64);
+      await store.insertPlayerLogBatch(result.session.device_id, handoffBootId, [{
+        seq: 1,
+        level: 'warn',
+        type: 'session.handoff.pending',
+        revision: '',
+        device_timestamp: null,
+        data: { phase: 'device-session' }
+      }]);
+    }
+
     if (result.bindingChanged) {
       realtime?.disconnectDevice(result.deviceId);
       realtime?.disconnectScreen(result.screenId);
