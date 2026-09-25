@@ -119,8 +119,12 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
   assert.match(sync, /fetchWithTimeout\('\/api\/device\/player-delta'/);
   assert.match(sync, /credentials: 'include'/);
-  assert.match(player, /x-mira-device-handoff-retry/);
-  assert.match(player, /const sessionResult = await fetchDeviceSession\(\)/);
+  assert.match(player, /completeActivationNavigation/);
+  assert.match(player, /form\.method = 'POST'/);
+  assert.match(player, /\/api\/device\/activations\/\$\{encodeURIComponent\(record\.activation_id\)\}\/complete/);
+  assert.match(publicRoutes, /router\.post\('\/activations\/:id\/complete'/);
+  assert.match(publicRoutes, /response\.setHeader\('Location', '\/player'\)/);
+  assert.match(publicRoutes, /response\.status\(303\)\.end\(\)/);
   assert.match(publicRoutes, /session\.handoff\.pending/);
   assert.match(sync, /reportDiagnostic\('sync\.failed'/);
   assert.match(sync, /asset\.preload\.degraded/);
