@@ -160,8 +160,10 @@ export function createPlayerStateSync({
   let logFlushTimer = null;
   let logFlushNeeded = true;
   let sequence = 0;
+  let diagnosticSequence = 0;
   let websocketConnected = false;
   const currentBootId = bootId();
+  const diagnosticBootId = `${currentBootId.slice(0, 57)}-diag`;
   let runtime = {
     fallbackPollMs: DEFAULT_FALLBACK_POLL_MS,
     logBatchSize: DEFAULT_LOG_BATCH_SIZE,
@@ -181,6 +183,35 @@ export function createPlayerStateSync({
       clearFallbackTimer();
       scheduleFallbackPoll();
     }
+  }
+
+  function diagnosticData(error, extra = {}) {
+    const message = String(error?.message || '').slice(0, 180);
+    return {
+      ...extra,
+      kind: String(error?.name || 'Error').slice(0, 48),
+      ...(message ? { message } : {})
+    };
+  }
+
+  function reportDiagnostic(type, data = {}, level = 'warn') {
+    if (!navigator.onLine) return;
+    diagnosticSequence += 1;
+    const event = {
+      seq: diagnosticSequence,
+      level,
+      type,
+      revision: active?.revision || '',
+      device_timestamp: new Date().toISOString(),
+      data
+    };
+    void fetch('/api/device/player-logs', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ boot_id: diagnosticBootId, events: [event] })
+    }).catch(() => undefined);
   }
 
   function log(type, data = {}, level = 'info') {
@@ -272,9 +303,32 @@ export function createPlayerStateSync({
   }
 
   async function applyCandidate(context, metadata, changedNames, source) {
-    await prepareCriticalAssets(context, changedNames);
-    await prepareAssets?.(context, changedNames);
-    await applyContext(context, changedNames, { source });
+    let degradedAssetError = null;
+    try {
+      await prepareCriticalAssets(context, changedNames);
+    } catch (error) {
+      if (active?.context) {
+        error.miraPhase = 'critical-assets';
+        throw error;
+      }
+      degradedAssetError = error;
+      console.warn('MIRA-TV first boot continues without unavailable critical assets', error);
+      reportDiagnostic('asset.preload.degraded', diagnosticData(error, { source, phase: 'critical-assets' }));
+    }
+
+    try {
+      await prepareAssets?.(context, changedNames);
+    } catch (error) {
+      error.miraPhase = 'prepare-assets';
+      throw error;
+    }
+
+    try {
+      await applyContext(context, changedNames, { source });
+    } catch (error) {
+      error.miraPhase = 'render';
+      throw error;
+    }
 
     active = {
       schema_version: metadata.schema_version,
@@ -292,7 +346,11 @@ export function createPlayerStateSync({
       console.warn('MIRA-TV could not persist Last Known Good state', error);
     }
 
-    log('state.applied', { source, changed: changedNames.slice(0, 12) });
+    log('state.applied', {
+      source,
+      changed: changedNames.slice(0, 12),
+      degraded_assets: Boolean(degradedAssetError)
+    });
     void warmAssets?.(context, changedNames);
   }
 
@@ -357,7 +415,10 @@ export function createPlayerStateSync({
       return { ok: true, changed: true, hasContext: true };
     } catch (error) {
       if (error?.name !== 'AbortError') console.warn('MIRA-TV Player synchronization failed', error);
-      log('sync.failed', { reason, kind: error?.name || 'Error' }, 'warn');
+      const phase = String(error?.miraPhase || 'player-delta');
+      const data = diagnosticData(error, { reason, phase });
+      log('sync.failed', data, 'warn');
+      reportDiagnostic('sync.failed', data, 'warn');
       if (!navigator.onLine) onConnectivity?.('offline');
       else if (active?.context) onConnectivity?.('degraded');
       return { ok: false, unauthorized: false, hasContext: Boolean(active?.context), error };
