@@ -82,15 +82,33 @@ function createTvFace(screen, binding, large = false) {
   return face;
 }
 
+function diagnosticText(binding) {
+  if (!binding || binding.online === true) return '';
+  const diagnostic = binding.player_diagnostic;
+  if (!diagnostic || !['warn', 'error'].includes(diagnostic.level)) return '';
+  const phase = String(diagnostic.metadata?.phase || '');
+  if (diagnostic.event_type === 'asset.preload.degraded') return 'ресурс сцены недоступен';
+  if (diagnostic.event_type === 'sync.failed') {
+    if (phase === 'critical-assets') return 'не загружен ресурс сцены';
+    if (phase === 'render') return 'ошибка рендеринга сцены';
+    if (phase === 'prepare-assets') return 'ошибка подготовки ресурсов';
+    return 'ошибка загрузки Player Context';
+  }
+  if (diagnostic.event_type === 'websocket.disconnected') return 'realtime-соединение потеряно';
+  return '';
+}
+
 function metaRows(screen, binding) {
   const status = statusState(binding);
+  const diagnostic = diagnosticText(binding);
   return [
     ['Статус', status.title, status.key],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', ''],
     ['Производитель', binding?.manufacturer || 'Не определено', ''],
     ['Модель', binding?.model || 'Не определена', ''],
     ['IP-адрес', binding?.remote_address || '—', ''],
-    ['Ping', pingText(screen.id, binding), '']
+    ['Ping', pingText(screen.id, binding), ''],
+    ...(diagnostic ? [['Диагностика', diagnostic, '']] : [])
   ];
 }
 

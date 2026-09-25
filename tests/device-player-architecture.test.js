@@ -106,7 +106,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v44'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v45'/);
   assert.match(worker, /'\/js\/player\/player-boot\.js'/);
   assert.match(worker, /'\/js\/player\/fetch-timeout\.js'/);
   assert.match(worker, /'\/js\/core\/dom-compat\.js'/);
@@ -118,6 +118,9 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(store, /const DB_NAME = 'mira-tv-player'/);
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
   assert.match(sync, /fetchWithTimeout\('\/api\/device\/player-delta'/);
+  assert.match(sync, /reportDiagnostic\('sync\.failed'/);
+  assert.match(sync, /asset\.preload\.degraded/);
+  assert.match(sync, /if \(active\?\.context\) \{[\s\S]*?miraPhase = 'critical-assets'/);
   assert.doesNotMatch(sync, /new AbortController\(\)/);
   assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
   assert.match(sync, /function enabledSceneMedia\(context\)[\s\S]*?element\?\.enabled !== false[\s\S]*?\['image', 'logo', 'video'\]\.includes/);
@@ -211,6 +214,8 @@ test('TV network status comes from real Player presence, on-demand ping and in-m
   assert.match(adminRoutes, /measure_ping/);
   assert.match(adminRoutes, /remote_address/);
   assert.match(adminRoutes, /preview_available/);
+  assert.match(adminRoutes, /listLatestPlayerLogsByDeviceIds/);
+  assert.match(adminRoutes, /player_diagnostic/);
   assert.match(player, /publishPlayerPreview/);
   assert.match(capture, /fetch\('\/api\/device\/preview'/);
   assert.match(capture, /blobAsDataUrl\(new Blob\(\[svg\]/);
@@ -218,6 +223,8 @@ test('TV network status comes from real Player presence, on-demand ping and in-m
   assert.match(screens, /IP-адрес/);
   assert.match(screens, /Последняя связь/);
   assert.match(screens, /Ping/);
+  assert.match(screens, /Диагностика/);
+  assert.match(screens, /ошибка рендеринга сцены/);
   assert.match(screens, /\?measure_ping=1/);
 });
 

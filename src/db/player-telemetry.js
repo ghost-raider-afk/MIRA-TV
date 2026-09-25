@@ -29,6 +29,37 @@ export function createPlayerTelemetryRepository(pool) {
       return acceptedThrough;
     },
 
+    async listLatestPlayerLogsByDeviceIds(deviceIds) {
+      const ids = [...new Set((Array.isArray(deviceIds) ? deviceIds : [])
+        .map(Number)
+        .filter((id) => Number.isSafeInteger(id) && id > 0))];
+      if (!ids.length) return [];
+      const { rows } = await pool.query(
+        `SELECT DISTINCT ON (device_id)
+                device_id, boot_id, seq, level, event_type, context_revision, server_received_at, metadata
+           FROM tv_player_logs
+          WHERE device_id = ANY($1::bigint[])
+          ORDER BY device_id, server_received_at DESC, seq DESC`,
+        [ids]
+      );
+      return rows.map((row) => {
+        let metadata = {};
+        try {
+          metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata || '{}') : (row.metadata || {});
+        } catch {}
+        return {
+          device_id: Number(row.device_id),
+          boot_id: row.boot_id,
+          seq: Number(row.seq),
+          level: row.level,
+          event_type: row.event_type,
+          context_revision: row.context_revision || '',
+          server_received_at: row.server_received_at,
+          metadata
+        };
+      });
+    },
+
     async prunePlayerLogs(retentionDays) {
       const { rowCount } = await pool.query(
         `DELETE FROM tv_player_logs

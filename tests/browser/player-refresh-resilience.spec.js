@@ -150,6 +150,39 @@ test('menu-only delta does not recreate an unchanged generic scene media node', 
   await expect.poll(() => deltaRequests, { timeout: 4000 }).toBeGreaterThanOrEqual(2);
   await expect(page.locator('[data-scene-element-id="stable-media"] img[data-identity-probe="same-media"]')).toHaveCount(1);
 });
+test('first boot renders available scene content when a critical background is unavailable', async ({ page }) => {
+  await installFailingWebSocket(page);
+  await page.route('**/api/device/session', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ device_key: 'mira-device-key-first-boot-1234567890', screen_id: 17 })
+  }));
+
+  const context = playerContext({ revision: 'revision-first-boot', hashSuffix: 'first-boot' });
+  context.draft.settings.background_color = '#264653';
+  context.draft.settings.background_image_url = '/site-assets/backgrounds/critical-missing.png';
+
+  const diagnostics = [];
+  await page.route('**/site-assets/backgrounds/critical-missing.png', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+  await page.route('**/api/device/player-delta', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ full_snapshot_required: true, context })
+  }));
+  await page.route('**/api/device/player-logs', async (route) => {
+    const payload = route.request().postDataJSON();
+    diagnostics.push(...(payload?.events || []));
+    await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ accepted_through: 1000000 }) });
+  });
+
+  await page.goto('/player');
+
+  await expect(menuVector(page)).toHaveCount(1);
+  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
+  await expect(page.locator('[data-player-stage]')).toHaveCSS('background-color', 'rgb(38, 70, 83)');
+  await expect.poll(() => diagnostics.some((event) => event.type === 'asset.preload.degraded')).toBe(true);
+});
+
 test('failed critical background never replaces the previous Last Known Good state', async ({ page }) => {
   const previous = playerContext({ revision: 'revision-lkg', hashSuffix: 'lkg' });
   previous.draft.settings.background_color = '#123456';
