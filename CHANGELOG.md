@@ -1,5 +1,21 @@
 # История изменений
 
+## 1.14.6
+
+Исправлен первый реальный запуск MIRA-TV Player на Android TV и усилена совместимость с телевизионными браузерами.
+
+- Убраны зависимости canonical menu renderer от более новых JavaScript API `String.replaceAll`, `Array.at` и `structuredClone`, поэтому общий Preview/TV renderer работает на более старых Android TV Chromium/WebView.
+- Добавлен общий DOM compatibility layer для `Element.replaceChildren()`; Scene Playlist, weather runtime и generic scene elements используют один legacy-safe механизм без параллельного renderer.
+- Player получил видимый boot-state и автоматическое восстановление запуска вместо пустого экрана при временной ошибке bootstrap.
+- Сетевой bootstrap переведён на timeout-safe fetch, который не требует обязательной поддержки `AbortController`.
+- Offline Player shell умеет обновляться и восстанавливаться без удаления сохранённых media-данных.
+- Исправлена блокировка первого запуска из-за одного недоступного фона, изображения, логотипа или видео: новый TV теперь рендерит доступную часть сцены, даже если отдельный critical asset временно недоступен.
+- Для уже работающих TV защита Last Known Good сохранена: состояние с недоступным новым ресурсом не заменяет ранее рабочую сцену.
+- Ранние ошибки `player-delta`, подготовки assets и renderer отправляются на сервер до запуска realtime/IndexedDB flush.
+- В TV-сети для офлайн-телевизора может отображаться компактная строка «Диагностика» с причиной: недоступный ресурс, ошибка Player Context, подготовки ресурсов, renderer или realtime.
+- Добавлены Android TV regression-тесты для старых browser API, boot recovery и первого запуска без LKG при недоступном media asset.
+- Player build поднят до 1.14.6, offline Player shell — до v45.
+
 ## 1.14.5
 
 Улучшены manager-view, устойчивость к перезапуску PostgreSQL и индивидуальное подключение телевизоров из TV-сети.
