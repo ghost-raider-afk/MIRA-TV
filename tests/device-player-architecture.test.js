@@ -58,6 +58,25 @@ test('Player boot guard stays classic and can recover only Player shell caches',
   assert.match(player, /function keepNeutralBoot\(\) \{\s*showBootstrapUnavailable\('Проверяем сохранённое подключение телевизора…'\);\s*\}/);
 });
 
+test('Android TV runtime centralizes DOM child replacement compatibility', async () => {
+  const [compat, playlist, weatherWidget, weatherRuntime, sceneElements, worker] = await Promise.all([
+    read('src/web/admin-ui/public/js/core/dom-compat.js'),
+    read('src/web/admin-ui/public/js/motion/scene-playlist-runtime.js'),
+    read('src/web/admin-ui/public/js/motion/weather-widget.js'),
+    read('src/web/admin-ui/public/js/player/weather-bootstrap.js'),
+    read('src/web/admin-ui/public/js/player/scene-element-renderer.js'),
+    read('src/web/admin-ui/public/player-sw.js')
+  ]);
+
+  assert.match(compat, /typeof node\.replaceChildren === 'function'/);
+  assert.match(compat, /while \(node\.firstChild\) node\.removeChild\(node\.firstChild\)/);
+  for (const source of [playlist, weatherWidget, weatherRuntime, sceneElements]) {
+    assert.match(source, /replaceChildrenCompat/);
+    assert.doesNotMatch(source, /\.replaceChildren\(/);
+  }
+  assert.match(worker, /'\/js\/core\/dom-compat\.js'/);
+});
+
 test('admin retires legacy root-scoped Player service worker before loading application modules', async () => {
   const app = await read('src/web/admin-ui/public/app.js');
   assert.match(app, /navigator\.serviceWorker\.getRegistrations/);
