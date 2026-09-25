@@ -1,6 +1,6 @@
 const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v41';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v43';
+const SHELL_CACHE = 'mira-tv-player-shell-v44';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: manager viewer polish, PostgreSQL restart resilience and targeted TV pairing.
 const SHELL_ASSETS = [
@@ -24,6 +24,7 @@ const SHELL_ASSETS = [
   '/css/weather-widget.css',
   '/css/scene-playlist.css',
   '/js/player/player.js',
+  '/js/core/dom-compat.js',
   '/js/player/player-boot.js',
   '/js/player/fetch-timeout.js',
   '/js/player/player-preview-capture.js',
