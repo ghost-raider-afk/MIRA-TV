@@ -29,9 +29,12 @@ function activationId(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? id : null;
 }
 
-function activationSecret(request) {
-  const value = request.get('x-device-activation-secret');
+function activationSecretValue(value) {
   return typeof value === 'string' && value.length >= 32 && value.length <= 128 ? value : null;
+}
+
+function activationSecret(request) {
+  return activationSecretValue(request.get('x-device-activation-secret'));
 }
 
 function persistentDeviceKey(value) {
@@ -152,6 +155,43 @@ async function createPendingActivation(store, config, request) {
   throw lastError || new Error('Не удалось создать уникальный код подключения телевизора.');
 }
 
+async function resolveAuthorizedActivation(store, config, id, secret) {
+  return store.transaction(async (tx) => {
+    const activation = await tx.getDeviceActivationForPoll(id, tokenHash(secret), { lock: true });
+    if (!activation) return { status: 'missing' };
+    if (Date.parse(activation.expires_at) <= Date.now()) return { status: 'expired' };
+    if (activation.status === 'pending') return { status: 'pending', expiresAt: activation.expires_at };
+    const rawToken = deterministicDeviceSessionToken(activation.id, secret, config);
+    const rawTokenHash = tokenHash(rawToken);
+    if (activation.status === 'consumed') {
+      const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
+      if (!session) return { status: 'expired' };
+      return { status: 'authorized', rawToken, session, bindingChanged: false };
+    }
+    if (activation.status !== 'approved' || !activation.approved_screen_id) return { status: 'expired' };
+    const screen = await tx.getScreen(activation.approved_screen_id);
+    if (!screen || screen.active === false) return { status: 'expired' };
+    const device = await tx.bindDevice({
+      deviceKey: persistentDeviceKey(activation.device_key) || activation.id,
+      screenId: screen.id,
+      label: screen.name,
+      userAgent: activation.user_agent,
+      remoteAddress: activation.remote_address,
+      manufacturer: activation.manufacturer,
+      model: activation.model,
+      authorizedBy: activation.approved_by
+    });
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + config.deviceSessionTtlDays * 86_400_000).toISOString();
+    await tx.createDeviceSession({ id: sessionId, deviceId: device.id, tokenHash: rawTokenHash, expiresAt });
+    const consumed = await tx.markDeviceActivationConsumed(activation.id, device.id, sessionId);
+    if (!consumed) throw new Error('Не удалось завершить авторизацию телевизора.');
+    const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
+    if (!session) throw new Error('Созданная Device Session недоступна.');
+    return { status: 'authorized', rawToken, session, bindingChanged: true, deviceId: device.id, screenId: screen.id };
+  });
+}
+
 async function resolveDeviceSession(store, config, request, response) {
   const rawToken = deviceSessionTokenFromRequest(request);
   if (!rawToken) return null;
@@ -212,40 +252,7 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     const secret = activationSecret(request);
     if (!id || !secret) return response.status(404).json({ error: 'Активация не найдена.' });
 
-    const result = await store.transaction(async (tx) => {
-      const activation = await tx.getDeviceActivationForPoll(id, tokenHash(secret), { lock: true });
-      if (!activation) return { status: 'missing' };
-      if (Date.parse(activation.expires_at) <= Date.now()) return { status: 'expired' };
-      if (activation.status === 'pending') return { status: 'pending', expiresAt: activation.expires_at };
-      const rawToken = deterministicDeviceSessionToken(activation.id, secret, config);
-      const rawTokenHash = tokenHash(rawToken);
-      if (activation.status === 'consumed') {
-        const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
-        if (!session) return { status: 'expired' };
-        return { status: 'authorized', rawToken, session, bindingChanged: false };
-      }
-      if (activation.status !== 'approved' || !activation.approved_screen_id) return { status: 'expired' };
-      const screen = await tx.getScreen(activation.approved_screen_id);
-      if (!screen || screen.active === false) return { status: 'expired' };
-      const device = await tx.bindDevice({
-        deviceKey: persistentDeviceKey(activation.device_key) || activation.id,
-        screenId: screen.id,
-        label: screen.name,
-        userAgent: activation.user_agent,
-        remoteAddress: activation.remote_address,
-        manufacturer: activation.manufacturer,
-        model: activation.model,
-        authorizedBy: activation.approved_by
-      });
-      const sessionId = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + config.deviceSessionTtlDays * 86_400_000).toISOString();
-      await tx.createDeviceSession({ id: sessionId, deviceId: device.id, tokenHash: rawTokenHash, expiresAt });
-      const consumed = await tx.markDeviceActivationConsumed(activation.id, device.id, sessionId);
-      if (!consumed) throw new Error('Не удалось завершить авторизацию телевизора.');
-      const session = await tx.getActiveDeviceSessionByHash(rawTokenHash);
-      if (!session) throw new Error('Созданная Device Session недоступна.');
-      return { status: 'authorized', rawToken, session, bindingChanged: true, deviceId: device.id, screenId: screen.id };
-    });
+    const result = await resolveAuthorizedActivation(store, config, id, secret);
 
     if (result.status === 'missing') return response.status(404).json({ error: 'Активация не найдена.' });
     if (result.status === 'expired') return response.status(410).json({ status: 'expired' });
@@ -270,6 +277,25 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     }
     response.setHeader('Set-Cookie', deviceSessionCookie(result.rawToken, config));
     return response.json({ status: 'authorized', screen: publicScreen(result.session) });
+  });
+
+  router.post('/activations/:id/complete', express.urlencoded({ extended: false, limit: '2kb' }), async (request, response) => {
+    const id = activationId(request.params.id);
+    const secret = activationSecretValue(request.body?.poll_secret);
+    if (!id || !secret) return response.status(404).send('Активация не найдена.');
+
+    const result = await resolveAuthorizedActivation(store, config, id, secret);
+    if (result.status === 'missing') return response.status(404).send('Активация не найдена.');
+    if (result.status === 'expired') return response.status(410).send('Код подключения истёк.');
+    if (result.status === 'pending') return response.status(409).send('Авторизация ещё не подтверждена.');
+
+    if (result.bindingChanged) {
+      realtime?.disconnectDevice(result.deviceId);
+      realtime?.disconnectScreen(result.screenId);
+    }
+    response.setHeader('Set-Cookie', deviceSessionCookie(result.rawToken, config));
+    response.setHeader('Location', '/player');
+    return response.status(303).end();
   });
 
   router.get('/session', async (request, response) => {
