@@ -142,7 +142,8 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sceneRenderer, /new PlayerWeatherRuntime\(stage/);
   assert.match(sceneRenderer, /new PlayerSceneLayerComposer\(stage\)/);
   assert.match(sceneRenderer, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);
-  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(bakedActive \? weatherOnlyScene\(context\.scene\) : context\.scene\)/);
+  assert.match(sceneRenderer, /weatherOnlyScene\(context\.scene_video\?\.live_scene \|\| context\.scene\)/);
+  assert.match(sceneRenderer, /: context\.scene/);
   assert.match(sceneRenderer, /new SceneVideoRuntime/);
   assert.match(sceneRenderer, /this\.sceneMotionRuntime\.reset\(\)/);
   assert.match(sceneRenderer, /this\.weatherRuntime\.setLayer\(weatherElement \? this\.sceneElementRenderer\.contentFor/);
@@ -177,7 +178,7 @@ test('shared Player Scene Renderer rerenders only canonical dirty components', a
   assert.match(renderer, /const menuDirty = dirty\.has\('menu'\) \|\| dirty\.has\('screen'\)/);
   assert.match(renderer, /if \(menuDirty\) \{[\s\S]*?this\.flatMenuRenderer\.render/);
   assert.match(renderer, /if \(dirty\.has\('scene'\) \|\| dirty\.has\('scene_video'\) \|\| dirty\.has\('screen'\)\)/);
-  assert.match(renderer, /weatherOnlyScene\(context\.scene\)/);
+  assert.match(renderer, /weatherOnlyScene\(context\.scene_video\?\.live_scene \|\| context\.scene\)/);
   assert.doesNotMatch(renderer, /dirty\.has\('entity'\)|dirty\.has\('brand'\)|dirty\.has\('announcement'\)|dirty\.has\('environment'\)/);
   assert.doesNotMatch(player, /setInterval\([^)]*refresh|schedulePlayerRefresh|refreshPlayer\(/);
 });
