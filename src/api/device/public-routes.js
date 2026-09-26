@@ -111,6 +111,10 @@ function cacheCount(value) {
   return finiteOrNull(value, { minimum: 0, maximum: 100000, integer: true }) ?? 0;
 }
 
+function cacheCountOrNull(value) {
+  return finiteOrNull(value, { minimum: 0, maximum: 100000, integer: true });
+}
+
 function cacheBytes(value) {
   return finiteOrNull(value, { minimum: 0, maximum: 11258999068426240, integer: true });
 }
@@ -145,10 +149,10 @@ function playerCacheStatus(value) {
     previous_revision:cacheStatusText(value.previous_revision),
     staging_revision:cacheStatusText(value.staging_revision),
     active_assets:cacheCount(value.active_assets),
-    cached_assets:cacheCount(value.cached_assets),
-    missing_assets:cacheCount(value.missing_assets),
-    retained_assets:cacheCount(value.retained_assets),
-    unused_assets:cacheCount(value.unused_assets),
+    cached_assets:cacheCountOrNull(value.cached_assets),
+    missing_assets:cacheCountOrNull(value.missing_assets),
+    retained_assets:cacheCountOrNull(value.retained_assets),
+    unused_assets:cacheCountOrNull(value.unused_assets),
     active_bytes:cacheBytes(value.active_bytes),
     retained_bytes:cacheBytes(value.retained_bytes),
     storage_usage_bytes:cacheBytes(value.storage_usage_bytes),
