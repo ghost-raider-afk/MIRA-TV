@@ -215,6 +215,9 @@ export class PlayerSceneRenderer {
         menuEnabled: renderMode === 'flat-motion',
         profile: context.animation?.profile
       });
+      // Motion teardown clears inline opacity. Re-apply the shared static
+      // promotion state afterwards so Preview and TV keep identical behavior.
+      applySceneVisibility(this.stage, context.animation?.profile);
     }
 
     if (playlistDirty) {

@@ -147,11 +147,11 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await promotionRowLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Акционная строка');
   const rowInspector = page.locator('#scene-editor-properties');
-  const rowEffects = rowInspector.getByRole('radiogroup', { name:'Тип эффекта' });
-  for (const name of ['Мягкая волна','Gloss-перелив','Заполнение','Пульсирующее свечение','Бегущий акцент']) {
-    await expect(rowEffects.getByRole('radio', { name })).toBeVisible();
-  }
-  await rowEffects.getByRole('radio', { name:'Заполнение' }).click();
+  const rowEffects = rowInspector.getByLabel('Пресет подсветки');
+  await expect(rowEffects.locator('option')).toHaveCount(5);
+  await rowEffects.selectOption('fill');
+  await expect(rowInspector.getByLabel('Подсветка строки')).toBeChecked();
+  await expect(rowInspector.getByLabel('Движение подсветки')).toBeChecked();
 
   await promotionLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Акция');
@@ -161,11 +161,30 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await promotionInspector.getByLabel('Жирность шрифта акции').selectOption('800');
   await promotionInspector.getByLabel('Высота шрифта акции').fill('125');
   await promotionInspector.getByLabel('Межбуквенный интервал акции').fill('1');
-  const badgeEffects = promotionInspector.getByRole('radiogroup', { name:'Эффект плашки' });
-  await badgeEffects.getByRole('radio', { name:'Breathing Glow' }).click();
-  await badgeEffects.getByRole('radio', { name:'Gloss Shine' }).click();
+  const badgeEffects = promotionInspector.getByLabel('Пресет эффекта');
+  await expect(badgeEffects.locator('option')).toHaveCount(2);
+  await badgeEffects.selectOption('breathe');
+  await badgeEffects.selectOption('shine');
+  await expect(promotionInspector.getByLabel('Свечение плашки')).toBeChecked();
+  await expect(promotionInspector.getByLabel('Перелив')).toBeChecked();
+  await expect(promotionInspector.getByLabel('Солнечный блик')).toBeChecked();
   await expect(page.locator('#scene-editor-stage .promotion-badge')).toHaveAttribute('data-promotion-badge-shape', 'chevron');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
+
+  await promotionInspector.getByLabel('Вся анимация акции').selectOption('none');
+  const staticPromotionGlow = page.locator('#scene-editor-stage .promotion-row-glow');
+  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+
+  await promotionRowLayer.click();
+  const staticRowInspector = page.locator('#scene-editor-properties');
+  await staticRowInspector.getByLabel('Движение подсветки').uncheck();
+  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+  await staticRowInspector.getByLabel('Подсветка строки').uncheck();
+  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBe(0);
+  await staticRowInspector.getByLabel('Подсветка строки').check();
+
+  await promotionLayer.click();
+  await page.locator('#scene-editor-properties').getByLabel('Вся анимация акции').selectOption('cinematic');
 
   await animationLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация сцены');
@@ -343,6 +362,11 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(storedPromotion.promotion_animation).toBe('fill');
   expect(storedPromotion.promotion_badge_animation).toBe('shine');
   expect(stored.animation.profile.pattern).toBe('wave');
+  expect(stored.animation.profile.promotion_row_highlight_enabled).toBe(true);
+  expect(stored.animation.profile.promotion_row_animation_enabled).toBe(false);
+  expect(stored.animation.profile.promotion_badge_glow_enabled).toBe(true);
+  expect(stored.animation.profile.promotion_badge_shine_enabled).toBe(true);
+  expect(stored.animation.profile.promotion_badge_sparkle_enabled).toBe(true);
 
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
@@ -788,11 +812,11 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
 
   await page.locator('#scene-editor-promotion-row-layer').click();
-  await page.locator('#scene-editor-properties').getByRole('radiogroup', { name:'Тип эффекта' }).getByRole('radio', { name:'Заполнение' }).click();
+  await page.locator('#scene-editor-properties').getByLabel('Пресет подсветки').selectOption('fill');
   await page.locator('#scene-editor-promotion-layer').click();
-  const badgeMotion = page.locator('#scene-editor-properties').getByRole('radiogroup', { name:'Эффект плашки' });
-  await badgeMotion.getByRole('radio', { name:'Breathing Glow' }).click();
-  await badgeMotion.getByRole('radio', { name:'Gloss Shine' }).click();
+  const badgeMotion = page.locator('#scene-editor-properties').getByLabel('Пресет эффекта');
+  await badgeMotion.selectOption('breathe');
+  await badgeMotion.selectOption('shine');
   await page.locator('#scene-editor-animation-layer').click();
   const animationScale = page.locator('#animation-scale');
   const animationBrightness = page.locator('#animation-brightness');
