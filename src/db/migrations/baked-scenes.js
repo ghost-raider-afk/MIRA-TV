@@ -13,6 +13,7 @@ export async function migrateBakedScenes(pool) {
       fps NUMERIC(8,3) NOT NULL,
       duration_ms INTEGER NOT NULL,
       agent_version TEXT NOT NULL DEFAULT '',
+      live_scene_json TEXT NOT NULL DEFAULT '{"version":1,"elements":[]}',
       updated_by TEXT NOT NULL DEFAULT '',
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
