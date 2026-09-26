@@ -134,3 +134,118 @@ test('TV network connect action keeps pairing locked to the selected TV screen',
     if (locationId) await page.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
   }
 });
+
+
+test('TV network shows Local-first cache status and runs safe cache commands on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+
+  const stamp = Date.now();
+  let locationId = null;
+  let screenId = null;
+  let commandId = '';
+  const cacheStatus = () => ({
+    device_id:901,
+    screen_id:Number(screenId),
+    reported_at:new Date().toISOString(),
+    server_received_at:new Date().toISOString(),
+    local_first:true,
+    service_worker_active:true,
+    active_revision:'5:41',
+    previous_revision:'5:40',
+    staging_revision:'',
+    active_assets:3,
+    cached_assets:3,
+    missing_assets:0,
+    retained_assets:4,
+    unused_assets:1,
+    active_bytes:25 * 1024 * 1024,
+    retained_bytes:31 * 1024 * 1024,
+    storage_usage_bytes:45 * 1024 * 1024,
+    storage_quota_bytes:512 * 1024 * 1024,
+    storage_persisted:true,
+    last_command_id:commandId,
+    last_command_action:commandId ? 'check' : '',
+    last_command_ok:commandId ? true : null,
+    last_command_message:commandId ? 'Кэш проверен.' : '',
+    last_command_completed_at:commandId ? new Date().toISOString() : null
+  });
+
+  try {
+    const locationResponse = await page.request.post('/api/locations', {
+      data:{ name:`Cache TV ${stamp}`, address:'Cache CI', active:true }
+    });
+    expect(locationResponse.ok()).toBeTruthy();
+    const location = await locationResponse.json();
+    locationId = location.id;
+
+    const screenResponse = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+    expect(screenResponse.ok()).toBeTruthy();
+    const screen = await screenResponse.json();
+    screenId = screen.id;
+
+    await page.route(/\/api\/device-admin\/bindings(?:\?[^/]*)?$/, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      await route.fulfill({
+        status:200,
+        contentType:'application/json',
+        body:JSON.stringify([{
+          binding_id:801,
+          device_id:901,
+          screen_id:Number(screenId),
+          manufacturer:'Test',
+          model:'TV',
+          remote_address:'127.0.0.1',
+          online:true,
+          realtime_connections:1,
+          realtime_connected_at:new Date().toISOString(),
+          realtime_last_seen_at:new Date().toISOString(),
+          session_last_seen_at:new Date().toISOString(),
+          preview_available:false,
+          preview_updated_at:null,
+          cache_status:cacheStatus(),
+          player_diagnostic:null
+        }])
+      });
+    });
+
+    await page.route(`**/api/device-admin/bindings/${screen.id}/cache-command`, async (route) => {
+      expect(route.request().method()).toBe('POST');
+      expect(route.request().postDataJSON()).toEqual({ action:'check' });
+      commandId = 'cache-command-test-0001';
+      await route.fulfill({
+        status:202,
+        contentType:'application/json',
+        body:JSON.stringify({ accepted:true, request_id:commandId, action:'check' })
+      });
+    });
+
+    await page.goto('/screens');
+    await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
+    const unit = page.locator(`[data-tv-unit][data-screen-id="${screen.id}"]`);
+    await expect(unit).toContainText('Кэш');
+    await expect(unit).toContainText('готово · 3/3');
+
+    await unit.getByRole('button', { name:/Управление кэшем/ }).click();
+    const dialog = page.locator('.screen-tv-cache-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Активная ревизия');
+    await expect(dialog).toContainText('5:41');
+    await expect(dialog).toContainText('Резервная ревизия');
+    await expect(dialog).toContainText('25 МБ');
+    await expect(dialog).toContainText('45 МБ / 512 МБ');
+
+    const box = await dialog.boundingBox();
+    expect(box.width).toBeLessThanOrEqual(390);
+    await expect(dialog.getByRole('button', { name:'Проверить' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name:'Очистить лишнее' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name:'Перескачать активное' })).toBeVisible();
+
+    await dialog.getByRole('button', { name:'Проверить' }).click();
+    await expect(dialog.locator('[data-tv-cache-message]')).toContainText('Кэш проверен.', { timeout:5000 });
+  } finally {
+    await page.unrouteAll({ behavior:'ignoreErrors' }).catch(() => undefined);
+    if (screenId) await page.request.delete(`/api/screens/${screenId}`).catch(() => undefined);
+    if (locationId) await page.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
+  }
+});
