@@ -17,7 +17,8 @@ const PUBLIC_DOCS = [
   'TROUBLESHOOTING.md',
   'DEPLOYMENT-CHECKLIST.md',
   'BRANDING.md',
-  'ROADMAP.md'
+  'ROADMAP.md',
+  'RENDER-AGENT.md'
 ];
 
 const RETIRED_INTERNAL_DOCS = [
