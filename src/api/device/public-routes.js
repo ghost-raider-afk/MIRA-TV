@@ -20,8 +20,9 @@ import {
 } from '../../services/player-context-service.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
+import { bakedSceneRuntimeToken } from '../../services/baked-scene-service.js';
 
-const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime']);
+const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
 
 function activationId(value) {
@@ -325,7 +326,9 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
     const currentRevision = await renderRevision(store, session.screen_id);
     if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
-    const etag = `"${PLAYER_STATE_SCHEMA_VERSION}:${currentRevision}"`;
+    const bakedRecord = typeof store.getBakedScene === 'function' ? await store.getBakedScene(session.screen_id) : null;
+    const sceneVideoToken = bakedSceneRuntimeToken(bakedRecord, currentRevision);
+    const etag = `"${PLAYER_STATE_SCHEMA_VERSION}:${currentRevision}:${sceneVideoToken}"`;
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', etag);
     if (request.get('if-none-match') === etag) return response.status(304).end();
@@ -340,7 +343,9 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     const known = knownPlayerState(request.body);
     const currentRevision = await renderRevision(store, session.screen_id);
     if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
-    const runtimeHash = playerRuntimeHash(config, currentRevision);
+    const bakedRecord = typeof store.getBakedScene === 'function' ? await store.getBakedScene(session.screen_id) : null;
+    const sceneVideoToken = bakedSceneRuntimeToken(bakedRecord, currentRevision);
+    const runtimeHash = playerRuntimeHash(config, currentRevision, sceneVideoToken);
     response.setHeader('Cache-Control', 'private, no-store');
     // Fast path: no screen revision change means no draft/catalog/animation reads and no full hashing.
     if (known.schema_version === PLAYER_STATE_SCHEMA_VERSION && known.hashes.runtime === runtimeHash) {
