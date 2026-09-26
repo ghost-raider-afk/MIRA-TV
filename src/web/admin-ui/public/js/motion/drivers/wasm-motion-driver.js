@@ -60,6 +60,9 @@ export class WasmMotionDriver {
       target.style.transformBox = 'fill-box';
       target.style.transformOrigin = 'center';
     }
+    if (track.claims?.includes('transform') && track.claims?.includes('opacity')) {
+      target.style.willChange = 'transform, opacity';
+    }
     const spec = track.procedural;
     if (spec.kind === 'promo-badge-glow') {
       const brightness = 1 + number(spec.brightnessAmount, 0.16);
@@ -78,17 +81,21 @@ export class WasmMotionDriver {
     } else if (spec.kind === 'promo-glow') {
       const radius = number(spec.glowRadius, 18);
       target.style.transformOrigin = spec.animation === 'fill' ? 'left center' : 'center';
+      const paintTarget = target.firstElementChild instanceof Element ? target.firstElementChild : target;
+      handle.paintTarget = paintTarget;
+      let filter = 'none';
       if (spec.animation === 'wave') {
-        target.style.filter = `blur(${Math.max(2, radius * .28).toFixed(2)}px) saturate(1.18)`;
+        filter = `blur(${Math.max(2, radius * .28).toFixed(2)}px) saturate(1.18)`;
       } else if (spec.animation === 'gloss') {
-        target.style.filter = 'brightness(1.48) blur(.55px)';
+        filter = 'brightness(1.48) blur(.55px)';
       } else if (spec.animation === 'runner') {
-        target.style.filter = 'brightness(1.62) blur(.35px)';
+        filter = 'brightness(1.62) blur(.35px)';
       } else if (spec.animation === 'pulse') {
-        target.style.filter = radius > 0 ? `blur(${Math.max(2, radius * .22).toFixed(2)}px) drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})` : 'none';
+        filter = radius > 0 ? `blur(${Math.max(2, radius * .22).toFixed(2)}px) drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})` : 'none';
       } else {
-        target.style.filter = radius > 0 ? `blur(2px) drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})` : 'blur(2px)';
+        filter = radius > 0 ? `blur(2px) drop-shadow(0 0 ${radius.toFixed(2)}px ${RED_GLOW})` : 'blur(2px)';
       }
+      paintTarget.style.filter = filter;
     } else if (spec.kind === 'row') {
       target.style.filter = spec.pattern === 'spark' ? `drop-shadow(0 0 10px ${ROW_GLOW})` : 'none';
     }
@@ -129,6 +136,8 @@ export class WasmMotionDriver {
       handle.track?.node?.target?.style?.removeProperty('transform');
       handle.track?.node?.target?.style?.removeProperty('filter');
       handle.track?.node?.target?.style?.removeProperty('opacity');
+      handle.track?.node?.target?.style?.removeProperty('will-change');
+      handle.paintTarget?.style?.removeProperty('filter');
     }
     if (handle.kind === 'clock' && this.clock === handle) this.clock = null;
     this.stopLoopIfIdle();
@@ -272,13 +281,11 @@ export class WasmMotionDriver {
       const envelope = Math.sin(Math.PI * progress);
       const opacity = envelope * number(spec.opacity, 0.6);
       if (spec.animation === 'fill') {
-        target.style.transformOrigin = 'left center';
         target.style.transform = `scaleX(${Math.max(0.02, progress).toFixed(4)})`;
         target.style.opacity = (opacity * 0.72).toFixed(4);
         return;
       }
       if (spec.animation === 'pulse') {
-        target.style.transformOrigin = 'center';
         target.style.transform = 'none';
         target.style.opacity = (opacity * 0.82).toFixed(4);
         return;
@@ -286,20 +293,17 @@ export class WasmMotionDriver {
       if (spec.animation === 'wave') {
         const travel = -82 + progress * 164;
         const breathe = 0.88 + 0.12 * Math.sin(Math.PI * progress);
-        target.style.transformOrigin = 'center';
         target.style.transform = `translate3d(${travel.toFixed(2)}%,0,0) scaleX(${breathe.toFixed(4)})`;
         target.style.opacity = (opacity * 0.58).toFixed(4);
         return;
       }
       if (spec.animation === 'runner') {
         const travel = -340 + progress * 680;
-        target.style.transformOrigin = 'center';
         target.style.transform = `translate3d(${travel.toFixed(2)}%,0,0) scaleX(.045)`;
         target.style.opacity = (opacity * 1.08).toFixed(4);
         return;
       }
       const travel = -260 + progress * 520;
-      target.style.transformOrigin = 'center';
       target.style.transform = `translate3d(${travel.toFixed(2)}%,0,0) scaleX(.13)`;
       target.style.opacity = (opacity * .96).toFixed(4);
     }
