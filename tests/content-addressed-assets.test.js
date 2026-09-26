@@ -30,7 +30,7 @@ test('background and scene image uploads deduplicate into one global content ass
     const cfg = config(root);
     const background = await createScreenBackground(PNG, cfg);
     const scene = await createSceneAssetStream({
-      stream: Readable.from(PNG),
+      stream: Readable.from([PNG]),
       contentLength: PNG.length,
       contentType: 'image/png',
       config: cfg
