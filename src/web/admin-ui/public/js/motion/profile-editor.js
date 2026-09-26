@@ -21,6 +21,11 @@ const PROFILE_FIELDS = Object.freeze({
   promotion_glow_radius: ['animation-promotion-glow', 'number'],
   promotion_shine_speed: ['animation-promotion-shine-speed', 'number'],
   promotion_shine_frequency_per_minute: ['animation-promotion-shine-frequency', 'number'],
+  promotion_badge_glow_enabled: ['animation-promotion-badge-glow-enabled', 'boolean'],
+  promotion_badge_shine_enabled: ['animation-promotion-badge-shine-enabled', 'boolean'],
+  promotion_badge_sparkle_enabled: ['animation-promotion-badge-sparkle-enabled', 'boolean'],
+  promotion_row_highlight_enabled: ['animation-promotion-row-highlight-enabled', 'boolean'],
+  promotion_row_animation_enabled: ['animation-promotion-row-animation-enabled', 'boolean'],
   promotion_row_intensity: ['animation-promotion-row-intensity', 'number'],
   promotion_row_cycle_seconds: ['animation-promotion-row-cycle', 'number'],
   promotion_row_event_duration_ms: ['animation-promotion-row-duration', 'number'],
@@ -58,6 +63,11 @@ export const DEFAULT_LIVE_PROFILE = Object.freeze({
   promotion_glow_radius: 28,
   promotion_shine_speed: 1,
   promotion_shine_frequency_per_minute: 8,
+  promotion_badge_glow_enabled: true,
+  promotion_badge_shine_enabled: true,
+  promotion_badge_sparkle_enabled: true,
+  promotion_row_highlight_enabled: true,
+  promotion_row_animation_enabled: true,
   promotion_row_intensity: 96,
   promotion_row_cycle_seconds: 4.8,
   promotion_row_event_duration_ms: 1800,
@@ -98,6 +108,11 @@ function canonicalStudioProfile(source = {}) {
   profile.promotion_scale_amount = clamp(profile.promotion_scale_amount, 0.03, 0.08);
   profile.promotion_shine_speed = clamp(profile.promotion_shine_speed, 0.5, 3);
   profile.promotion_shine_frequency_per_minute = clamp(profile.promotion_shine_frequency_per_minute, 2, 20);
+  profile.promotion_badge_glow_enabled = profile.promotion_badge_glow_enabled !== false;
+  profile.promotion_badge_shine_enabled = profile.promotion_badge_shine_enabled !== false;
+  profile.promotion_badge_sparkle_enabled = profile.promotion_badge_sparkle_enabled !== false;
+  profile.promotion_row_highlight_enabled = profile.promotion_row_highlight_enabled !== false;
+  profile.promotion_row_animation_enabled = profile.promotion_row_animation_enabled !== false;
   profile.promotion_row_intensity = clamp(profile.promotion_row_intensity, 0, 100);
   profile.promotion_row_cycle_seconds = clamp(profile.promotion_row_cycle_seconds, 2, 30);
   profile.promotion_row_event_duration_ms = clamp(profile.promotion_row_event_duration_ms, 300, 6000);
