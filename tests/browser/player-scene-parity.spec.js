@@ -171,7 +171,7 @@ test('TV Player renders weather inside the canonical generic scene layer', async
     await expect(weatherNode.locator('[data-scene-weather-mount]')).toHaveAttribute('data-weather-animation','off');
 
     const order=await page.locator('[data-player-stage]').evaluate(stage=>[...stage.children].map(node=>node instanceof HTMLElement ? node.dataset.sceneLayer||'' : ''));
-    expect(order).toEqual(expect.arrayContaining(['menu','fx','content','scene']));
+    expect(order).toEqual(expect.arrayContaining(['baked','menu','fx','content','scene']));
     expect(order.indexOf('scene')).toBeGreaterThan(order.indexOf('content'));
     await expect(page.locator('[data-player-environment-layer],[data-brand-layer],[data-weather-layer]')).toHaveCount(0);
   } finally {
