@@ -235,7 +235,7 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
   ]);
 
   assert.match(stateSync, /loadLastKnownGood/);
-  assert.match(stateSync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'/);
+  assert.match(stateSync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'/);
   assert.doesNotMatch(stateSync, /'entity', 'weather', 'brand', 'announcement'/);
   assert.match(stateSync, /await applyContext\(record\.context, \[\.\.\.ALL_COMPONENTS\]/);
 
@@ -250,9 +250,9 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v47'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v48'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v41'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v47'/);
   assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });
