@@ -6,7 +6,9 @@ import { initialiseSchema } from '../src/db/migrations/schema.js';
 import { migrateDevicePlayer } from '../src/db/migrations/device-player.js';
 import { migrateDeviceBindings } from '../src/db/migrations/device-bindings.js';
 import { migrateDeviceIdentification } from '../src/db/migrations/device-identification.js';
+import { migratePlayerCacheStatus } from '../src/db/migrations/player-cache-status.js';
 import { createDevicesRepository } from '../src/db/devices.js';
+import { createPlayerCacheStatusRepository } from '../src/db/player-cache-status.js';
 
 const memoryDb = newDb({ autoCreateForeignKeyIndices: true });
 const { Pool } = memoryDb.adapters.createPg();
@@ -33,6 +35,7 @@ test.before(async () => {
   await migrateDevicePlayer(pool);
   await migrateDeviceBindings(pool);
   await migrateDeviceIdentification(pool);
+  await migratePlayerCacheStatus(pool);
 });
 
 test.after(async () => {
@@ -169,4 +172,50 @@ test('unbinding revokes the session but preserves physical TV identity for later
   const rebound = await repository.bindDevice({ deviceKey, screenId: second.screenId, label: 'ТВ', authorizedBy: 'admin' });
   assert.equal(rebound.id, device.id);
   assert.equal(rebound.screen_id, second.screenId);
+});
+
+
+test('latest Local-first cache status is replaced atomically per physical TV', async () => {
+  const devices = createDevicesRepository(pool);
+  const cache = createPlayerCacheStatusRepository(pool);
+  const { screenId } = await seedScreen();
+  const device = await devices.bindDevice({
+    deviceKey:crypto.randomUUID(),
+    screenId,
+    label:'Cache TV',
+    authorizedBy:'admin'
+  });
+
+  const first = await cache.upsertPlayerCacheStatus(device.id, screenId, {
+    reported_at:new Date(Date.now() - 1000).toISOString(),
+    local_first:true,
+    active_revision:'5:10',
+    active_assets:3,
+    cached_assets:2,
+    missing_assets:1
+  });
+  assert.equal(first.active_revision, '5:10');
+  assert.equal(first.missing_assets, 1);
+
+  await cache.upsertPlayerCacheStatus(device.id, screenId, {
+    reported_at:new Date().toISOString(),
+    local_first:true,
+    active_revision:'5:11',
+    previous_revision:'5:10',
+    active_assets:3,
+    cached_assets:3,
+    missing_assets:0,
+    last_command_id:'cache-command-db-01',
+    last_command_action:'check',
+    last_command_ok:true
+  });
+
+  const rows = await cache.listPlayerCacheStatusByDeviceIds([device.id]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].device_id, device.id);
+  assert.equal(rows[0].screen_id, screenId);
+  assert.equal(rows[0].active_revision, '5:11');
+  assert.equal(rows[0].previous_revision, '5:10');
+  assert.equal(rows[0].cached_assets, 3);
+  assert.equal(rows[0].last_command_ok, true);
 });
