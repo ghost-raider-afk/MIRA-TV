@@ -414,6 +414,19 @@ export function createSceneVideoRenderService({ config, realtime, logger = conso
     if (!Number.isSafeInteger(id) || id < 1 || !context) {
       return Object.freeze({ enabled, status: enabled ? 'failed' : 'disabled', source_url: '', live_layers: Object.freeze(['weather']) });
     }
+    const playlistScenes = Array.isArray(context?.scene_playlist?.scenes) ? context.scene_playlist.scenes : [];
+    const playlistActive = context?.scene_playlist?.enabled === true && playlistScenes.some((scene) => scene?.enabled !== false);
+    if (playlistActive) {
+      return Object.freeze({
+        enabled: true,
+        status: 'unsupported',
+        reason: 'scene-playlist',
+        source_url: '',
+        content_hash: null,
+        live_layers: Object.freeze(['weather'])
+      });
+    }
+
     const normalizedContext = {
       ...structuredClone(context),
       render_revision: Number(renderRevision) || 1,
