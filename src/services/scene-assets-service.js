@@ -7,8 +7,8 @@ import { PayloadTooLargeError, ValidationError } from '../shared/errors.js';
 import { validateImage } from './image-validation.js';
 import {
   CONTENT_ASSET_DIR,
+  cleanupUnreferencedContentAssets,
   commitContentAssetTemporary,
-  contentAssetPathForUrl,
   deleteContentAsset,
   isContentAssetUrl
 } from './content-addressed-assets.js';
@@ -146,17 +146,16 @@ export async function cleanupUnreferencedSceneAssets({
   olderThanMs = 24 * 60 * 60 * 1000,
   now = Date.now()
 } = {}) {
-  if (typeof store?.listSceneAssetReferences !== 'function') return 0;
+  let removed = await cleanupUnreferencedContentAssets({ store, config, olderThanMs, now });
+  if (typeof store?.listSceneAssetReferences !== 'function') return removed;
+
   const directory = path.join(config.siteAssetsRoot, SCENE_DIR);
   const referenced = new Set(await store.listSceneAssetReferences());
-  let entries;
+  let entries = [];
   try {
     entries = await readdir(directory, { withFileTypes: true });
-  } catch {
-    return 0;
-  }
+  } catch {}
 
-  let removed = 0;
   for (const entry of entries) {
     if (!entry.isFile() || !SAFE_SCENE_ASSET.test(entry.name)) continue;
     const publicUrl = SCENE_ASSET_PREFIX + entry.name;
