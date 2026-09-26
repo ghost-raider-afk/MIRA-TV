@@ -157,7 +157,8 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(publicRoutes, /router\.post\('\/player-delta'/);
   assert.match(publicRoutes, /router\.get\('\/weather'/);
   assert.match(playerContextService, /PLAYER_STATE_SCHEMA_VERSION = 5/);
-  assert.match(playerContextService, /scene:\s*draft\.scene \|\| \{ version: 1, elements: \[\] \}/);
+  assert.match(playerContextService, /const canonicalScene = draft\.scene \|\| \{ version: 1, elements: \[\] \}/);
+  assert.match(playerContextService, /content_manifest: contentManifest/);
   assert.doesNotMatch(playerContextService, /environment:|entity:|brand:|announcement:|weather:/);
   assert.match(flatRenderer, /layer\.innerHTML = svg/);
   assert.match(weatherRuntime, /export class PlayerWeatherRuntime/);
