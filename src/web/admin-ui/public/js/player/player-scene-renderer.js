@@ -10,6 +10,7 @@ import { FlatMenuRenderer, playerMenuRenderMode } from './flat-menu-renderer.js'
 import { SceneMotionRuntime } from '../motion/scene-motion-runtime.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
 import { SceneElementRenderer } from './scene-element-renderer.js';
+import { SceneVideoRuntime } from './scene-video-runtime.js';
 import { PlayerWeatherRuntime } from './weather-bootstrap.js';
 
 export const ALL_PLAYER_COMPONENTS = Object.freeze([
@@ -18,6 +19,7 @@ export const ALL_PLAYER_COMPONENTS = Object.freeze([
   'scene',
   'animation',
   'scene_playlist',
+  'scene_video',
   'runtime'
 ]);
 
@@ -66,6 +68,16 @@ function sceneWeatherElement(scene) {
     : null;
 }
 
+function weatherOnlyScene(scene) {
+  const source = scene && typeof scene === 'object' && !Array.isArray(scene)
+    ? scene
+    : { version:1, elements:[] };
+  const elements = Array.isArray(source.elements)
+    ? source.elements.filter((element) => element?.enabled !== false && element?.type === 'weather')
+    : [];
+  return { ...source, elements };
+}
+
 function weatherSettingsFromElement(element) {
   if (!element) return null;
   return {
@@ -100,6 +112,10 @@ export class PlayerSceneRenderer {
     this.autoplay = autoplay !== false;
     this.weatherPreview = weatherPreview === true;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
+    this.sceneVideoRuntime = new SceneVideoRuntime(this.sceneLayers.ensure('baked', { ariaHidden: true }), {
+      activityTarget: stage,
+      autoplay: this.autoplay
+    });
     this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden: true }), {
       activityTarget: stage,
       autoplay: this.autoplay
@@ -142,15 +158,21 @@ export class PlayerSceneRenderer {
     const viewportChanged = canonicalViewport.width !== this.viewport.width || canonicalViewport.height !== this.viewport.height;
     if (dirty.has('screen') || viewportChanged) this.fitViewport(canonicalViewport);
     const {
+      baked: bakedLayer,
       menu: menuLayer,
       fx: fxLayer,
       content: contentLayer,
       scene: sceneElementLayer
     } = this.sceneLayers.ensureCore();
 
+    const sceneVideoDirty = dirty.has('scene_video') || dirty.has('screen');
+    const bakedActive = sceneVideoDirty
+      ? await this.sceneVideoRuntime.render(context.scene_video)
+      : !bakedLayer.hidden && context.scene_video?.status === 'ready' && context.scene_video?.enabled === true;
+
     const menuDirty = dirty.has('menu') || dirty.has('screen');
-    const motionDirty = menuDirty || dirty.has('animation');
-    const playlistDirty = dirty.has('scene_playlist') || dirty.has('screen');
+    const motionDirty = menuDirty || dirty.has('animation') || dirty.has('scene_video');
+    const playlistDirty = dirty.has('scene_playlist') || dirty.has('screen') || dirty.has('scene_video');
     let viewport = null;
     let model = null;
     let renderMode = null;
@@ -193,40 +215,53 @@ export class PlayerSceneRenderer {
       menuLayer.dataset.renderMode = renderMode;
     }
 
-    if (menuDirty || dirty.has('animation')) applySceneVisibility(this.stage, context.animation?.profile);
+    if (menuDirty || dirty.has('animation') || dirty.has('scene_video')) applySceneVisibility(this.stage, context.animation?.profile);
 
-    if (dirty.has('scene')) {
-      this.sceneElementRenderer.render(context.scene);
+    menuLayer.hidden = bakedActive;
+    fxLayer.hidden = bakedActive;
+    contentLayer.hidden = bakedActive;
+
+    if (dirty.has('scene') || dirty.has('scene_video') || dirty.has('screen')) {
+      this.sceneElementRenderer.render(bakedActive ? weatherOnlyScene(context.scene) : context.scene);
       sceneElementLayer.setAttribute('aria-hidden', 'true');
     }
 
-    if (dirty.has('scene') || dirty.has('screen')) {
+    if (dirty.has('scene') || dirty.has('scene_video') || dirty.has('screen')) {
       const weatherElement = sceneWeatherElement(context.scene);
       this.weatherElementId = weatherElement?.id || null;
       this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
       this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
-        configurationChanged: true,
-        menuChanged: false
+        configurationChanged: dirty.has('scene') || dirty.has('screen'),
+        menuChanged: menuDirty
       });
     }
 
     if (motionDirty) {
-      this.sceneMotionRuntime.render({
-        menuEnabled: renderMode === 'flat-motion',
-        profile: context.animation?.profile
-      });
-      // Motion teardown clears inline opacity. Re-apply the shared static
-      // promotion state afterwards so Preview and TV keep identical behavior.
-      applySceneVisibility(this.stage, context.animation?.profile);
+      if (bakedActive) {
+        this.sceneMotionRuntime.reset();
+      } else {
+        this.sceneMotionRuntime.render({
+          menuEnabled: renderMode === 'flat-motion',
+          profile: context.animation?.profile
+        });
+        // Motion teardown clears inline opacity. Re-apply the shared static
+        // promotion state afterwards so Preview and TV keep identical behavior.
+        applySceneVisibility(this.stage, context.animation?.profile);
+      }
+      menuLayer.hidden = bakedActive;
     }
 
     if (playlistDirty) {
-      this.scenePlaylistRuntime.render(context.scene_playlist, {
-        menuLayer,
-        contentLayer,
-        fxLayer,
-        autoplay: this.autoplay
-      });
+      if (bakedActive) {
+        this.scenePlaylistRuntime.destroy();
+      } else {
+        this.scenePlaylistRuntime.render(context.scene_playlist, {
+          menuLayer,
+          contentLayer,
+          fxLayer,
+          autoplay: this.autoplay
+        });
+      }
     }
   }
 
@@ -234,6 +269,7 @@ export class PlayerSceneRenderer {
     if (this.destroyed) return;
     this.scenePlaylistRuntime.destroy();
     this.sceneMotionRuntime.reset();
+    this.sceneVideoRuntime.reset();
     this.sceneElementRenderer.clear();
     this.flatMenuRenderer.destroy();
   }
@@ -243,6 +279,7 @@ export class PlayerSceneRenderer {
     this.destroyed = true;
     this.scenePlaylistRuntime.destroy();
     this.sceneMotionRuntime.destroy();
+    this.sceneVideoRuntime.destroy();
     this.sceneElementRenderer.destroy();
     this.flatMenuRenderer.destroy();
     this.weatherRuntime.destroy();
