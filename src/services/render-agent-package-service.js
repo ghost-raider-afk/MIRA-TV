@@ -45,6 +45,12 @@ function weatherElements(scene) {
     .map((element) => structuredClone(element));
 }
 
+function playlistIsActive(value) {
+  return value?.enabled === true
+    && Array.isArray(value?.scenes)
+    && value.scenes.some((scene) => scene?.enabled !== false);
+}
+
 function screenForRender(screen) {
   const viewport = resolution(screen?.resolution);
   return Object.freeze({
@@ -165,9 +171,12 @@ export async function buildRenderAgentPackage(store, screenId, config) {
     }
   };
   const inputHash = digest(hashPayload);
+  const bakeSupported = !playlistIsActive(renderPayload.scene_playlist);
   return Object.freeze({
     ...renderPayload,
     input_hash: inputHash,
+    bake_supported: bakeSupported,
+    unsupported_reason: bakeSupported ? '' : 'scene-playlist',
     live_overlays: Object.freeze({
       weather: Object.freeze(weatherElements(draft.scene))
     })
