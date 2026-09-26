@@ -1,4 +1,5 @@
 const LAYERS = Object.freeze([
+  Object.freeze({ id: 'baked', className: 'tv-player-baked-layer', attribute: 'data-player-baked-layer' }),
   Object.freeze({ id: 'menu', className: 'tv-player-menu-layer', attribute: 'data-player-menu-layer' }),
   Object.freeze({ id: 'fx', className: 'tv-player-fx-layer', attribute: 'data-player-fx-layer' }),
   Object.freeze({ id: 'content', className: 'tv-player-content-layer', attribute: 'data-player-content-layer' }),
@@ -74,6 +75,7 @@ export class PlayerSceneLayerComposer {
 
   ensureCore() {
     return Object.freeze({
+      baked: this.ensure('baked', { ariaHidden: true }),
       menu: this.ensure('menu', { ariaHidden: true }),
       fx: this.ensure('fx', { ariaHidden: true }),
       content: this.ensure('content', { ariaHidden: true }),
