@@ -196,6 +196,10 @@ test('offline player stages complete manifests and serves cached video before ne
   assert.match(sync, /commitAssetManifest/);
   assert.match(sync, /activePlayerServiceWorker/);
   assert.match(sync, /navigator\.serviceWorker\.getRegistration\('\/player'\)/);
+  assert.match(sync, /mira:player-cache-capabilities/);
+  assert.match(sync, /supportsLocalFirstProtocol/);
+  assert.match(worker, /mira:player-cache-capabilities/);
+  assert.match(worker, /local_first:true, protocol:1/);
   assert.doesNotMatch(sync, /navigator\.serviceWorker\.ready/, 'Player render must not wait forever when service workers are blocked or unavailable');
   assert.match(sync, /previous-known-good|loadPreviousKnownGood/);
   assert.doesNotMatch(sync, /Range: 'bytes=0-65535'/);
