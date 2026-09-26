@@ -18,6 +18,21 @@ function closeEnough(value, expected, tolerance) {
 export function createRenderAgentPublicRouter({ store, config, realtime }) {
   const router = express.Router();
 
+  router.get('/context', async (request, response) => {
+    const token = verifyRenderUploadToken(String(request.query?.token || ''), config);
+    if (!token) return response.status(401).json({ error:'Render Agent token недействителен или истёк.' });
+    const currentPackage = await buildRenderAgentPackage(store, token.screen_id, config);
+    if (!currentPackage) return response.status(404).json({ error:'Монитор для рендера недоступен.' });
+    if (currentPackage.render_revision !== token.render_revision || currentPackage.input_hash !== token.input_hash) {
+      return response.status(409).json({ error:'Сцена изменилась. Получите новый render package.' });
+    }
+    if (currentPackage.bake_supported !== true) {
+      return response.status(409).json({ error:'Эта сцена пока требует live renderer.', reason:currentPackage.unsupported_reason });
+    }
+    response.setHeader('Cache-Control','private, no-store');
+    return response.json(currentPackage);
+  });
+
   router.put('/screens/:id/video', async (request, response) => {
     const token = verifyRenderUploadToken(bearerToken(request), config);
     const screenId = Number(request.params.id);
@@ -33,6 +48,10 @@ export function createRenderAgentPublicRouter({ store, config, realtime }) {
         current_render_revision: currentPackage.render_revision,
         current_input_hash: currentPackage.input_hash
       });
+    }
+
+    if (currentPackage.bake_supported !== true) {
+      return response.status(409).json({ error:'Эта сцена пока требует live renderer.', reason:currentPackage.unsupported_reason });
     }
 
     let asset;
