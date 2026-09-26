@@ -6,6 +6,7 @@ import { sceneInput } from '../../contracts/scene.js';
 import { ValidationError } from '../../shared/errors.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
 import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
+import { buildRenderAgentPackage, issueRenderUploadToken } from '../../services/render-agent-package-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 function settingsOptions(config) {
@@ -137,6 +138,32 @@ export function createScreensRouter({ store, config, realtime }) {
     if (!await store.getScreen(id)) throw notFound();
     response.json(await store.listScreenRenderEvents(id, request.query.limit));
   });
+  router.get('/screens/:id/render-package', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const renderPackage = await buildRenderAgentPackage(store, id, config);
+    if (!renderPackage) throw notFound();
+    const reusable = typeof store.findBakedSceneByInputHash === 'function'
+      ? await store.findBakedSceneByInputHash(renderPackage.input_hash)
+      : null;
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.json({
+      package: renderPackage,
+      upload: {
+        method: 'PUT',
+        url: `/api/render-agent/screens/${id}/video`,
+        token: issueRenderUploadToken(renderPackage, config)
+      },
+      reusable_scene_video: reusable ? {
+        source_url: reusable.active_url,
+        content_hash: reusable.active_hash,
+        width: reusable.width,
+        height: reusable.height,
+        fps: reusable.fps,
+        duration_ms: reusable.duration_ms
+      } : null
+    });
+  });
+
   router.get('/screens/:id/editor', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     const screen = await store.getScreen(id);
