@@ -19,6 +19,7 @@ export const ALL_PLAYER_COMPONENTS = Object.freeze([
   'scene',
   'animation',
   'scene_playlist',
+  'scene_video',
   'runtime'
 ]);
 
