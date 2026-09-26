@@ -154,7 +154,13 @@ export class PlayerSceneRenderer {
   async render(context, changedNames = ALL_PLAYER_COMPONENTS) {
     if (this.destroyed) return;
     const dirty = new Set(changedNames?.length ? changedNames : ALL_PLAYER_COMPONENTS);
-    const canonicalViewport = resolutionOf(context.screen);
+    const hasBakedVideo = context.scene_video?.status === 'ready' && context.scene_video?.enabled === true;
+    const canonicalViewport = hasBakedVideo
+      ? {
+          width:Math.max(1, Number(context.scene_video?.width) || resolutionOf(context.screen).width),
+          height:Math.max(1, Number(context.scene_video?.height) || resolutionOf(context.screen).height)
+        }
+      : resolutionOf(context.screen);
     const viewportChanged = canonicalViewport.width !== this.viewport.width || canonicalViewport.height !== this.viewport.height;
     if (dirty.has('screen') || viewportChanged) this.fitViewport(canonicalViewport);
     const {
