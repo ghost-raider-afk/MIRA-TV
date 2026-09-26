@@ -21,7 +21,7 @@ import {
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 
-const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime']);
+const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
 
 function activationId(value) {
@@ -220,7 +220,7 @@ async function renderRevision(store, screenId) {
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
-export function createDevicePublicRouter({ store, config, realtime, weatherService }) {
+export function createDevicePublicRouter({ store, config, realtime, weatherService, sceneVideoService = null }) {
   const router = express.Router();
   const activationLimiter = createIpRateLimiter({
     maxAttempts: config.deviceActivationMaxAttempts,
@@ -329,7 +329,7 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', etag);
     if (request.get('if-none-match') === etag) return response.status(304).end();
-    const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision });
+    const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision, sceneVideoService });
     if (!state) return response.status(401).json({ error: 'Монитор недоступен.' });
     return response.json(fullPlayerContext(state));
   });
@@ -340,7 +340,7 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     const known = knownPlayerState(request.body);
     const currentRevision = await renderRevision(store, session.screen_id);
     if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
-    const runtimeHash = playerRuntimeHash(config, currentRevision);
+    const runtimeHash = playerRuntimeHash(config, currentRevision, sceneVideoService?.runtimeToken?.(session.screen_id) || '');
     response.setHeader('Cache-Control', 'private, no-store');
     // Fast path: no screen revision change means no draft/catalog/animation reads and no full hashing.
     if (known.schema_version === PLAYER_STATE_SCHEMA_VERSION && known.hashes.runtime === runtimeHash) {
@@ -353,7 +353,7 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
         unchanged: true
       });
     }
-    const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision });
+    const state = await buildPlayerState(store, session, config, { renderRevision: currentRevision, sceneVideoService });
     if (!state) return response.status(401).json({ error: 'Монитор недоступен.' });
     return response.json(deltaPlayerContext(state, known));
   });
