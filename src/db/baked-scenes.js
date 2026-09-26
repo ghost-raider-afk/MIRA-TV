@@ -1,4 +1,4 @@
-import { normaliseRow } from './helpers.js';
+import { jsonValue, normaliseRow } from './helpers.js';
 
 function normaliseBakedScene(row) {
   const value = normaliseRow(row);
@@ -10,7 +10,8 @@ function normaliseBakedScene(row) {
     width: Number(value.width),
     height: Number(value.height),
     fps: Number(value.fps),
-    duration_ms: Number(value.duration_ms)
+    duration_ms: Number(value.duration_ms),
+    live_scene: jsonValue(value.live_scene_json, { version:1, elements:[] })
   };
 }
 
@@ -46,15 +47,16 @@ export function createBakedScenesRepository(pool) {
       fps,
       durationMs,
       agentVersion = '',
+      liveScene = { version:1, elements:[] },
       updatedBy = ''
     }) {
       const { rows } = await pool.query(
         `INSERT INTO screen_baked_scenes (
            screen_id, source_render_revision, input_hash,
            active_url, active_hash, previous_url, previous_hash,
-           width, height, fps, duration_ms, agent_version, updated_by, updated_at
+           width, height, fps, duration_ms, agent_version, live_scene_json, updated_by, updated_at
          )
-         VALUES ($1,$2,$3,$4,$5,'','',$6,$7,$8,$9,$10,$11,NOW())
+         VALUES ($1,$2,$3,$4,$5,'','',$6,$7,$8,$9,$10,$11,$12,NOW())
          ON CONFLICT (screen_id) DO UPDATE SET
            previous_url = CASE
              WHEN screen_baked_scenes.active_url = EXCLUDED.active_url THEN screen_baked_scenes.previous_url
@@ -73,6 +75,7 @@ export function createBakedScenesRepository(pool) {
            fps = EXCLUDED.fps,
            duration_ms = EXCLUDED.duration_ms,
            agent_version = EXCLUDED.agent_version,
+           live_scene_json = EXCLUDED.live_scene_json,
            updated_by = EXCLUDED.updated_by,
            updated_at = NOW()
          RETURNING *`,
@@ -87,6 +90,7 @@ export function createBakedScenesRepository(pool) {
           fps,
           durationMs,
           String(agentVersion || '').slice(0, 80),
+          JSON.stringify(liveScene || { version:1, elements:[] }),
           String(updatedBy || '').slice(0, 120)
         ]
       );
