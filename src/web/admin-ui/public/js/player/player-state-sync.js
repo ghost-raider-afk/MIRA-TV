@@ -3,15 +3,19 @@ import { fetchWithTimeout } from './fetch-timeout.js';
 import {
   acknowledgePlayerLogs,
   appendPlayerLog,
+  clearAssetManifests,
   clearLastKnownGood,
+  commitAssetManifest,
+  loadAssetManifests,
   loadLastKnownGood,
   openPlayerStore,
   pendingPlayerLogs,
-  saveLastKnownGood
+  saveLastKnownGood,
+  stageAssetManifest
 } from './player-store.js';
 
 const ALL_COMPONENTS = Object.freeze([
-  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'
+  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
@@ -82,48 +86,94 @@ function enabledSceneMedia(context) {
     : [];
 }
 
-function activeAssetManifest(context) {
+function activeAssetManifest(context, revision = '') {
+  const supplied = context?.content_manifest;
+  if (supplied && Array.isArray(supplied.assets)) {
+    const assets = supplied.assets
+      .map((asset) => {
+        const url = localAsset(asset?.url);
+        return url ? { ...asset, url } : null;
+      })
+      .filter(Boolean);
+    return {
+      version:Number(supplied.version) || 1,
+      revision:String(supplied.revision || revision || context?.revision || ''),
+      assets
+    };
+  }
+
   const sceneAssets = enabledSceneMedia(context).map((element) => element.media.source_url);
   const assets = [
     context?.draft?.settings?.background_image_url,
     ...sceneAssets
   ].map(localAsset).filter(Boolean);
-  return [...new Set(assets)];
+  return {
+    version:1,
+    revision:String(revision || context?.revision || ''),
+    assets:[...new Set(assets)].map((url) => ({ url, required:true }))
+  };
 }
 
-async function requireAsset(url, { video = false } = {}) {
-  const headers = video ? { Range: 'bytes=0-65535' } : undefined;
+async function requireAsset(url) {
   const response = await fetch(url, {
-    cache: video ? 'no-cache' : 'force-cache',
-    credentials: 'include',
-    headers
+    cache: 'force-cache',
+    credentials: 'include'
   });
-  const acceptable = video ? response.status === 200 || response.status === 206 : response.ok;
-  if (!acceptable) throw new Error(`Critical Player asset unavailable: HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`Critical Player asset unavailable: HTTP ${response.status}`);
 }
 
-async function prepareCriticalAssets(context, changedNames) {
-  const dirty = new Set(changedNames || []);
-  const tasks = [];
+async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000) {
+  if (!('serviceWorker' in navigator) || typeof MessageChannel !== 'function') return null;
+  const registration = await navigator.serviceWorker.ready;
+  const target = navigator.serviceWorker.controller || registration.active;
+  if (!target) return null;
 
-  if (dirty.has('menu') || dirty.has('screen')) {
-    const background = localAsset(context?.draft?.settings?.background_image_url);
-    if (background) tasks.push(requireAsset(background));
-  }
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => {
+      channel.port1.close();
+      reject(new Error('Player asset cache operation timed out.'));
+    }, timeoutMs);
+    channel.port1.onmessage = (event) => {
+      clearTimeout(timer);
+      channel.port1.close();
+      resolve(event.data || null);
+    };
+    target.postMessage(message, [channel.port2]);
+  });
+}
 
-  if (dirty.has('scene')) {
-    for (const element of enabledSceneMedia(context)) {
-      const url = localAsset(element.media.source_url);
-      if (url) tasks.push(requireAsset(url, { video: element.type === 'video' }));
+async function stageCandidateAssets(context, metadata) {
+  const manifest = activeAssetManifest(context, metadata?.revision);
+  await stageAssetManifest(manifest);
+  const workerResult = await serviceWorkerRequest({ type:'mira:player-stage-assets', manifest });
+  if (workerResult) {
+    if (workerResult.ok !== true) {
+      const error = new Error(`Player asset staging incomplete: ${workerResult.failed?.length || 0} asset(s) unavailable.`);
+      error.failedAssets = workerResult.failed || [];
+      throw error;
     }
+    return manifest;
   }
 
-  await Promise.all(tasks);
+  await Promise.all(manifest.assets.map((asset) => requireAsset(asset.url)));
+  return manifest;
+}
+
+async function commitCandidateAssets(manifest) {
+  const manifests = await commitAssetManifest(manifest);
+  await serviceWorkerRequest({
+    type:'mira:player-commit-assets',
+    active:manifests.active,
+    previous:manifests.previous
+  }, 30_000).catch(() => undefined);
+  return manifests;
 }
 
 function publishActiveAssets(context) {
   if (!('serviceWorker' in navigator)) return;
-  const message = { type: 'mira:player-active-assets', assets: activeAssetManifest(context) };
+  const manifest = activeAssetManifest(context);
+  const message = { type: 'mira:player-active-assets', assets: manifest.assets.map((asset) => asset.url) };
   void navigator.serviceWorker.ready.then((registration) => {
     const target = navigator.serviceWorker.controller || registration.active;
     target?.postMessage(message);
@@ -303,16 +353,21 @@ export function createPlayerStateSync({
 
   async function applyCandidate(context, metadata, changedNames, source) {
     let degradedAssetError = null;
+    let stagedManifest = null;
     try {
-      await prepareCriticalAssets(context, changedNames);
+      stagedManifest = await stageCandidateAssets(context, metadata);
     } catch (error) {
       if (active?.context) {
         error.miraPhase = 'critical-assets';
         throw error;
       }
       degradedAssetError = error;
-      console.warn('MIRA-TV first boot continues without unavailable critical assets', error);
-      reportDiagnostic('asset.preload.degraded', diagnosticData(error, { source, phase: 'critical-assets' }));
+      console.warn('MIRA-TV first boot continues without fully staged critical assets', error);
+      reportDiagnostic('asset.preload.degraded', diagnosticData(error, {
+        source,
+        phase:'critical-assets',
+        failed_assets:Array.isArray(error?.failedAssets) ? error.failedAssets.length : undefined
+      }));
     }
 
     try {
@@ -339,16 +394,18 @@ export function createPlayerStateSync({
 
     try {
       await persistLastKnownGood();
-      publishActiveAssets(context);
+      if (stagedManifest && !degradedAssetError) await commitCandidateAssets(stagedManifest);
+      else publishActiveAssets(context);
       onLastKnownGood?.(context);
     } catch (error) {
-      console.warn('MIRA-TV could not persist Last Known Good state', error);
+      console.warn('MIRA-TV could not persist Local-first Player state', error);
     }
 
     log('state.applied', {
       source,
       changed: changedNames.slice(0, 12),
-      degraded_assets: Boolean(degradedAssetError)
+      degraded_assets: Boolean(degradedAssetError),
+      local_first: Boolean(stagedManifest && !degradedAssetError)
     });
     void warmAssets?.(context, changedNames);
   }
@@ -375,6 +432,7 @@ export function createPlayerStateSync({
       if (result.unauthorized) {
         stop();
         await clearLastKnownGood().catch(() => undefined);
+        await clearAssetManifests().catch(() => undefined);
         active = null;
         onUnauthorized?.();
         return { ok: false, unauthorized: true, hasContext: false };
@@ -470,7 +528,16 @@ export function createPlayerStateSync({
       active = record;
       updateRuntime(record.context);
       await applyContext(record.context, [...ALL_COMPONENTS], { source: 'last-known-good' });
-      publishActiveAssets(record.context);
+      const manifests = await loadAssetManifests().catch(() => ({ active:null, previous:null }));
+      if (manifests.active) {
+        void serviceWorkerRequest({
+          type:'mira:player-commit-assets',
+          active:manifests.active,
+          previous:manifests.previous
+        }, 30_000).catch(() => undefined);
+      } else {
+        publishActiveAssets(record.context);
+      }
       onLastKnownGood?.(record.context);
       log('state.restored', { saved: true });
       onConnectivity?.('offline');
@@ -502,6 +569,7 @@ export function createPlayerStateSync({
     stop();
     active = null;
     await clearLastKnownGood().catch(() => undefined);
+    await clearAssetManifests().catch(() => undefined);
   }
 
   function note(type, data = {}, level = 'info') {
