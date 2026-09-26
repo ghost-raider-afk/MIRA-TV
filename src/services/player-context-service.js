@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import { menuSettingsInput } from '../contracts/menu-settings.js';
+import { buildPlayerContentManifest } from './player-content-manifest-service.js';
 
-export const PLAYER_STATE_SCHEMA_VERSION = 4;
+export const PLAYER_STATE_SCHEMA_VERSION = 5;
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('base64url');
@@ -72,12 +73,22 @@ export async function buildPlayerState(store, session, config, { renderRevision 
     maxHeight: config.screenMaxHeight
   });
 
+  const canonicalScene = draft.scene || { version: 1, elements: [] };
+  const canonicalDraft = { rows: draft.rows || [], settings: canonicalMenuSettings };
+  const contentManifest = await buildPlayerContentManifest({
+    draft: canonicalDraft,
+    scene: canonicalScene,
+    renderRevision: currentRenderRevision || 1,
+    config
+  });
+
   const components = {
     screen: screenComponent(screen),
-    menu: { draft: { rows: draft.rows || [], settings: canonicalMenuSettings }, products, packaging },
-    scene: draft.scene || { version: 1, elements: [] },
+    menu: { draft: canonicalDraft, products, packaging },
+    scene: canonicalScene,
     animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
     scene_playlist: animationSettings?.scene_playlist || null,
+    content_manifest: contentManifest,
     runtime: playerRuntimeComponent(config, currentRenderRevision || 1)
   };
 
@@ -100,6 +111,7 @@ export function fullPlayerContext(state) {
     scene: components.scene,
     animation: components.animation,
     scene_playlist: components.scene_playlist,
+    content_manifest: components.content_manifest,
     ...components.runtime
   };
 }

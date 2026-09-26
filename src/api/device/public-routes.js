@@ -21,7 +21,7 @@ import {
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 
-const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime']);
+const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
 
 function activationId(value) {

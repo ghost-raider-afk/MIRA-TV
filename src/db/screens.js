@@ -9,7 +9,7 @@ function sceneAssetUrls(scene) {
   if (!Array.isArray(scene?.elements)) return [];
   return scene.elements
     .map((element) => String(element?.media?.source_url || ''))
-    .filter((url) => url.startsWith('/site-assets/scene/'));
+    .filter((url) => url.startsWith('/site-assets/scene/') || url.startsWith('/site-assets/content/'));
 }
 
 export function createScreensRepository(pool) {
@@ -120,6 +120,26 @@ export function createScreensRepository(pool) {
     async listSceneAssetReferences() {
       const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
       return [...new Set(rows.flatMap((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))))];
+    },
+    async isContentAssetReferenced(url) {
+      if (!url || !String(url).startsWith('/site-assets/content/')) return false;
+      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts');
+      return rows.some((row) => {
+        const settings = jsonValue(row.settings_json, {});
+        if (settings.background_image_url === url) return true;
+        return sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] })).includes(url);
+      });
+    },
+    async listContentAssetReferences() {
+      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts');
+      const values = [];
+      for (const row of rows) {
+        const background = String(jsonValue(row.settings_json, {}).background_image_url || '');
+        if (background.startsWith('/site-assets/content/')) values.push(background);
+        values.push(...sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))
+          .filter((url) => url.startsWith('/site-assets/content/')));
+      }
+      return [...new Set(values)];
     },
     async screensUsingCatalog(kind, catalogId) {
       const column = kind === 'product' ? 'product_id' : 'packaging_id';

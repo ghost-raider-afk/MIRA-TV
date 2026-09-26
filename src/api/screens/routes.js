@@ -342,7 +342,7 @@ export function createScreensRouter({ store, config, realtime }) {
       notifyRevisions(realtime, result.revisions);
       response.json({ screen: result.screen, draft: result.draft });
     } catch (error) {
-      await deleteScreenBackground(asset.publicUrl, { store, config, force: true });
+      await deleteScreenBackground(asset.publicUrl, { store, config });
       throw error;
     }
   });

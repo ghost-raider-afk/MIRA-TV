@@ -1,7 +1,7 @@
 import { ValidationError } from '../shared/errors.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
-const BACKGROUND_URL = /^\/site-assets\/screens\/background-[0-9a-f-]{36}\.(?:jpg|png|webp)$/i;
+const BACKGROUND_URL = /^(?:\/site-assets\/screens\/background-[0-9a-f-]{36}\.(?:jpg|png|webp)|\/site-assets\/content\/asset-[0-9a-f]{64}\.(?:jpg|png|webp))$/i;
 const MIN_FONT_SCALE = 55;
 const MAX_FONT_SCALE = 130;
 const DEFAULT_FONT_FAMILY = 'arial-narrow';

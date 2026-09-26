@@ -2,9 +2,16 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/promises';
+import { mkdir, open, readFile, readdir, stat, unlink } from 'node:fs/promises';
 import { PayloadTooLargeError, ValidationError } from '../shared/errors.js';
 import { validateImage } from './image-validation.js';
+import {
+  CONTENT_ASSET_DIR,
+  cleanupUnreferencedContentAssets,
+  commitContentAssetTemporary,
+  deleteContentAsset,
+  isContentAssetUrl
+} from './content-addressed-assets.js';
 
 const execFileAsync = promisify(execFile);
 const SCENE_DIR = 'scene';
@@ -50,10 +57,10 @@ function resolveMedia(value) {
   if (!media) throw new ValidationError('Элементы сцены поддерживают PNG, JPEG, WebP, MP4 и WebM.');
   return { mime, media };
 }
-function scenePaths(config, media) {
-  const filename = `scene-${crypto.randomUUID()}.${media.extension}`;
-  const directory = path.join(config.siteAssetsRoot, SCENE_DIR);
-  return { filename, directory, target:path.join(directory,filename), temporary:path.join(directory,`.${filename}.upload`) };
+function scenePaths(config) {
+  const filename = `.asset-upload-${crypto.randomUUID()}.tmp`;
+  const directory = path.join(config.siteAssetsRoot, CONTENT_ASSET_DIR);
+  return { directory, temporary:path.join(directory,filename) };
 }
 function videoContainerMatches(mime, formatName) {
   const formats=String(formatName||'').toLowerCase().split(',').map((v)=>v.trim()).filter(Boolean);
@@ -99,21 +106,23 @@ async function writeChunk(handle, chunk) {
 export async function createSceneAssetStream({stream,contentLength,contentType,config}) {
   const {mime,media}=resolveMedia(contentType), declared=declaredLength(contentLength);
   if(declared!==null) assertSize(declared,config);
-  const paths=scenePaths(config,media);
+  const paths=scenePaths(config);
   await mkdir(paths.directory,{recursive:true,mode:0o770});
   let handle,size=0;
+  const hash=crypto.createHash('sha256');
   try {
     handle=await open(paths.temporary,'wx',0o640);
     for await (const part of stream) {
       const chunk=Buffer.isBuffer(part)?part:Buffer.from(part);
       size+=chunk.length;
       if(size>config.sceneAssetMaxBytes) throw tooLarge(config);
+      hash.update(chunk);
       await writeChunk(handle,chunk);
     }
     await handle.close(); handle=null; assertSize(size,config);
     const info=await inspectFile(paths.temporary,media,mime,config);
-    await rename(paths.temporary,paths.target);
-    return Object.freeze({source_url:`/site-assets/${SCENE_DIR}/${paths.filename}`,kind:media.kind,media_type:mime,width:info.width,height:info.height,size});
+    const descriptor=await commitContentAssetTemporary(paths.temporary,{hash:hash.digest('hex'),extension:media.extension,config});
+    return Object.freeze({source_url:descriptor.publicUrl,content_hash:descriptor.hash,kind:media.kind,media_type:mime,width:info.width,height:info.height,size});
   } catch(error) {
     if(handle) await handle.close().catch(()=>undefined);
     await unlink(paths.temporary).catch(()=>undefined);
@@ -123,6 +132,7 @@ export async function createSceneAssetStream({stream,contentLength,contentType,c
 
 
 export async function deleteSceneAsset(url, { store, config, force = false } = {}) {
+  if (isContentAssetUrl(url)) return deleteContentAsset(url, { store, config, force });
   const localPath = localPathForUrl(url, config);
   if (!localPath) return false;
   if (!force && await store.isSceneAssetReferenced(url)) return false;
@@ -136,17 +146,16 @@ export async function cleanupUnreferencedSceneAssets({
   olderThanMs = 24 * 60 * 60 * 1000,
   now = Date.now()
 } = {}) {
-  if (typeof store?.listSceneAssetReferences !== 'function') return 0;
+  let removed = await cleanupUnreferencedContentAssets({ store, config, olderThanMs, now });
+  if (typeof store?.listSceneAssetReferences !== 'function') return removed;
+
   const directory = path.join(config.siteAssetsRoot, SCENE_DIR);
   const referenced = new Set(await store.listSceneAssetReferences());
-  let entries;
+  let entries = [];
   try {
     entries = await readdir(directory, { withFileTypes: true });
-  } catch {
-    return 0;
-  }
+  } catch {}
 
-  let removed = 0;
   for (const entry of entries) {
     if (!entry.isFile() || !SAFE_SCENE_ASSET.test(entry.name)) continue;
     const publicUrl = SCENE_ASSET_PREFIX + entry.name;
