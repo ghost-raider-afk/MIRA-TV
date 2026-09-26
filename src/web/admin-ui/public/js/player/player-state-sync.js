@@ -16,7 +16,7 @@ import {
 } from './player-store.js';
 
 const ALL_COMPONENTS = Object.freeze([
-  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'
+  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
