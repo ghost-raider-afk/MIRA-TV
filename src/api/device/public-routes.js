@@ -23,6 +23,7 @@ import { sceneWeatherSettings } from '../../contracts/scene.js';
 
 const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
+const PLAYER_CACHE_ACTIONS = new Set(['check', 'cleanup-unused', 'redownload-active']);
 
 function activationId(value) {
   const id = String(value || '').trim();
@@ -98,6 +99,66 @@ function playerMetric(value) {
     device_memory_gb: finiteOrNull(value.device_memory_gb, { minimum: 0.25, maximum: 256 }),
     hardware_concurrency: finiteOrNull(value.hardware_concurrency, { minimum: 1, maximum: 512, integer: true }),
     uptime_seconds: finiteOrNull(value.uptime_seconds, { minimum: 0, maximum: 315360000, integer: true })
+  };
+}
+
+
+function cacheStatusText(value, maximum = 128) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maximum);
+}
+
+function cacheCount(value) {
+  return finiteOrNull(value, { minimum: 0, maximum: 100000, integer: true }) ?? 0;
+}
+
+function cacheBytes(value) {
+  return finiteOrNull(value, { minimum: 0, maximum: 11258999068426240, integer: true });
+}
+
+function playerCacheStatus(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw Object.assign(new Error('Некорректный статус кэша Player.'), { status: 400 });
+  }
+  const reportedAt = String(value.reported_at || '').trim();
+  if (!reportedAt || !Number.isFinite(Date.parse(reportedAt))) {
+    throw Object.assign(new Error('Некорректное время статуса кэша Player.'), { status: 400 });
+  }
+
+  const commandAction = cacheStatusText(value.last_command_action, 32);
+  if (commandAction && !PLAYER_CACHE_ACTIONS.has(commandAction)) {
+    throw Object.assign(new Error('Некорректная команда кэша Player.'), { status: 400 });
+  }
+  const commandId = cacheStatusText(value.last_command_id, 80);
+  if (commandId && !/^[A-Za-z0-9_-]{8,80}$/.test(commandId)) {
+    throw Object.assign(new Error('Некорректный идентификатор команды кэша Player.'), { status: 400 });
+  }
+  const completedAt = String(value.last_command_completed_at || '').trim();
+  if (completedAt && !Number.isFinite(Date.parse(completedAt))) {
+    throw Object.assign(new Error('Некорректное время выполнения команды кэша Player.'), { status: 400 });
+  }
+
+  return {
+    reported_at:reportedAt,
+    local_first:value.local_first === true,
+    service_worker_active:value.service_worker_active === true,
+    active_revision:cacheStatusText(value.active_revision),
+    previous_revision:cacheStatusText(value.previous_revision),
+    staging_revision:cacheStatusText(value.staging_revision),
+    active_assets:cacheCount(value.active_assets),
+    cached_assets:cacheCount(value.cached_assets),
+    missing_assets:cacheCount(value.missing_assets),
+    retained_assets:cacheCount(value.retained_assets),
+    unused_assets:cacheCount(value.unused_assets),
+    active_bytes:cacheBytes(value.active_bytes),
+    retained_bytes:cacheBytes(value.retained_bytes),
+    storage_usage_bytes:cacheBytes(value.storage_usage_bytes),
+    storage_quota_bytes:cacheBytes(value.storage_quota_bytes),
+    storage_persisted:typeof value.storage_persisted === 'boolean' ? value.storage_persisted : null,
+    last_command_id:commandId,
+    last_command_action:commandAction,
+    last_command_ok:typeof value.last_command_ok === 'boolean' ? value.last_command_ok : null,
+    last_command_message:cacheStatusText(value.last_command_message, 180),
+    last_command_completed_at:completedAt || null
   };
 }
 
@@ -387,6 +448,19 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     const metric = playerMetric(request.body);
     const saved = await store.insertPlayerMetric(session.device_id, session.screen_id, metric);
     return response.status(202).json({ accepted: true, sampled_at: saved?.sampled_at || metric.sampled_at });
+  });
+
+
+  router.post('/cache-status', async (request, response) => {
+    const session = await resolveDeviceSession(store, config, request, response);
+    if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
+    const status = playerCacheStatus(request.body);
+    const saved = await store.upsertPlayerCacheStatus(session.device_id, session.screen_id, status);
+    return response.status(202).json({
+      accepted:true,
+      reported_at:saved?.reported_at || status.reported_at,
+      server_received_at:saved?.server_received_at || null
+    });
   });
 
   router.post('/player-logs', async (request, response) => {
