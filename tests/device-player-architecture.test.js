@@ -117,6 +117,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(player, /syncNow\('boot'\)/);
   assert.match(store, /const DB_NAME = 'mira-tv-player'/);
   assert.match(store, /const LAST_KNOWN_GOOD_KEY = 'last-known-good'/);
+  assert.match(store, /const PREVIOUS_KNOWN_GOOD_KEY = 'previous-known-good'/);
   assert.match(sync, /fetchWithTimeout\('\/api\/device\/player-delta'/);
   assert.match(sync, /credentials: 'include'/);
   assert.match(player, /completeActivationNavigation/);
@@ -193,6 +194,7 @@ test('offline player stages complete manifests and serves cached video before ne
   assert.match(sync, /mira:player-stage-assets/);
   assert.match(sync, /mira:player-commit-assets/);
   assert.match(sync, /commitAssetManifest/);
+  assert.match(sync, /previous-known-good|loadPreviousKnownGood/);
   assert.doesNotMatch(sync, /Range: 'bytes=0-65535'/);
   assert.match(store, /asset-manifest-active/);
   assert.match(store, /asset-manifest-previous/);
