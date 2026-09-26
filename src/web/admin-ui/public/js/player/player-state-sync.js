@@ -123,23 +123,21 @@ async function requireAsset(url) {
   if (!response.ok) throw new Error(`Critical Player asset unavailable: HTTP ${response.status}`);
 }
 
+const localFirstWorkers = new WeakSet();
+const unsupportedLocalFirstWorkers = new WeakSet();
+
 async function activePlayerServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
-  if (navigator.serviceWorker.controller) return navigator.serviceWorker.controller;
-  if (typeof navigator.serviceWorker.getRegistration !== 'function') return null;
-  try {
-    const registration = await navigator.serviceWorker.getRegistration('/player');
-    return registration?.active || null;
-  } catch {
-    return null;
+  if (typeof navigator.serviceWorker.getRegistration === 'function') {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/player');
+      if (registration?.active) return registration.active;
+    } catch {}
   }
+  return navigator.serviceWorker.controller || null;
 }
 
-async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000) {
-  if (typeof MessageChannel !== 'function') return null;
-  const target = await activePlayerServiceWorker();
-  if (!target) return null;
-
+function postWorkerRequest(target, message, timeoutMs) {
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel();
     const timer = setTimeout(() => {
@@ -153,6 +151,27 @@ async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000) {
     };
     target.postMessage(message, [channel.port2]);
   });
+}
+
+async function supportsLocalFirstProtocol(target) {
+  if (localFirstWorkers.has(target)) return true;
+  if (unsupportedLocalFirstWorkers.has(target)) return false;
+  try {
+    const result = await postWorkerRequest(target, { type:'mira:player-cache-capabilities' }, 350);
+    const supported = result?.local_first === true && Number(result?.protocol || 0) >= 1;
+    (supported ? localFirstWorkers : unsupportedLocalFirstWorkers).add(target);
+    return supported;
+  } catch {
+    unsupportedLocalFirstWorkers.add(target);
+    return false;
+  }
+}
+
+async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000) {
+  if (typeof MessageChannel !== 'function') return null;
+  const target = await activePlayerServiceWorker();
+  if (!target || !await supportsLocalFirstProtocol(target)) return null;
+  return postWorkerRequest(target, message, timeoutMs);
 }
 
 async function stageCandidateAssets(context, metadata) {
