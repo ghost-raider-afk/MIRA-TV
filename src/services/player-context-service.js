@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { menuSettingsInput } from '../contracts/menu-settings.js';
 import { buildPlayerContentManifest } from './player-content-manifest-service.js';
 
-export const PLAYER_STATE_SCHEMA_VERSION = 5;
+export const PLAYER_STATE_SCHEMA_VERSION = 6;
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('base64url');
@@ -32,7 +32,7 @@ function screenComponent(screen) {
   };
 }
 
-export function playerRuntimeComponent(config, renderRevision = 1) {
+export function playerRuntimeComponent(config, renderRevision = 1, sceneVideoToken = '') {
   return {
     app_version: config.appVersion,
     fallback_poll_interval_ms: config.playerFallbackPollSeconds * 1000,
@@ -42,15 +42,16 @@ export function playerRuntimeComponent(config, renderRevision = 1) {
     metrics_interval_ms: config.playerMetricsIntervalSeconds * 1000,
     preview_capture_interval_ms: config.tvPreviewCaptureSeconds * 1000,
     preview_max_bytes: config.tvPreviewMaxBytes,
-    render_revision: Number(renderRevision) || 1
+    render_revision: Number(renderRevision) || 1,
+    scene_video_revision: String(sceneVideoToken || '')
   };
 }
 
-export function playerRuntimeHash(config, renderRevision = 1) {
-  return digest(playerRuntimeComponent(config, renderRevision));
+export function playerRuntimeHash(config, renderRevision = 1, sceneVideoToken = '') {
+  return digest(playerRuntimeComponent(config, renderRevision, sceneVideoToken));
 }
 
-export async function buildPlayerState(store, session, config, { renderRevision = null } = {}) {
+export async function buildPlayerState(store, session, config, { renderRevision = null, sceneVideoService = null } = {}) {
   const [screen, draft, animationSettings] = await Promise.all([
     store.getScreen(session.screen_id),
     store.getScreenDraft(session.screen_id),
@@ -75,21 +76,41 @@ export async function buildPlayerState(store, session, config, { renderRevision 
 
   const canonicalScene = draft.scene || { version: 1, elements: [] };
   const canonicalDraft = { rows: draft.rows || [], settings: canonicalMenuSettings };
+  const screenState = screenComponent(screen);
+  const animationState = { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null };
+  const scenePlaylist = animationSettings?.scene_playlist || null;
+  const sceneVideo = sceneVideoService?.componentFor?.({
+    screenId: screen.id,
+    renderRevision: currentRenderRevision || 1,
+    context: {
+      screen: screenState,
+      draft: canonicalDraft,
+      products,
+      packaging,
+      scene: canonicalScene,
+      animation: animationState,
+      scene_playlist: scenePlaylist
+    }
+  }) || { enabled: false, status: 'disabled', source_url: '', live_layers: ['weather'] };
+
   const contentManifest = await buildPlayerContentManifest({
     draft: canonicalDraft,
     scene: canonicalScene,
+    sceneVideo,
     renderRevision: currentRenderRevision || 1,
     config
   });
 
+  const sceneVideoToken = sceneVideoService?.runtimeToken?.(screen.id) || '';
   const components = {
-    screen: screenComponent(screen),
+    screen: screenState,
     menu: { draft: canonicalDraft, products, packaging },
     scene: canonicalScene,
-    animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
-    scene_playlist: animationSettings?.scene_playlist || null,
+    animation: animationState,
+    scene_playlist: scenePlaylist,
+    scene_video: sceneVideo,
     content_manifest: contentManifest,
-    runtime: playerRuntimeComponent(config, currentRenderRevision || 1)
+    runtime: playerRuntimeComponent(config, currentRenderRevision || 1, sceneVideoToken)
   };
 
   const hashes = Object.fromEntries(Object.entries(components).map(([name, value]) => [name, digest(value)]));
@@ -111,6 +132,7 @@ export function fullPlayerContext(state) {
     scene: components.scene,
     animation: components.animation,
     scene_playlist: components.scene_playlist,
+    scene_video: components.scene_video,
     content_manifest: components.content_manifest,
     ...components.runtime
   };
