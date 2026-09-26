@@ -11,7 +11,7 @@ test('Player scene layer stack contains only canonical generic layers', async ()
     read('js/player/player.js'),
     read('js/player/player-scene-renderer.js')
   ]);
-  const expected = ['menu', 'fx', 'content', 'scene'];
+  const expected = ['baked', 'menu', 'fx', 'content', 'scene'];
   let last = -1;
   for (const id of expected) {
     const index = source.indexOf(`id: '${id}'`);
@@ -24,7 +24,9 @@ test('Player scene layer stack contains only canonical generic layers', async ()
   assert.match(source, /layer\.dataset\.sceneLayer = id/);
   assert.match(source, /ensureCore\(\)/);
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
-  assert.match(sceneRenderer, /sceneElementRenderer\.render\(context\.scene\)/);
+  assert.match(sceneRenderer, /weatherOnlyScene\(context\.scene_video\?\.live_scene \|\| context\.scene\)/);
+  assert.match(sceneRenderer, /: context\.scene/);
+  assert.match(sceneRenderer, /SceneVideoRuntime/);
   assert.doesNotMatch(sceneRenderer, /renderEnvironmentLayer|renderSceneEntity|renderBrandTitleLayer|renderAnnouncementLayer/);
 });
 

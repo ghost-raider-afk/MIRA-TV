@@ -516,6 +516,11 @@ function schedulePreviewPublish(delayMs = previewCaptureIntervalMs) {
   previewTimer = setTimeout(() => void publishPreviewFrame(), delay);
 }
 
+window.addEventListener('mira:player-preview-request', () => {
+  if (document.visibilityState === 'hidden' || player?.classList.contains('is-hidden')) return;
+  void publishPreviewFrame();
+});
+
 async function publishPreviewFrame() {
   previewTimer = null;
   if (previewInFlight || document.visibilityState === 'hidden' || !navigator.onLine || player?.classList.contains('is-hidden')) {

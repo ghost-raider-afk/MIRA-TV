@@ -149,7 +149,7 @@ export class WasmMotionDriver {
     if (handle.kind !== 'clock') return;
     handle.currentTime = Math.max(0, number(milliseconds));
     if (handle.state === 'running') handle.startedAt = performance.now() - handle.currentTime;
-    this.render(handle.currentTime);
+    this.render(handle.currentTime, { includePaused:true });
   }
 
   currentTime(handle) {
@@ -193,10 +193,10 @@ export class WasmMotionDriver {
     this.ensureLoop();
   }
 
-  render(time) {
+  render(time, { includePaused = false } = {}) {
     if (!this.kernel) return;
     for (const handle of this.procedural) {
-      if (handle.state !== 'running') continue;
+      if (handle.state !== 'running' && !(includePaused && handle.state === 'paused')) continue;
       this.renderTrack(handle.track, time);
     }
   }

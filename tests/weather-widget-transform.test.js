@@ -42,7 +42,7 @@ test('weather geometry is isolated from menu and promotion rerenders', async () 
   ]);
   assert.match(scenePage, /renderer\.render\(sceneContext\(\), \['menu'\]\)/);
   assert.doesNotMatch(scenePage, /renderer\.render\(sceneContext\(\), \['screen', 'menu'\]\)/);
-  assert.match(playerRenderer, /if \(dirty\.has\('scene'\) \|\| dirty\.has\('screen'\)\)/);
+  assert.match(playerRenderer, /if \(dirty\.has\('scene'\) \|\| dirty\.has\('scene_video'\) \|\| dirty\.has\('screen'\)\)/);
   assert.doesNotMatch(playerRenderer, /dirty\.has\('scene'\) \|\| dirty\.has\('screen'\) \|\| menuDirty/);
   assert.match(elementRenderer, /function responsiveContent\(element\)/);
   assert.match(elementRenderer, /\['weather', 'image', 'video', 'logo'\]\.includes/);
@@ -235,7 +235,7 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
   ]);
 
   assert.match(stateSync, /loadLastKnownGood/);
-  assert.match(stateSync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'/);
+  assert.match(stateSync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime'/);
   assert.doesNotMatch(stateSync, /'entity', 'weather', 'brand', 'announcement'/);
   assert.match(stateSync, /await applyContext\(record\.context, \[\.\.\.ALL_COMPONENTS\]/);
 
@@ -250,9 +250,9 @@ test('offline weather restores through canonical Player LKG and keeps cache isol
 
 test('Player shell changes rotate only the offline shell cache and preserve downloaded media data', async () => {
   const worker = await read('src/web/admin-ui/public/player-sw.js');
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v48'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v49'/);
   assert.match(worker, /const DATA_CACHE = 'mira-tv-player-data-v18'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v47'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v48'/);
   assert.match(worker, /const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42'/);
   assert.match(worker, /caches\.delete\(LEGACY_SHELL_CACHE\)/);
 });

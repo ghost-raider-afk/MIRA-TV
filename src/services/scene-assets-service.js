@@ -75,7 +75,7 @@ function videoCodecMatches(mime, codecName) {
 async function inspectVideo(file, config, mime) {
   let stdout;
   try {
-    ({stdout}=await execFileAsync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height,codec_name:format=format_name','-of','json',file],{timeout:12000,maxBuffer:1024*1024}));
+    ({stdout}=await execFileAsync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height,codec_name,avg_frame_rate,duration:format=format_name,duration','-of','json',file],{timeout:12000,maxBuffer:1024*1024}));
   } catch {
     throw new ValidationError('Видео элемента не удалось прочитать через ffprobe. Проверьте MP4/WebM файл.');
   }
@@ -85,7 +85,17 @@ async function inspectVideo(file, config, mime) {
   if(!videoContainerMatches(mime,probe?.format?.format_name)) throw new ValidationError('MIME-тип видео не соответствует контейнеру.');
   if(!videoCodecMatches(mime,stream.codec_name)) throw new ValidationError('Для совместимости с ТВ используйте H.264 в MP4 либо VP8/VP9 в WebM.');
   if(width>config.screenMaxWidth||height>config.screenMaxHeight||width*height>config.imageMaxPixels) throw new ValidationError(`Видео элемента превышает допустимое разрешение ${config.screenMaxWidth}×${config.screenMaxHeight}.`);
-  return {width,height,codec:String(stream.codec_name||'')};
+  const rateText=String(stream.avg_frame_rate||'0/1');
+  const [rateNumerator,rateDenominator]=rateText.split('/').map(Number);
+  const fps=Number.isFinite(rateNumerator)&&Number.isFinite(rateDenominator)&&rateDenominator!==0 ? rateNumerator/rateDenominator : 0;
+  const durationSeconds=Number(stream.duration ?? probe?.format?.duration);
+  return {
+    width,
+    height,
+    codec:String(stream.codec_name||''),
+    fps:Number.isFinite(fps)&&fps>0?fps:null,
+    duration_ms:Number.isFinite(durationSeconds)&&durationSeconds>0?Math.round(durationSeconds*1000):null
+  };
 }
 async function inspectFile(file, media, mime, config) {
   if(media.kind==='video') return inspectVideo(file,config,mime);
@@ -122,7 +132,17 @@ export async function createSceneAssetStream({stream,contentLength,contentType,c
     await handle.close(); handle=null; assertSize(size,config);
     const info=await inspectFile(paths.temporary,media,mime,config);
     const descriptor=await commitContentAssetTemporary(paths.temporary,{hash:hash.digest('hex'),extension:media.extension,config});
-    return Object.freeze({source_url:descriptor.publicUrl,content_hash:descriptor.hash,kind:media.kind,media_type:mime,width:info.width,height:info.height,size});
+    return Object.freeze({
+      source_url:descriptor.publicUrl,
+      content_hash:descriptor.hash,
+      kind:media.kind,
+      media_type:mime,
+      width:info.width,
+      height:info.height,
+      fps:info.fps ?? null,
+      duration_ms:info.duration_ms ?? null,
+      size
+    });
   } catch(error) {
     if(handle) await handle.close().catch(()=>undefined);
     await unlink(paths.temporary).catch(()=>undefined);
