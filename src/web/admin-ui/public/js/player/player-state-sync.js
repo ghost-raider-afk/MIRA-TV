@@ -186,10 +186,9 @@ function publishActiveAssets(context) {
   if (!('serviceWorker' in navigator)) return;
   const manifest = activeAssetManifest(context);
   const message = { type: 'mira:player-active-assets', assets: manifest.assets.map((asset) => asset.url) };
-  void navigator.serviceWorker.ready.then((registration) => {
-    const target = navigator.serviceWorker.controller || registration.active;
-    target?.postMessage(message);
-  }).catch(() => undefined);
+  void activePlayerServiceWorker()
+    .then((target) => target?.postMessage(message))
+    .catch(() => undefined);
 }
 
 function publicLogRecord(record) {
