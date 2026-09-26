@@ -179,7 +179,7 @@ test('shared Player Scene Renderer rerenders only canonical dirty components', a
 });
 test('Player Context has no specialized Entity field', async () => {
   const source = await read('src/services/player-context-service.js');
-  assert.match(source, /scene:\s*draft\.scene/);
+  assert.match(source, /const canonicalScene = draft\.scene \|\| \{ version: 1, elements: \[\] \}/);
   assert.doesNotMatch(source, /entity:\s*animationSettings|scene-entity|entity_json/);
 });
 test('offline player stages complete manifests and serves cached video before network range requests', async () => {
