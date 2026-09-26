@@ -14,6 +14,7 @@ import { siteSettingsResponse } from './services/site-assets-service.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
 import { cleanupUnreferencedSceneAssets } from './services/scene-assets-service.js';
 import { createWeatherService } from './services/weather-service.js';
+import { createSceneVideoRenderService } from './services/scene-video-render-service.js';
 import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, MANAGER_PAGE, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
@@ -135,7 +136,7 @@ function configureSecurity(app, config) {
   app.use(express.json({ limit: config.jsonBodyMaxBytes }));
 }
 
-function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
+function mountPublicRoutes(app, { store, config, realtime, weatherService, sceneVideoService }) {
   let readiness = { checkedAt: 0, ok: false };
   app.get('/healthz', (_request, response) => response.json({ status: 'ok', service: 'mira-tv' }));
   app.get('/readyz', async (_request, response) => {
@@ -158,7 +159,23 @@ function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
     const site = siteSettingsResponse(await store.getSiteSettings(), config);
     response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
   });
-  app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService }));
+
+  app.get('/__mira/scene-render', (request, response) => {
+    const token = String(request.query?.token || '');
+    if (!sceneVideoService?.hasRenderToken?.(token)) return response.status(404).end();
+    response.setHeader('Cache-Control', 'no-store');
+    return response.sendFile(path.join(publicDir, 'server-scene-render.html'));
+  });
+
+  app.get('/__mira/scene-render/context', (request, response) => {
+    const token = String(request.query?.token || '');
+    const context = sceneVideoService?.contextForToken?.(token);
+    if (!context) return response.status(404).json({ error: 'Render token is invalid or expired.' });
+    response.setHeader('Cache-Control', 'no-store');
+    return response.json(context);
+  });
+
+  app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService, sceneVideoService }));
 }
 
 function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole) {
@@ -221,17 +238,18 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   await recoverRuntimeState(store, config);
   const realtime = createPlayerRealtime({ store });
   const weatherService = createWeatherService({ store, config, logger });
+  const sceneVideoService = createSceneVideoRenderService({ config, realtime, logger });
   const app = express();
   configureSecurity(app, config);
-  mountPublicRoutes(app, { store, config, realtime, weatherService });
+  mountPublicRoutes(app, { store, config, realtime, weatherService, sceneVideoService });
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession, requireApiRole, requirePageRole } = createSessionMiddleware(resolveSession);
-  const dependencies = { store, config, realtime, weatherService };
+  const dependencies = { store, config, realtime, weatherService, sceneVideoService };
   mountProtectedApi(app, dependencies, requireApiSession, requireApiRole);
   mountFrontend(app, requirePageSession, requirePageRole);
   app.use(errorHandler);
-  return { app, store, config, realtime, weatherService };
+  return { app, store, config, realtime, weatherService, sceneVideoService };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -251,6 +269,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.once(signal, () => {
       clearInterval(maintenanceTimer);
       service.weatherService.stop();
+      void service.sceneVideoService.stop();
       service.realtime.close();
       logger.info('MIRA-TV server stopping', { signal });
       server.close(() => void service.store.close());
