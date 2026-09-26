@@ -362,6 +362,11 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(storedPromotion.promotion_animation).toBe('fill');
   expect(storedPromotion.promotion_badge_animation).toBe('shine');
   expect(stored.animation.profile.pattern).toBe('wave');
+  expect(stored.animation.profile.promotion_row_highlight_enabled).toBe(true);
+  expect(stored.animation.profile.promotion_row_animation_enabled).toBe(false);
+  expect(stored.animation.profile.promotion_badge_glow_enabled).toBe(true);
+  expect(stored.animation.profile.promotion_badge_shine_enabled).toBe(true);
+  expect(stored.animation.profile.promotion_badge_sparkle_enabled).toBe(true);
 
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
