@@ -91,6 +91,12 @@ export function createRenderAgentPublicRouter({ store, config, realtime }) {
         fps: asset.fps,
         durationMs: asset.duration_ms,
         agentVersion: request.get('x-mira-render-agent-version') || '',
+        liveScene: {
+          version:1,
+          elements:Array.isArray(currentPackage.live_overlays?.weather)
+            ? currentPackage.live_overlays.weather
+            : []
+        },
         updatedBy: 'render-agent'
       });
 
