@@ -1,7 +1,10 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { parseReserveCode, parseScanPayload, tokenHash } from '../../services/device-session-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
+
+const PLAYER_CACHE_ACTIONS = new Set(['check', 'cleanup-unused', 'redownload-active']);
 
 function activationId(value) {
   const id = String(value || '').trim();
@@ -95,10 +98,17 @@ export function createDeviceAdminRouter({ store, realtime }) {
 
   router.get('/bindings', async (request, response) => {
     const bindings = await store.listDeviceBindings();
-    const diagnostics = typeof store.listLatestPlayerLogsByDeviceIds === 'function'
-      ? await store.listLatestPlayerLogsByDeviceIds(bindings.map((binding) => binding.device_id))
-      : [];
+    const deviceIds = bindings.map((binding) => binding.device_id);
+    const [diagnostics, cacheStatuses] = await Promise.all([
+      typeof store.listLatestPlayerLogsByDeviceIds === 'function'
+        ? store.listLatestPlayerLogsByDeviceIds(deviceIds)
+        : [],
+      typeof store.listPlayerCacheStatusByDeviceIds === 'function'
+        ? store.listPlayerCacheStatusByDeviceIds(deviceIds)
+        : []
+    ]);
     const diagnosticByDevice = new Map(diagnostics.map((entry) => [Number(entry.device_id), entry]));
+    const cacheStatusByDevice = new Map(cacheStatuses.map((entry) => [Number(entry.device_id), entry]));
     const measurePing = request.query.measure_ping === '1';
     const pingResults = new Map();
     if (measurePing) {
@@ -127,7 +137,8 @@ export function createDeviceAdminRouter({ store, realtime }) {
         preview_updated_at: previewIsCurrentSession ? preview.updated_at : null,
         ping_ms: measurePing && Number.isFinite(measuredPing) ? measuredPing : null,
         ping_measured_at: measuredAt,
-        player_diagnostic: diagnosticByDevice.get(Number(binding.device_id)) || null
+        player_diagnostic: diagnosticByDevice.get(Number(binding.device_id)) || null,
+        cache_status: cacheStatusByDevice.get(Number(binding.device_id)) || null
       };
     }));
   });
@@ -145,6 +156,31 @@ export function createDeviceAdminRouter({ store, realtime }) {
     if (request.get('if-none-match') === preview.etag) return response.status(304).end();
     response.type(preview.contentType);
     return response.send(preview.buffer);
+  });
+
+
+  router.post('/bindings/:screenId/cache-command', async (request, response) => {
+    const screenId = positiveId(request.params.screenId, 'screen_id');
+    const action = String(request.body?.action || '').trim();
+    if (!PLAYER_CACHE_ACTIONS.has(action)) {
+      return response.status(400).json({ error: 'Некорректная команда управления кэшем.' });
+    }
+    const screen = await store.getScreen(screenId);
+    if (!screen) throw notFound('Монитор не найден.');
+    const binding = await store.getActiveDeviceBindingByScreen(screenId);
+    if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
+    const requestId = crypto.randomUUID();
+    const sent = realtime?.sendCacheCommand(screenId, action, requestId) === true;
+    if (!sent) return response.status(409).json({ error: 'TV Player сейчас не в сети.' });
+
+    await activity(store, request, {
+      action:'device.cache.command',
+      entity_type:'screen',
+      entity_id:screen.id,
+      message:`Отправлена команда кэша «${action}» на монитор «${screen.name}».`,
+      metadata:{ action, request_id:requestId }
+    });
+    return response.status(202).json({ accepted:true, request_id:requestId, action });
   });
 
   router.delete('/bindings/:screenId', async (request, response) => {
