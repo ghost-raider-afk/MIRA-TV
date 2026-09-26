@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v47';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v48';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v48';
+const SHELL_CACHE = 'mira-tv-player-shell-v49';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: navigation-based Device Session handoff for TV browsers.
+// Source revision: Local-first cache management and atomic content staging.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
@@ -89,7 +89,7 @@ function manifestAssetSet(manifest) {
   return assets;
 }
 
-async function ensureManifestAssets(manifest) {
+async function ensureManifestAssets(manifest, { force = false } = {}) {
   const required = manifestAssetSet(manifest);
   const cache = await caches.open(DATA_CACHE);
   const failed = [];
@@ -97,12 +97,12 @@ async function ensureManifestAssets(manifest) {
   let cached = 0;
   for (const href of required) {
     const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
-    if (await cache.match(request)) {
+    if (!force && await cache.match(request)) {
       cached += 1;
       continue;
     }
     try {
-      const response = await fetch(request, { cache: 'force-cache' });
+      const response = await fetch(request, { cache: force ? 'reload' : 'force-cache' });
       if (response.status !== 200) {
         failed.push(href);
         continue;
@@ -132,6 +132,42 @@ async function cleanupAssetCache(manifests) {
   return removed;
 }
 
+
+async function inspectAssetCache(manifests = {}) {
+  const active = manifestAssetSet(manifests.active);
+  const keep = new Set();
+  for (const manifest of [manifests.active, manifests.previous, manifests.staging]) {
+    for (const href of manifestAssetSet(manifest)) keep.add(href);
+  }
+
+  const cache = await caches.open(DATA_CACHE);
+  const requests = await cache.keys();
+  const cached = new Set(
+    requests
+      .map((request) => request.url)
+      .filter((href) => {
+        try { return new URL(href).pathname.startsWith('/site-assets/'); }
+        catch { return false; }
+      })
+  );
+  let activeCached = 0;
+  for (const href of active) if (cached.has(href)) activeCached += 1;
+  let retained = 0;
+  let unused = 0;
+  for (const href of cached) {
+    if (keep.has(href)) retained += 1;
+    else unused += 1;
+  }
+
+  return {
+    active_assets:active.size,
+    cached_assets:activeCached,
+    missing_assets:Math.max(0, active.size - activeCached),
+    retained_assets:retained,
+    unused_assets:unused
+  };
+}
+
 async function syncActiveAssets(values) {
   const manifest = { assets:values };
   const result = await ensureManifestAssets(manifest);
@@ -147,7 +183,7 @@ function reply(event, payload) {
 self.addEventListener('message', (event) => {
   const type = event.data?.type;
   if (type === 'mira:player-cache-capabilities') {
-    reply(event, { ok:true, local_first:true, protocol:1 });
+    reply(event, { ok:true, local_first:true, protocol:2 });
     return;
   }
   if (type === 'mira:player-stage-assets') {
@@ -161,6 +197,43 @@ self.addEventListener('message', (event) => {
     event.waitUntil((async () => {
       const removed = await cleanupAssetCache([event.data?.active, event.data?.previous]);
       reply(event, { ok:true, removed });
+    })());
+    return;
+  }
+
+  if (type === 'mira:player-cache-inspect') {
+    event.waitUntil((async () => {
+      const status = await inspectAssetCache({
+        active:event.data?.active,
+        previous:event.data?.previous,
+        staging:event.data?.staging
+      });
+      reply(event, { ok:true, ...status });
+    })());
+    return;
+  }
+  if (type === 'mira:player-cache-cleanup') {
+    event.waitUntil((async () => {
+      const manifests = {
+        active:event.data?.active,
+        previous:event.data?.previous,
+        staging:event.data?.staging
+      };
+      const removed = await cleanupAssetCache([manifests.active, manifests.previous, manifests.staging]);
+      const status = await inspectAssetCache(manifests);
+      reply(event, { ok:true, removed, ...status });
+    })());
+    return;
+  }
+  if (type === 'mira:player-cache-redownload') {
+    event.waitUntil((async () => {
+      const result = await ensureManifestAssets(event.data?.active, { force:true });
+      const status = await inspectAssetCache({
+        active:event.data?.active,
+        previous:event.data?.previous,
+        staging:event.data?.staging
+      });
+      reply(event, { ok:result.complete, ...result, ...status });
     })());
     return;
   }
