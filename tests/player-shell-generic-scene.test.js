@@ -6,7 +6,7 @@ const read=(p)=>readFile(new URL(p,root),'utf8');
 
 test('offline Player shell contains only active generic scene runtime dependencies', async()=>{
   const [worker,html]=await Promise.all([read('player-sw.js'),read('player.html')]);
-  assert.match(worker,/const SHELL_CACHE = 'mira-tv-player-shell-v48'/);
+  assert.match(worker,/const SHELL_CACHE = 'mira-tv-player-shell-v49'/);
   assert.match(worker,/\/css\/player-scene\.css/);
   assert.match(html,/\/css\/player-scene\.css/);
   for(const retired of [
