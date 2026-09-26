@@ -150,3 +150,12 @@ Render package имеет стабильный input hash.
 5. сравнение Editor → Preview → encoded MP4 → TV;
 6. Android TV benchmark;
 7. после подтверждения — уменьшение роли старого непрерывного motion runtime.
+
+
+## Ограничение pilot-версии
+
+Первая реализация Video Mode запекает основную сцену и стандартные анимации, но не активный `scene_playlist`. У playlist пока нет deterministic seek для точного покадрового рендера.
+
+Если playlist включён и содержит активные сцены, сервер помечает Render Package как `bake_supported=false`, а TV продолжает использовать существующий live renderer. Это безопасный fallback, а не удаление функции.
+
+После подтверждения базового Video Mode на реальном Android TV для playlist будет добавлен отдельный deterministic timeline.
