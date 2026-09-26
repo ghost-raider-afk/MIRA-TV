@@ -94,10 +94,17 @@ export function compilePromotionMotionProgram(scene, context = {}) {
   const shineCycle = 60000 / shineFrequency;
   const shineSweep = clamp(1550 / shineSpeed, 420, 3100);
   const shineActiveFraction = clamp(shineSweep / shineCycle, 0.06, 0.86);
+  const badgeGlowEnabled = profile.promotion_badge_glow_enabled !== false;
+  const badgeShineEnabled = profile.promotion_badge_shine_enabled !== false;
+  const badgeSparkleEnabled = profile.promotion_badge_sparkle_enabled !== false;
+  const rowHighlightEnabled = profile.promotion_row_highlight_enabled !== false;
+  const rowAnimationEnabled = profile.promotion_row_animation_enabled !== false;
 
   const tracks = effect === 'none' ? [] : scene.nodes.flatMap((node) => {
     const animation = node.metadata?.animation || '';
-    if (node.kind === 'promotion-badge-glow') return [Object.freeze({
+    if (node.kind === 'promotion-badge-glow') {
+      if (!badgeGlowEnabled) return [];
+      return [Object.freeze({
       node,
       claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
@@ -108,7 +115,10 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       }),
       timing: Object.freeze({ duration: badgeDuration, delay: 0, easing: 'linear', loop: true })
     })];
-    if (node.kind === 'promotion-badge-shine' && animation === 'shine') return [Object.freeze({
+    }
+    if (node.kind === 'promotion-badge-shine' && animation === 'shine') {
+      if (!badgeShineEnabled) return [];
+      return [Object.freeze({
       node,
       claims: Object.freeze(['opacity', 'transform']),
       procedural: Object.freeze({
@@ -119,7 +129,10 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       }),
       timing: Object.freeze({ duration: shineCycle, delay: 0, easing: 'linear', loop: true })
     })];
-    if (node.kind === 'promotion-badge-sparkle' && animation === 'shine') return [Object.freeze({
+    }
+    if (node.kind === 'promotion-badge-sparkle' && animation === 'shine') {
+      if (!badgeSparkleEnabled) return [];
+      return [Object.freeze({
       node,
       claims: Object.freeze(['opacity', 'transform', 'appearance']),
       procedural: Object.freeze({
@@ -131,7 +144,10 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       }),
       timing: Object.freeze({ duration: shineCycle, delay: 0, easing: 'linear', loop: true })
     })];
-    if (node.kind === 'promotion-glow') return [Object.freeze({
+    }
+    if (node.kind === 'promotion-glow') {
+      if (!rowHighlightEnabled || !rowAnimationEnabled) return [];
+      return [Object.freeze({
       node,
       claims: Object.freeze(['opacity', 'appearance', 'transform']),
       procedural: Object.freeze({
@@ -143,6 +159,7 @@ export function compilePromotionMotionProgram(scene, context = {}) {
       }),
       timing: Object.freeze({ duration: rowDuration, delay: 0, easing: 'linear', loop: true })
     })];
+    }
     return [];
   });
   return createSceneProgram({
