@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
-import { mkdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 
 export const CONTENT_ASSET_DIR = 'content';
 export const CONTENT_ASSET_PREFIX = '/site-assets/content/';
@@ -87,4 +87,37 @@ export async function deleteContentAsset(url, { store, config, force = false } =
 
 export function isContentAssetUrl(url) {
   return typeof url === 'string' && SAFE_CONTENT_ASSET.test(url.startsWith(CONTENT_ASSET_PREFIX) ? url.slice(CONTENT_ASSET_PREFIX.length) : '');
+}
+
+
+export async function cleanupUnreferencedContentAssets({
+  store,
+  config,
+  olderThanMs = 24 * 60 * 60 * 1000,
+  now = Date.now()
+} = {}) {
+  if (typeof store?.listContentAssetReferences !== 'function') return 0;
+  const directory = path.join(config.siteAssetsRoot, CONTENT_ASSET_DIR);
+  const referenced = new Set(await store.listContentAssetReferences());
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !SAFE_CONTENT_ASSET.test(entry.name)) continue;
+    const publicUrl = CONTENT_ASSET_PREFIX + entry.name;
+    if (referenced.has(publicUrl)) continue;
+    const file = path.join(directory, entry.name);
+    try {
+      const info = await stat(file);
+      if (now - info.mtimeMs < olderThanMs) continue;
+      await unlink(file);
+      removed += 1;
+    } catch {}
+  }
+  return removed;
 }
