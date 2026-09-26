@@ -123,10 +123,21 @@ async function requireAsset(url) {
   if (!response.ok) throw new Error(`Critical Player asset unavailable: HTTP ${response.status}`);
 }
 
+async function activePlayerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return null;
+  if (navigator.serviceWorker.controller) return navigator.serviceWorker.controller;
+  if (typeof navigator.serviceWorker.getRegistration !== 'function') return null;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/player');
+    return registration?.active || null;
+  } catch {
+    return null;
+  }
+}
+
 async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000) {
-  if (!('serviceWorker' in navigator) || typeof MessageChannel !== 'function') return null;
-  const registration = await navigator.serviceWorker.ready;
-  const target = navigator.serviceWorker.controller || registration.active;
+  if (typeof MessageChannel !== 'function') return null;
+  const target = await activePlayerServiceWorker();
   if (!target) return null;
 
   return new Promise((resolve, reject) => {
