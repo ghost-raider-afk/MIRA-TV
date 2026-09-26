@@ -171,6 +171,21 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-stage .promotion-badge')).toHaveAttribute('data-promotion-badge-shape', 'chevron');
   await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
 
+  await promotionInspector.getByLabel('Вся анимация акции').selectOption('none');
+  const staticPromotionGlow = page.locator('#scene-editor-stage .promotion-row-glow');
+  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+
+  await promotionRowLayer.click();
+  const staticRowInspector = page.locator('#scene-editor-properties');
+  await staticRowInspector.getByLabel('Движение подсветки').uncheck();
+  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
+  await staticRowInspector.getByLabel('Подсветка строки').uncheck();
+  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBe(0);
+  await staticRowInspector.getByLabel('Подсветка строки').check();
+
+  await promotionLayer.click();
+  await page.locator('#scene-editor-properties').getByLabel('Вся анимация акции').selectOption('cinematic');
+
   await animationLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация сцены');
   const animationInspector = page.locator('#scene-editor-properties');
