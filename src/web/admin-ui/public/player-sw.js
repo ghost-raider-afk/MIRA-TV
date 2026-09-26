@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v41';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v47';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v47';
+const SHELL_CACHE = 'mira-tv-player-shell-v48';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: navigation-based Device Session handoff for TV browsers.
 const SHELL_ASSETS = [
@@ -73,9 +73,14 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-function activeAssetSet(values) {
+function manifestAssetSet(manifest) {
+  const values = Array.isArray(manifest)
+    ? manifest
+    : Array.isArray(manifest?.assets)
+      ? manifest.assets.map((asset) => typeof asset === 'string' ? asset : asset?.url)
+      : [];
   const assets = new Set();
-  for (const value of values || []) {
+  for (const value of values) {
     try {
       const url = new URL(String(value || ''), self.location.origin);
       if (url.origin === self.location.origin && url.pathname.startsWith('/site-assets/')) assets.add(url.href);
@@ -84,35 +89,78 @@ function activeAssetSet(values) {
   return assets;
 }
 
-async function ensureActiveAssets(values) {
-  const active = activeAssetSet(values);
+async function ensureManifestAssets(manifest) {
+  const required = manifestAssetSet(manifest);
   const cache = await caches.open(DATA_CACHE);
-  let complete = true;
-  for (const href of active) {
+  const failed = [];
+  let fetched = 0;
+  let cached = 0;
+  for (const href of required) {
     const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
-    if (await cache.match(request)) continue;
+    if (await cache.match(request)) {
+      cached += 1;
+      continue;
+    }
     try {
       const response = await fetch(request, { cache: 'force-cache' });
-      if (response.status !== 200) { complete = false; continue; }
+      if (response.status !== 200) {
+        failed.push(href);
+        continue;
+      }
       await cache.put(request, response.clone());
-    } catch { complete = false; }
+      fetched += 1;
+    } catch {
+      failed.push(href);
+    }
   }
-  return { active, complete, cache };
+  return { complete:failed.length === 0, total:required.size, fetched, cached, failed };
+}
+
+async function cleanupAssetCache(manifests) {
+  const keep = new Set();
+  for (const manifest of manifests || []) {
+    for (const href of manifestAssetSet(manifest)) keep.add(href);
+  }
+  const cache = await caches.open(DATA_CACHE);
+  const requests = await cache.keys();
+  let removed = 0;
+  await Promise.all(requests.map(async (request) => {
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith('/site-assets/') || keep.has(url.href)) return;
+    if (await cache.delete(request)) removed += 1;
+  }));
+  return removed;
 }
 
 async function syncActiveAssets(values) {
-  const { active, complete, cache } = await ensureActiveAssets(values);
-  if (!complete) return;
-  const requests = await cache.keys();
-  await Promise.all(requests.map((request) => {
-    const url = new URL(request.url);
-    if (!url.pathname.startsWith('/site-assets/') || active.has(url.href)) return false;
-    return cache.delete(request);
-  }));
+  const manifest = { assets:values };
+  const result = await ensureManifestAssets(manifest);
+  if (!result.complete) return result;
+  await cleanupAssetCache([manifest]);
+  return result;
+}
+
+function reply(event, payload) {
+  try { event.ports?.[0]?.postMessage(payload); } catch {}
 }
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
+  const type = event.data?.type;
+  if (type === 'mira:player-stage-assets') {
+    event.waitUntil((async () => {
+      const result = await ensureManifestAssets(event.data?.manifest);
+      reply(event, { ok:result.complete, ...result });
+    })());
+    return;
+  }
+  if (type === 'mira:player-commit-assets') {
+    event.waitUntil((async () => {
+      const removed = await cleanupAssetCache([event.data?.active, event.data?.previous]);
+      reply(event, { ok:true, removed });
+    })());
+    return;
+  }
+  if (type !== 'mira:player-active-assets' || !Array.isArray(event.data.assets)) return;
   event.waitUntil(syncActiveAssets(event.data.assets));
 });
 
@@ -149,16 +197,16 @@ async function videoRequest(request) {
   const cache = await caches.open(DATA_CACHE);
   const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
   const cached = await cache.match(fullRequest);
-  if (!request.headers.has('range')) return cached || cachedAsset(request);
+  if (cached) return cached;
+  if (!request.headers.has('range')) return cachedAsset(request);
 
-  // Do not slice a potentially 100 MB cached video in JavaScript. When online,
-  // preserve the browser's native byte-range pipeline; the complete cache is
-  // only the offline fallback when the network is unavailable.
+  // A fully staged video is served directly from Cache Storage. Only uncached
+  // videos use the browser's native byte-range network pipeline.
   try {
     const ranged = await networkWithTimeout(request, 8000);
     if (ranged.status === 206 || ranged.ok) return ranged;
   } catch {}
-  return cached || Response.error();
+  return Response.error();
 }
 
 self.addEventListener('fetch', (event) => {
