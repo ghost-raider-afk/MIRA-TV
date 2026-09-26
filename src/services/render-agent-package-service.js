@@ -155,7 +155,16 @@ export async function buildRenderAgentPackage(store, screenId, config) {
     source_assets: sourceAssets.assets
   };
 
-  const inputHash = digest(renderPayload);
+  const hashPayload = {
+    ...renderPayload,
+    screen: {
+      name: renderPayload.screen.name,
+      resolution: renderPayload.screen.resolution,
+      width: renderPayload.screen.width,
+      height: renderPayload.screen.height
+    }
+  };
+  const inputHash = digest(hashPayload);
   return Object.freeze({
     ...renderPayload,
     input_hash: inputHash,
