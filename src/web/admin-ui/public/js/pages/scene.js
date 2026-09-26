@@ -637,6 +637,22 @@ export function initialiseSceneEditor() {
     return makeField(labelText, select);
   }
 
+  function animationToggle(id, labelText, helperText = '') {
+    const label = document.createElement('label');
+    label.className = 'scene-animation-toggle';
+    const input = document.createElement('input');
+    input.id = id;
+    input.type = 'checkbox';
+    input.setAttribute('aria-label', labelText);
+    const copy = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = labelText;
+    copy.append(title);
+    if (helperText) copy.append(Object.assign(document.createElement('small'), { textContent:helperText }));
+    label.append(input, copy);
+    return label;
+  }
+
   function animationRange(id, labelText, min, max, step, outputId) {
     const label = document.createElement('label');
     label.className = 'field scene-animation-range';
@@ -666,39 +682,30 @@ export function initialiseSceneEditor() {
     return state.rows.filter((row) => row?.kind === 'item' && row?.promotion === true);
   }
 
-  function renderPromotionPresetGroup(titleText, field, options, fallback) {
-    const fieldRoot = document.createElement('div');
-    fieldRoot.className = 'scene-animation-preset-field';
+  function renderPromotionPresetSelect(titleText, field, options, fallback) {
+    const fieldRoot = document.createElement('label');
+    fieldRoot.className = 'field scene-animation-preset-field';
     const title = document.createElement('span');
     title.textContent = titleText;
-    const group = document.createElement('div');
-    group.className = 'scene-animation-preset-grid';
-    group.setAttribute('role', 'radiogroup');
-    group.setAttribute('aria-label', titleText);
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', titleText);
     const rows = promotionRows();
-    for (const [value, label] of options) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'scene-animation-preset';
-      button.textContent = label;
-      button.setAttribute('role', 'radio');
-      const selected = rows.length > 0 && rows.every((row) => (row[field] || fallback) === value);
-      button.classList.toggle('is-selected', selected);
-      button.setAttribute('aria-checked', String(selected));
-      button.disabled = rows.length === 0;
-      button.addEventListener('click', () => {
-        if (!rows.length || selected) return;
-        history.checkpoint();
-        for (const row of rows) row[field] = value;
-        state.dirty = true;
-        setDirty();
-        scheduleDocumentRender();
-        renderInspector();
-        setSelectionStatus();
-      });
-      group.append(button);
-    }
-    fieldRoot.append(title, group);
+    const values = new Set(rows.map((row) => row[field] || fallback));
+    if (values.size > 1) select.add(new Option('— Разные значения —', ''));
+    for (const [value, label] of options) select.add(new Option(label, value));
+    select.value = values.size === 1 ? [...values][0] : '';
+    select.disabled = rows.length === 0;
+    select.addEventListener('change', () => {
+      if (!rows.length || !select.value) return;
+      history.checkpoint();
+      for (const row of rows) row[field] = select.value;
+      state.dirty = true;
+      setDirty();
+      scheduleDocumentRender();
+      renderInspector();
+      setSelectionStatus();
+    });
+    fieldRoot.append(title, select);
     return fieldRoot;
   }
 
@@ -861,14 +868,21 @@ export function initialiseSceneEditor() {
       ? 'Настройка применяется ко всем плашкам «Акция» текущего меню.'
       : 'В таблице пока нет строк с включённой «Акцией».';
     motionPanel.append(
-      renderPromotionPresetGroup('Эффект плашки', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
+      renderPromotionPresetSelect('Пресет эффекта', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
       presetNote
     );
     const motionGrid = document.createElement('div');
     motionGrid.className = 'scene-animation-control-grid';
     motionGrid.append(
-      animationSelect('animation-promotion-effect', 'Анимация', [['cinematic','Включена'],['none','Выключена']]),
+      animationSelect('animation-promotion-effect', 'Вся анимация акции', [['cinematic','Включена'],['none','Выключена']]),
       animationSelect('animation-promotion-easing', 'Пластика', [['smooth','Плавная'],['cinematic','Киношная']])
+    );
+    const effectToggles = document.createElement('div');
+    effectToggles.className = 'scene-animation-toggle-grid';
+    effectToggles.append(
+      animationToggle('animation-promotion-badge-glow-enabled', 'Свечение плашки', 'Объёмное мягкое свечение'),
+      animationToggle('animation-promotion-badge-shine-enabled', 'Перелив', 'Свет проходит по всей плашке'),
+      animationToggle('animation-promotion-badge-sparkle-enabled', 'Солнечный блик', 'Короткая точечная вспышка')
     );
     const ranges = document.createElement('div');
     ranges.className = 'scene-animation-range-grid';
@@ -881,7 +895,7 @@ export function initialiseSceneEditor() {
       animationRange('animation-promotion-cycle','Период свечения',2,15,.5,'animation-promotion-cycle-output'),
       animationRange('animation-promotion-duration','Длительность свечения',700,4000,100,'animation-promotion-duration-output')
     );
-    motionPanel.append(motionGrid, ranges);
+    motionPanel.append(motionGrid, effectToggles, ranges);
     motion.append(motionPanel);
 
     stack.append(style, motion);
@@ -905,11 +919,17 @@ export function initialiseSceneEditor() {
     const note = document.createElement('small');
     note.className = 'scene-animation-note';
     note.textContent = promotionRows().length
-      ? '«Волна» меняет широкую световую массу, «Gloss» — узкий направленный блик. Эффекты используют разные алгоритмы.'
+      ? 'Подсветку строки можно оставить статичной, а движение отключить. «Волна» и Gloss используют разные алгоритмы.'
       : 'В таблице пока нет строк с включённой «Акцией».';
     panel.append(
-      renderPromotionPresetGroup('Тип эффекта', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
+      renderPromotionPresetSelect('Пресет подсветки', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
       note
+    );
+    const rowToggles = document.createElement('div');
+    rowToggles.className = 'scene-animation-toggle-grid';
+    rowToggles.append(
+      animationToggle('animation-promotion-row-highlight-enabled', 'Подсветка строки', 'Работает и при выключенной общей анимации'),
+      animationToggle('animation-promotion-row-animation-enabled', 'Движение подсветки', 'Можно отключить, оставив статическую подсветку')
     );
     const ranges = document.createElement('div');
     ranges.className = 'scene-animation-range-grid';
@@ -919,7 +939,7 @@ export function initialiseSceneEditor() {
       animationRange('animation-promotion-row-cycle','Период цикла',2,15,.5,'animation-promotion-row-cycle-output'),
       animationRange('animation-promotion-row-duration','Длительность эффекта',300,6000,100,'animation-promotion-row-duration-output')
     );
-    panel.append(ranges);
+    panel.append(rowToggles, ranges);
     row.append(panel);
     stack.append(row);
     propertiesRoot.append(stack);
