@@ -160,6 +160,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
       body: JSON.stringify({ authorized: true, device_id: 77, device_key: 'runtime-audit-device-key-123456', session_expires_at: new Date(Date.now() + 86400000).toISOString(), screen: snapshot.screen })
     }));
     await page.route('**/api/device/player-logs', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accepted_through: 1000000 }) }));
+    await page.route('**/api/device/cache-status', (route) => route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ accepted: true }) }));
     await page.route('**/api/device/player-delta', (route) => {
       deltaRequests += 1;
       const body = deltaRequests === 1

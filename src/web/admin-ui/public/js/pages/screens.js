@@ -76,7 +76,8 @@ function formatBytes(value) {
     amount /= 1024;
     unit = units[index];
   }
-  return `${amount >= 100 ? Math.round(amount) : amount.toFixed(amount >= 10 ? 1 : 2)} ${unit}`;
+  const rounded = amount >= 100 ? Math.round(amount) : Number(amount.toFixed(amount >= 10 ? 1 : 2));
+  return `${rounded} ${unit}`;
 }
 
 function cacheSummary(binding) {
