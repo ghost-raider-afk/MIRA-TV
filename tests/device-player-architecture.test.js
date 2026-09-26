@@ -106,7 +106,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v48'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v49'/);
   assert.match(worker, /'\/js\/player\/player-boot\.js'/);
   assert.match(worker, /'\/js\/player\/fetch-timeout\.js'/);
   assert.match(worker, /'\/js\/core\/dom-compat\.js'/);
@@ -131,7 +131,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sync, /asset\.preload\.degraded/);
   assert.match(sync, /if \(active\?\.context\) \{[\s\S]*?miraPhase = 'critical-assets'/);
   assert.doesNotMatch(sync, /new AbortController\(\)/);
-  assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'/);
+  assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime'/);
   assert.match(sync, /function enabledSceneMedia\(context\)[\s\S]*?element\?\.enabled !== false[\s\S]*?\['image', 'logo', 'video'\]\.includes/);
   assert.match(sync, /enabledSceneMedia\(context\)\.map\(\(element\) => element\.media\.source_url\)/);
   assert.doesNotMatch(sync, /context\?\.entity|context\?\.brand|context\?\.announcement|context\?\.environment/);
@@ -142,7 +142,9 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sceneRenderer, /new PlayerWeatherRuntime\(stage/);
   assert.match(sceneRenderer, /new PlayerSceneLayerComposer\(stage\)/);
   assert.match(sceneRenderer, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);
-  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(context\.scene\)/);
+  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(bakedActive \? weatherOnlyScene\(context\.scene\) : context\.scene\)/);
+  assert.match(sceneRenderer, /new SceneVideoRuntime/);
+  assert.match(sceneRenderer, /context\.scene_video/);
   assert.match(sceneRenderer, /this\.weatherRuntime\.setLayer\(weatherElement \? this\.sceneElementRenderer\.contentFor/);
   assert.doesNotMatch(sceneRenderer, /renderEnvironmentLayer|renderSceneEntity|renderBrandTitleLayer|renderAnnouncementLayer|context\.entity|context\.brand|context\.announcement|context\.environment/);
 
@@ -151,14 +153,15 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sceneMotionRuntime, /this\.compilers = compilers \|\| DEFAULT_SCENE_COMPILERS/);
   assert.doesNotMatch(sceneMotionRuntime, /compileEntityBehaviorProgram|entityMedia|data-motion-entity-layer/);
 
-  for (const layer of ['menu','fx','content','scene']) assert.match(layerComposer, new RegExp("id: '"+layer+"'"));
+  for (const layer of ['baked','menu','fx','content','scene']) assert.match(layerComposer, new RegExp("id: '"+layer+"'"));
   for (const legacy of ['environment','entity','weather','brand','announcement','aquarium']) assert.doesNotMatch(layerComposer, new RegExp("id: '"+legacy+"'"));
 
-  assert.match(publicRoutes, /playerRuntimeHash\(config, currentRevision\)/);
+  assert.match(publicRoutes, /playerRuntimeHash\(config, currentRevision, sceneVideoService/);
   assert.match(publicRoutes, /router\.post\('\/player-delta'/);
   assert.match(publicRoutes, /router\.get\('\/weather'/);
-  assert.match(playerContextService, /PLAYER_STATE_SCHEMA_VERSION = 5/);
+  assert.match(playerContextService, /PLAYER_STATE_SCHEMA_VERSION = 6/);
   assert.match(playerContextService, /const canonicalScene = draft\.scene \|\| \{ version: 1, elements: \[\] \}/);
+  assert.match(playerContextService, /scene_video: sceneVideo/);
   assert.match(playerContextService, /content_manifest: contentManifest/);
   assert.doesNotMatch(playerContextService, /environment:|entity:|brand:|announcement:|weather:/);
   assert.match(flatRenderer, /layer\.innerHTML = svg/);
@@ -334,6 +337,7 @@ test('runtime TV device settings are declared in env example', async () => {
     'DEVICE_ACTIVATION_WINDOW_MINUTES','DEVICE_ACTIVATION_LIMITER_MAX_ENTRIES','DEVICE_ACTIVATION_CLEANUP_MINUTES',
     'DEVICE_ACTIVATION_RETENTION_HOURS','DEVICE_SESSION_TTL_DAYS','DEVICE_HEARTBEAT_WRITE_SECONDS',
     'PLAYER_FALLBACK_POLL_SECONDS','PLAYER_LOG_BATCH_SIZE','PLAYER_LOG_LOCAL_MAX_ENTRIES','PLAYER_LOG_LOCAL_MAX_BYTES',
-    'PLAYER_METRICS_INTERVAL_SECONDS','PLAYER_METRICS_RETENTION_DAYS','TV_PREVIEW_CAPTURE_SECONDS','TV_PREVIEW_MAX_BYTES'
+    'PLAYER_METRICS_INTERVAL_SECONDS','PLAYER_METRICS_RETENTION_DAYS','TV_PREVIEW_CAPTURE_SECONDS','TV_PREVIEW_MAX_BYTES',
+    'SCENE_VIDEO_ENABLED','SCENE_VIDEO_FPS','SCENE_VIDEO_DURATION_SECONDS','SCENE_VIDEO_CHROMIUM_PATH'
   ]) assert.match(env, new RegExp(`^${key}=`, 'm'), key);
 });
