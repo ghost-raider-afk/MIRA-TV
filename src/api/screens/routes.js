@@ -164,6 +164,60 @@ export function createScreensRouter({ store, config, realtime }) {
     });
   });
 
+  router.post('/screens/:id/render-package/reuse', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const renderPackage = await buildRenderAgentPackage(store, id, config);
+    if (!renderPackage) throw notFound();
+    if (renderPackage.bake_supported !== true) {
+      return response.status(409).json({
+        error: 'Эта сцена пока требует live renderer.',
+        reason: renderPackage.unsupported_reason
+      });
+    }
+    const reusable = typeof store.findBakedSceneByInputHash === 'function'
+      ? await store.findBakedSceneByInputHash(renderPackage.input_hash)
+      : null;
+    if (!reusable?.active_url || !reusable?.active_hash) {
+      return response.status(404).json({ error: 'Готовый ролик для этой сцены не найден.' });
+    }
+    const record = await store.activateBakedScene({
+      screenId:id,
+      sourceRenderRevision:renderPackage.render_revision,
+      inputHash:renderPackage.input_hash,
+      activeUrl:reusable.active_url,
+      activeHash:reusable.active_hash,
+      width:reusable.width,
+      height:reusable.height,
+      fps:reusable.fps,
+      durationMs:reusable.duration_ms,
+      agentVersion:reusable.agent_version || 'reused',
+      liveScene:{
+        version:1,
+        elements:Array.isArray(renderPackage.live_overlays?.weather)
+          ? renderPackage.live_overlays.weather
+          : []
+      },
+      updatedBy:request.session.sub
+    });
+    realtime?.notifyScreen?.(id, renderPackage.render_revision);
+    await activity(store, request, {
+      action:'screen.baked_scene.reused',
+      entity_type:'screen',
+      entity_id:id,
+      message:`Готовая Video Scene повторно использована для монитора «${renderPackage.screen.name}».`
+    });
+    return response.json({
+      reused:true,
+      screen_id:id,
+      render_revision:record.source_render_revision,
+      input_hash:record.input_hash,
+      scene_video:{
+        source_url:record.active_url,
+        content_hash:record.active_hash
+      }
+    });
+  });
+
   router.get('/screens/:id/editor', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     const screen = await store.getScreen(id);
