@@ -5,6 +5,7 @@ import {
   appendPlayerLog,
   clearAssetManifests,
   clearLastKnownGood,
+  clearStagedAssetManifest,
   commitAssetManifest,
   loadAssetManifests,
   loadLastKnownGood,
@@ -123,7 +124,7 @@ async function requireAsset(url) {
   if (!response.ok) throw new Error(`Critical Player asset unavailable: HTTP ${response.status}`);
 }
 
-const localFirstWorkers = new WeakSet();
+const localFirstWorkerProtocols = new WeakMap();
 const unsupportedLocalFirstWorkers = new WeakSet();
 
 async function activePlayerServiceWorker() {
@@ -153,24 +154,25 @@ function postWorkerRequest(target, message, timeoutMs) {
   });
 }
 
-async function supportsLocalFirstProtocol(target) {
-  if (localFirstWorkers.has(target)) return true;
-  if (unsupportedLocalFirstWorkers.has(target)) return false;
+async function localFirstProtocol(target) {
+  if (localFirstWorkerProtocols.has(target)) return localFirstWorkerProtocols.get(target);
+  if (unsupportedLocalFirstWorkers.has(target)) return 0;
   try {
     const result = await postWorkerRequest(target, { type:'mira:player-cache-capabilities' }, 350);
-    const supported = result?.local_first === true && Number(result?.protocol || 0) >= 1;
-    (supported ? localFirstWorkers : unsupportedLocalFirstWorkers).add(target);
-    return supported;
+    const protocol = result?.local_first === true ? Math.max(0, Number(result?.protocol || 0)) : 0;
+    if (protocol >= 1) localFirstWorkerProtocols.set(target, protocol);
+    else unsupportedLocalFirstWorkers.add(target);
+    return protocol;
   } catch {
     unsupportedLocalFirstWorkers.add(target);
-    return false;
+    return 0;
   }
 }
 
-async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000) {
+async function serviceWorkerRequest(message, timeoutMs = 10 * 60_000, minimumProtocol = 1) {
   if (typeof MessageChannel !== 'function') return null;
   const target = await activePlayerServiceWorker();
-  if (!target || !await supportsLocalFirstProtocol(target)) return null;
+  if (!target || await localFirstProtocol(target) < minimumProtocol) return null;
   return postWorkerRequest(target, message, timeoutMs);
 }
 
@@ -221,6 +223,35 @@ function publicLogRecord(record) {
   };
 }
 
+
+function manifestBytes(manifest) {
+  const seen = new Set();
+  let total = 0;
+  for (const asset of Array.isArray(manifest?.assets) ? manifest.assets : []) {
+    const url = String(asset?.url || '');
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const size = Number(asset?.size_bytes);
+    if (Number.isSafeInteger(size) && size >= 0) total += size;
+  }
+  return total;
+}
+
+function retainedManifestBytes(manifests) {
+  const sizes = new Map();
+  for (const manifest of [manifests?.active, manifests?.previous, manifests?.staging]) {
+    for (const asset of Array.isArray(manifest?.assets) ? manifest.assets : []) {
+      const url = String(asset?.url || '');
+      const size = Number(asset?.size_bytes);
+      if (!url || sizes.has(url) || !Number.isSafeInteger(size) || size < 0) continue;
+      sizes.set(url, size);
+    }
+  }
+  let total = 0;
+  for (const size of sizes.values()) total += size;
+  return total;
+}
+
 export function createPlayerStateSync({
   applyContext,
   prepareAssets,
@@ -242,6 +273,8 @@ export function createPlayerStateSync({
   let sequence = 0;
   let diagnosticSequence = 0;
   let websocketConnected = false;
+  let cacheReportPromise = null;
+  let lastCacheCommand = null;
   const currentBootId = bootId();
   const diagnosticBootId = `${currentBootId.slice(0, 57)}-diag`;
   let runtime = {
@@ -369,6 +402,122 @@ export function createPlayerStateSync({
     return logFlushPromise;
   }
 
+  async function cacheStatusSnapshot() {
+    const manifests = await loadAssetManifests().catch(() => ({ active:null, previous:null, staging:null }));
+    const worker = await activePlayerServiceWorker();
+    const protocol = worker ? await localFirstProtocol(worker) : 0;
+    const inspection = protocol >= 2
+      ? await serviceWorkerRequest({
+          type:'mira:player-cache-inspect',
+          active:manifests.active,
+          previous:manifests.previous,
+          staging:manifests.staging
+        }, 15_000, 2).catch(() => null)
+      : null;
+
+    const estimate = typeof navigator.storage?.estimate === 'function'
+      ? await navigator.storage.estimate().catch(() => ({}))
+      : {};
+    const persisted = typeof navigator.storage?.persisted === 'function'
+      ? await navigator.storage.persisted().catch(() => null)
+      : null;
+    const activeAssets = Array.isArray(manifests.active?.assets) ? manifests.active.assets.length : 0;
+
+    return {
+      reported_at:new Date().toISOString(),
+      local_first:protocol >= 1,
+      service_worker_active:Boolean(worker),
+      active_revision:String(manifests.active?.revision || ''),
+      previous_revision:String(manifests.previous?.revision || ''),
+      staging_revision:String(manifests.staging?.revision || ''),
+      active_assets:Number.isSafeInteger(Number(inspection?.active_assets)) ? Number(inspection.active_assets) : activeAssets,
+      cached_assets:Number.isSafeInteger(Number(inspection?.cached_assets)) ? Number(inspection.cached_assets) : null,
+      missing_assets:Number.isSafeInteger(Number(inspection?.missing_assets)) ? Number(inspection.missing_assets) : null,
+      retained_assets:Number.isSafeInteger(Number(inspection?.retained_assets)) ? Number(inspection.retained_assets) : null,
+      unused_assets:Number.isSafeInteger(Number(inspection?.unused_assets)) ? Number(inspection.unused_assets) : null,
+      active_bytes:manifestBytes(manifests.active),
+      retained_bytes:retainedManifestBytes(manifests),
+      storage_usage_bytes:Number.isSafeInteger(Number(estimate?.usage)) ? Number(estimate.usage) : null,
+      storage_quota_bytes:Number.isSafeInteger(Number(estimate?.quota)) ? Number(estimate.quota) : null,
+      storage_persisted:typeof persisted === 'boolean' ? persisted : null,
+      last_command_id:lastCacheCommand?.id || '',
+      last_command_action:lastCacheCommand?.action || '',
+      last_command_ok:typeof lastCacheCommand?.ok === 'boolean' ? lastCacheCommand.ok : null,
+      last_command_message:lastCacheCommand?.message || '',
+      last_command_completed_at:lastCacheCommand?.completedAt || null
+    };
+  }
+
+  async function reportCacheStatus() {
+    if (!navigator.onLine) return null;
+    if (cacheReportPromise) return cacheReportPromise;
+    cacheReportPromise = (async () => {
+      const status = await cacheStatusSnapshot();
+      const response = await fetch('/api/device/cache-status', {
+        method:'POST',
+        credentials:'include',
+        cache:'no-store',
+        headers:{ 'content-type':'application/json' },
+        body:JSON.stringify(status)
+      });
+      if (response.status === 401 || response.status === 403) return null;
+      if (!response.ok) throw new Error(`Player cache status HTTP ${response.status}`);
+      return status;
+    })().catch(() => null).finally(() => {
+      cacheReportPromise = null;
+    });
+    return cacheReportPromise;
+  }
+
+  async function runCacheCommand(message) {
+    const action = String(message?.action || '');
+    const requestId = String(message?.request_id || '').slice(0, 80);
+    if (!['check', 'cleanup-unused', 'redownload-active'].includes(action) || !requestId) return;
+
+    let ok = true;
+    let detail = '';
+    try {
+      const manifests = await loadAssetManifests();
+      if (action === 'cleanup-unused') {
+        const result = await serviceWorkerRequest({
+          type:'mira:player-cache-cleanup',
+          active:manifests.active,
+          previous:manifests.previous,
+          staging:manifests.staging
+        }, 30_000, 2);
+        if (!result) throw new Error('Управление локальным кэшем недоступно на этом Player.');
+        if (result.ok !== true) throw new Error('Не удалось очистить неиспользуемый кэш.');
+        detail = result.removed > 0 ? `Удалено файлов: ${result.removed}.` : 'Неиспользуемых файлов нет.';
+      } else if (action === 'redownload-active') {
+        if (!manifests.active) throw new Error('Активная локальная ревизия ещё не создана.');
+        const result = await serviceWorkerRequest({
+          type:'mira:player-cache-redownload',
+          active:manifests.active,
+          previous:manifests.previous,
+          staging:manifests.staging
+        }, 10 * 60_000, 2);
+        if (!result) throw new Error('Управление локальным кэшем недоступно на этом Player.');
+        if (result.ok !== true) throw new Error(`Не удалось перескачать ${result.failed?.length || 0} файлов.`);
+        detail = `Перескачано файлов: ${result.fetched || 0}.`;
+      } else {
+        detail = 'Кэш проверен.';
+      }
+    } catch (error) {
+      ok = false;
+      detail = String(error?.message || 'Команда кэша не выполнена.').slice(0, 180);
+    }
+
+    lastCacheCommand = {
+      id:requestId,
+      action,
+      ok,
+      message:detail,
+      completedAt:new Date().toISOString()
+    };
+    log('cache.command.completed', { action, ok }, ok ? 'info' : 'warn');
+    await reportCacheStatus();
+  }
+
   async function persistLastKnownGood() {
     if (!active?.context) return;
     await saveLastKnownGood({
@@ -387,6 +536,7 @@ export function createPlayerStateSync({
     try {
       stagedManifest = await stageCandidateAssets(context, metadata);
     } catch (error) {
+      await clearStagedAssetManifest().catch(() => undefined);
       if (active?.context) {
         error.miraPhase = 'critical-assets';
         throw error;
@@ -437,6 +587,7 @@ export function createPlayerStateSync({
       degraded_assets: Boolean(degradedAssetError),
       local_first: Boolean(stagedManifest && !degradedAssetError)
     });
+    void reportCacheStatus();
     void warmAssets?.(context, changedNames);
   }
 
@@ -532,6 +683,9 @@ export function createPlayerStateSync({
       if (message?.revision && message.revision === active?.revision) return;
       void syncNow('websocket-change');
     },
+    onCacheCommand(message) {
+      void runCacheCommand(message);
+    },
     onConnected() {
       const wasConnected = websocketConnected;
       websocketConnected = true;
@@ -566,6 +720,7 @@ export function createPlayerStateSync({
     }
     onLastKnownGood?.(record.context);
     log('state.restored', { saved:true, source });
+    void reportCacheStatus();
     onConnectivity?.('offline');
     return true;
   }

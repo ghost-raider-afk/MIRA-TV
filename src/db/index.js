@@ -20,6 +20,7 @@ import { migratePlayerMetrics } from './migrations/player-metrics.js';
 import { migrateDeviceIdentification } from './migrations/device-identification.js';
 import { migrateWeatherSnapshots } from './migrations/weather-snapshots.js';
 import { migrateSiteUiScale } from './migrations/site-ui-scale.js';
+import { migratePlayerCacheStatus } from './migrations/player-cache-status.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -42,6 +43,7 @@ import { createPlayerTelemetryRepository } from './player-telemetry.js';
 import { createPlayerMetricsRepository } from './player-metrics.js';
 import { createScreenRenderJournalRepository } from './screen-render-journal.js';
 import { createWeatherRepository } from './weather.js';
+import { createPlayerCacheStatusRepository } from './player-cache-status.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -71,7 +73,8 @@ const MIGRATIONS = Object.freeze([
   { name: '025-player-metrics', run: migratePlayerMetrics },
   { name: '026-device-identification', run: migrateDeviceIdentification },
   { name: '027-weather-snapshots', run: migrateWeatherSnapshots },
-  { name: '028-site-ui-scale', run: migrateSiteUiScale }
+  { name: '028-site-ui-scale', run: migrateSiteUiScale },
+  { name: '029-player-cache-status', run: migratePlayerCacheStatus }
 ]);
 
 function createRepositories(queryable) {
@@ -90,7 +93,8 @@ function createRepositories(queryable) {
     createPlayerTelemetryRepository(queryable),
     createPlayerMetricsRepository(queryable),
     createScreenRenderJournalRepository(queryable),
-    createWeatherRepository(queryable)
+    createWeatherRepository(queryable),
+    createPlayerCacheStatusRepository(queryable)
   );
 }
 

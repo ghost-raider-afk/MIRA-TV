@@ -10,6 +10,9 @@ const pingByScreen = new Map();
 let statusTimer = null;
 let previewDialog = null;
 let previewDialogScreenId = null;
+let cacheDialog = null;
+let cacheDialogScreenId = null;
+let pendingCacheCommand = null;
 
 function bindingForScreen(screenId) {
   return state.deviceBindings.find((binding) => Number(binding.screen_id) === Number(screenId)) || null;
@@ -53,6 +56,73 @@ function pingText(screenId, binding) {
   const ping = pingByScreen.get(Number(screenId));
   if (!ping || ping.connectedAt !== (binding.realtime_connected_at || null)) return 'не измерен';
   return Number.isFinite(ping.ms) ? `${Math.round(ping.ms)} мс` : 'нет ответа';
+}
+
+
+function finiteValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatBytes(value) {
+  const bytes = finiteValue(value);
+  if (bytes === null || bytes < 0) return '—';
+  if (bytes < 1024) return `${Math.round(bytes)} Б`;
+  const units = ['КБ', 'МБ', 'ГБ', 'ТБ'];
+  let amount = bytes / 1024;
+  let unit = units[0];
+  for (let index = 1; index < units.length && amount >= 1024; index += 1) {
+    amount /= 1024;
+    unit = units[index];
+  }
+  const rounded = amount >= 100 ? Math.round(amount) : Number(amount.toFixed(amount >= 10 ? 1 : 2));
+  return `${rounded} ${unit}`;
+}
+
+function cacheSummary(binding) {
+  const cache = binding?.cache_status;
+  if (!binding) return '—';
+  if (!cache) return 'нет данных';
+  if (cache.local_first !== true) return 'Local-first недоступен';
+  const total = finiteValue(cache.active_assets);
+  const cached = finiteValue(cache.cached_assets);
+  const missing = finiteValue(cache.missing_assets);
+  if (total !== null && cached !== null && missing !== null) {
+    if (missing === 0 && cached === total) return total ? `готово · ${cached}/${total}` : 'готово';
+    return `неполный · ${cached}/${total}`;
+  }
+  return cache.active_revision ? 'активен' : 'ожидает синхронизации';
+}
+
+function cacheDetailRows(binding) {
+  const cache = binding?.cache_status;
+  if (!cache) return [
+    ['Состояние', binding?.online ? 'Ожидаем первый отчёт Player' : 'Нет данных'],
+    ['Последний отчёт', '—']
+  ];
+  const cachedAssets = finiteValue(cache.cached_assets);
+  const activeAssets = finiteValue(cache.active_assets) ?? 0;
+  const activeCount = cachedAssets !== null ? `${cachedAssets}/${activeAssets}` : String(activeAssets);
+  const storageUsage = finiteValue(cache.storage_usage_bytes);
+  const storageQuota = finiteValue(cache.storage_quota_bytes);
+  const storage = storageUsage !== null
+    ? `${formatBytes(storageUsage)}${storageQuota !== null ? ` / ${formatBytes(storageQuota)}` : ''}`
+    : '—';
+  return [
+    ['Состояние', cacheSummary(binding)],
+    ['Local-first', cache.local_first ? 'активен' : 'недоступен'],
+    ['Активная ревизия', cache.active_revision || '—'],
+    ['Резервная ревизия', cache.previous_revision || '—'],
+    ['Staging', cache.staging_revision || 'нет'],
+    ['Файлы активной', activeCount],
+    ['Не хватает файлов', cache.missing_assets === null || cache.missing_assets === undefined ? '—' : String(cache.missing_assets)],
+    ['Неиспользуемые', cache.unused_assets === null || cache.unused_assets === undefined ? '—' : String(cache.unused_assets)],
+    ['Контент активной', formatBytes(cache.active_bytes)],
+    ['Хранилище браузера', storage],
+    ['Защищённое хранилище', cache.storage_persisted === true ? 'да' : cache.storage_persisted === false ? 'нет' : 'неизвестно'],
+    ['Последний отчёт', cache.reported_at ? formatDate(cache.reported_at) : '—']
+  ];
 }
 
 function previewUrl(screen, binding) {
@@ -109,6 +179,7 @@ function metaRows(screen, binding) {
     ['Модель', binding?.model || 'Не определена', ''],
     ['IP-адрес', binding?.remote_address || '—', ''],
     ['Ping', pingText(screen.id, binding), ''],
+    ['Кэш', cacheSummary(binding), ''],
     ...(diagnostic ? [['Диагностика', diagnostic, '']] : [])
   ];
 }
@@ -143,8 +214,10 @@ function syncTvUnit(unit, screen, binding) {
   if (meta) fillMeta(meta, screen, binding);
   const bindAction = unit.querySelector('[data-tv-bind-action]');
   const unbindAction = unit.querySelector('[data-tv-unbind-action]');
+  const cacheAction = unit.querySelector('[data-tv-cache-action]');
   if (bindAction) bindAction.hidden = Boolean(binding);
   if (unbindAction) unbindAction.hidden = !binding;
+  if (cacheAction) cacheAction.hidden = !binding;
 }
 
 function createTvUnit(screen) {
@@ -192,11 +265,14 @@ function createTvUnit(screen) {
   bind.textContent = 'Подключить';
   bind.setAttribute('aria-label', `Подключить ${tvLabel(screen)}`);
   bind.dataset.tvBindAction = '';
+  const cache = makeButton('Кэш', 'secondary', () => openCacheDialog(screen));
+  cache.dataset.tvCacheAction = '';
+  cache.setAttribute('aria-label', `Управление кэшем ${tvLabel(screen)}`);
   const unbind = makeButton('Отвязать', 'secondary', () => void unbindScreen(screen));
   unbind.dataset.tvUnbindAction = '';
   unbind.classList.add('screen-tv-unbind');
   const remove = makeButton('Удалить', 'danger', () => void deleteScreen(screen));
-  actions.append(settings, scene, bind, unbind, remove);
+  actions.append(settings, scene, bind, cache, unbind, remove);
 
   unit.append(open, actions);
   syncTvUnit(unit, screen, binding);
@@ -257,6 +333,127 @@ function refreshOpenPreview() {
   if (screen) updatePreviewDialog(screen);
 }
 
+
+function ensureCacheDialog() {
+  if (cacheDialog?.isConnected) return cacheDialog;
+  const dialog = document.createElement('dialog');
+  dialog.className = 'screen-tv-cache-dialog';
+  dialog.innerHTML = `
+    <div class="screen-tv-cache-shell">
+      <button class="screen-tv-preview-close" type="button" aria-label="Закрыть">×</button>
+      <header class="screen-tv-cache-header">
+        <p class="eyebrow">LOCAL-FIRST PLAYER</p>
+        <h2 data-tv-cache-title>Кэш TV</h2>
+        <p data-tv-cache-summary>Нет данных</p>
+      </header>
+      <div class="screen-tv-cache-grid" data-tv-cache-meta></div>
+      <p class="screen-tv-cache-message" data-tv-cache-message aria-live="polite"></p>
+      <div class="screen-tv-cache-actions">
+        <button class="button button-secondary" type="button" data-cache-command="check">Проверить</button>
+        <button class="button button-secondary" type="button" data-cache-command="cleanup-unused">Очистить лишнее</button>
+        <button class="button" type="button" data-cache-command="redownload-active">Перескачать активное</button>
+      </div>
+    </div>`;
+  dialog.querySelector('.screen-tv-preview-close')?.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => {
+    cacheDialogScreenId = null;
+    pendingCacheCommand = null;
+  });
+  dialog.querySelectorAll('[data-cache-command]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const screen = state.screens.find((item) => Number(item.id) === Number(cacheDialogScreenId));
+      if (screen) void sendCacheCommand(screen, button.dataset.cacheCommand);
+    });
+  });
+  document.body.append(dialog);
+  cacheDialog = dialog;
+  return dialog;
+}
+
+function fillCacheMeta(container, binding) {
+  container.replaceChildren();
+  for (const [label, value] of cacheDetailRows(binding)) {
+    const row = document.createElement('span');
+    row.className = 'screen-tv-cache-row';
+    const name = document.createElement('small');
+    name.textContent = label;
+    const text = document.createElement('strong');
+    text.textContent = value;
+    row.append(name, text);
+    container.append(row);
+  }
+}
+
+function updateCacheDialog(screen) {
+  const dialog = ensureCacheDialog();
+  const binding = bindingForScreen(screen.id);
+  const cache = binding?.cache_status;
+  dialog.querySelector('[data-tv-cache-title]').textContent = `Кэш ${tvLabel(screen)}`;
+  dialog.querySelector('[data-tv-cache-summary]').textContent = cacheSummary(binding);
+  fillCacheMeta(dialog.querySelector('[data-tv-cache-meta]'), binding);
+  dialog.querySelectorAll('[data-cache-command]').forEach((button) => {
+    button.disabled = binding?.online !== true || Boolean(pendingCacheCommand);
+  });
+  const message = dialog.querySelector('[data-tv-cache-message]');
+  if (pendingCacheCommand?.screenId === Number(screen.id)) {
+    if (cache?.last_command_id === pendingCacheCommand.requestId) {
+      message.textContent = cache.last_command_message || (cache.last_command_ok ? 'Команда выполнена.' : 'Команда не выполнена.');
+      message.className = `screen-tv-cache-message ${cache.last_command_ok ? 'is-success' : 'is-error'}`;
+      pendingCacheCommand = null;
+      dialog.querySelectorAll('[data-cache-command]').forEach((button) => { button.disabled = binding?.online !== true; });
+    } else {
+      message.textContent = 'Команда выполняется на TV Player…';
+      message.className = 'screen-tv-cache-message';
+    }
+  } else if (cache?.last_command_message) {
+    message.textContent = cache.last_command_message;
+    message.className = `screen-tv-cache-message ${cache.last_command_ok === false ? 'is-error' : 'is-success'}`;
+  } else {
+    message.textContent = binding?.online ? 'Кэш можно проверить без остановки показа сцены.' : 'TV Player должен быть онлайн для управления кэшем.';
+    message.className = 'screen-tv-cache-message';
+  }
+}
+
+function openCacheDialog(screen) {
+  cacheDialogScreenId = Number(screen.id);
+  pendingCacheCommand = null;
+  const dialog = ensureCacheDialog();
+  updateCacheDialog(screen);
+  if (!dialog.open) dialog.showModal();
+}
+
+function refreshOpenCacheDialog() {
+  if (!cacheDialogScreenId || !cacheDialog?.open) return;
+  const screen = state.screens.find((item) => Number(item.id) === Number(cacheDialogScreenId));
+  if (screen) updateCacheDialog(screen);
+}
+
+async function sendCacheCommand(screen, action) {
+  if (!['check', 'cleanup-unused', 'redownload-active'].includes(action)) return;
+  if (action === 'redownload-active' && !window.confirm(`Перескачать весь активный контент для «${tvLabel(screen)}»? Большое видео будет загружено заново.`)) return;
+  const dialog = ensureCacheDialog();
+  const message = dialog.querySelector('[data-tv-cache-message]');
+  try {
+    dialog.querySelectorAll('[data-cache-command]').forEach((button) => { button.disabled = true; });
+    message.textContent = 'Отправляем команду на TV Player…';
+    message.className = 'screen-tv-cache-message';
+    const result = await api.post(`${API.deviceBindings}/${screen.id}/cache-command`, { action });
+    pendingCacheCommand = {
+      screenId:Number(screen.id),
+      requestId:String(result?.request_id || ''),
+      action
+    };
+    message.textContent = 'Команда выполняется на TV Player…';
+    window.setTimeout(() => void refreshRuntimeStatus().catch(() => undefined), 600);
+  } catch (error) {
+    pendingCacheCommand = null;
+    message.textContent = error.message;
+    message.className = 'screen-tv-cache-message is-error';
+    dialog.querySelectorAll('[data-cache-command]').forEach((button) => { button.disabled = false; });
+  }
+}
+
 function renderScreens() {
   const list = document.querySelector('[data-screen-hierarchy]');
   const empty = document.querySelector('[data-screens-empty]');
@@ -312,6 +509,7 @@ async function loadScreens({ measurePing = true } = {}) {
   state.deviceBindings = bindings;
   renderScreens();
   refreshOpenPreview();
+  refreshOpenCacheDialog();
 }
 
 async function refreshRuntimeStatus() {
@@ -322,6 +520,7 @@ async function refreshRuntimeStatus() {
     if (screen) syncTvUnit(unit, screen, bindingForScreen(screen.id));
   });
   refreshOpenPreview();
+  refreshOpenCacheDialog();
 }
 
 async function unbindScreen(screen) {
@@ -384,6 +583,11 @@ export function initialiseScreens() {
       previewDialog?.remove();
       previewDialog = null;
       previewDialogScreenId = null;
+      cacheDialog?.close();
+      cacheDialog?.remove();
+      cacheDialog = null;
+      cacheDialogScreenId = null;
+      pendingCacheCommand = null;
     }
   };
 }

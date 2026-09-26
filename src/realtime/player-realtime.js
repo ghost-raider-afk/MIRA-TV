@@ -69,6 +69,20 @@ export function createPlayerRealtime({ store }) {
     return sent;
   }
 
+
+  function sendCacheCommand(screenId, action, requestId) {
+    const sockets = [...(byScreen.get(Number(screenId)) || [])]
+      .filter((socket) => socket.readyState === WebSocket.OPEN)
+      .sort((left, right) => String(right.miraConnectedAt || '').localeCompare(String(left.miraConnectedAt || '')));
+    const socket = sockets[0];
+    if (!socket) return false;
+    return send(socket, {
+      type:'cache.command',
+      action:String(action || ''),
+      request_id:String(requestId || '')
+    });
+  }
+
   function presenceForScreen(screenId) {
     const sockets = byScreen.get(Number(screenId));
     const open = sockets ? [...sockets].filter((socket) => socket.readyState === WebSocket.OPEN) : [];
@@ -228,6 +242,7 @@ export function createPlayerRealtime({ store }) {
     close,
     notifyScreen,
     notifyScreens,
+    sendCacheCommand,
     disconnectScreen,
     disconnectDevice,
     presenceForScreen,

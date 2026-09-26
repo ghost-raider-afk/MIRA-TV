@@ -106,7 +106,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v48'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v49'/);
   assert.match(worker, /'\/js\/player\/player-boot\.js'/);
   assert.match(worker, /'\/js\/player\/fetch-timeout\.js'/);
   assert.match(worker, /'\/js\/core\/dom-compat\.js'/);
@@ -197,9 +197,9 @@ test('offline player stages complete manifests and serves cached video before ne
   assert.match(sync, /activePlayerServiceWorker/);
   assert.match(sync, /navigator\.serviceWorker\.getRegistration\('\/player'\)/);
   assert.match(sync, /mira:player-cache-capabilities/);
-  assert.match(sync, /supportsLocalFirstProtocol/);
+  assert.match(sync, /localFirstProtocol/);
   assert.match(worker, /mira:player-cache-capabilities/);
-  assert.match(worker, /local_first:true, protocol:1/);
+  assert.match(worker, /local_first:true, protocol:2/);
   assert.doesNotMatch(sync, /navigator\.serviceWorker\.ready/, 'Player render must not wait forever when service workers are blocked or unavailable');
   assert.match(sync, /previous-known-good|loadPreviousKnownGood/);
   assert.doesNotMatch(sync, /Range: 'bytes=0-65535'/);
@@ -210,7 +210,7 @@ test('offline player stages complete manifests and serves cached video before ne
   assert.match(worker, /async function cleanupAssetCache/);
   assert.match(worker, /mira:player-stage-assets/);
   assert.match(worker, /mira:player-commit-assets/);
-  assert.match(worker, /fetch\(request, \{ cache: 'force-cache' \}\)/);
+  assert.match(worker, /fetch\(request, \{ cache: force \? 'reload' : 'force-cache' \}\)/);
   assert.match(worker, /async function videoRequest/);
   assert.match(worker, /const cached = await cache\.match\(fullRequest\);[\s\S]*?if \(cached\) return cached;/);
   assert.match(worker, /const ranged = await networkWithTimeout\(request, 8000\)/);

@@ -1,6 +1,6 @@
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 15000, 30000];
 
-export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected } = {}) {
+export function createPlayerRealtimeClient({ onChanged, onCacheCommand, onConnected, onDisconnected } = {}) {
   let socket = null;
   let retryTimer = null;
   let attempt = 0;
@@ -51,6 +51,9 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
         if (message?.type === 'context.changed') {
           window.dispatchEvent(new CustomEvent('mira:player-realtime-change', { detail: message }));
           onChanged?.(message);
+        } else if (message?.type === 'cache.command') {
+          window.dispatchEvent(new CustomEvent('mira:player-cache-command', { detail: message }));
+          onCacheCommand?.(message);
         }
       } catch {}
     });
