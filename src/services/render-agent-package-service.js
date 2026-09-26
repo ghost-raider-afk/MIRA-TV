@@ -161,8 +161,9 @@ export async function buildRenderAgentPackage(store, screenId, config) {
     source_assets: sourceAssets.assets
   };
 
+  const { render_revision: _sourceRevision, ...visualPayload } = renderPayload;
   const hashPayload = {
-    ...renderPayload,
+    ...visualPayload,
     screen: {
       name: renderPayload.screen.name,
       resolution: renderPayload.screen.resolution,
