@@ -103,6 +103,7 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     const badgeSparkle = badgeEffects.locator(':scope > g.promotion-badge-sparkle');
     const clip = row.locator(':scope > g.promotion-row-clip');
     const glow = clip.locator(':scope > g.promotion-row-glow');
+    const glowPaint = glow.locator(':scope > rect');
     const itemText = row.locator(':scope > .table-item-content');
     await expect(surface).toHaveAttribute('data-motion', 'item');
     await expect(badge).not.toHaveAttribute('data-motion', /.+/);
@@ -116,6 +117,11 @@ test('TV Player uses the same unified promotion motion as Preview', async ({ bro
     expect(await clip.evaluate((node) => getComputedStyle(node).clipPath)).not.toBe('none');
     expect(await clip.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
     await expect(glow).toHaveAttribute('data-motion', 'promotion-glow');
+    expect(await glow.evaluate((node) => getComputedStyle(node).filter)).toBe('none');
+    expect(await glowPaint.evaluate((node) => getComputedStyle(node).filter)).not.toBe('none');
+    const glowWillChange = await glow.evaluate((node) => getComputedStyle(node).willChange);
+    expect(glowWillChange).toContain('transform');
+    expect(glowWillChange).toContain('opacity');
     await expect.poll(() => surface.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
     await expect.poll(() => glow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
     await expect.poll(() => badgeGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
