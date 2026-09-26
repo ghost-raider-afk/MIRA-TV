@@ -378,8 +378,14 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
   router.get('/weather', async (request, response) => {
     const session = await resolveDeviceSession(store, config, request, response);
     if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
-    const draft = await store.getScreenDraft(session.screen_id);
-    const settings = sceneWeatherSettings(draft?.scene, session.screen_id);
+    const [draft, bakedRecord] = await Promise.all([
+      store.getScreenDraft(session.screen_id),
+      typeof store.getBakedScene === 'function' ? store.getBakedScene(session.screen_id) : null
+    ]);
+    const weatherScene = bakedRecord?.active_url && bakedRecord?.live_scene
+      ? bakedRecord.live_scene
+      : draft?.scene;
+    const settings = sceneWeatherSettings(weatherScene, session.screen_id);
     if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
     const snapshot = await weatherService.getSnapshot(settings);
     response.setHeader('Cache-Control', 'private, no-store');
