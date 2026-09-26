@@ -138,7 +138,10 @@ export function createDeviceAdminRouter({ store, realtime }) {
         ping_ms: measurePing && Number.isFinite(measuredPing) ? measuredPing : null,
         ping_measured_at: measuredAt,
         player_diagnostic: diagnosticByDevice.get(Number(binding.device_id)) || null,
-        cache_status: cacheStatusByDevice.get(Number(binding.device_id)) || null
+        cache_status: (() => {
+          const cache = cacheStatusByDevice.get(Number(binding.device_id));
+          return cache && Number(cache.screen_id) === Number(binding.screen_id) ? cache : null;
+        })()
       };
     }));
   });
