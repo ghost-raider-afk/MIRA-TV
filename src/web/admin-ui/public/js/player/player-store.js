@@ -120,6 +120,14 @@ export async function stageAssetManifest(manifest) {
   await setStateValue(STAGING_ASSET_MANIFEST_KEY, manifest);
 }
 
+export async function clearStagedAssetManifest() {
+  const db = await openPlayerStore();
+  if (!db) return;
+  const tx = db.transaction(STATE_STORE, 'readwrite');
+  tx.objectStore(STATE_STORE).delete(STAGING_ASSET_MANIFEST_KEY);
+  await transactionDone(tx);
+}
+
 export async function commitAssetManifest(manifest) {
   const db = await openPlayerStore();
   if (!db) return { active:manifest, previous:null, staging:null };
