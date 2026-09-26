@@ -9,6 +9,7 @@ import { WebSocket } from 'ws';
 const AGENT_VERSION = '0.1.0-pilot';
 const DEFAULT_PORT = 41417;
 const tasks = new Map();
+let renderQueue = Promise.resolve();
 
 function arg(name, fallback = '') {
   const prefix = '--' + name + '=';
@@ -411,10 +412,12 @@ const server = http.createServer(async (request, response) => {
       };
       tasks.set(taskId, task);
       pruneTasks();
-      void encodeTask(task, job).catch((error) => {
-        task.status = 'failed';
-        task.error = String(error?.message || error);
-      });
+      renderQueue = renderQueue
+        .then(() => encodeTask(task, job))
+        .catch((error) => {
+          task.status = 'failed';
+          task.error = String(error?.message || error);
+        });
       sendJson(response, 202, { task_id:taskId, status:task.status }, headers);
       return;
     }
