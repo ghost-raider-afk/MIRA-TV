@@ -69,6 +69,16 @@ export function createPlayerRealtime({ store }) {
     return sent;
   }
 
+  function requestScreenPreview(screenId) {
+    const sockets = byScreen.get(Number(screenId));
+    if (!sockets) return 0;
+    let sent = 0;
+    for (const socket of sockets) {
+      if (send(socket, { type: 'preview.request' })) sent += 1;
+    }
+    return sent;
+  }
+
   function presenceForScreen(screenId) {
     const sockets = byScreen.get(Number(screenId));
     const open = sockets ? [...sockets].filter((socket) => socket.readyState === WebSocket.OPEN) : [];
@@ -228,6 +238,7 @@ export function createPlayerRealtime({ store }) {
     close,
     notifyScreen,
     notifyScreens,
+    requestScreenPreview,
     disconnectScreen,
     disconnectDevice,
     presenceForScreen,
