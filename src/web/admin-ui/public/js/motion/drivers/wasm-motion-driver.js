@@ -56,14 +56,14 @@ export class WasmMotionDriver {
     const handle = { driver: 'mira-wasm', kind: 'track', state: 'idle', track };
     this.procedural.add(handle);
     const target = track.node.target;
+    const spec = track.procedural;
     if (track.claims?.includes('transform')) {
       target.style.transformBox = 'fill-box';
       target.style.transformOrigin = 'center';
     }
-    if (track.claims?.includes('transform') && track.claims?.includes('opacity')) {
+    if (spec.kind === 'promo-glow' && track.claims?.includes('transform') && track.claims?.includes('opacity')) {
       target.style.willChange = 'transform, opacity';
     }
-    const spec = track.procedural;
     if (spec.kind === 'promo-badge-glow') {
       const brightness = 1 + number(spec.brightnessAmount, 0.16);
       const radius = number(spec.glowRadius, 16);
