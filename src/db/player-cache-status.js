@@ -9,6 +9,17 @@ function parseStatus(value) {
   }
 }
 
+function cacheStatusRecord(row) {
+  if (!row) return null;
+  return {
+    device_id:Number(row.device_id),
+    screen_id:row.screen_id === null ? null : Number(row.screen_id),
+    reported_at:row.reported_at instanceof Date ? row.reported_at.toISOString() : String(row.reported_at),
+    server_received_at:row.server_received_at instanceof Date ? row.server_received_at.toISOString() : String(row.server_received_at),
+    ...(parseStatus(row.status_json) || {})
+  };
+}
+
 export function createPlayerCacheStatusRepository(pool) {
   return Object.freeze({
     async upsertPlayerCacheStatus(deviceId, screenId, status) {
@@ -25,14 +36,7 @@ export function createPlayerCacheStatusRepository(pool) {
          RETURNING device_id, screen_id, reported_at, server_received_at, status_json`,
         [deviceId, screenId, status.reported_at, receivedAt, JSON.stringify(status)]
       );
-      const row = rows[0];
-      return row ? {
-        device_id:Number(row.device_id),
-        screen_id:row.screen_id === null ? null : Number(row.screen_id),
-        reported_at:row.reported_at instanceof Date ? row.reported_at.toISOString() : String(row.reported_at),
-        server_received_at:row.server_received_at instanceof Date ? row.server_received_at.toISOString() : String(row.server_received_at),
-        ...parseStatus(row.status_json)
-      } : null;
+      return cacheStatusRecord(rows[0]);
     },
 
     async listPlayerCacheStatusByDeviceIds(deviceIds) {
@@ -43,32 +47,10 @@ export function createPlayerCacheStatusRepository(pool) {
       const { rows } = await pool.query(
         `SELECT device_id, screen_id, reported_at, server_received_at, status_json
            FROM tv_player_cache_status
-          WHERE device_id IN (${ids.join(',')})`
+          WHERE device_id = ANY($1::bigint[])`,
+        [ids]
       );
-      return rows.map((row) => ({
-        device_id:Number(row.device_id),
-        screen_id:row.screen_id === null ? null : Number(row.screen_id),
-        reported_at:row.reported_at instanceof Date ? row.reported_at.toISOString() : String(row.reported_at),
-        server_received_at:row.server_received_at instanceof Date ? row.server_received_at.toISOString() : String(row.server_received_at),
-        ...(parseStatus(row.status_json) || {})
-      }));
-    }
-  });
-}
- + (index + 1)).join(', ');
-      const { rows } = await pool.query(
-        `SELECT device_id, screen_id, reported_at, server_received_at, status_json
-           FROM tv_player_cache_status
-          WHERE device_id IN (${placeholders})`,
-        ids
-      );
-      return rows.map((row) => ({
-        device_id:Number(row.device_id),
-        screen_id:row.screen_id === null ? null : Number(row.screen_id),
-        reported_at:row.reported_at instanceof Date ? row.reported_at.toISOString() : String(row.reported_at),
-        server_received_at:row.server_received_at instanceof Date ? row.server_received_at.toISOString() : String(row.server_received_at),
-        ...(parseStatus(row.status_json) || {})
-      }));
+      return rows.map(cacheStatusRecord).filter(Boolean);
     }
   });
 }
