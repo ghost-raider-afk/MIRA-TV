@@ -222,12 +222,17 @@ export class PlayerSceneRenderer {
     contentLayer.hidden = bakedActive;
 
     if (dirty.has('scene') || dirty.has('scene_video') || dirty.has('screen')) {
-      this.sceneElementRenderer.render(bakedActive ? weatherOnlyScene(context.scene) : context.scene);
+      this.sceneElementRenderer.render(
+        bakedActive
+          ? weatherOnlyScene(context.scene_video?.live_scene || context.scene)
+          : context.scene
+      );
       sceneElementLayer.setAttribute('aria-hidden', 'true');
     }
 
     if (dirty.has('scene') || dirty.has('scene_video') || dirty.has('screen')) {
-      const weatherElement = sceneWeatherElement(context.scene);
+      const weatherScene = bakedActive ? (context.scene_video?.live_scene || context.scene) : context.scene;
+      const weatherElement = sceneWeatherElement(weatherScene);
       this.weatherElementId = weatherElement?.id || null;
       this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
       this.weatherRuntime.applyContext(weatherSettingsFromElement(weatherElement), context.screen?.id, {
