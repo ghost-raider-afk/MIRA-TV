@@ -106,7 +106,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
     read('src/web/admin-ui/public/js/player/weather-bootstrap.js')
   ]);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v48'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v49'/);
   assert.match(worker, /'\/js\/player\/player-boot\.js'/);
   assert.match(worker, /'\/js\/player\/fetch-timeout\.js'/);
   assert.match(worker, /'\/js\/core\/dom-compat\.js'/);
@@ -131,7 +131,7 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sync, /asset\.preload\.degraded/);
   assert.match(sync, /if \(active\?\.context\) \{[\s\S]*?miraPhase = 'critical-assets'/);
   assert.doesNotMatch(sync, /new AbortController\(\)/);
-  assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'/);
+  assert.match(sync, /'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime'/);
   assert.match(sync, /function enabledSceneMedia\(context\)[\s\S]*?element\?\.enabled !== false[\s\S]*?\['image', 'logo', 'video'\]\.includes/);
   assert.match(sync, /enabledSceneMedia\(context\)\.map\(\(element\) => element\.media\.source_url\)/);
   assert.doesNotMatch(sync, /context\?\.entity|context\?\.brand|context\?\.announcement|context\?\.environment/);
@@ -142,7 +142,9 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sceneRenderer, /new PlayerWeatherRuntime\(stage/);
   assert.match(sceneRenderer, /new PlayerSceneLayerComposer\(stage\)/);
   assert.match(sceneRenderer, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);
-  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(context\.scene\)/);
+  assert.match(sceneRenderer, /this\.sceneElementRenderer\.render\(bakedActive \? weatherOnlyScene\(context\.scene\) : context\.scene\)/);
+  assert.match(sceneRenderer, /new SceneVideoRuntime/);
+  assert.match(sceneRenderer, /this\.sceneMotionRuntime\.reset\(\)/);
   assert.match(sceneRenderer, /this\.weatherRuntime\.setLayer\(weatherElement \? this\.sceneElementRenderer\.contentFor/);
   assert.doesNotMatch(sceneRenderer, /renderEnvironmentLayer|renderSceneEntity|renderBrandTitleLayer|renderAnnouncementLayer|context\.entity|context\.brand|context\.announcement|context\.environment/);
 
@@ -151,14 +153,15 @@ test('real TV player uses one generic scene owner and one offline-first state ow
   assert.match(sceneMotionRuntime, /this\.compilers = compilers \|\| DEFAULT_SCENE_COMPILERS/);
   assert.doesNotMatch(sceneMotionRuntime, /compileEntityBehaviorProgram|entityMedia|data-motion-entity-layer/);
 
-  for (const layer of ['menu','fx','content','scene']) assert.match(layerComposer, new RegExp("id: '"+layer+"'"));
+  for (const layer of ['baked','menu','fx','content','scene']) assert.match(layerComposer, new RegExp("id: '"+layer+"'"));
   for (const legacy of ['environment','entity','weather','brand','announcement','aquarium']) assert.doesNotMatch(layerComposer, new RegExp("id: '"+legacy+"'"));
 
-  assert.match(publicRoutes, /playerRuntimeHash\(config, currentRevision\)/);
+  assert.match(publicRoutes, /playerRuntimeHash\(config, currentRevision, sceneVideoToken\)/);
   assert.match(publicRoutes, /router\.post\('\/player-delta'/);
   assert.match(publicRoutes, /router\.get\('\/weather'/);
-  assert.match(playerContextService, /PLAYER_STATE_SCHEMA_VERSION = 5/);
+  assert.match(playerContextService, /PLAYER_STATE_SCHEMA_VERSION = 6/);
   assert.match(playerContextService, /const canonicalScene = draft\.scene \|\| \{ version: 1, elements: \[\] \}/);
+  assert.match(playerContextService, /scene_video: sceneVideo/);
   assert.match(playerContextService, /content_manifest: contentManifest/);
   assert.doesNotMatch(playerContextService, /environment:|entity:|brand:|announcement:|weather:/);
   assert.match(flatRenderer, /layer\.innerHTML = svg/);
@@ -173,7 +176,8 @@ test('shared Player Scene Renderer rerenders only canonical dirty components', a
   assert.match(renderer, /async render\(context, changedNames = ALL_PLAYER_COMPONENTS\)/);
   assert.match(renderer, /const menuDirty = dirty\.has\('menu'\) \|\| dirty\.has\('screen'\)/);
   assert.match(renderer, /if \(menuDirty\) \{[\s\S]*?this\.flatMenuRenderer\.render/);
-  assert.match(renderer, /if \(dirty\.has\('scene'\)\) \{\s*this\.sceneElementRenderer\.render\(context\.scene\)/);
+  assert.match(renderer, /if \(dirty\.has\('scene'\) \|\| dirty\.has\('scene_video'\) \|\| dirty\.has\('screen'\)\)/);
+  assert.match(renderer, /weatherOnlyScene\(context\.scene\)/);
   assert.doesNotMatch(renderer, /dirty\.has\('entity'\)|dirty\.has\('brand'\)|dirty\.has\('announcement'\)|dirty\.has\('environment'\)/);
   assert.doesNotMatch(player, /setInterval\([^)]*refresh|schedulePlayerRefresh|refreshPlayer\(/);
 });
