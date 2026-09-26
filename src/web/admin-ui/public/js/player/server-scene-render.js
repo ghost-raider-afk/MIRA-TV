@@ -77,6 +77,15 @@ async function boot() {
   const match = String(context.screen?.resolution || '').match(/(\d+)\D+(\d+)/);
   const width = Number(match?.[1]) || 1920;
   const height = Number(match?.[2]) || 1080;
+  document.documentElement.style.margin = '0';
+  document.documentElement.style.overflow = 'hidden';
+  document.documentElement.style.background = '#000';
+  document.body.style.margin = '0';
+  document.body.style.overflow = 'hidden';
+  document.body.style.background = '#000';
+  host.style.position = 'relative';
+  host.style.overflow = 'hidden';
+  host.style.background = '#000';
   host.style.width = width + 'px';
   host.style.height = height + 'px';
   document.documentElement.style.width = width + 'px';
