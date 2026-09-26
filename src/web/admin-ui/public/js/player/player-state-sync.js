@@ -8,6 +8,7 @@ import {
   commitAssetManifest,
   loadAssetManifests,
   loadLastKnownGood,
+  loadPreviousKnownGood,
   openPlayerStore,
   pendingPlayerLogs,
   saveLastKnownGood,
@@ -520,32 +521,47 @@ export function createPlayerStateSync({
     }
   });
 
-  async function restoreLastKnownGood() {
-    try {
-      await openPlayerStore();
-      const record = stateFromRecord(await loadLastKnownGood());
-      if (!record) return false;
-      active = record;
-      updateRuntime(record.context);
-      await applyContext(record.context, [...ALL_COMPONENTS], { source: 'last-known-good' });
-      const manifests = await loadAssetManifests().catch(() => ({ active:null, previous:null }));
-      if (manifests.active) {
-        void serviceWorkerRequest({
-          type:'mira:player-commit-assets',
-          active:manifests.active,
-          previous:manifests.previous
-        }, 30_000).catch(() => undefined);
-      } else {
-        publishActiveAssets(record.context);
-      }
-      onLastKnownGood?.(record.context);
-      log('state.restored', { saved: true });
-      onConnectivity?.('offline');
-      return true;
-    } catch (error) {
-      console.warn('MIRA-TV Last Known Good state is unavailable', error);
-      return false;
+  async function restoreStoredRecord(record, source, manifests) {
+    if (!record) return false;
+    active = record;
+    updateRuntime(record.context);
+    await applyContext(record.context, [...ALL_COMPONENTS], { source });
+    if (manifests?.active) {
+      void serviceWorkerRequest({
+        type:'mira:player-commit-assets',
+        active:manifests.active,
+        previous:manifests.previous
+      }, 30_000).catch(() => undefined);
+    } else {
+      publishActiveAssets(record.context);
     }
+    onLastKnownGood?.(record.context);
+    log('state.restored', { saved:true, source });
+    onConnectivity?.('offline');
+    return true;
+  }
+
+  async function restoreLastKnownGood() {
+    await openPlayerStore().catch(() => null);
+    const manifests = await loadAssetManifests().catch(() => ({ active:null, previous:null }));
+    const current = stateFromRecord(await loadLastKnownGood().catch(() => null));
+    try {
+      if (await restoreStoredRecord(current, 'last-known-good', manifests)) return true;
+    } catch (error) {
+      console.warn('MIRA-TV active Last Known Good state could not be restored', error);
+    }
+
+    const previous = stateFromRecord(await loadPreviousKnownGood().catch(() => null));
+    try {
+      if (await restoreStoredRecord(previous, 'previous-known-good', manifests)) {
+        reportDiagnostic('state.rollback.previous', { revision:previous.revision }, 'warn');
+        return true;
+      }
+    } catch (error) {
+      console.warn('MIRA-TV previous Last Known Good state could not be restored', error);
+    }
+    active = null;
+    return false;
   }
 
   function start() {
