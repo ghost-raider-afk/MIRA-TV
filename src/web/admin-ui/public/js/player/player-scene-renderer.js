@@ -220,7 +220,7 @@ export class PlayerSceneRenderer {
       sceneElementLayer.setAttribute('aria-hidden', 'true');
     }
 
-    if (dirty.has('scene') || dirty.has('scene_video') || dirty.has('screen')) {
+    if (dirty.has('scene') || dirty.has('screen')) {
       const weatherElement = sceneWeatherElement(context.scene);
       this.weatherElementId = weatherElement?.id || null;
       this.weatherRuntime.setLayer(weatherElement ? this.sceneElementRenderer.contentFor(weatherElement.id) : null);
