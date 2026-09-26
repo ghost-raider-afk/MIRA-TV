@@ -275,6 +275,7 @@ export function createSceneVideoRenderService({ config, realtime, logger = conso
   const renderTokens = new Map();
   const latestByScreen = new Map();
   const readyByScreen = new Map();
+  const readyByInputHash = new Map();
   const failedByScreen = new Map();
   const pending = new Set();
   const children = new Set();
@@ -374,6 +375,7 @@ export function createSceneVideoRenderService({ config, realtime, logger = conso
         live_layers: Object.freeze(['weather'])
       });
       readyByScreen.set(screenId, component);
+      readyByInputHash.set(job.inputHash, component);
       failedByScreen.delete(screenId);
       realtime?.notifyScreen?.(screenId, 'scene-video:' + descriptor.hash.slice(0, 16));
       logger.info?.('Server scene video ready', {
@@ -421,9 +423,16 @@ export function createSceneVideoRenderService({ config, realtime, logger = conso
     };
     const inputHash = sceneVideoInputHash(normalizedContext);
     latestByScreen.set(id, inputHash);
-    const ready = readyByScreen.get(id);
+    let ready = readyByScreen.get(id);
     if (enabled && ready?.input_hash !== inputHash) {
-      schedule({ screenId: id, inputHash, context: normalizedContext });
+      const shared = readyByInputHash.get(inputHash);
+      if (shared) {
+        readyByScreen.set(id, shared);
+        failedByScreen.delete(id);
+        ready = shared;
+      } else {
+        schedule({ screenId: id, inputHash, context: normalizedContext });
+      }
     }
     return publicComponent(id, inputHash);
   }
