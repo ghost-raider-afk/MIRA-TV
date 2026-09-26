@@ -315,6 +315,17 @@ export function createSceneVideoRenderService({ config, realtime, logger = conso
     return entry ? structuredClone(entry.context) : null;
   }
 
+  function runtimeToken(screenId) {
+    if (!enabled) return 'disabled';
+    const id = Number(screenId);
+    const ready = readyByScreen.get(id);
+    if (ready?.content_hash) return 'ready:' + ready.content_hash;
+    const failed = failedByScreen.get(id);
+    if (failed?.input_hash) return 'failed:' + failed.input_hash;
+    const latest = latestByScreen.get(id);
+    return latest ? 'rendering:' + latest : 'idle';
+  }
+
   function publicComponent(screenId, inputHash) {
     if (!enabled) return Object.freeze({ enabled: false, status: 'disabled', live_layers: Object.freeze(['weather']) });
     const ready = readyByScreen.get(Number(screenId));
@@ -431,6 +442,7 @@ export function createSceneVideoRenderService({ config, realtime, logger = conso
   return Object.freeze({
     get enabled() { return enabled; },
     componentFor,
+    runtimeToken,
     hasRenderToken,
     contextForToken,
     stop
