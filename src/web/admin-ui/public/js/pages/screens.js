@@ -59,9 +59,15 @@ function pingText(screenId, binding) {
 }
 
 
+function finiteValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function formatBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  const bytes = finiteValue(value);
+  if (bytes === null || bytes < 0) return '—';
   if (bytes < 1024) return `${Math.round(bytes)} Б`;
   const units = ['КБ', 'МБ', 'ГБ', 'ТБ'];
   let amount = bytes / 1024;
@@ -78,10 +84,10 @@ function cacheSummary(binding) {
   if (!binding) return '—';
   if (!cache) return 'нет данных';
   if (cache.local_first !== true) return 'Local-first недоступен';
-  const total = Number(cache.active_assets);
-  const cached = Number(cache.cached_assets);
-  const missing = Number(cache.missing_assets);
-  if (Number.isFinite(total) && Number.isFinite(cached) && Number.isFinite(missing)) {
+  const total = finiteValue(cache.active_assets);
+  const cached = finiteValue(cache.cached_assets);
+  const missing = finiteValue(cache.missing_assets);
+  if (total !== null && cached !== null && missing !== null) {
     if (missing === 0 && cached === total) return total ? `готово · ${cached}/${total}` : 'готово';
     return `неполный · ${cached}/${total}`;
   }
@@ -94,11 +100,13 @@ function cacheDetailRows(binding) {
     ['Состояние', binding?.online ? 'Ожидаем первый отчёт Player' : 'Нет данных'],
     ['Последний отчёт', '—']
   ];
-  const activeCount = Number.isFinite(Number(cache.cached_assets))
-    ? `${Number(cache.cached_assets)}/${Number(cache.active_assets) || 0}`
-    : String(Number(cache.active_assets) || 0);
-  const storage = Number.isFinite(Number(cache.storage_usage_bytes))
-    ? `${formatBytes(cache.storage_usage_bytes)}${Number.isFinite(Number(cache.storage_quota_bytes)) ? ` / ${formatBytes(cache.storage_quota_bytes)}` : ''}`
+  const cachedAssets = finiteValue(cache.cached_assets);
+  const activeAssets = finiteValue(cache.active_assets) ?? 0;
+  const activeCount = cachedAssets !== null ? `${cachedAssets}/${activeAssets}` : String(activeAssets);
+  const storageUsage = finiteValue(cache.storage_usage_bytes);
+  const storageQuota = finiteValue(cache.storage_quota_bytes);
+  const storage = storageUsage !== null
+    ? `${formatBytes(storageUsage)}${storageQuota !== null ? ` / ${formatBytes(storageQuota)}` : ''}`
     : '—';
   return [
     ['Состояние', cacheSummary(binding)],
