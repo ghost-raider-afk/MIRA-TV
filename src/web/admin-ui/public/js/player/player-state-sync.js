@@ -5,6 +5,7 @@ import {
   appendPlayerLog,
   clearAssetManifests,
   clearLastKnownGood,
+  clearStagedAssetManifest,
   commitAssetManifest,
   loadAssetManifests,
   loadLastKnownGood,
@@ -535,6 +536,7 @@ export function createPlayerStateSync({
     try {
       stagedManifest = await stageCandidateAssets(context, metadata);
     } catch (error) {
+      await clearStagedAssetManifest().catch(() => undefined);
       if (active?.context) {
         error.miraPhase = 'critical-assets';
         throw error;
