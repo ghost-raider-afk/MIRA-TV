@@ -193,7 +193,7 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
 
     const deltaResponse = await deltaPromise;
     const delta = await deltaResponse.json();
-    expect(delta.schema_version).toBe(4);
+    expect(delta.schema_version).toBe(5);
     expect(delta.changed.scene.elements[0].id).toBe('live-e2e-text');
 
     const sceneNode = tvPage.locator('[data-scene-element-id="live-e2e-text"]');
