@@ -3,6 +3,7 @@ const DB_VERSION = 1;
 const STATE_STORE = 'state';
 const LOG_STORE = 'logs';
 const LAST_KNOWN_GOOD_KEY = 'last-known-good';
+const PREVIOUS_KNOWN_GOOD_KEY = 'previous-known-good';
 const LOG_TOTALS_KEY = 'log-totals';
 const ACTIVE_ASSET_MANIFEST_KEY = 'asset-manifest-active';
 const PREVIOUS_ASSET_MANIFEST_KEY = 'asset-manifest-previous';
@@ -68,15 +69,31 @@ export async function loadLastKnownGood() {
   return stateValue(LAST_KNOWN_GOOD_KEY);
 }
 
+export async function loadPreviousKnownGood() {
+  return stateValue(PREVIOUS_KNOWN_GOOD_KEY);
+}
+
 export async function saveLastKnownGood(record) {
-  await setStateValue(LAST_KNOWN_GOOD_KEY, record);
+  const db = await openPlayerStore();
+  if (!db) return;
+  const tx = db.transaction(STATE_STORE, 'readwrite');
+  const state = tx.objectStore(STATE_STORE);
+  const currentRecord = await requestResult(state.get(LAST_KNOWN_GOOD_KEY));
+  const current = currentRecord?.value || null;
+  if (current && String(current.revision || '') !== String(record?.revision || '')) {
+    state.put({ key:PREVIOUS_KNOWN_GOOD_KEY, value:current });
+  }
+  state.put({ key:LAST_KNOWN_GOOD_KEY, value:record });
+  await transactionDone(tx);
 }
 
 export async function clearLastKnownGood() {
   const db = await openPlayerStore();
   if (!db) return;
   const tx = db.transaction(STATE_STORE, 'readwrite');
-  tx.objectStore(STATE_STORE).delete(LAST_KNOWN_GOOD_KEY);
+  const state = tx.objectStore(STATE_STORE);
+  state.delete(LAST_KNOWN_GOOD_KEY);
+  state.delete(PREVIOUS_KNOWN_GOOD_KEY);
   await transactionDone(tx);
 }
 
