@@ -40,12 +40,10 @@ export function createPlayerCacheStatusRepository(pool) {
         .map(Number)
         .filter((id) => Number.isSafeInteger(id) && id > 0))];
       if (!ids.length) return [];
-      const placeholders = ids.map((_id, index) => '
       const { rows } = await pool.query(
         `SELECT device_id, screen_id, reported_at, server_received_at, status_json
            FROM tv_player_cache_status
-          WHERE device_id IN (${placeholders})`,
-        ids
+          WHERE device_id IN (${ids.join(',')})`
       );
       return rows.map((row) => ({
         device_id:Number(row.device_id),
