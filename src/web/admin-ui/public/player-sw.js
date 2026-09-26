@@ -146,6 +146,10 @@ function reply(event, payload) {
 
 self.addEventListener('message', (event) => {
   const type = event.data?.type;
+  if (type === 'mira:player-cache-capabilities') {
+    reply(event, { ok:true, local_first:true, protocol:1 });
+    return;
+  }
   if (type === 'mira:player-stage-assets') {
     event.waitUntil((async () => {
       const result = await ensureManifestAssets(event.data?.manifest);
