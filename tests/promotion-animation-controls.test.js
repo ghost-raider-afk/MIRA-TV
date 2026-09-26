@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compilePromotionMotionProgram } from '../src/web/admin-ui/public/js/motion/motion-plan.js';
+import { WasmMotionDriver } from '../src/web/admin-ui/public/js/motion/drivers/wasm-motion-driver.js';
 
 function scene() {
   const nodes = [
@@ -58,4 +59,49 @@ test('promotion row highlight switch also suppresses row animation', () => {
   });
   assert.equal(program.tracks.some((track) => track.procedural.kind === 'promo-glow'), false);
   assert.equal(program.tracks.some((track) => track.procedural.kind === 'promo-badge-shine'), true);
+});
+
+
+test('promotion row keeps expensive paint on a static child surface', () => {
+  const OriginalElement = globalThis.Element;
+
+  class FakeStyle {
+    removeProperty(name) {
+      const camel = name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+      const previous = this[camel] || '';
+      delete this[camel];
+      return previous;
+    }
+  }
+
+  class FakeElement {
+    constructor(child = null) {
+      this.style = new FakeStyle();
+      this.firstElementChild = child;
+    }
+  }
+
+  globalThis.Element = FakeElement;
+  try {
+    const paint = new FakeElement();
+    const target = new FakeElement(paint);
+    const driver = new WasmMotionDriver({ kernelLoader:async () => ({}) });
+    const handle = driver.createTrack({
+      node:{ target },
+      claims:['opacity', 'appearance', 'transform'],
+      procedural:{ kind:'promo-glow', animation:'wave', glowRadius:28 },
+      timing:{ duration:4800 }
+    });
+
+    assert.equal(target.style.filter, undefined);
+    assert.equal(target.style.willChange, 'transform, opacity');
+    assert.match(paint.style.filter, /^blur\(/);
+
+    driver.cancel(handle);
+    assert.equal(target.style.willChange, undefined);
+    assert.equal(paint.style.filter, undefined);
+  } finally {
+    if (OriginalElement === undefined) delete globalThis.Element;
+    else globalThis.Element = OriginalElement;
+  }
 });
