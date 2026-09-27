@@ -56,6 +56,14 @@ async function createReferenceDensityFixture(page) {
   return { screen };
 }
 
+async function openSettings(page, name) {
+  const details = page.locator('.editor-settings-section').filter({ has: page.getByText(name, { exact: true }) });
+  await expect(details).toBeVisible();
+  if ((await details.getAttribute('open')) === null) await details.locator('summary').click();
+  await expect(details).toHaveAttribute('open', '');
+  return details;
+}
+
 for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }]) {
   test(`TV management stays compact at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
@@ -63,65 +71,7 @@ for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 76
     const { screen } = await createEditorFixture(page, { rows: 4 });
     await page.goto(`/screen-editor?id=${screen.id}`);
 
-    await expect(page).toHaveURL(new RegExp(`/screens\\?manage=${screen.id}import { test, expect } from '@playwright/test';
-
-async function login(page) {
-  await page.goto('/signin');
-  await page.getByLabel('Логин').fill('admin');
-  await page.getByLabel('Пароль').fill(process.env.E2E_ADMIN_PASSWORD || 'Browser-CI-Password1!');
-  await Promise.all([page.waitForURL((url) => url.pathname === '/'), page.getByRole('button', { name: /войти/i }).click()]);
-}
-
-async function createEditorFixture(page, { rows = 1 } = {}) {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const locationResponse = await page.request.post('/api/locations', { data: { name: `Browser ${suffix}`, address: 'Visual CI' } });
-  expect(locationResponse.status()).toBe(201);
-  const location = await locationResponse.json();
-  const productResponse = await page.request.post('/api/catalog/products', { data: {
-    name: `БАВАРИЯ ПШЕНИЧНОЕ ${suffix}`, producer: 'ООО «Портал», п. Солнечный', characteristics: 'Светлое нефильтрованное', strength: '4,6°',
-    price_primary: '179', alcoholic: true, beverage_color: 'light', filtration: 'unfiltered', active: true
-  } });
-  expect(productResponse.status()).toBe(201);
-  const product = await productResponse.json();
-  const screenResponse = await page.request.post(`/api/locations/${location.id}/screens`, { data: {} });
-  expect(screenResponse.status()).toBe(201);
-  const screen = await screenResponse.json();
-  const editor = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
-  const draftRows = [{ id: `section-${suffix}`, kind: 'section', name: 'ПИВО СВЕТЛОЕ НЕФИЛЬТРОВАННОЕ', enabled: true }];
-  for (let index = 0; index < rows; index += 1) draftRows.push({ id: `item-${suffix}-${index}`, kind: 'item', product_id: product.id, enabled: true });
-  const saved = await page.request.put(`/api/screens/${screen.id}/draft`, { data: {
-    revision: editor.draft.revision,
-    rows: draftRows,
-    settings: {
-      background_color: '#101828', accent_color: '#F6C90E', text_color: '#F8FAFC', font_scale_percent: 100, font_family: 'arial-narrow',
-      table_x: 56, table_y: 15, table_width_px: 1374, table_height_px: 925
-    },
-    screen: { location_id: screen.location_id, name: screen.name, resolution: '1920×1080', status: 'draft', active: true }
-  } });
-  expect(saved.status()).toBe(200);
-  return { screen, product };
-}
-
-async function createReferenceDensityFixture(page) {
-  const { screen, product } = await createEditorFixture(page, { rows: 0 });
-  const editor = await (await page.request.get(`/api/screens/${screen.id}/editor`)).json();
-  const sections = [['ПИВО СВЕТЛОЕ НЕФИЛЬТРОВАННОЕ', 4], ['ПИВО ТЕМНОЕ ФИЛЬТРОВАННОЕ', 5], ['АЛКОГОЛЬНЫЕ НАПИТКИ', 7]];
-  const rows = [];
-  let itemIndex = 0;
-  sections.forEach(([name, count], sectionIndex) => {
-    rows.push({ id: `reference-section-${sectionIndex}`, kind: 'section', name, enabled: true });
-    for (let index = 0; index < count; index += 1) rows.push({ id: `reference-item-${itemIndex++}`, kind: 'item', product_id: product.id, enabled: true });
-  });
-  const saved = await page.request.put(`/api/screens/${screen.id}/draft`, { data: {
-    revision: editor.draft.revision, rows,
-    settings: { background_color: '#101828', accent_color: '#F6C90E', text_color: '#F8FAFC', font_scale_percent: 100, font_family: 'arial-narrow', table_x: 56, table_y: 15, table_width_px: 1374, table_height_px: 925 },
-    screen: { location_id: screen.location_id, name: screen.name, resolution: '1920×1080', status: 'draft', active: true }
-  } });
-  expect(saved.status()).toBe(200);
-  return { screen };
-}
-
-));
+    await expect(page).toHaveURL(new RegExp(`/screens\\?manage=${screen.id}$`));
     const dialog = page.locator('.screen-tv-management-dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('.screen-tv-management-section')).toHaveCount(2);
