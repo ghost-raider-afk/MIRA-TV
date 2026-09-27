@@ -2,11 +2,10 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
-import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 import { formatRussianCount } from '../core/ru-plural.js';
 
-const previewRenderers = new Set();
-let fullscreenRenderer = null;
+const snapshotUrls = new Map();
+const snapshotPromises = new Map();
 let fullscreenScreenId = null;
 let fullscreenEntries = [];
 let fullscreenIndex = -1;
@@ -16,31 +15,70 @@ function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
 }
 
-function destroyPreviewRenderers() {
-  for (const renderer of previewRenderers) renderer.destroy();
-  previewRenderers.clear();
+function clearSnapshots() {
+  for (const url of snapshotUrls.values()) URL.revokeObjectURL(url);
+  snapshotUrls.clear();
+  snapshotPromises.clear();
+}
+
+function snapshotEndpoint(screenId) {
+  return `${API.managerBase}/screens/${screenId}/preview`;
+}
+
+async function fetchSnapshot(screenId) {
+  const id = Number(screenId);
+  const cached = snapshotUrls.get(id);
+  if (cached) return cached;
+  const pending = snapshotPromises.get(id);
+  if (pending) return pending;
+
+  const task = (async () => {
+    const response = await fetch(snapshotEndpoint(id), {
+      credentials:'include',
+      cache:'no-store'
+    });
+    if (!response.ok) {
+      let message = 'Кадр TV Player недоступен.';
+      try {
+        const body = await response.json();
+        if (body?.error) message = body.error;
+      } catch {}
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const previous = snapshotUrls.get(id);
+    if (previous) URL.revokeObjectURL(previous);
+    const url = URL.createObjectURL(blob);
+    snapshotUrls.set(id, url);
+    return url;
+  })().finally(() => snapshotPromises.delete(id));
+
+  snapshotPromises.set(id, task);
+  return task;
+}
+
+function snapshotImage(url, alt, fullscreen = false) {
+  const image = document.createElement('img');
+  image.className = fullscreen ? 'manager-screen-snapshot is-fullscreen' : 'manager-screen-snapshot';
+  image.src = url;
+  image.alt = alt;
+  image.decoding = 'async';
+  image.draggable = false;
+  return image;
 }
 
 async function hydratePreview(stage, screenId, loading) {
-  let renderer = null;
   try {
-    const context = await api.get(`${API.managerBase}/screens/${screenId}/context`);
+    const url = await fetchSnapshot(screenId);
     if (!stage.isConnected) return;
-    stage.dataset.playerActive = 'false';
-    renderer = new PlayerSceneRenderer(stage, {
-      weatherEndpoint: `${API.managerBase}/screens/${screenId}/weather`,
-      autoplay: false
-    });
-    previewRenderers.add(renderer);
-    await renderer.render(context);
-    if (!stage.isConnected) {
-      renderer.destroy();
-      previewRenderers.delete(renderer);
-    }
+    stage.replaceChildren(snapshotImage(url, 'Кадр телевизора'));
   } catch (error) {
-    renderer?.destroy();
-    if (renderer) previewRenderers.delete(renderer);
-    if (stage.isConnected) stage.replaceChildren(Object.assign(document.createElement('p'), { className: 'animation-screen-empty', textContent: error.message }));
+    if (stage.isConnected) {
+      stage.replaceChildren(Object.assign(document.createElement('p'), {
+        className:'manager-preview-empty',
+        textContent:error.message
+      }));
+    }
   } finally {
     loading?.classList.add('is-hidden');
   }
@@ -63,10 +101,10 @@ function screenCard(screen, location, orderIndex) {
   shell.className = 'manager-screen-preview-shell';
   shell.style.aspectRatio = screenAspectRatio(screen.resolution);
   const stage = document.createElement('div');
-  stage.className = 'manager-screen-stage animation-stage';
+  stage.className = 'manager-screen-stage';
   const loading = document.createElement('div');
   loading.className = 'manager-preview-loading';
-  loading.textContent = 'Загружаем телевизор…';
+  loading.textContent = 'Получаем кадр телевизора…';
   shell.append(stage, loading);
 
   const copy = document.createElement('div');
@@ -87,7 +125,7 @@ function renderLocations(locations) {
   const root = document.getElementById('manager-locations');
   const empty = document.getElementById('manager-empty');
   if (!root || !empty) return;
-  destroyPreviewRenderers();
+  clearSnapshots();
   root.replaceChildren();
   fullscreenEntries = locations.flatMap((location) =>
     location.screens.map((screen) => ({ screen, location }))
@@ -108,7 +146,7 @@ function renderLocations(locations) {
     identity.append(title, address);
     const count = document.createElement('span');
     count.className = 'manager-location-count';
-    count.textContent = formatRussianCount(location.screens.length, ['телевизор', 'телевизора', 'телевизоров']);
+    count.textContent = formatRussianCount(location.screens.length, ['телевизор','телевизора','телевизоров']);
     head.append(identity, count);
     const grid = document.createElement('div');
     grid.className = 'manager-screen-grid';
@@ -135,11 +173,6 @@ async function loadOverview() {
   } finally {
     if (button) button.disabled = false;
   }
-}
-
-function setFullscreenActive(stage, active) {
-  stage.dataset.playerActive = active ? 'true' : 'false';
-  stage.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active } }));
 }
 
 function updateFullscreenNavigation() {
@@ -169,34 +202,30 @@ async function openFullscreen(screen, location, orderIndex) {
   if (!(overlay instanceof HTMLElement) || !(stage instanceof HTMLElement)) return;
 
   const requestToken = ++fullscreenRequestToken;
-  fullscreenRenderer?.destroy();
-  fullscreenRenderer = null;
   fullscreenScreenId = screen.id;
   fullscreenIndex = orderIndex;
   updateFullscreenNavigation();
-  stage.replaceChildren();
-  stage.removeAttribute('style');
-  setFullscreenActive(stage, false);
+  stage.replaceChildren(Object.assign(document.createElement('p'), {
+    className:'manager-preview-empty is-fullscreen',
+    textContent:'Открываем сохранённый кадр…'
+  }));
   document.getElementById('manager-fullscreen-title').textContent = screen.name;
   document.getElementById('manager-fullscreen-subtitle').textContent = `${location.name} · ${screen.resolution}`;
   overlay.classList.remove('is-hidden');
 
   if (!document.fullscreenElement && overlay.requestFullscreen) {
-    void overlay.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
+    void overlay.requestFullscreen({ navigationUI:'hide' }).catch(() => undefined);
   }
 
   try {
-    const context = await api.get(`${API.managerBase}/screens/${screen.id}/context`);
+    const url = snapshotUrls.get(Number(screen.id)) || await fetchSnapshot(screen.id);
     if (requestToken !== fullscreenRequestToken || fullscreenScreenId !== screen.id || overlay.classList.contains('is-hidden')) return;
-    fullscreenRenderer = new PlayerSceneRenderer(stage, {
-      weatherEndpoint: `${API.managerBase}/screens/${screen.id}/weather`
-    });
-    await fullscreenRenderer.render(context);
-    setFullscreenActive(stage, true);
+    stage.replaceChildren(snapshotImage(url, `Кадр ${screen.name}`, true));
   } catch (error) {
+    if (requestToken !== fullscreenRequestToken) return;
     stage.replaceChildren(Object.assign(document.createElement('p'), {
-      className: 'animation-screen-empty',
-      textContent: error.message
+      className:'manager-preview-empty is-fullscreen',
+      textContent:error.message
     }));
   }
 }
@@ -207,10 +236,6 @@ async function closeFullscreen() {
   fullscreenIndex = -1;
   updateFullscreenNavigation();
   const overlay = document.getElementById('manager-fullscreen');
-  const stage = document.getElementById('manager-fullscreen-stage');
-  if (stage) setFullscreenActive(stage, false);
-  fullscreenRenderer?.destroy();
-  fullscreenRenderer = null;
   overlay?.classList.add('is-hidden');
   if (document.fullscreenElement === overlay) await document.exitFullscreen().catch(() => undefined);
 }
@@ -253,5 +278,6 @@ export function initialiseManagerView() {
     const overlay = document.getElementById('manager-fullscreen');
     if (!document.fullscreenElement && overlay && !overlay.classList.contains('is-hidden')) void closeFullscreen();
   });
+  window.addEventListener('pagehide', clearSnapshots, { once:true });
   void loadOverview();
 }

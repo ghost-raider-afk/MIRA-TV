@@ -4,21 +4,26 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Manager cards and fullscreen share the generic PlayerSceneRenderer', async () => {
-  const [manager, player] = await Promise.all([
+test('Manager cards and fullscreen use lightweight TV snapshots instead of scene runtimes', async () => {
+  const [manager, routes, realtime, playerClient, player] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/manager.js'),
-    read('src/web/admin-ui/public/js/player/player-scene-renderer.js')
+    read('src/api/managers/view-routes.js'),
+    read('src/realtime/player-realtime.js'),
+    read('src/web/admin-ui/public/js/player/player-realtime-client.js'),
+    read('src/web/admin-ui/public/js/player/player.js')
   ]);
 
-  assert.match(manager, /const previewRenderers = new Set\(\)/);
-  assert.match(manager, /new PlayerSceneRenderer\(stage, \{[\s\S]*?autoplay: false/);
-  assert.match(manager, /destroyPreviewRenderers\(\);\s*root\.replaceChildren\(\)/);
-  assert.match(manager, /fullscreenRenderer = new PlayerSceneRenderer\(stage/);
-  assert.doesNotMatch(manager, /renderAnimationScreenPreview|renderSceneEntity|renderAnnouncementLayer|renderBrandTitleLayer|renderEnvironmentLayer|applySceneVisibility/);
+  assert.doesNotMatch(manager, /PlayerSceneRenderer|previewRenderers|fullscreenRenderer/);
+  assert.match(manager, /const snapshotUrls = new Map\(\)/);
+  assert.match(manager, /URL\.createObjectURL/);
+  assert.match(manager, /\/screens\/\$\{screenId\}\/preview/);
+  assert.match(manager, /snapshotUrls\.get\(Number\(screen\.id\)\) \|\| await fetchSnapshot/);
 
-  assert.match(player, /constructor\(stage, \{ weatherEndpoint = '\/api\/device\/weather', weatherPreviewEndpoint = '\/api\/weather\/preview', autoplay = true, weatherPreview = false \} = \{\}\)/);
-  assert.match(player, /stage\.classList\.add\('player-scene-stage'\)/);
-  assert.match(player, /new SceneElementRenderer/);
-  assert.match(player, /autoplay: this\.autoplay/);
-  assert.doesNotMatch(player, /thumbnail: !this\.autoplay|renderSceneEntity|context\.entity/);
+  assert.match(routes, /requestScreenPreview/);
+  assert.match(routes, /screenPreviewMeta/);
+  assert.match(routes, /screenPreview/);
+  assert.match(realtime, /type:'preview\.request'/);
+  assert.match(playerClient, /mira:player-preview-request/);
+  assert.match(player, /mira:player-preview-request/);
+  assert.match(player, /publishPreviewFrame\(\)/);
 });

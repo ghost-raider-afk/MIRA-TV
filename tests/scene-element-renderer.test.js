@@ -51,5 +51,7 @@ test('generic scene elements use keyed DOM ownership and preserve media nodes', 
   assert.match(player, /new SceneElementRenderer\(this\.sceneLayers\.ensure\('scene'/);
   assert.match(player, /activityTarget: stage/);
   assert.match(player, /autoplay: this\.autoplay/);
-  assert.match(player, /this\.sceneElementRenderer\.render\(context\.scene\)/);
+  assert.match(player, /new SceneVideoRuntime/);
+  assert.match(player, /weatherOnlyScene\(context\.scene_video\?\.live_scene \|\| context\.scene\)/);
+  assert.match(player, /: context\.scene/);
 });

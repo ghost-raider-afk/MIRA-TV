@@ -80,7 +80,10 @@ export async function commitContentAssetTemporary(temporary, { hash, extension, 
 export async function deleteContentAsset(url, { store, config, force = false } = {}) {
   const file = contentAssetPathForUrl(url, config);
   if (!file) return false;
-  if (!force && typeof store?.isContentAssetReferenced === 'function' && await store.isContentAssetReferenced(url)) return false;
+  if (!force) {
+    if (typeof store?.isContentAssetReferenced === 'function' && await store.isContentAssetReferenced(url)) return false;
+    if (typeof store?.isBakedSceneAssetReferenced === 'function' && await store.isBakedSceneAssetReferenced(url)) return false;
+  }
   await unlink(file).catch(() => undefined);
   return true;
 }
@@ -99,6 +102,9 @@ export async function cleanupUnreferencedContentAssets({
   if (typeof store?.listContentAssetReferences !== 'function') return 0;
   const directory = path.join(config.siteAssetsRoot, CONTENT_ASSET_DIR);
   const referenced = new Set(await store.listContentAssetReferences());
+  if (typeof store.listBakedSceneAssetReferences === 'function') {
+    for (const url of await store.listBakedSceneAssetReferences()) referenced.add(url);
+  }
   let entries;
   try {
     entries = await readdir(directory, { withFileTypes: true });

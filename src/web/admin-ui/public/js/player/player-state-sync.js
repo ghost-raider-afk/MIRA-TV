@@ -16,7 +16,7 @@ import {
 } from './player-store.js';
 
 const ALL_COMPONENTS = Object.freeze([
-  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'content_manifest', 'runtime'
+  'screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
@@ -106,7 +106,8 @@ function activeAssetManifest(context, revision = '') {
   const sceneAssets = enabledSceneMedia(context).map((element) => element.media.source_url);
   const assets = [
     context?.draft?.settings?.background_image_url,
-    ...sceneAssets
+    ...sceneAssets,
+    context?.scene_video?.status === 'ready' ? context.scene_video.source_url : ''
   ].map(localAsset).filter(Boolean);
   return {
     version:1,

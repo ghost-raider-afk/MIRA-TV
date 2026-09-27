@@ -173,6 +173,7 @@ export function initialiseSceneEditor() {
   const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
   const undoButton = element('scene-editor-undo');
   const redoButton = element('scene-editor-redo');
+  const publishButton = element('scene-editor-publish');
   const screenSelect = element('scene-editor-screen');
   if (!(form instanceof HTMLFormElement)
       || !(stage instanceof HTMLElement)
@@ -191,6 +192,7 @@ export function initialiseSceneEditor() {
       || !(tableLayer instanceof HTMLButtonElement)
       || !(undoButton instanceof HTMLButtonElement)
       || !(redoButton instanceof HTMLButtonElement)
+      || !(publishButton instanceof HTMLButtonElement)
       || !(screenSelect instanceof HTMLSelectElement)) return undefined;
 
   const token = ++generation;
@@ -1492,6 +1494,7 @@ export function initialiseSceneEditor() {
     tableLayer.disabled = true;
     const saveButton = element('scene-editor-save');
     if (saveButton) saveButton.disabled = true;
+    publishButton.disabled = true;
     setMessage('scene-editor-message', '');
     const bundle = await api.get(`${API.screens}/${id}/editor`);
     if (!active() || currentScreenId !== id) return;
@@ -1502,6 +1505,7 @@ export function initialiseSceneEditor() {
     if (!active()) return;
     form.setAttribute('aria-busy', 'false');
     element('scene-editor-save').disabled = false;
+    publishButton.disabled = false;
     addButton.disabled = false;
     backgroundLayer.disabled = false;
     promotionLayer.disabled = false;
@@ -1645,46 +1649,156 @@ export function initialiseSceneEditor() {
     }, 0);
   });
 
+  async function saveCurrentScene({ announce = true } = {}) {
+    if (!currentScreenId || !currentBundle) return null;
+    const saved = await api.put(`${API.screens}/${currentScreenId}/draft`, {
+      revision: state.draftRevision,
+      rows: structuredClone(state.rows),
+      settings: structuredClone(state.settings),
+      scene: structuredClone(state.scene),
+      animation: {
+        enabled: currentAnimationSettings?.enabled === true,
+        preset_id: currentAnimationSettings?.preset_id || 'cinematic-live-menu',
+        profile: structuredClone(currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE)
+      }
+    });
+    if (!active()) return null;
+    currentBundle = { ...currentBundle, screen:saved.screen, draft:saved.draft, animation:saved.animation || currentAnimationSettings };
+    currentAnimationSettings = structuredClone(saved.animation || currentAnimationSettings);
+    state.screen = structuredClone(saved.screen);
+    state.rows = structuredClone(saved.draft.rows || []);
+    state.settings = structuredClone(saved.draft.settings || {});
+    state.scene = structuredClone(saved.draft.scene || { version:1, elements:[] });
+    if (selectedOwner === 'element' && !state.scene.elements.some((item) => item.id === state.selectedElementId)) {
+      state.selectedElementId = state.scene.elements[0]?.id || null;
+      selectedOwner = state.selectedElementId ? 'element' : 'table';
+    }
+    state.draftRevision = Number(saved.draft.revision || state.draftRevision);
+    state.dirty = false;
+    history.clear();
+    setDirty();
+    renderSelectionOwners();
+    if (announce) {
+      setMessage(
+        'scene-editor-message',
+        'Сцена сохранена как черновик. Для обновления телевизора нажмите «Опубликовать».',
+        'success'
+      );
+    }
+    return saved;
+  }
+
+  const LOCAL_RENDER_AGENT = 'http://127.0.0.1:41417';
+
+  function sleep(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  async function localAgentJson(pathname, init = {}) {
+    let response;
+    try {
+      response = await fetch(LOCAL_RENDER_AGENT + pathname, {
+        cache:'no-store',
+        ...init,
+        headers:{
+          ...(init.body ? { 'content-type':'application/json' } : {}),
+          ...(init.headers || {})
+        }
+      });
+    } catch {
+      throw new Error('MIRA Render Agent не запущен на этом ПК. Запустите локальный Agent и повторите публикацию.');
+    }
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.error || ('Render Agent HTTP ' + response.status));
+    return body;
+  }
+
+  async function waitForRenderTask(taskId) {
+    const deadline = Date.now() + 15 * 60_000;
+    while (Date.now() < deadline) {
+      const task = await localAgentJson('/tasks/' + encodeURIComponent(taskId));
+      if (task.status === 'complete') return task;
+      if (task.status === 'failed') throw new Error(task.error || 'MIRA Render Agent не смог создать видео.');
+      const progress = Math.max(0, Math.min(100, Number(task.progress) || 0));
+      setMessage('scene-editor-message', `Публикация: создание Video Scene… ${progress}%`);
+      await sleep(750);
+    }
+    throw new Error('MIRA Render Agent не завершил публикацию за допустимое время.');
+  }
+
+  async function publishCurrentScene() {
+    if (!currentScreenId || !currentBundle) return;
+    setPending(publishButton, true, 'Публикуем…');
+    const save = element('scene-editor-save');
+    if (save instanceof HTMLButtonElement) save.disabled = true;
+    try {
+      if (state.dirty) {
+        setMessage('scene-editor-message', 'Сохраняем черновик перед публикацией…');
+        await saveCurrentScene({ announce:false });
+      }
+
+      const job = await api.get(`${API.screens}/${currentScreenId}/render-package`);
+      const renderPackage = job?.package;
+      if (!renderPackage) throw new Error('Сервер не сформировал Render Package.');
+      if (renderPackage.bake_supported !== true) {
+        if (renderPackage.unsupported_reason === 'scene-playlist') {
+          throw new Error('Video Mode для активного плейлиста будет добавлен отдельным этапом. Этот экран пока продолжает работать через live renderer.');
+        }
+        throw new Error('Эта сцена пока не поддерживает Video Mode.');
+      }
+
+      if (job.reusable_scene_video) {
+        setMessage('scene-editor-message', 'Найден готовый Video Scene. Публикуем без повторного рендера…');
+        await api.post(`${API.screens}/${currentScreenId}/render-package/reuse`, {});
+        setMessage('scene-editor-message', 'Опубликовано. Готовый ролик переиспользован и отправлен на TV.', 'success');
+        return;
+      }
+
+      const health = await localAgentJson('/health');
+      if (health?.server_origin !== window.location.origin) {
+        throw new Error('MIRA Render Agent настроен на другой сервер. Перезапустите Agent с адресом текущего MIRA-TV.');
+      }
+
+      setMessage('scene-editor-message', 'MIRA Render Agent найден. Создаём Video Scene на этом ПК…');
+      const accepted = await localAgentJson('/render', {
+        method:'POST',
+        body:JSON.stringify({
+          server_origin:window.location.origin,
+          screen_id:currentScreenId,
+          render_revision:renderPackage.render_revision,
+          input_hash:renderPackage.input_hash,
+          token:job.upload?.token,
+          upload_url:job.upload?.url
+        })
+      });
+      if (!accepted?.task_id) throw new Error('MIRA Render Agent не вернул идентификатор задания.');
+      await waitForRenderTask(accepted.task_id);
+      setMessage('scene-editor-message', 'Опубликовано. TV получит новый MP4 через Local-first обновление.', 'success');
+    } catch (error) {
+      if (active()) setMessage('scene-editor-message', error.message);
+    } finally {
+      if (active()) {
+        setPending(publishButton, false, 'Публикуем…');
+        if (save instanceof HTMLButtonElement) save.disabled = false;
+      }
+    }
+  }
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!currentScreenId || !currentBundle) return;
     const save = element('scene-editor-save');
     setPending(save, true, 'Сохраняем…');
     try {
-      const saved = await api.put(`${API.screens}/${currentScreenId}/draft`, {
-        revision: state.draftRevision,
-        rows: structuredClone(state.rows),
-        settings: structuredClone(state.settings),
-        scene: structuredClone(state.scene),
-        animation: {
-          enabled: currentAnimationSettings?.enabled === true,
-          preset_id: currentAnimationSettings?.preset_id || 'cinematic-live-menu',
-          profile: structuredClone(currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE)
-        }
-      });
-      if (!active()) return;
-      currentBundle = { ...currentBundle, screen: saved.screen, draft: saved.draft, animation:saved.animation || currentAnimationSettings };
-      currentAnimationSettings = structuredClone(saved.animation || currentAnimationSettings);
-      state.screen = structuredClone(saved.screen);
-      state.rows = structuredClone(saved.draft.rows || []);
-      state.settings = structuredClone(saved.draft.settings || {});
-      state.scene = structuredClone(saved.draft.scene || { version: 1, elements: [] });
-      if (selectedOwner === 'element' && !state.scene.elements.some((item) => item.id === state.selectedElementId)) {
-        state.selectedElementId = state.scene.elements[0]?.id || null;
-        selectedOwner = state.selectedElementId ? 'element' : 'table';
-      }
-      state.draftRevision = Number(saved.draft.revision || state.draftRevision);
-      state.dirty = false;
-      history.clear();
-      setDirty();
-      renderSelectionOwners();
-      setMessage('scene-editor-message', 'Сцена сохранена. Анимация сохранена и доступна TV Player.', 'success');
+      await saveCurrentScene();
     } catch (error) {
       if (active()) setMessage('scene-editor-message', error.message);
     } finally {
       if (active()) setPending(save, false, 'Сохраняем…');
     }
   });
+
+  publishButton.addEventListener('click', () => void publishCurrentScene());
 
   const onBeforeUnload = (event) => {
     if (!state.dirty) return;

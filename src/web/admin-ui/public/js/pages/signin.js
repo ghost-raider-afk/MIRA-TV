@@ -13,7 +13,8 @@ function homeForSession(session) {
 
 export function initialiseSignIn() {
   const form = element('signin-form');
-  if (!(form instanceof HTMLFormElement)) return;
+  const submit = element('signin-submit');
+  if (!(form instanceof HTMLFormElement) || !(submit instanceof HTMLButtonElement)) return;
 
   void api.get(API.publicConfig)
     .then(applyPresentation)
@@ -23,7 +24,6 @@ export function initialiseSignIn() {
   void api.get(API.session).then((session) => window.location.replace(homeForSession(session))).catch(() => undefined);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const submit = element('signin-submit');
     setPending(submit, true, 'Выполняется вход…');
     try {
       await api.post(API.login, {
@@ -38,4 +38,6 @@ export function initialiseSignIn() {
       setPending(submit, false, 'Выполняется вход…');
     }
   });
+  submit.disabled = false;
+  form.dataset.hydrated = 'true';
 }

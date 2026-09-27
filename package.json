@@ -8,7 +8,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "find src -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "build": "find src tools/render-agent -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
     "start": "node src/server.js",
     "test": "node --test",
     "test:browser": "playwright test",

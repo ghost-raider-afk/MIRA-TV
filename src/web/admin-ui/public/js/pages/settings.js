@@ -144,6 +144,10 @@ function initialiseManagers() {
       setPending(button, false, 'Создаём…');
     }
   });
+  // Keep the static form locked until route mounting and submit binding finish.
+  // Otherwise an early fill can lose focus when the router makes main inert.
+  form.querySelectorAll('input, button').forEach((control) => { control.disabled = false; });
+  form.dataset.hydrated = 'true';
   void loadManagers().catch((error) => setMessage('manager-settings-message', error.message));
 }
 

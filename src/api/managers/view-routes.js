@@ -11,7 +11,21 @@ async function savedVisibleScreen(store, id) {
   return screen;
 }
 
-export function createManagerViewRouter({ store, config, weatherService }) {
+async function requestedPreview(realtime, screenId, timeoutMs = 1800) {
+  const before = realtime?.screenPreviewMeta?.(screenId)?.etag || '';
+  const requested = realtime?.requestScreenPreview?.(screenId) || 0;
+  if (requested > 0) {
+    const deadline = Date.now() + Math.max(250, Number(timeoutMs) || 1800);
+    while (Date.now() < deadline) {
+      const current = realtime?.screenPreviewMeta?.(screenId);
+      if (current?.etag && current.etag !== before) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  return realtime?.screenPreview?.(screenId) || null;
+}
+
+export function createManagerViewRouter({ store, config, weatherService, realtime }) {
   const router = express.Router();
 
   router.use((_request, response, next) => {
@@ -40,6 +54,18 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       }))
       .filter((location) => location.screens.length > 0);
     response.json(groups);
+  });
+
+  router.get('/screens/:id/preview', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
+    const preview = await requestedPreview(realtime, id);
+    if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
+    response.setHeader('Cache-Control', 'private, no-cache');
+    response.setHeader('ETag', preview.etag);
+    response.setHeader('X-MIRA-Preview-Updated-At', preview.updatedAt);
+    response.type(preview.contentType);
+    return response.send(preview.buffer);
   });
 
   router.get('/screens/:id/context', async (request, response) => {

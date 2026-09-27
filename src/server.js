@@ -30,6 +30,7 @@ import { createDeviceAdminRouter } from './api/device/admin-routes.js';
 import { createWeatherRouter } from './api/weather/routes.js';
 import { createManagerAdminRouter } from './api/managers/admin-routes.js';
 import { createManagerViewRouter } from './api/managers/view-routes.js';
+import { createRenderAgentPublicRouter } from './api/render-agent/public-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, 'web', 'admin-ui', 'public');
@@ -159,6 +160,7 @@ function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
     response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
   });
   app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService }));
+  app.use('/api/render-agent', createRenderAgentPublicRouter({ store, config, realtime }));
 }
 
 function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole) {

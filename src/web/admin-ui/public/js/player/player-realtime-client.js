@@ -51,6 +51,8 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
         if (message?.type === 'context.changed') {
           window.dispatchEvent(new CustomEvent('mira:player-realtime-change', { detail: message }));
           onChanged?.(message);
+        } else if (message?.type === 'preview.request') {
+          window.dispatchEvent(new CustomEvent('mira:player-preview-request'));
         }
       } catch {}
     });
