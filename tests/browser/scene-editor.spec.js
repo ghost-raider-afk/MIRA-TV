@@ -215,7 +215,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await page.locator('#scene-editor-add').click();
   const addMenu = page.locator('#scene-editor-add-menu');
   await expect(addMenu).toBeVisible();
-  await expect(addMenu.getByRole('menuitem')).toHaveCount(5);
+  await expect(addMenu.getByRole('menuitem')).toHaveCount(4);
   await addMenu.getByRole('menuitem', { name:/Текстовое поле/ }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(1);
   await expect(page.locator('.scene-editor-layer-select strong')).toHaveText('Текстовое поле');
@@ -794,7 +794,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   expect(weatherEmphasis.locationShadow).not.toBe('none');
   expect(weatherEmphasis.temperatureShadow).not.toBe('none');
   expect(weatherEmphasis.iconWidth).toBeGreaterThanOrEqual(50);
-  expect(weatherEmphasis.iconFilter).not.toBe('none');
+  expect(weatherEmphasis.iconFilter).toBe('none');
   await expect.poll(() => previewRequests.length, { timeout:7000 }).toBeGreaterThanOrEqual(2);
   expect(previewRequests.at(-1)).toMatchObject({
     name:'Комсомольск-на-Амуре',

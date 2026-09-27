@@ -158,9 +158,11 @@ export function initialiseSettings() {
   populateSiteForm(state.site);
   element('upload-logo')?.addEventListener('click', () => uploadSiteAsset('logo'));
   element('upload-favicon')?.addEventListener('click', () => uploadSiteAsset('favicon'));
-  siteForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submit = element('site-settings-submit');
+  const submit = element('site-settings-submit');
+  let siteSavePending = false;
+  async function saveSiteSettings() {
+    if (siteSavePending) return;
+    siteSavePending = true;
     setPending(submit, true, 'Сохраняем…');
     try {
       const site = await api.put(API.siteSettings, {
@@ -180,8 +182,17 @@ export function initialiseSettings() {
     } catch (error) {
       setMessage('site-settings-message', error.message);
     } finally {
+      siteSavePending = false;
       setPending(submit, false, 'Сохраняем…');
     }
+  }
+  siteForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void saveSiteSettings();
+  });
+  submit?.addEventListener('click', (event) => {
+    event.preventDefault();
+    void saveSiteSettings();
   });
   siteForm.querySelectorAll('input, select, button').forEach((control) => {
     if (control.id !== 'site-domain') control.disabled = false;
