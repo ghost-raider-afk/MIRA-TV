@@ -34,12 +34,12 @@ test('premium ambient layer stays static without decorative motion', async ({ pa
   expect(reduced).toBe('none');
 });
 
-test('uploaded rail logo has no accent tile behind it', async ({ page }) => {
+test('uploaded header logo has no accent tile behind it', async ({ page }) => {
   await login(page);
-  await expect(page.locator('.ui-rail-brand .brand-mark')).toBeVisible();
+  await expect(page.locator('.app-header-home-mark')).toBeVisible();
 
   const result = await page.evaluate(() => {
-    const mark = document.querySelector('.ui-rail-brand .brand-mark');
+    const mark = document.querySelector('.app-header-home-mark');
     const image = document.createElement('img');
     image.alt = '';
     image.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="%23f4c915"/></svg>';

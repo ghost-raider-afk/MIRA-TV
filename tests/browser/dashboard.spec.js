@@ -53,9 +53,9 @@ test('Dashboard is reached from the logo and switches per-TV reporting periods',
     await expect.poll(() => requestedScreens.includes(String(target.screen_id))).toBe(true);
   }
 
-  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
   await expect(page).toHaveURL(/\/screens$/);
-  await page.locator('.ui-rail-brand').click();
+  await page.locator('.app-header-home').click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('.dashboard-commandbar')).toBeVisible();
   await expect(page.locator('.ui-context')).toBeHidden();

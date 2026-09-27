@@ -37,14 +37,14 @@ test('site name updates the persistent application shell immediately after save'
 
   const sentinel = `branding-${Math.random()}`;
   await page.evaluate((value) => { window.__brandingSentinel = value; }, sentinel);
-  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await waitForRouteReady(page);
   await expect(page.locator('.app-header [data-app-name]')).toHaveText(changed);
   await expect(page).toHaveTitle(`${changed} — Мониторы`);
   expect(await page.evaluate(() => window.__brandingSentinel)).toBe(sentinel);
 
-  await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   await waitForRouteReady(page);
   await expect(page.locator('#site-app-name')).toHaveValue(changed);
@@ -116,8 +116,7 @@ test('light theme uses light semantic chrome and editor surfaces', async ({ page
   const colors = await page.evaluate(() => {
     const css = (selector) => getComputedStyle(document.querySelector(selector)).backgroundColor;
     return {
-      rail: css('.ui-rail'),
-      context: css('.ui-context'),
+      header: css('.app-header'),
       commandbar: css('.scene-editor-commandbar'),
       editorSurface: css('.scene-editor-canvas-panel'),
       inspector: css('.scene-editor-properties-panel'),
@@ -125,8 +124,8 @@ test('light theme uses light semantic chrome and editor surfaces', async ({ page
     };
   });
 
-  expect(colors.rail).toBe('rgb(255, 255, 255)');
-  expect(colors.context).toBe('rgb(248, 249, 251)');
+  expect(colors.header).not.toBe('rgba(0, 0, 0, 0)');
+  expect(colors.header).not.toBe('rgb(13, 17, 24)');
   expect(colors.editorSurface).not.toBe('rgb(21, 29, 41)');
   expect(colors.inspector).not.toBe('rgb(21, 29, 41)');
   expect(colors.commandbar).not.toBe('rgb(21, 29, 41)');

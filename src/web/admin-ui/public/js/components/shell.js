@@ -152,7 +152,7 @@ export function initialiseShell() {
 
   content.prepend(context);
   content.prepend(header);
-  shell.prepend(backdrop);
+  content.prepend(backdrop);
   shell.prepend(rail);
   document.body.append(notifications);
 
