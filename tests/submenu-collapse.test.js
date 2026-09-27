@@ -22,7 +22,8 @@ test('context drawer is route-aware, deterministic and inaccessible while closed
   assert.match(shell, /context\.hidden = !available/);
   assert.match(shell, /toggleAttribute\('inert', !open\)/);
   assert.match(shell, /event\.key !== 'Escape'/);
-  assert.match(shell, /\.app-content'\)\?\.addEventListener\('pointerdown'/);
+  assert.match(shell, /\.app-content'\)\?\.addEventListener\('click'/);
+  assert.doesNotMatch(shell, /\.app-content'\)\?\.addEventListener\('pointerdown'/);
   assert.match(shell, /reconcileContextRoute/);
   assert.match(shell, /setCollapsed\(shell, context, true\);/);
   assert.doesNotMatch(shell, /localStorage|CONTEXT_COLLAPSED_KEY|savedCollapsedState/);

@@ -70,7 +70,7 @@ test('context drawer never occupies Dashboard and has deterministic desktop life
   await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(context).toBeVisible();
-  await page.locator('.main-content').dispatchEvent('pointerdown');
+  await page.locator('.main-content').dispatchEvent('click');
   await expect(context).toHaveClass(/is-collapsed/);
 
   await page.locator('.ui-rail-brand').click();
