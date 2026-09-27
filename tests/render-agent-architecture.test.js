@@ -9,6 +9,7 @@ import {
   bakedSceneComponent,
   bakedSceneRuntimeToken
 } from '../src/services/baked-scene-service.js';
+import { windowsBootstrapCommand } from '../src/services/render-agent-installer-service.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -101,4 +102,38 @@ test('baked scene persistence keeps ACTIVE and PREVIOUS server references', asyn
   assert.match(repository, /previous_hash/);
   assert.match(assets, /isBakedSceneAssetReferenced/);
   assert.match(assets, /listBakedSceneAssetReferences/);
+});
+
+
+test('Render Agent browser installer is per-user, self-contained and preserves the single Agent source', async () => {
+  const [routes, installer, dockerfile, scene, sceneHtml, sceneCss] = await Promise.all([
+    read('src/api/render-agent/public-routes.js'),
+    read('tools/render-agent/install-windows.ps1'),
+    read('Dockerfile'),
+    read('src/web/admin-ui/public/js/pages/scene.js'),
+    read('src/web/admin-ui/public/scene.html'),
+    read('src/web/admin-ui/public/css/pages/scene-editor.css')
+  ]);
+
+  const bootstrap = windowsBootstrapCommand('https://mira.example');
+  assert.match(bootstrap, /MIRA-Render-Agent-Setup/);
+  assert.match(bootstrap, /https:\/\/mira\.example\/api\/render-agent\/installer\/windows\.ps1/);
+  assert.match(routes, /router\.get\('\/installer\/windows'/);
+  assert.match(routes, /router\.get\('\/installer\/windows\.ps1'/);
+  assert.match(routes, /router\.get\('\/agent\.js'/);
+  assert.match(dockerfile, /COPY tools\/render-agent \.\/tools\/render-agent/);
+  assert.match(installer, /LOCALAPPDATA.*MIRA-TV\\RenderAgent/);
+  assert.match(installer, /latest-v24\.x/);
+  assert.match(installer, /SHASUMS256\.txt/);
+  assert.match(installer, /ffmpeg-release-essentials\.zip/);
+  assert.match(installer, /\.sha256/);
+  assert.match(installer, /ws@8\.21\.3/);
+  assert.match(installer, /CurrentVersion\\Run/);
+  assert.match(installer, /127\.0\.0\.1:41417\/health/);
+  assert.doesNotMatch(installer, /-Verb\s+RunAs/i);
+  assert.match(sceneHtml, /id="scene-editor-agent-install"/);
+  assert.match(sceneHtml, /Установить Render Agent/);
+  assert.match(scene, /watchAgentInstallation/);
+  assert.match(scene, /refreshLocalAgentState/);
+  assert.match(sceneCss, /scene-editor-agent-setup/);
 });

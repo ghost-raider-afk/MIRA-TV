@@ -46,6 +46,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const { screen, product } = await fixture(page);
   await page.goto(`/scene?screen=${screen.id}`);
 
+  await expect(page.locator('#scene-editor-agent-setup')).toBeVisible();
+  await expect(page.locator('#scene-editor-agent-install')).toHaveAttribute('href', '/api/render-agent/installer/windows');
   await expect(page.locator('#scene-editor-layers')).toBeVisible();
   await expect(page.locator('#scene-editor-stage')).toBeVisible();
   await expect(page.locator('#scene-editor-properties')).toBeVisible();

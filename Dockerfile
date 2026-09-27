@@ -34,6 +34,7 @@ COPY package.json ./
 COPY src ./src
 COPY native ./native
 COPY scripts ./scripts
+COPY tools/render-agent ./tools/render-agent
 RUN chown -R mira-tv:mira-tv-assets /app
 USER mira-tv
 EXPOSE 8080

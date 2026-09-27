@@ -174,6 +174,8 @@ export function initialiseSceneEditor() {
   const undoButton = element('scene-editor-undo');
   const redoButton = element('scene-editor-redo');
   const publishButton = element('scene-editor-publish');
+  const agentSetup = element('scene-editor-agent-setup');
+  const agentInstallLink = element('scene-editor-agent-install');
   const screenSelect = element('scene-editor-screen');
   if (!(form instanceof HTMLFormElement)
       || !(stage instanceof HTMLElement)
@@ -193,6 +195,8 @@ export function initialiseSceneEditor() {
       || !(undoButton instanceof HTMLButtonElement)
       || !(redoButton instanceof HTMLButtonElement)
       || !(publishButton instanceof HTMLButtonElement)
+      || !(agentSetup instanceof HTMLElement)
+      || !(agentInstallLink instanceof HTMLAnchorElement)
       || !(screenSelect instanceof HTMLSelectElement)) return undefined;
 
   const token = ++generation;
@@ -210,6 +214,7 @@ export function initialiseSceneEditor() {
   let disposed = false;
   let previewFrame = 0;
   let documentPreviewFrame = 0;
+  let agentProbeTimer = null;
   let resizeObserver = null;
   let interactionActive = false;
   let selectedOwner = 'none';
@@ -1690,6 +1695,47 @@ export function initialiseSceneEditor() {
 
   const LOCAL_RENDER_AGENT = 'http://127.0.0.1:41417';
 
+  function setAgentSetupVisible(visible) {
+    agentSetup.hidden = !visible;
+    agentSetup.dataset.connected = visible ? 'false' : 'true';
+  }
+
+  async function probeLocalAgent() {
+    try {
+      const response = await fetch(LOCAL_RENDER_AGENT + '/health', { cache:'no-store' });
+      if (!response.ok) return false;
+      const health = await response.json().catch(() => null);
+      return health?.ok === true && health?.server_origin === window.location.origin;
+    } catch {
+      return false;
+    }
+  }
+
+  async function refreshLocalAgentState({ announce = false } = {}) {
+    const connected = await probeLocalAgent();
+    if (!active()) return false;
+    setAgentSetupVisible(!connected);
+    if (connected && announce) {
+      setMessage('scene-editor-message', 'MIRA Render Agent подключен. Можно публиковать Video Scene.', 'success');
+    }
+    return connected;
+  }
+
+  function watchAgentInstallation() {
+    if (agentProbeTimer) clearTimeout(agentProbeTimer);
+    const deadline = Date.now() + 180_000;
+    const poll = async () => {
+      if (!active()) return;
+      if (await refreshLocalAgentState({ announce:true })) {
+        agentProbeTimer = null;
+        return;
+      }
+      if (Date.now() < deadline) agentProbeTimer = setTimeout(poll, 1500);
+      else agentProbeTimer = null;
+    };
+    agentProbeTimer = setTimeout(poll, 1800);
+  }
+
   function sleep(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
   }
@@ -1706,7 +1752,8 @@ export function initialiseSceneEditor() {
         }
       });
     } catch {
-      throw new Error('MIRA Render Agent не запущен на этом ПК. Запустите локальный Agent и повторите публикацию.');
+      setAgentSetupVisible(true);
+      throw new Error('MIRA Render Agent не запущен на этом ПК. Нажмите «Установить Render Agent», откройте скачанный установщик и повторите публикацию.');
     }
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new Error(body?.error || ('Render Agent HTTP ' + response.status));
@@ -1756,8 +1803,10 @@ export function initialiseSceneEditor() {
 
       const health = await localAgentJson('/health');
       if (health?.server_origin !== window.location.origin) {
-        throw new Error('MIRA Render Agent настроен на другой сервер. Перезапустите Agent с адресом текущего MIRA-TV.');
+        setAgentSetupVisible(true);
+        throw new Error('MIRA Render Agent настроен на другой сервер. Переустановите его кнопкой ниже для текущего MIRA-TV.');
       }
+      setAgentSetupVisible(false);
 
       setMessage('scene-editor-message', 'MIRA Render Agent найден. Создаём Video Scene на этом ПК…');
       const accepted = await localAgentJson('/render', {
@@ -1799,6 +1848,10 @@ export function initialiseSceneEditor() {
   });
 
   publishButton.addEventListener('click', () => void publishCurrentScene());
+  agentInstallLink.addEventListener('click', () => {
+    setMessage('scene-editor-message', 'Установщик Render Agent скачан. Откройте его — после установки эта страница подключит Agent автоматически.');
+    watchAgentInstallation();
+  });
 
   const onBeforeUnload = (event) => {
     if (!state.dirty) return;
@@ -1813,6 +1866,7 @@ export function initialiseSceneEditor() {
   });
   resizeObserver.observe(canvasPane);
 
+  void refreshLocalAgentState();
   void loadScreens().catch((error) => {
     if (!active()) return;
     form.setAttribute('aria-busy', 'false');
@@ -1829,6 +1883,7 @@ export function initialiseSceneEditor() {
       generation += 1;
       if (previewFrame) cancelAnimationFrame(previewFrame);
       if (documentPreviewFrame) cancelAnimationFrame(documentPreviewFrame);
+      if (agentProbeTimer) clearTimeout(agentProbeTimer);
       resizeObserver?.disconnect();
       renderer?.destroy();
       renderer = null;
