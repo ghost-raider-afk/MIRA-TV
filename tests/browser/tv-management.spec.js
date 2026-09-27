@@ -54,7 +54,7 @@ test('TV network keeps cards concise and manages monitor metadata in one dialog'
     await dialog.locator('[data-tv-management-content-status]').selectOption('ready');
     await dialog.locator('[data-tv-management-save]').click();
     await expect(dialog).not.toBeVisible();
-    await expect(unit.locator('.screen-tv-label')).toBeVisible();
+    await expect(unit.locator('[data-tv-meta]')).toContainText('Готово');
 
     const savedResponse = await page.request.get(`/api/screens/${screen.id}`);
     expect(savedResponse.ok()).toBeTruthy();

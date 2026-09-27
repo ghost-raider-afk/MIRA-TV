@@ -1,6 +1,5 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { navigate } from '../core/router.js';
 import { state } from '../core/state.js';
 import { element, makeButton, setMessage, setPending } from '../core/dom.js';
 import { formatDate } from '../core/presentation.js';
@@ -121,15 +120,13 @@ function diagnosticText(binding) {
 
 function metaRows(screen, binding) {
   const status = statusState(binding);
-  const diagnostic = diagnosticText(binding);
   return [
     ['Статус', status.title, status.key],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', ''],
     ['Производитель', binding?.manufacturer || 'Не определено', ''],
     ['Модель', binding?.model || 'Не определена', ''],
     ['IP-адрес', binding?.remote_address || '—', ''],
-    ['Ping', pingText(screen.id, binding), ''],
-    ...(diagnostic ? [['Диагностика', diagnostic, '']] : [])
+    ['Ping', pingText(screen.id, binding), '']
   ];
 }
 
