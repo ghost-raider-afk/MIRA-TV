@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
 
-const COMPONENTS = ['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime'];
+const COMPONENTS = ['screen', 'menu', 'scene', 'content_manifest', 'runtime'];
 
 function hashes(suffix = 'a') {
   return Object.fromEntries(COMPONENTS.map((name) => [name, `${name}-${suffix}-012345678901234567890123456789`]));
@@ -11,7 +11,7 @@ function hashes(suffix = 'a') {
 function playerContext({ revision = 'revision-a', hashSuffix = 'a', scene = { version: 1, elements: [] }, fallbackMs = 60_000 } = {}) {
   const stateHashes = hashes(hashSuffix);
   return {
-    schema_version: 4,
+    schema_version: 7,
     revision,
     render_revision: 1,
     hashes: stateHashes,
@@ -19,8 +19,7 @@ function playerContext({ revision = 'revision-a', hashSuffix = 'a', scene = { ve
     draft: { rows: [], settings: { background_color: '#101828' }, revision: 1 },
     products: [], packaging: [],
     scene,
-    animation: { enabled: false, profile: null },
-    scene_playlist: { enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: [] },
+    content_manifest: { version:1, revision, assets:[] },
     app_version: '1.10.2',
     fallback_poll_interval_ms: fallbackMs, log_batch_size: 100, log_local_max_entries: 5000, log_local_max_bytes: 10 * 1024 * 1024
   };
@@ -94,7 +93,7 @@ test('failed WebSocket reconnects never starve the rare REST fallback', async ({
   let deltaRequests = 0;
   await page.route('**/api/device/player-delta', async (route) => {
     deltaRequests += 1;
-    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 4, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
+    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 7, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/player');
@@ -109,7 +108,7 @@ test('unchanged delta leaves the already rendered vector menu untouched', async 
   let deltaRequests = 0;
   await page.route('**/api/device/player-delta', async (route) => {
     deltaRequests += 1;
-    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 4, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
+    const body = deltaRequests === 1 ? { full_snapshot_required: true, context } : { schema_version: 7, revision: context.revision, hashes: context.hashes, changed: {}, unchanged: true };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/player');
@@ -138,7 +137,7 @@ test('menu-only delta does not recreate an unchanged generic scene media node', 
   await page.route('**/api/device/player-delta', async (route) => {
     deltaRequests += 1;
     const body = deltaRequests === 1 ? { full_snapshot_required: true, context: first } : {
-      schema_version: 4, revision: 'revision-b', render_revision: 2, hashes: secondHashes,
+      schema_version: 7, revision: 'revision-b', render_revision: 2, hashes: secondHashes,
       changed: { menu: { draft: { rows: [], settings: { background_color: '#111827' }, revision: 2 }, products: [], packaging: [] } }, unchanged: false
     };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });

@@ -8,15 +8,14 @@ const CURRENT_APP_VERSION = JSON.parse(
 test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 9; Android TV) AppleWebKit/537.36 Chrome/70.0.3538.110 Safari/537.36' });
 
 const contextPayload = {
-  schema_version: 4,
-  revision: 'android-tv-boot-v1',
+  schema_version: 7,
+  revision: '7:1',
   render_revision: 1,
   hashes: {
     screen: 'screen-android-tv-012345678901234567890123456789',
     menu: 'menu-android-tv-012345678901234567890123456789',
     scene: 'scene-android-tv-012345678901234567890123456789',
-    animation: 'animation-android-tv-012345678901234567890123456789',
-    scene_playlist: 'playlist-android-tv-012345678901234567890123456789',
+    content_manifest: 'content-manifest-android-tv-012345678901234567890123456789',
     runtime: 'runtime-android-tv-012345678901234567890123456789'
   },
   screen: {
@@ -32,15 +31,13 @@ const contextPayload = {
   products: [],
   packaging: [],
   scene: { version: 1, elements: [] },
-  animation: { enabled: false, profile: null },
-  scene_playlist: null,
+  content_manifest: { version: 1, revision: '7:1', assets: [] },
   app_version: CURRENT_APP_VERSION,
   fallback_poll_interval_ms: 60000,
   log_batch_size: 100,
   log_local_max_entries: 5000,
   log_local_max_bytes: 10485760,
   metrics_interval_ms: 60000,
-  preview_capture_interval_ms: 30000,
   preview_max_bytes: 262144
 };
 

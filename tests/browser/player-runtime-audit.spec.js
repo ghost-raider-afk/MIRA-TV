@@ -22,10 +22,10 @@ function contextSnapshot() {
     { id: 'pack-1', kind: 'packaging', packaging_id: 1, enabled: true },
     { id: 'pack-2', kind: 'packaging', packaging_id: 2, enabled: true }
   ];
-  const hashes = Object.fromEntries(['screen','menu','scene','animation','scene_playlist','runtime'].map((name) => [name, `${name}-runtime-audit-012345678901234567890123456789`]));
+  const hashes = Object.fromEntries(['screen','menu','scene','content_manifest','runtime'].map((name) => [name, `${name}-runtime-audit-012345678901234567890123456789`]));
   return {
-    schema_version: 4,
-    revision: '4:1',
+    schema_version: 7,
+    revision: '7:1',
     render_revision: 1,
     hashes,
     screen: { id: 77, name: 'TV Runtime Audit', resolution: '1920x1080', status: 'active', location_id: 7, location_name: 'Тестовая точка', location_number: 1 },
@@ -58,14 +58,13 @@ function contextSnapshot() {
           weather:{
             mode:'current-and-forecast',location_name:'Хельсинки',latitude:60.1699,longitude:24.9384,timezone:'Europe/Helsinki',
             refresh_minutes:15,show_location:true,show_condition:true,show_feels_like:true,show_humidity:true,show_wind:true,
-            show_forecast:true,forecast_items:3,animation_enabled:true,animation_speed:1,animation_intensity:1,widget_motion_enabled:true
+            show_forecast:true,forecast_items:3
           }
         }
       ]
     },
-    animation: { enabled: false, profile: null },
-    scene_playlist: { enabled: false, animation_enabled:true, menu_duration_seconds: 40, scenes: [] },
-    app_version:'1.10.2',
+    content_manifest: { version:1, revision:'7:1', assets:[] },
+    app_version:'1.15.1',
     fallback_poll_interval_ms:60000,
     log_batch_size:100,
     log_local_max_entries:5000,
@@ -113,7 +112,7 @@ function metricMap(result) {
   return Object.fromEntries(result.metrics.map(({ name, value }) => [name, value]));
 }
 
-async function animationSample(page, durationMs = 4000) {
+async function rafSample(page, durationMs = 4000) {
   return page.evaluate((duration) => new Promise((resolve) => {
     const started = performance.now();
     let frames = 0;
@@ -133,7 +132,7 @@ async function animationSample(page, durationMs = 4000) {
   }), durationMs);
 }
 
-test('TV Player renders a realistic animated screen within a measured runtime budget', async ({ browser }, testInfo) => {
+test('TV Player renders a realistic static screen within a measured runtime budget', async ({ browser }, testInfo) => {
   const browserContext = await browser.newContext({ baseURL, serviceWorkers: 'block', viewport: { width: 1920, height: 1080 } });
   await browserContext.addInitScript(() => {
     class StableWebSocket extends EventTarget {
@@ -164,7 +163,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
       deltaRequests += 1;
       const body = deltaRequests === 1
         ? { full_snapshot_required: true, context: snapshot }
-        : { schema_version: 4, revision: snapshot.revision, hashes: snapshot.hashes, changed: {}, unchanged: true };
+        : { schema_version: 7, revision: snapshot.revision, hashes: snapshot.hashes, changed: {}, unchanged: true };
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
     await page.route('**/api/device/weather', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(weather) }));
@@ -206,7 +205,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
     expect(weatherStyle.boxShadow).toBe('none');
 
     const before = metricMap(await cdp.send('Performance.getMetrics'));
-    const animation = await animationSample(page, 4000);
+    const sample = await rafSample(page, 4000);
     const after = metricMap(await cdp.send('Performance.getMetrics'));
     const resources = await page.evaluate(() => {
       const rows = performance.getEntriesByType('resource').map((entry) => ({
@@ -226,8 +225,8 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
       };
     });
 
-    const elapsedSeconds = animation.durationMs / 1000;
-    const headlessRafFps = Number(animation.fps.toFixed(1));
+    const elapsedSeconds = sample.durationMs / 1000;
+    const headlessRafFps = Number(sample.fps.toFixed(1));
     const audit = {
       viewport: '1920x1080',
       jsHeapUsedMiB: Number(((after.JSHeapUsedSize || 0) / MiB).toFixed(2)),
@@ -241,7 +240,7 @@ test('TV Player renders a realistic animated screen within a measured runtime bu
       recalcStyleCpuPercent: Number((((after.RecalcStyleDuration || 0) - (before.RecalcStyleDuration || 0)) / elapsedSeconds * 100).toFixed(1)),
       headlessRafFps,
       headlessRafThrottled: headlessRafFps < 15,
-      maxHeadlessRafGapMs: Number(animation.maxFrameGapMs.toFixed(1)),
+      maxHeadlessRafGapMs: Number(sample.maxFrameGapMs.toFixed(1)),
       resourceRequests: resources.count,
       transferMiB: Number((resources.transferBytes / MiB).toFixed(2)),
       encodedMiB: Number((resources.encodedBytes / MiB).toFixed(2)),
