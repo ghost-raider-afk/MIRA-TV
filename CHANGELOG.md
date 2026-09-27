@@ -1,5 +1,20 @@
 # История изменений
 
+## 1.15.1
+
+Hotfix удобства Video Mode и общей геометрии Preview после первого реального обновления до 1.15.0.
+
+- Scene Editor теперь показывает кнопку «Установить Render Agent», если локальный Agent не найден.
+- Windows bootstrap привязывается к текущему MIRA-TV и устанавливает Agent без прав администратора в профиль пользователя.
+- Portable Node.js 24 и FFmpeg загружаются автоматически с проверкой SHA-256; Chrome или Microsoft Edge определяется автоматически.
+- Render Agent добавляется в автозапуск текущего пользователя, сразу запускается и подтверждается через локальный health endpoint.
+- Ручные `git clone`, установка Node.js/FFmpeg и PowerShell-команды для обычного пользователя больше не нужны; после скачивания требуется только один раз открыть Windows installer.
+- Исправлена первопричина обрезанного Preview в «Настройках монитора»: responsive shell отделён от внутреннего canonical `PlayerSceneRenderer` stage.
+- `FlatMenuRenderer` теперь уважает общий marker владения canonical viewport и больше не сбрасывает размеры shared renderer в `100% / auto`.
+- Тем же исправлением стабилизирована геометрия Playlist Studio на промежуточных размерах экрана.
+- Добавлены regression-проверки полного кадра на 1024×768 и 390×844 и отсутствия `ResizeObserver loop completed with undelivered notifications`.
+- Player build поднят до 1.15.1; offline Player shell поднят до v50, чтобы подключённые ТВ не сохраняли старый shared renderer из кэша.
+
 ## 1.15.0
 
 Добавлен Video Mode с локальным Render Agent: тяжёлая анимированная сцена может быть заранее отрендерена в H.264 MP4 на компьютере администратора, а телевизор получает готовое видео через существующий Local-first контур.
