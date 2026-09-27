@@ -114,7 +114,7 @@ test('reference density keeps MIRA-TV 1 two-line typography without overlap', as
   const svg = preview.locator('svg.menu-table-svg');
   await expect(svg.locator('.table-section')).toHaveCount(3);
   await expect(svg.locator('.table-item')).toHaveCount(16);
-  const effective = Number(await preview.getAttribute('data-font-scale-effective'));
+  const effective = Number(await page.locator('#editor-menu-preview-stage').getAttribute('data-font-scale-effective'));
   expect(effective).toBeGreaterThan(90);
   expect(effective).toBeLessThanOrEqual(100);
   const overlaps = await svg.locator('.table-item').evaluateAll((items) => items.map((item) => {
@@ -202,4 +202,72 @@ test('monitor page is technical settings plus read-only TV preview', async ({ pa
   await expect(page.locator('#editor-background-file')).toHaveCount(0);
   await expect(page.locator('#editor-table-x')).toHaveCount(0);
   await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+});
+
+
+test('monitor preview keeps one canonical stage inside its responsive shell without ResizeObserver loops', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__miraResizeObserverErrors = [];
+    window.addEventListener('error', (event) => {
+      const message = String(event.message || '');
+      if (/ResizeObserver loop/i.test(message)) window.__miraResizeObserverErrors.push(message);
+    });
+  });
+  await page.setViewportSize({ width:1024, height:768 });
+  await login(page);
+  const { screen } = await createEditorFixture(page, { rows:4 });
+  await page.goto(`/screen-editor?id=${screen.id}`);
+
+  const shell = page.locator('#editor-menu-preview');
+  const stage = page.locator('#editor-menu-preview-stage');
+  await expect(shell.locator('svg.menu-table-svg')).toBeVisible();
+  await expect(stage).toHaveAttribute('data-scene-viewport-width', '1920');
+  await expect(stage).toHaveAttribute('data-scene-viewport-height', '1080');
+
+  const assertGeometry = async () => {
+    const geometry = await page.evaluate(() => {
+      const shell = document.querySelector('#editor-menu-preview');
+      const stage = document.querySelector('#editor-menu-preview-stage');
+      if (!(shell instanceof HTMLElement) || !(stage instanceof HTMLElement)) return null;
+      const shellBox = shell.getBoundingClientRect();
+      const stageBox = stage.getBoundingClientRect();
+      return {
+        inlineWidth:stage.style.width,
+        inlineHeight:stage.style.height,
+        scale:Number(stage.dataset.sceneViewportScale),
+        shellWidth:shellBox.width,
+        shellHeight:shellBox.height,
+        stageWidth:stageBox.width,
+        stageHeight:stageBox.height,
+        leftDelta:Math.abs(stageBox.left - shellBox.left),
+        topDelta:Math.abs(stageBox.top - shellBox.top),
+        rightDelta:Math.abs(stageBox.right - shellBox.right),
+        bottomDelta:Math.abs(stageBox.bottom - shellBox.bottom)
+      };
+    });
+    expect(geometry).not.toBeNull();
+    expect(geometry.inlineWidth).toBe('1920px');
+    expect(geometry.inlineHeight).toBe('1080px');
+    expect(geometry.scale).toBeGreaterThan(0);
+    expect(geometry.scale).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.stageWidth / geometry.stageHeight - (1920 / 1080))).toBeLessThan(.01);
+    expect(geometry.stageWidth).toBeLessThanOrEqual(geometry.shellWidth + 1);
+    expect(geometry.stageHeight).toBeLessThanOrEqual(geometry.shellHeight + 1);
+    expect(Math.max(geometry.leftDelta, geometry.topDelta, geometry.rightDelta, geometry.bottomDelta)).toBeLessThanOrEqual(2);
+  };
+
+  await expect.poll(async () => {
+    await assertGeometry();
+    return true;
+  }).toBe(true);
+
+  await page.setViewportSize({ width:390, height:844 });
+  await expect.poll(async () => {
+    await assertGeometry();
+    return true;
+  }).toBe(true);
+
+  await page.waitForTimeout(250);
+  const resizeErrors = await page.evaluate(() => window.__miraResizeObserverErrors || []);
+  expect(resizeErrors).toEqual([]);
 });

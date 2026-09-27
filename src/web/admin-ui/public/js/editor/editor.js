@@ -97,7 +97,8 @@ export function initialiseScreenEditor() {
   let previewFrame = 0;
 
   const previewTarget = element('editor-menu-preview');
-  if (!(previewTarget instanceof HTMLElement)) {
+  const previewStage = element('editor-menu-preview-stage');
+  if (!(previewTarget instanceof HTMLElement) || !(previewStage instanceof HTMLElement)) {
     void navigate('/screens.html', { replace:true });
     return undefined;
   }
@@ -124,7 +125,7 @@ export function initialiseScreenEditor() {
   const renderPlayerPreview = async (screenOverride = editorState.screen || screen, changed = ['screen','menu']) => {
     if (!isMounted() || !screenOverride) return;
     syncPreviewFrame(screenOverride);
-    if (!renderer) renderer = new PlayerSceneRenderer(previewTarget, { autoplay:false, weatherPreview:true });
+    if (!renderer) renderer = new PlayerSceneRenderer(previewStage, { autoplay:false, weatherPreview:true });
     await renderer.render(previewContext(screenOverride), changed);
   };
 
