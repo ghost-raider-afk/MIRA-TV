@@ -8,6 +8,8 @@ import { FlatMenuRenderer } from './flat-menu-renderer.js';
 import { PlayerSceneLayerComposer } from './scene-layer-composer.js';
 import { SceneElementRenderer } from './scene-element-renderer.js';
 import { PlayerWeatherRuntime } from './weather-bootstrap.js';
+import { resolveMenuThemeRuntime } from './menu-theme-runtime.js';
+import { MenuThemeRenderer } from './menu-theme-renderer.js';
 
 export const ALL_PLAYER_COMPONENTS = Object.freeze([
   'screen',
@@ -94,6 +96,7 @@ export class PlayerSceneRenderer {
     this.stage.classList.add('player-scene-stage');
     this.weatherPreview = weatherPreview === true;
     this.sceneLayers = new PlayerSceneLayerComposer(stage);
+    this.themeRenderer = new MenuThemeRenderer(this.sceneLayers.ensure('theme', { ariaHidden:true }));
     this.sceneElementRenderer = new SceneElementRenderer(this.sceneLayers.ensure('scene', { ariaHidden:true }));
     this.flatMenuRenderer = new FlatMenuRenderer();
     this.viewport = Object.freeze({ width: 1920, height: 1080 });
@@ -133,12 +136,22 @@ export class PlayerSceneRenderer {
 
     const {
       menu:menuLayer,
+      theme:themeLayer,
       scene:sceneElementLayer
     } = this.sceneLayers.ensureCore();
 
-    const menuDirty = dirty.has('menu') || dirty.has('screen');
+    const themeRuntime = resolveMenuThemeRuntime(
+      context.draft?.settings || {},
+      context.scene || { version:1,elements:[] },
+      canonicalViewport
+    );
+    this.stage.dataset.menuTheme = themeRuntime.theme.preset_id;
+    themeLayer.dataset.menuTheme = themeRuntime.theme.preset_id;
+
+    const menuDirty = dirty.has('menu') || dirty.has('screen') || dirty.has('scene');
     if (menuDirty) {
-      const model = buildRenderModel(context.draft, canonicalViewport);
+      const themedDraft = { ...(context.draft || {}), settings:themeRuntime.settings };
+      const model = buildRenderModel(themedDraft, canonicalViewport);
       const lines = buildDisplayLines(model, {
         products:context.products || [],
         packaging:context.packaging || [],
@@ -160,6 +173,7 @@ export class PlayerSceneRenderer {
       }
 
       this.stage.style.backgroundColor = model.settings.background_color || '#101828';
+      this.themeRenderer.render(themeRuntime, context.screen);
       const background = sameOriginAsset(model.settings.background_image_url);
       this.stage.style.backgroundImage = background ? `url(${JSON.stringify(background)})` : 'none';
       this.stage.style.backgroundPosition = 'center';
@@ -167,8 +181,8 @@ export class PlayerSceneRenderer {
       this.stage.style.backgroundSize = 'cover';
     }
 
-    if (dirty.has('scene') || dirty.has('screen')) {
-      const source = context.scene && typeof context.scene === 'object' ? context.scene : { version:1, elements:[] };
+    if (dirty.has('scene') || dirty.has('screen') || dirty.has('menu')) {
+      const source = themeRuntime.scene && typeof themeRuntime.scene === 'object' ? themeRuntime.scene : { version:1, elements:[] };
       const staticScene = {
         ...source,
         elements:Array.isArray(source.elements)
@@ -199,6 +213,7 @@ export class PlayerSceneRenderer {
     this.destroyed = true;
     this.sceneElementRenderer.destroy();
     this.flatMenuRenderer.destroy();
+    this.themeRenderer.destroy();
     this.weatherRuntime.destroy();
     this.viewportObserver?.disconnect();
     this.viewportObserver = null;
