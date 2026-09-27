@@ -37,11 +37,7 @@ function weatherElement() {
       show_humidity:true,
       show_wind:true,
       show_forecast:true,
-      forecast_items:3,
-      animation_enabled:false,
-      animation_speed:1,
-      animation_intensity:1,
-      widget_motion_enabled:false
+      forecast_items:3
     }
   };
 }
@@ -50,11 +46,11 @@ function playerContext(version, { withWeather = false } = {}) {
   const second = version > 1;
   const elements = [textElement(second ? 'НОВЫЙ ТЕКСТ' : 'ПЕРВЫЙ ТЕКСТ', second ? 1040 : 960)];
   if (withWeather) elements.push(weatherElement());
-  const hashes = Object.fromEntries(['screen','menu','scene','animation','scene_playlist','runtime']
+  const hashes = Object.fromEntries(['screen','menu','scene','content_manifest','runtime']
     .map((name) => [name, `${name}-scene-parity-${version}-01234567890123456789`]));
   return {
-    schema_version: 4,
-    revision: `4:${version}`,
+    schema_version: 7,
+    revision: `7:${version}`,
     render_revision: version,
     hashes,
     screen: { id:1, name:'ТВ 1', resolution:'1920x1080', location_id:1, location_name:'Точка 1', location_number:1 },
@@ -62,9 +58,8 @@ function playerContext(version, { withWeather = false } = {}) {
     products: [],
     packaging: [],
     scene: { version:1, elements },
-    animation: { enabled:false, profile:null },
-    scene_playlist: { enabled:false, animation_enabled:true, menu_duration_seconds:40, scenes:[] },
-    app_version:'1.10.2',
+    content_manifest: { version:1, revision:`7:${version}`, assets:[] },
+    app_version:'1.15.1',
     fallback_poll_interval_ms:60000,
     log_batch_size:100,
     log_local_max_entries:5000,
@@ -106,10 +101,10 @@ test('TV Player updates keyed generic scene elements from WebSocket invalidation
     await page.route('**/api/device/player-delta', route=>{
       requests+=1;
       if(requests===1) return route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ full_snapshot_required:true, context:first }) });
-      if(requests===2) return route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ unchanged:true, schema_version:4, revision:first.revision, render_revision:1, hashes:first.hashes }) });
+      if(requests===2) return route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ unchanged:true, schema_version:7, revision:first.revision, render_revision:1, hashes:first.hashes }) });
       return route.fulfill({
         status:200, contentType:'application/json',
-        body:JSON.stringify({ schema_version:4, revision:second.revision, render_revision:2, hashes:second.hashes, changed:{ scene:second.scene, runtime:{ app_version:'1.10.2', fallback_poll_interval_ms:60000, log_batch_size:100, log_local_max_entries:5000, log_local_max_bytes:10485760, render_revision:2 } } })
+        body:JSON.stringify({ schema_version:7, revision:second.revision, render_revision:2, hashes:second.hashes, changed:{ scene:second.scene, runtime:{ app_version:'1.15.1', fallback_poll_interval_ms:60000, log_batch_size:100, log_local_max_entries:5000, log_local_max_bytes:10485760, render_revision:2 } } })
       });
     });
 
@@ -168,11 +163,14 @@ test('TV Player renders weather inside the canonical generic scene layer', async
     const weatherNode=page.locator('[data-scene-element-id="parity-weather"]');
     await expect(weatherNode.locator('[data-scene-weather-mount] .weather-widget')).toBeVisible({ timeout:5000 });
     await expect(weatherNode.locator('.weather-widget-location')).toHaveText('Берлин');
-    await expect(weatherNode.locator('[data-scene-weather-mount]')).toHaveAttribute('data-weather-animation','off');
+    expect(await weatherNode.locator('[data-scene-weather-mount]').getAttribute('data-weather-animation')).toBeNull();
 
-    const order=await page.locator('[data-player-stage]').evaluate(stage=>[...stage.children].map(node=>node instanceof HTMLElement ? node.dataset.sceneLayer||'' : ''));
-    expect(order).toEqual(expect.arrayContaining(['baked','menu','fx','content','scene']));
-    expect(order.indexOf('scene')).toBeGreaterThan(order.indexOf('content'));
+    const order=await page.locator('[data-player-stage]').evaluate((stage) =>
+      [...stage.children]
+        .map((node) => node instanceof HTMLElement ? node.dataset.sceneLayer || '' : '')
+        .filter(Boolean)
+    );
+    expect(order).toEqual(['menu','scene']);
     await expect(page.locator('[data-player-environment-layer],[data-brand-layer],[data-weather-layer]')).toHaveCount(0);
   } finally {
     await context.close();

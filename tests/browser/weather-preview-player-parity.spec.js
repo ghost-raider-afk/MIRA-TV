@@ -35,10 +35,6 @@ function weatherScene(screenId) {
         show_wind:true,
         show_forecast:true,
         forecast_items:3,
-        animation_enabled:false,
-        animation_speed:1,
-        animation_intensity:1,
-        widget_motion_enabled:false,
         screen_id:screenId
       }
     }]
@@ -131,14 +127,13 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
     });
     const playerPage=await player.newPage();
     const scene=weatherScene(screen.id);
-    const hashes=Object.fromEntries(['screen','menu','scene','animation','scene_playlist','runtime'].map(name=>[name,`${name}-weather-parity-012345678901234567890123`]));
+    const hashes=Object.fromEntries(['screen','menu','scene','content_manifest','runtime'].map(name=>[name,`${name}-weather-parity-012345678901234567890123`]));
     const state={
-      schema_version:4, revision:'4:1', render_revision:1, hashes,
+      schema_version:7, revision:'7:1', render_revision:1, hashes,
       screen:{...screen,resolution:'1920x1080'},
       draft:{rows:[],settings:{background_color:'#101828'},revision:1},
       products:[], packaging:[], scene,
-      animation:{enabled:false,profile:null},
-      scene_playlist:{enabled:false,animation_enabled:true,menu_duration_seconds:40,scenes:[]},
+      content_manifest:{version:1,revision:'7:1',assets:[]},
       app_version:process.env.MIRA_TV_VERSION || '1.11.1', fallback_poll_interval_ms:60000, log_batch_size:100,
       log_local_max_entries:5000, log_local_max_bytes:10485760
     };
@@ -152,7 +147,7 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
       deltaRequests+=1;
       const body=deltaRequests===1
         ? {full_snapshot_required:true,context:state}
-        : {unchanged:true,schema_version:4,revision:state.revision,render_revision:1,hashes:state.hashes};
+        : {unchanged:true,schema_version:7,revision:state.revision,render_revision:1,hashes:state.hashes};
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
     });
     await playerPage.route('**/api/device/weather',route=>route.fulfill({

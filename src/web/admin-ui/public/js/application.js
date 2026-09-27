@@ -14,15 +14,6 @@ function resetTransientPageState(name) {
   }
 }
 
-function composeLifecycle(...lifecycles) {
-  const active = lifecycles.filter(Boolean);
-  if (!active.length) return undefined;
-  return {
-    canLeave() { return active.every((item) => typeof item.canLeave !== 'function' || item.canLeave() !== false); },
-    dispose() { for (const item of [...active].reverse()) item.dispose?.(); }
-  };
-}
-
 async function initialisePage(name) {
   resetTransientPageState(name);
   switch (name) {
@@ -33,11 +24,6 @@ async function initialisePage(name) {
     case 'settings': {
       const { initialiseSettings } = await import('./pages/settings.js');
       return initialiseSettings();
-    }
-    case 'playlist':
-    case 'animation': {
-      const { initialisePlaylistStudio } = await import('./pages/playlist.js');
-      return initialisePlaylistStudio();
     }
     case 'events': {
       const { initialiseEvents } = await import('./pages/events.js');

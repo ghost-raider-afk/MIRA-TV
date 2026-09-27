@@ -67,21 +67,7 @@ function canvasBlob(canvas, type, quality) {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
-async function videoFrame(video) {
-  if (!(video instanceof HTMLVideoElement) || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return '';
-  try {
-    const scale = Math.min(1, OUTPUT_WIDTH / video.videoWidth);
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-    canvas.getContext('2d', { alpha:false })?.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.78);
-  } catch {
-    return '';
-  }
-}
-
-async function inlineDynamicState(stage, clone) {
+async function inlineStaticAssets(stage, clone) {
   const originals = [stage, ...stage.querySelectorAll('*')];
   const copies = [clone, ...clone.querySelectorAll('*')];
   const tasks = [];
@@ -89,36 +75,9 @@ async function inlineDynamicState(stage, clone) {
   for (let index = 0; index < originals.length && index < copies.length; index += 1) {
     const original = originals[index];
     const copy = copies[index];
-    if (!(original instanceof Element) || !(copy instanceof Element)) continue;
-
-    const animations = typeof original.getAnimations === 'function' ? original.getAnimations({ subtree:false }) : [];
-    if (animations.length && copy instanceof HTMLElement) {
-      const computed = getComputedStyle(original);
-      copy.style.animation = 'none';
-      copy.style.transition = 'none';
-      copy.style.transform = computed.transform;
-      copy.style.opacity = computed.opacity;
-      copy.style.filter = computed.filter;
-    }
-
     if (original instanceof HTMLImageElement && copy instanceof HTMLImageElement) {
       tasks.push(assetDataUrl(original.currentSrc || original.src).then((data) => {
         if (data) copy.src = data;
-      }));
-    }
-
-    if (original instanceof HTMLVideoElement) {
-      tasks.push(videoFrame(original).then((data) => {
-        if (!data || !copy.parentNode) return;
-        const image = document.createElement('img');
-        image.src = data;
-        image.className = copy.className;
-        image.setAttribute('style', copy.getAttribute('style') || '');
-        image.style.width = '100%';
-        image.style.height = '100%';
-        image.style.objectFit = getComputedStyle(original).objectFit || 'contain';
-        image.style.objectPosition = getComputedStyle(original).objectPosition || '50% 50%';
-        copy.replaceWith(image);
       }));
     }
   }
@@ -171,7 +130,7 @@ async function capturePlayerPreview(stage, maxBytes) {
   clone.style.transform = 'none';
   clone.style.transformOrigin = 'top left';
 
-  await inlineDynamicState(stage, clone);
+  await inlineStaticAssets(stage, clone);
 
   const serialized = new XMLSerializer().serializeToString(clone);
   const css = styleSheetText();

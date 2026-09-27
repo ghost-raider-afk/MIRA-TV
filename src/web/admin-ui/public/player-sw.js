@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v49';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v51';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v50';
+const SHELL_CACHE = 'mira-tv-player-shell-v52';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: navigation-based Device Session handoff for TV browsers.
 const SHELL_ASSETS = [
@@ -22,8 +22,8 @@ const SHELL_ASSETS = [
   '/css/player.css',
   '/css/player-scene.css',
   '/css/weather-widget.css',
-  '/css/scene-playlist.css',
   '/js/player/player.js',
+  '/js/player/player-background-services.js',
   '/js/core/dom-compat.js',
   '/js/player/player-boot.js',
   '/js/player/fetch-timeout.js',
@@ -31,29 +31,16 @@ const SHELL_ASSETS = [
   '/js/player/player-metrics.js',
   '/js/player/player-scene-renderer.js',
   '/js/player/scene-element-renderer.js',
-  '/js/player/scene-video-runtime.js',
   '/js/player/player-store.js',
   '/js/player/player-realtime-client.js',
   '/js/player/player-state-sync.js',
   '/js/player/weather-bootstrap.js',
+  '/js/player/weather-widget.js',
   '/js/player/flat-menu-renderer.js',
   '/js/player/scene-layer-composer.js',
   '/js/editor/renderer.js',
   '/js/editor/renderer-model.js',
   '/js/editor/renderer-svg.js',
-  '/js/motion/weather-widget.js',
-  '/js/motion/scene-playlist-runtime.js',
-  '/js/motion/scene-motion-runtime.js',
-  '/js/motion/scene-visibility.js',
-  '/js/motion/motion-plan.js',
-  '/js/motion/dom-scene-adapter.js',
-  '/js/motion/scene-graph.js',
-  '/js/motion/scene-composer.js',
-  '/js/motion/scene-runtime.js',
-  '/js/motion/timeline.js',
-  '/js/motion/drivers/waapi-driver.js',
-  '/js/motion/drivers/wasm-motion-driver.js',
-  '/js/motion/wasm-motion-kernel.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -198,22 +185,6 @@ async function cachedAsset(request) {
   } catch { return Response.error(); }
 }
 
-async function videoRequest(request) {
-  const cache = await caches.open(DATA_CACHE);
-  const fullRequest = new Request(request.url, { method: 'GET', credentials: request.credentials });
-  const cached = await cache.match(fullRequest);
-  if (cached) return cached;
-  if (!request.headers.has('range')) return cachedAsset(request);
-
-  // A fully staged video is served directly from Cache Storage. Only uncached
-  // videos use the browser's native byte-range network pipeline.
-  try {
-    const ranged = await networkWithTimeout(request, 8000);
-    if (ranged.status === 206 || ranged.ok) return ranged;
-  } catch {}
-  return Response.error();
-}
-
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
@@ -227,10 +198,6 @@ self.addEventListener('fetch', (event) => {
   }
   if (SHELL_ASSETS.includes(url.pathname)) {
     event.respondWith(cachedShell(event.request));
-    return;
-  }
-  if (/^\/site-assets\/.*\.(?:mp4|webm)$/i.test(url.pathname)) {
-    event.respondWith(videoRequest(event.request));
     return;
   }
   if (url.pathname.startsWith('/site-assets/')) event.respondWith(cachedAsset(event.request));

@@ -1,7 +1,5 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdir, open, readFile, readdir, stat, unlink } from 'node:fs/promises';
 import { PayloadTooLargeError, ValidationError } from '../shared/errors.js';
 import { validateImage } from './image-validation.js';
@@ -13,16 +11,13 @@ import {
   isContentAssetUrl
 } from './content-addressed-assets.js';
 
-const execFileAsync = promisify(execFile);
 const SCENE_DIR = 'scene';
 const SCENE_ASSET_PREFIX = '/site-assets/scene/';
 const SAFE_SCENE_ASSET = /^scene-[0-9a-f-]{36}\.(?:jpg|png|webp|mp4|webm)$/i;
 const MEDIA = Object.freeze({
-  'image/png': { kind: 'image', extension: 'png' },
-  'image/jpeg': { kind: 'image', extension: 'jpg' },
-  'image/webp': { kind: 'image', extension: 'webp' },
-  'video/mp4': { kind: 'video', extension: 'mp4' },
-  'video/webm': { kind: 'video', extension: 'webm' }
+  'image/png': { kind:'image', extension:'png' },
+  'image/jpeg': { kind:'image', extension:'jpg' },
+  'image/webp': { kind:'image', extension:'webp' }
 });
 
 function localPathForUrl(url, config) {
@@ -54,7 +49,7 @@ function declaredLength(value) {
 function resolveMedia(value) {
   const mime = normalizedContentType(value);
   const media = MEDIA[mime];
-  if (!media) throw new ValidationError('Элементы сцены поддерживают PNG, JPEG, WebP, MP4 и WebM.');
+  if (!media) throw new ValidationError('Элементы сцены поддерживают PNG, JPEG и WebP.');
   return { mime, media };
 }
 function scenePaths(config) {
@@ -62,43 +57,7 @@ function scenePaths(config) {
   const directory = path.join(config.siteAssetsRoot, CONTENT_ASSET_DIR);
   return { directory, temporary:path.join(directory,filename) };
 }
-function videoContainerMatches(mime, formatName) {
-  const formats=String(formatName||'').toLowerCase().split(',').map((v)=>v.trim()).filter(Boolean);
-  if(mime==='video/webm') return formats.includes('webm');
-  return formats.includes('mp4')||formats.includes('mov');
-}
-function videoCodecMatches(mime, codecName) {
-  const codec = String(codecName || '').toLowerCase();
-  if (mime === 'video/webm') return codec === 'vp8' || codec === 'vp9';
-  return codec === 'h264';
-}
-async function inspectVideo(file, config, mime) {
-  let stdout;
-  try {
-    ({stdout}=await execFileAsync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height,codec_name,avg_frame_rate,duration:format=format_name,duration','-of','json',file],{timeout:12000,maxBuffer:1024*1024}));
-  } catch {
-    throw new ValidationError('Видео элемента не удалось прочитать через ffprobe. Проверьте MP4/WebM файл.');
-  }
-  let probe; try{probe=JSON.parse(stdout);}catch{}
-  const stream=probe?.streams?.[0], width=Number(stream?.width), height=Number(stream?.height);
-  if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1) throw new ValidationError('Видео элемента не содержит корректного видеопотока.');
-  if(!videoContainerMatches(mime,probe?.format?.format_name)) throw new ValidationError('MIME-тип видео не соответствует контейнеру.');
-  if(!videoCodecMatches(mime,stream.codec_name)) throw new ValidationError('Для совместимости с ТВ используйте H.264 в MP4 либо VP8/VP9 в WebM.');
-  if(width>config.screenMaxWidth||height>config.screenMaxHeight||width*height>config.imageMaxPixels) throw new ValidationError(`Видео элемента превышает допустимое разрешение ${config.screenMaxWidth}×${config.screenMaxHeight}.`);
-  const rateText=String(stream.avg_frame_rate||'0/1');
-  const [rateNumerator,rateDenominator]=rateText.split('/').map(Number);
-  const fps=Number.isFinite(rateNumerator)&&Number.isFinite(rateDenominator)&&rateDenominator!==0 ? rateNumerator/rateDenominator : 0;
-  const durationSeconds=Number(stream.duration ?? probe?.format?.duration);
-  return {
-    width,
-    height,
-    codec:String(stream.codec_name||''),
-    fps:Number.isFinite(fps)&&fps>0?fps:null,
-    duration_ms:Number.isFinite(durationSeconds)&&durationSeconds>0?Math.round(durationSeconds*1000):null
-  };
-}
-async function inspectFile(file, media, mime, config) {
-  if(media.kind==='video') return inspectVideo(file,config,mime);
+async function inspectFile(file, _media, mime, config) {
   const bytes=await readFile(file);
   const image=await validateImage(bytes,{allowedTypes:['png','jpeg','webp'],maxWidth:config.screenMaxWidth,maxHeight:config.screenMaxHeight,maxPixels:config.imageMaxPixels,label:'Изображение элемента'});
   const detected=image.type==='jpeg'?'image/jpeg':`image/${image.type}`;
@@ -139,8 +98,6 @@ export async function createSceneAssetStream({stream,contentLength,contentType,c
       media_type:mime,
       width:info.width,
       height:info.height,
-      fps:info.fps ?? null,
-      duration_ms:info.duration_ms ?? null,
       size
     });
   } catch(error) {

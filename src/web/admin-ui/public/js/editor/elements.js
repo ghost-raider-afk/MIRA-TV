@@ -5,7 +5,6 @@ export const SCENE_ELEMENT_TYPE_OPTIONS = Object.freeze([
   ['text', 'Текстовое поле'],
   ['weather', 'Погода'],
   ['image', 'Картинка'],
-  ['video', 'Видео'],
   ['logo', 'Логотип']
 ]);
 
@@ -13,7 +12,6 @@ const SCENE_ELEMENT_TYPE_ICONS = Object.freeze({
   text: 'T',
   weather: '☁',
   image: '▧',
-  video: '▶',
   logo: '◈'
 });
 
@@ -90,21 +88,16 @@ function defaultWeather() {
     temperature_font_family: 'arial',
     temperature_font_size_pt: 48,
     location_font_size_pt: 14,
-    icon_scale_percent: 100,
-    animation_enabled: true,
-    animation_speed: 1,
-    animation_intensity: 1,
-    widget_motion_enabled: true
+    icon_scale_percent: 100
   };
 }
 
-function defaultMedia(video = false) {
+function defaultMedia() {
   return {
-    source_url: '',
-    fit: 'contain',
-    position_x_percent: 50,
-    position_y_percent: 50,
-    ...(video ? { loop: true, muted: true, playback_rate: 1 } : {})
+    source_url:'',
+    fit:'contain',
+    position_x_percent:50,
+    position_y_percent:50
   };
 }
 
@@ -129,7 +122,6 @@ export function createSceneElement(type = 'text', index = 0) {
   };
   if (type === 'text') return { ...common, text: defaultText() };
   if (type === 'weather') return { ...common, weather: defaultWeather() };
-  if (type === 'video') return { ...common, media: defaultMedia(true) };
   return { ...common, media: defaultMedia(false) };
 }
 
@@ -138,7 +130,6 @@ export function appendSceneElement(state, type = 'text') {
   const nextType = allowed.has(type) ? type : 'text';
   const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
   if (nextType === 'weather' && elements.some((item) => item?.type === 'weather')) return null;
-  if (nextType === 'video' && elements.filter((item) => item?.type === 'video' && item.enabled !== false).length >= 2) return null;
   const element = createSceneElement(nextType, elements.length);
   addSceneElement(state, element);
   return element;
@@ -228,10 +219,10 @@ function mutateWeather(state, id, mutate) {
   patch(state, id, { weather: next });
 }
 
-function mutateMedia(state, id, video, mutate) {
-  const next = structuredClone(elementById(state, id)?.media || defaultMedia(video));
+function mutateMedia(state, id, mutate) {
+  const next = structuredClone(elementById(state, id)?.media || defaultMedia());
   mutate(next);
-  patch(state, id, { media: next });
+  patch(state, id, { media:next });
 }
 
 function section(title, description = '') {
@@ -621,30 +612,14 @@ function weatherSettings(state, element, options) {
   }
   typography.append(typographyGrid);
 
-  const animation = section('Анимация');
-  const animationGrid = document.createElement('div');
-  animationGrid.className = 'compact-form-grid';
-  for (const [caption, key] of [['Анимация погоды', 'animation_enabled'], ['Движение виджета', 'widget_motion_enabled']]) {
-    const control = check(weather[key] !== false);
-    bind(control, 'change', () => mutateWeather(state, element.id, (next) => { next[key] = control.checked; }), options);
-    animationGrid.append(label(caption, control, 'editor-element-check'));
-  }
-  for (const [caption, key] of [['Скорость', 'animation_speed'], ['Интенсивность', 'animation_intensity']]) {
-    const control = input('range', weather[key] ?? 1, { min: .25, max: 2, step: .05 });
-    bind(control, 'input', () => mutateWeather(state, element.id, (next) => { next[key] = numberValue(control, 1); }), options);
-    animationGrid.append(label(caption, control));
-  }
-  animation.append(animationGrid);
-
-  return [source, visibility, typography, animation];
+  return [source, visibility, typography];
 }
 
 function mediaSettings(state, element, options) {
-  const video = element.type === 'video';
-  const media = element.media || defaultMedia(video);
-  const block = section(typeLabel(element.type), video ? 'Видео для сцены TV Player' : 'Изображение для сцены TV Player');
+  const media = element.media || defaultMedia();
+  const block = section(typeLabel(element.type), 'Изображение для сцены TV Player');
 
-  const file = input('file', null, { accept: video ? 'video/mp4,video/webm' : 'image/png,image/jpeg,image/webp' });
+  const file = input('file', null, { accept:'image/png,image/jpeg,image/webp' });
   const upload = document.createElement('button');
   upload.type = 'button';
   upload.className = 'button button-secondary';
@@ -660,7 +635,7 @@ function mediaSettings(state, element, options) {
     try {
       const asset = await options.onUpload(selected);
       options.onBeforeMutate?.();
-      mutateMedia(state, element.id, video, (next) => { next.source_url = asset.source_url; });
+      mutateMedia(state, element.id, (next) => { next.source_url = asset.source_url; });
       status.textContent = asset.source_url;
       options.onVisualChange?.();
     } finally {
@@ -672,25 +647,14 @@ function mediaSettings(state, element, options) {
 
   const grid = document.createElement('div');
   grid.className = 'compact-form-grid';
-  const fit = select(media.fit, [['contain', 'Вписать'], ['cover', 'Заполнить'], ['fill', 'Растянуть']]);
-  bind(fit, 'change', () => mutateMedia(state, element.id, video, (next) => { next.fit = fit.value; }), options);
+  const fit = select(media.fit, [['contain','Вписать'],['cover','Заполнить'],['fill','Растянуть']]);
+  bind(fit, 'change', () => mutateMedia(state, element.id, (next) => { next.fit = fit.value; }), options);
   grid.append(label('Вписывание', fit));
 
-  for (const [caption, key] of [['Позиция X, %', 'position_x_percent'], ['Позиция Y, %', 'position_y_percent']]) {
-    const control = input('number', media[key], { min: 0, max: 100, step: 1 });
-    bind(control, 'input', () => mutateMedia(state, element.id, video, (next) => { next[key] = numberValue(control, 50); }), options);
+  for (const [caption,key] of [['Позиция X, %','position_x_percent'],['Позиция Y, %','position_y_percent']]) {
+    const control = input('number', media[key], { min:0,max:100,step:1 });
+    bind(control, 'input', () => mutateMedia(state, element.id, (next) => { next[key] = numberValue(control, 50); }), options);
     grid.append(label(caption, control));
-  }
-
-  if (video) {
-    const rate = input('number', media.playback_rate, { min: .25, max: 4, step: .05 });
-    bind(rate, 'input', () => mutateMedia(state, element.id, true, (next) => { next.playback_rate = numberValue(rate, 1); }), options);
-    grid.append(label('Скорость', rate));
-    for (const [caption, key] of [['Зациклить', 'loop'], ['Без звука', 'muted']]) {
-      const control = check(media[key] !== false);
-      bind(control, 'change', () => mutateMedia(state, element.id, true, (next) => { next[key] = control.checked; }), options);
-      grid.append(label(caption, control, 'editor-element-check'));
-    }
   }
   block.append(grid);
   return [block];
@@ -911,10 +875,9 @@ function inspectorGroups(element, sections) {
   }
   if (element.type === 'weather') {
     return [
-      ['Трансформация', sections.slice(0, 1), true],
-      ['Погода', sections.slice(1, 3), true],
-      ['Типографика', sections.slice(3, 4), true],
-      ['Анимация', sections.slice(4), false]
+      ['Трансформация', sections.slice(0,1), true],
+      ['Погода', sections.slice(1,3), true],
+      ['Типографика', sections.slice(3), true]
     ];
   }
   return [

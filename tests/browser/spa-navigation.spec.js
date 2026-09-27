@@ -23,7 +23,8 @@ test('main menu and context submenu navigate inside one persistent document', as
   await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await expect(page.locator('[data-screen-hierarchy]')).toBeVisible();
-  await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Плейлист' })).toBeVisible();
+  await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Плейлист' })).toHaveCount(0);
+  await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Сцена' })).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.getByRole('link', { name: /Торговые точки/ }).click();
@@ -55,6 +56,11 @@ test('main menu and context submenu navigate inside one persistent document', as
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   expect(documentRequests).toEqual([]);
+
+  await page.goto('/playlist');
+  await expect(page).toHaveURL(/\/scene$/);
+  await page.goto('/animation');
+  await expect(page).toHaveURL(/\/scene$/);
 });
 
 test('context submenu auto-collapses consistently and resize never opens it implicitly', async ({ page }) => {

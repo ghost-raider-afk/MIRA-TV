@@ -106,7 +106,7 @@ function wireContext(shell, rail, context, header) {
     if (!phoneLayout() || !contextAvailable(context)) return;
     const opening = context.classList.contains('is-collapsed');
     setCollapsed(shell, context, !opening);
-    if (opening) requestAnimationFrame(() => focusContext(context));
+    if (opening) focusContext(context);
   });
 
   backdrop?.addEventListener('click', () => {
@@ -140,12 +140,12 @@ function wireContext(shell, rail, context, header) {
     if (!responsiveCollapsed()) setCollapsed(shell, context, true);
   }, { passive: true });
 
-  shell.querySelector('.app-content')?.addEventListener('pointerdown', (event) => {
+  shell.querySelector('.app-content')?.addEventListener('click', (event) => {
     if (context.classList.contains('is-collapsed') || !contextAvailable(context)) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('[data-mobile-context-trigger], .ui-context')) return;
     setCollapsed(shell, context, true);
-  }, { passive: true });
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || context.classList.contains('is-collapsed') || !contextAvailable(context)) return;
@@ -216,5 +216,5 @@ export function initialiseShell() {
   wireContext(shell, rail, context, header);
   refreshShellRoute();
   shell.classList.add('ui-shell-ready');
-  requestAnimationFrame(() => shell.classList.remove('ui-shell-bootstrapping'));
+  shell.classList.remove('ui-shell-bootstrapping');
 }

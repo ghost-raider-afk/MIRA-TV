@@ -12,13 +12,11 @@ const PUBLIC_DOCS = [
   'USAGE.md',
   'ARCHITECTURE.md',
   'PLAYER.md',
-  'ANIMATION.md',
   'PERFORMANCE.md',
   'TROUBLESHOOTING.md',
   'DEPLOYMENT-CHECKLIST.md',
   'BRANDING.md',
-  'ROADMAP.md',
-  'RENDER-AGENT.md'
+  'ROADMAP.md'
 ];
 
 const RETIRED_INTERNAL_DOCS = [

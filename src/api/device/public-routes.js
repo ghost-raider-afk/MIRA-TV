@@ -20,9 +20,8 @@ import {
 } from '../../services/player-context-service.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
-import { bakedSceneRuntimeToken } from '../../services/baked-scene-service.js';
 
-const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'scene_video', 'content_manifest', 'runtime']);
+const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'content_manifest', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
 
 function activationId(value) {
@@ -326,9 +325,7 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
     const currentRevision = await renderRevision(store, session.screen_id);
     if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
-    const bakedRecord = typeof store.getBakedScene === 'function' ? await store.getBakedScene(session.screen_id) : null;
-    const sceneVideoToken = bakedSceneRuntimeToken(bakedRecord, currentRevision);
-    const etag = `"${PLAYER_STATE_SCHEMA_VERSION}:${currentRevision}:${sceneVideoToken}"`;
+    const etag = `"${PLAYER_STATE_SCHEMA_VERSION}:${currentRevision}"`;
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', etag);
     if (request.get('if-none-match') === etag) return response.status(304).end();
@@ -343,11 +340,9 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     const known = knownPlayerState(request.body);
     const currentRevision = await renderRevision(store, session.screen_id);
     if (!currentRevision) return response.status(401).json({ error: 'Монитор недоступен.' });
-    const bakedRecord = typeof store.getBakedScene === 'function' ? await store.getBakedScene(session.screen_id) : null;
-    const sceneVideoToken = bakedSceneRuntimeToken(bakedRecord, currentRevision);
-    const runtimeHash = playerRuntimeHash(config, currentRevision, sceneVideoToken);
+    const runtimeHash = playerRuntimeHash(config, currentRevision);
     response.setHeader('Cache-Control', 'private, no-store');
-    // Fast path: no screen revision change means no draft/catalog/animation reads and no full hashing.
+    // Fast path: no screen revision change means no draft/catalog reads and no full hashing.
     if (known.schema_version === PLAYER_STATE_SCHEMA_VERSION && known.hashes.runtime === runtimeHash) {
       return response.json({
         schema_version: PLAYER_STATE_SCHEMA_VERSION,
@@ -378,14 +373,8 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
   router.get('/weather', async (request, response) => {
     const session = await resolveDeviceSession(store, config, request, response);
     if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
-    const [draft, bakedRecord] = await Promise.all([
-      store.getScreenDraft(session.screen_id),
-      typeof store.getBakedScene === 'function' ? store.getBakedScene(session.screen_id) : null
-    ]);
-    const weatherScene = bakedRecord?.active_url && bakedRecord?.live_scene
-      ? bakedRecord.live_scene
-      : draft?.scene;
-    const settings = sceneWeatherSettings(weatherScene, session.screen_id);
+    const draft = await store.getScreenDraft(session.screen_id);
+    const settings = sceneWeatherSettings(draft?.scene, session.screen_id);
     if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
     const snapshot = await weatherService.getSnapshot(settings);
     response.setHeader('Cache-Control', 'private, no-store');

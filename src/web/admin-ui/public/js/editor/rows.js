@@ -11,7 +11,7 @@ export function createEditorRow(kind) {
     ...(kind === 'section'
       ? { name: 'Новый раздел' }
       : kind === 'item'
-        ? { product_id: '', promotion: false, promotion_text: '', promotion_animation: 'wave', promotion_badge_animation: 'shine' }
+        ? { product_id: '', promotion: false, promotion_text: '' }
         : { packaging_id: '' })
   };
 }
@@ -345,19 +345,6 @@ function selectedRowActions(editorState, row, options) {
   }
   return actions;
 }
-
-export const PROMOTION_ROW_ANIMATION_OPTIONS = Object.freeze([
-  Object.freeze(['wave', 'Мягкая волна']),
-  Object.freeze(['gloss', 'Gloss-перелив']),
-  Object.freeze(['fill', 'Заполнение']),
-  Object.freeze(['pulse', 'Пульсирующее свечение']),
-  Object.freeze(['runner', 'Бегущий акцент'])
-]);
-
-export const PROMOTION_BADGE_ANIMATION_OPTIONS = Object.freeze([
-  Object.freeze(['shine', 'Gloss Shine']),
-  Object.freeze(['breathe', 'Breathing Glow'])
-]);
 
 function promotionPresetControl({ labelText, ariaLabel, value, choices, disabled = false, onChange }) {
   const field = document.createElement('div');

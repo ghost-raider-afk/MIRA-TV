@@ -24,23 +24,6 @@ const WEATHER_FONTS = Object.freeze({
   'mira-serif-condensed': "'MIRA Serif Condensed', 'DejaVu Serif Condensed', serif"
 });
 
-const MOTION_DURATIONS = Object.freeze({
-  rain: 1.18,
-  rainShort: 0.92,
-  rainLong: 1.42,
-  drizzle: 1.8,
-  snow: 8.6,
-  snowSlow: 10.8,
-  snowSlower: 12.6,
-  cloud: 24,
-  fog: 14,
-  lightning: 8.4,
-  star: 4.4,
-  celestial: 12,
-  glow: 9,
-  hover: 7
-});
-
 export const WEATHER_SAMPLE = Object.freeze({
   location_name: 'Хельсинки',
   temperature: 18,
@@ -99,10 +82,6 @@ export function normaliseWeatherWidget(source = {}) {
     refresh_minutes: Math.round(clamp(value.refresh_minutes, 5, 120, 15)),
     width_px: Math.round(clamp(value.width_px, 260, 760, 420)),
     opacity: clamp(value.opacity, .35, 1, .96),
-    animation_enabled: value.animation_enabled !== false,
-    animation_speed: clamp(value.animation_speed, .25, 2, 1),
-    animation_intensity: clamp(value.animation_intensity, .25, 2, 1),
-    widget_motion_enabled: value.widget_motion_enabled !== false,
     show_condition: value.show_condition !== false,
     show_feels_like: value.show_feels_like !== false,
     show_humidity: value.show_humidity !== false,
@@ -170,66 +149,6 @@ export function weatherVisualState(snapshot = WEATHER_SAMPLE) {
   return isDay ? 'cloudy' : 'partly-cloudy-night';
 }
 
-function particleGroup(className, count) {
-  const container = document.createElement('div');
-  container.className = className;
-  container.setAttribute('aria-hidden', 'true');
-  for (let index = 0; index < count; index += 1) {
-    const item = document.createElement('i');
-    item.style.setProperty('--i', String(index));
-    item.style.setProperty('--p', `${((index * 37) % 101)}%`);
-    container.append(item);
-  }
-  return container;
-}
-
-function intensityCount(base, intensity, max = 120) {
-  return Math.max(1, Math.min(max, Math.round(base * intensity)));
-}
-
-function createAtmosphere(state, config) {
-  const atmosphere = document.createElement('div');
-  atmosphere.className = `weather-atmosphere weather-atmosphere-${state}`;
-  atmosphere.dataset.weatherAtmosphere = 'true';
-  atmosphere.setAttribute('aria-hidden', 'true');
-  atmosphere.append(particleGroup('weather-scene-tint', 1));
-  if (!config.animation_enabled) return atmosphere;
-
-  const intensity = config.animation_intensity;
-  if (state === 'rain' || state === 'drizzle' || state === 'storm') {
-    const rainCount = state === 'drizzle' ? 26 : 44;
-    atmosphere.append(particleGroup('weather-rain', intensityCount(rainCount, intensity)));
-    atmosphere.append(particleGroup('weather-clouds', state === 'storm' ? 6 : 5));
-    atmosphere.append(particleGroup('weather-mist', 2));
-    if (state === 'storm') atmosphere.append(particleGroup('weather-lightning', 2));
-  } else if (state === 'snow') {
-    atmosphere.append(particleGroup('weather-snow', intensityCount(46, intensity)));
-    atmosphere.append(particleGroup('weather-clouds', 5));
-    atmosphere.append(particleGroup('weather-mist', 2));
-  } else if (state === 'fog') {
-    atmosphere.append(particleGroup('weather-fog', 6));
-  } else if (state === 'cloudy') {
-    atmosphere.append(particleGroup('weather-clouds', 7));
-  } else if (state === 'partly-cloudy-day') {
-    atmosphere.append(particleGroup('weather-sun-glow', 1));
-    atmosphere.append(particleGroup('weather-sun', 1));
-    atmosphere.append(particleGroup('weather-clouds', 4));
-  } else if (state === 'partly-cloudy-night') {
-    atmosphere.append(particleGroup('weather-moon-glow', 1));
-    atmosphere.append(particleGroup('weather-moon', 1));
-    atmosphere.append(particleGroup('weather-stars', intensityCount(12, intensity, 28)));
-    atmosphere.append(particleGroup('weather-clouds', 4));
-  } else if (state === 'clear-night') {
-    atmosphere.append(particleGroup('weather-stars', intensityCount(16, intensity, 36)));
-    atmosphere.append(particleGroup('weather-moon-glow', 1));
-    atmosphere.append(particleGroup('weather-moon', 1));
-  } else {
-    atmosphere.append(particleGroup('weather-sun-glow', 1));
-    atmosphere.append(particleGroup('weather-sun', 1));
-  }
-  return atmosphere;
-}
-
 function createContent(config, data, state) {
   const card = document.createElement('section');
   card.className = 'weather-widget weather-widget-adaptive';
@@ -290,9 +209,9 @@ function createContent(config, data, state) {
   summary.append(icon, primary);
 
   const visual = document.createElement('div');
-  visual.className = 'weather-widget-visual';
+  visual.className = 'weather-widget-visual weather-widget-visual-static';
   visual.dataset.weatherVisual = state;
-  if (config.animation_enabled) visual.append(createAtmosphere(state, config));
+  visual.innerHTML = svgIcon(data.icon || 'cloud');
 
   top.append(summary, visual);
   content.append(top);
@@ -323,21 +242,6 @@ function createContent(config, data, state) {
   return card;
 }
 
-function duration(base, speed) {
-  return `${(base / speed).toFixed(3)}s`;
-}
-
-function applyMotionSettings(layer, config) {
-  layer.dataset.weatherAnimation = config.animation_enabled ? 'on' : 'off';
-  layer.dataset.weatherWidgetMotion = config.animation_enabled && config.widget_motion_enabled ? 'on' : 'off';
-  layer.dataset.weatherAnimationSpeed = String(config.animation_speed);
-  layer.dataset.weatherAnimationIntensity = String(config.animation_intensity);
-  layer.style.setProperty('--weather-atmosphere-opacity', String(Math.min(1, .94 * config.animation_intensity)));
-  for (const [name, base] of Object.entries(MOTION_DURATIONS)) {
-    layer.style.setProperty(`--weather-${name}-duration`, duration(base, config.animation_speed));
-  }
-}
-
 export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) {
   if (!(layer instanceof HTMLElement)) return;
   const config = normaliseWeatherWidget(settings);
@@ -347,7 +251,6 @@ export function renderWeatherWidget(layer, settings, snapshot = WEATHER_SAMPLE) 
   if (!Number.isFinite(sceneScale) || sceneScale <= 0) layer.dataset.weatherSceneScale = '1';
   layer.dataset.weatherEnabled = config.enabled ? 'true' : 'false';
   layer.dataset.weatherEmbedded = config.embedded ? 'true' : 'false';
-  applyMotionSettings(layer, config);
   if (!config.enabled) return;
 
   const data = snapshot && typeof snapshot === 'object' ? snapshot : WEATHER_SAMPLE;

@@ -43,7 +43,6 @@ import { createPlayerTelemetryRepository } from './player-telemetry.js';
 import { createPlayerMetricsRepository } from './player-metrics.js';
 import { createScreenRenderJournalRepository } from './screen-render-journal.js';
 import { createWeatherRepository } from './weather.js';
-import { createBakedScenesRepository } from './baked-scenes.js';
 
 const MIGRATIONS = Object.freeze([
   { name: '001-schema', run: initialiseSchema },
@@ -93,8 +92,7 @@ function createRepositories(queryable) {
     createPlayerTelemetryRepository(queryable),
     createPlayerMetricsRepository(queryable),
     createScreenRenderJournalRepository(queryable),
-    createWeatherRepository(queryable),
-    createBakedScenesRepository(queryable)
+    createWeatherRepository(queryable)
   );
 }
 

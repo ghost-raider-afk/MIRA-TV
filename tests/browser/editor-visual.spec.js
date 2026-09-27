@@ -224,27 +224,37 @@ test('monitor preview keeps one canonical stage inside its responsive shell with
   await expect(stage).toHaveAttribute('data-scene-viewport-width', '1920');
   await expect(stage).toHaveAttribute('data-scene-viewport-height', '1080');
 
+  const readGeometry = () => page.evaluate(() => {
+    const shell = document.querySelector('#editor-menu-preview');
+    const stage = document.querySelector('#editor-menu-preview-stage');
+    if (!(shell instanceof HTMLElement) || !(stage instanceof HTMLElement)) return null;
+    const shellBox = shell.getBoundingClientRect();
+    const stageBox = stage.getBoundingClientRect();
+    return {
+      inlineWidth:stage.style.width,
+      inlineHeight:stage.style.height,
+      scale:Number(stage.dataset.sceneViewportScale),
+      shellWidth:shellBox.width,
+      shellHeight:shellBox.height,
+      stageWidth:stageBox.width,
+      stageHeight:stageBox.height,
+      leftDelta:Math.abs(stageBox.left - shellBox.left),
+      topDelta:Math.abs(stageBox.top - shellBox.top),
+      rightDelta:Math.abs(stageBox.right - shellBox.right),
+      bottomDelta:Math.abs(stageBox.bottom - shellBox.bottom)
+    };
+  });
+
+  const geometryIsReady = async () => {
+    const geometry = await readGeometry();
+    return Boolean(geometry
+      && geometry.stageWidth <= geometry.shellWidth + 1
+      && geometry.stageHeight <= geometry.shellHeight + 1
+      && Math.max(geometry.leftDelta, geometry.topDelta, geometry.rightDelta, geometry.bottomDelta) <= 2);
+  };
+
   const assertGeometry = async () => {
-    const geometry = await page.evaluate(() => {
-      const shell = document.querySelector('#editor-menu-preview');
-      const stage = document.querySelector('#editor-menu-preview-stage');
-      if (!(shell instanceof HTMLElement) || !(stage instanceof HTMLElement)) return null;
-      const shellBox = shell.getBoundingClientRect();
-      const stageBox = stage.getBoundingClientRect();
-      return {
-        inlineWidth:stage.style.width,
-        inlineHeight:stage.style.height,
-        scale:Number(stage.dataset.sceneViewportScale),
-        shellWidth:shellBox.width,
-        shellHeight:shellBox.height,
-        stageWidth:stageBox.width,
-        stageHeight:stageBox.height,
-        leftDelta:Math.abs(stageBox.left - shellBox.left),
-        topDelta:Math.abs(stageBox.top - shellBox.top),
-        rightDelta:Math.abs(stageBox.right - shellBox.right),
-        bottomDelta:Math.abs(stageBox.bottom - shellBox.bottom)
-      };
-    });
+    const geometry = await readGeometry();
     expect(geometry).not.toBeNull();
     expect(geometry.inlineWidth).toBe('1920px');
     expect(geometry.inlineHeight).toBe('1080px');
@@ -256,16 +266,12 @@ test('monitor preview keeps one canonical stage inside its responsive shell with
     expect(Math.max(geometry.leftDelta, geometry.topDelta, geometry.rightDelta, geometry.bottomDelta)).toBeLessThanOrEqual(2);
   };
 
-  await expect.poll(async () => {
-    await assertGeometry();
-    return true;
-  }).toBe(true);
+  await expect.poll(geometryIsReady).toBe(true);
+  await assertGeometry();
 
   await page.setViewportSize({ width:390, height:844 });
-  await expect.poll(async () => {
-    await assertGeometry();
-    return true;
-  }).toBe(true);
+  await expect.poll(geometryIsReady).toBe(true);
+  await assertGeometry();
 
   await page.waitForTimeout(250);
   const resizeErrors = await page.evaluate(() => window.__miraResizeObserverErrors || []);

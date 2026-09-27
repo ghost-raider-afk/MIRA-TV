@@ -7,7 +7,6 @@ export const AUTHENTICATED_PAGES = Object.freeze([
   Object.freeze({ path: '/scene', file: 'scene.html' }),
   Object.freeze({ path: '/profile', file: 'profile.html' }),
   Object.freeze({ path: '/settings', file: 'settings.html' }),
-  Object.freeze({ path: '/playlist', file: 'playlist.html' }),
   Object.freeze({ path: '/events', file: 'events.html' }),
   Object.freeze({ path: '/connect-tv', file: 'connect-tv.html' })
 ]);
@@ -23,9 +22,10 @@ export const LEGACY_PAGE_REDIRECTS = Object.freeze(new Map([
   ['/scene.html', '/scene'],
   ['/profile.html', '/profile'],
   ['/settings.html', '/settings'],
-  ['/playlist.html', '/playlist'],
-  ['/animation.html', '/playlist'],
-  ['/animation', '/playlist'],
+  ['/playlist.html', '/scene'],
+  ['/playlist', '/scene'],
+  ['/animation.html', '/scene'],
+  ['/animation', '/scene'],
   ['/events.html', '/events'],
   ['/connect-tv.html', '/connect-tv'],
   ['/signin.html', '/signin'],
