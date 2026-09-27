@@ -77,7 +77,22 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     screenIds.push(draft.id);
     await publishScreen(adminPage, published);
 
-    await adminPage.goto('/settings');
+    // Hold hydration so the early-interaction race is exercised deterministically.
+    let releaseSettingsContext;
+    const settingsContextReady = new Promise((resolve) => { releaseSettingsContext = resolve; });
+    await adminPage.route('**/api/session/context', async (route) => {
+      await settingsContextReady;
+      await route.continue();
+    }, { times: 1 });
+    try {
+      await adminPage.goto('/settings');
+      await expect(adminPage.locator('#manager-create-username')).toBeDisabled();
+      await expect(adminPage.locator('#manager-create-password')).toBeDisabled();
+      await expect(adminPage.locator('#manager-create-submit')).toBeDisabled();
+    } finally {
+      releaseSettingsContext();
+    }
+    await expect(adminPage.locator('#manager-create-form')).toHaveAttribute('data-hydrated', 'true');
     await expect(adminPage.locator('#manager-create-form')).toBeVisible();
     await adminPage.locator('#manager-create-username').fill(managerUsername);
     await adminPage.locator('#manager-create-password').fill(initialPassword);
