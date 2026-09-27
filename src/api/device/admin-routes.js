@@ -18,6 +18,27 @@ function activationSummary(record) {
   };
 }
 
+const PREVIEW_WAIT_MS = 2500;
+const PREVIEW_POLL_MS = 50;
+
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function freshScreenPreview(realtime, screenId) {
+  const previousEtag = realtime?.screenPreviewMeta?.(screenId)?.etag || '';
+  const requested = realtime?.requestScreenPreview?.(screenId) || 0;
+  if (requested > 0) {
+    const deadline = Date.now() + PREVIEW_WAIT_MS;
+    while (Date.now() < deadline) {
+      const preview = realtime?.screenPreview?.(screenId);
+      if (preview && preview.etag !== previousEtag) return preview;
+      await pause(PREVIEW_POLL_MS);
+    }
+  }
+  return realtime?.screenPreview?.(screenId) || null;
+}
+
 export function createDeviceAdminRouter({ store, realtime }) {
   const router = express.Router();
 
@@ -138,7 +159,7 @@ export function createDeviceAdminRouter({ store, realtime }) {
     if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
     const presence = realtime?.presenceForScreen(screenId);
     if (presence?.online !== true) return response.status(404).json({ error: 'TV Player сейчас не в сети.' });
-    const preview = realtime?.screenPreview(screenId);
+    const preview = await freshScreenPreview(realtime, screenId);
     if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', preview.etag);

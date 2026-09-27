@@ -10,7 +10,7 @@ async function login(page) {
   ]);
 }
 
-test('premium ambient layer animates the workspace and respects reduced motion', async ({ page }) => {
+test('premium ambient layer stays static without decorative motion', async ({ page }) => {
   await login(page);
   await expect(page.locator('.app-content')).toBeVisible();
 
@@ -25,8 +25,7 @@ test('premium ambient layer animates the workspace and respects reduced motion',
     };
   });
 
-  expect(animated.animationName).toBe('uiAmbientDrift');
-  expect(animated.duration).toBe('32s');
+  expect(animated.animationName).toBe('none');
   expect(animated.pointerEvents).toBe('none');
   expect(animated.position).toBe('fixed');
 

@@ -55,16 +55,17 @@ function pingText(screenId, binding) {
   return Number.isFinite(ping.ms) ? `${Math.round(ping.ms)} мс` : 'нет ответа';
 }
 
-function previewUrl(screen, binding) {
-  if (!binding?.online || !binding?.preview_available) return '';
-  return `${API.deviceBindings}/${screen.id}/preview?v=${encodeURIComponent(binding.preview_updated_at || '')}`;
+function previewUrl(screen, binding, { requestFresh = false } = {}) {
+  if (!binding?.online || (!requestFresh && !binding?.preview_available)) return '';
+  const version = requestFresh ? `request-${Date.now()}` : binding.preview_updated_at || '';
+  return `${API.deviceBindings}/${screen.id}/preview?v=${encodeURIComponent(version)}`;
 }
 
-function createTvFace(screen, binding, large = false) {
+function createTvFace(screen, binding, large = false, { requestFresh = false } = {}) {
   const status = statusState(binding);
   const face = document.createElement('div');
   face.className = `screen-tv-face is-${status.key}${large ? ' is-large' : ''}`;
-  const url = previewUrl(screen, binding);
+  const url = previewUrl(screen, binding, { requestFresh });
   if (url) {
     const image = document.createElement('img');
     image.src = url;
@@ -236,18 +237,18 @@ function ensurePreviewDialog() {
   return dialog;
 }
 
-function updatePreviewDialog(screen) {
+function updatePreviewDialog(screen, { requestFresh = false } = {}) {
   const dialog = ensurePreviewDialog();
   const binding = bindingForScreen(screen.id);
   dialog.querySelector('[data-tv-preview-title]').textContent = tvLabel(screen);
-  dialog.querySelector('[data-tv-preview-visual]').replaceChildren(createTvFace(screen, binding, true));
+  dialog.querySelector('[data-tv-preview-visual]').replaceChildren(createTvFace(screen, binding, true, { requestFresh }));
   fillMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
 }
 
 function openPreview(screen) {
   previewDialogScreenId = Number(screen.id);
   const dialog = ensurePreviewDialog();
-  updatePreviewDialog(screen);
+  updatePreviewDialog(screen, { requestFresh:true });
   if (!dialog.open) dialog.showModal();
 }
 

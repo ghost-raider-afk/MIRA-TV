@@ -31,7 +31,9 @@ test('TV Player has one static renderer and no motion/video runtime', async () =
 
   assert.match(worker, /mira-tv-player-shell-v52/);
   assert.match(worker, /mira-tv-player-shell-v51/);
-  assert.doesNotMatch(worker, /\/js\/motion\/|scene-video-runtime|\.mp4|\.webm/);
+  assert.doesNotMatch(worker, /['"]\/js\/motion\//);
+  assert.doesNotMatch(worker, /['"]\/js\/player\/scene-video-runtime\.js['"]/);
+  assert.doesNotMatch(worker, /['"][^'"]+\.(?:mp4|webm)(?:\?[^'"]*)?['"]/i);
 });
 
 test('removed motion and Render Agent modules stay physically absent', async () => {

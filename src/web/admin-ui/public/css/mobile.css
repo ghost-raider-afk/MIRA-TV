@@ -53,7 +53,7 @@
   .ui-context-kicker{font-size:9px;letter-spacing:.14em}
   .ui-context-head h2{margin-top:2px;font-size:18px;letter-spacing:-.025em}
   .ui-context-close{width:40px;height:40px;border-radius:11px;font-size:22px}
-  .ui-context-body{gap:6px;padding:8px 10px 10px;overflow:auto;over}
+  .ui-context-body{gap:6px;padding:8px 10px 10px;overflow:auto;overscroll-behavior:contain}
   .ui-context-body .app-route-link{min-height:48px;padding:0 13px;border-radius:11px;font-size:14px;font-weight:800}
   .ui-context-note{padding:11px;border-radius:12px}
   .ui-account-card{gap:7px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ui-chrome-border)}
@@ -206,7 +206,7 @@
   body[data-page="screen-editor"] .editor-add-actions{display:grid;width:100%;grid-template-columns:1fr;gap:7px}
   body[data-page="screen-editor"] .editor-add-actions .button{width:100%;min-height:44px}
   body[data-page="screen-editor"] .editor-menu-rows{max-width:calc(100% + 24px);margin-inline:-12px;border-right:0;border-left:0;border-radius:0}
-  body[data-page="screen-editor"] .editor-menu-table-scroll{over-webkit-overflow-scrolling:touch}
+  body[data-page="screen-editor"] .editor-menu-table-scroll{overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
   body[data-page="screen-editor"] .editor-menu-editor-table{min-width:820px}
   body[data-page="screen-editor"] .editor-row-action{width:44px;height:44px;min-height:44px}
   body[data-page="screen-editor"] .editor-menu-preview{border-radius:10px}

@@ -67,10 +67,16 @@ test('scene contract rejects duplicate ids and geometry outside canonical bounds
   }), /правую границу/);
 });
 
-test('scene media only accepts same-origin site assets', () => {
+test('scene image media only accepts same-origin site assets', () => {
   assert.throws(() => sceneInput({
-    elements: [{ id: 'external', type: 'video', width: 640, height: 360, media: { source_url: 'https://example.com/video.mp4' } }]
+    elements: [{ id: 'external', type: 'image', width: 640, height: 360, media: { source_url: 'https://example.com/photo.webp' } }]
   }), /внутренний ресурс/);
+});
+
+test('scene contract rejects retired video elements', () => {
+  assert.throws(() => sceneInput({
+    elements: [{ id: 'retired-video', type: 'video', width: 640, height: 360, media: { source_url: '/site-assets/scene/video.mp4' } }]
+  }), /неподдерживаемое значение/);
 });
 
 
@@ -78,7 +84,7 @@ test('weather scene element owns location and presentation settings', () => {
   const scene = sceneInput({
     elements: [{
       id: 'weather-1', type: 'weather', width: 520, height: 360,
-      weather: { location_name: 'Хельсинки', latitude: 60.1699, longitude: 24.9384, timezone: 'Europe/Helsinki', refresh_minutes: 10, show_forecast: true, forecast_items: 4, temperature_font_family:'tahoma-bold', temperature_size_percent:132, location_size_percent:118, animation_speed: 1.25 }
+      weather: { location_name: 'Хельсинки', latitude: 60.1699, longitude: 24.9384, timezone: 'Europe/Helsinki', refresh_minutes: 10, show_forecast: true, forecast_items: 4, temperature_font_family:'tahoma-bold', temperature_size_percent:132, location_size_percent:118 }
     }]
   });
   const weather = scene.elements[0].weather;
@@ -90,7 +96,9 @@ test('weather scene element owns location and presentation settings', () => {
   assert.equal(weather.temperature_font_family, 'tahoma-bold');
   assert.equal(weather.temperature_size_percent, 132);
   assert.equal(weather.location_size_percent, 118);
-  assert.equal(weather.animation_speed, 1.25);
+  for (const key of ['animation_enabled', 'animation_speed', 'animation_intensity', 'widget_motion_enabled']) {
+    assert.equal(Object.hasOwn(weather, key), false, key);
+  }
 });
 
 

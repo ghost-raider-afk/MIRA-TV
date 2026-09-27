@@ -46,8 +46,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const { screen, product } = await fixture(page);
   await page.goto(`/scene?screen=${screen.id}`);
 
-  await expect(page.locator('#scene-editor-agent-setup')).toBeVisible();
-  await expect(page.locator('#scene-editor-agent-install')).toHaveAttribute('href', '/api/render-agent/installer/windows');
+  await expect(page.locator('#scene-editor-agent-setup')).toHaveCount(0);
+  await expect(page.locator('#scene-editor-agent-install')).toHaveCount(0);
   await expect(page.locator('#scene-editor-layers')).toBeVisible();
   await expect(page.locator('#scene-editor-stage')).toBeVisible();
   await expect(page.locator('#scene-editor-properties')).toBeVisible();
@@ -55,10 +55,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#scene-editor-resolution')).toHaveText('1920×1080');
   const backgroundLayer = page.locator('#scene-editor-background-layer');
   const promotionLayer = page.locator('#scene-editor-promotion-layer');
-  const promotionRowLayer = page.locator('#scene-editor-promotion-row-layer');
-  const animationLayer = page.locator('#scene-editor-animation-layer');
   const tableLayer = page.locator('#scene-editor-table-layer');
-  for (const layer of [backgroundLayer, promotionLayer, promotionRowLayer, animationLayer, tableLayer]) {
+  await expect(page.locator('#scene-editor-promotion-row-layer,#scene-editor-animation-layer')).toHaveCount(0);
+  for (const layer of [backgroundLayer, promotionLayer, tableLayer]) {
     await expect(layer).toBeVisible();
     await expect(layer.locator('svg')).toHaveCount(1);
     expect((await layer.boundingBox())?.height).toBeLessThanOrEqual(28);
@@ -109,14 +108,13 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(promotionEditor).toBeVisible();
   await promotionEditor.locator('input[type="checkbox"]').check();
   await expect(promotionEditor.getByRole('radiogroup')).toHaveCount(0);
-  await expect(page.locator('#scene-editor-stage .promotion-row-glow')).toHaveAttribute('data-promotion-row-animation', 'wave');
-  await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
+  await expect(page.locator('#scene-editor-stage .promotion-badge')).toBeVisible();
+  await expect(page.locator('#scene-editor-stage .promotion-row-glow,#scene-editor-stage .promotion-badge-glow')).toHaveCount(0);
   await expect(page.locator('#scene-editor-stage')).toHaveAttribute('data-player-active', 'true');
   const promotionVisual = await page.locator('#scene-editor-stage .promotion-badge').first().evaluate((node) => {
     const row = node.closest('.table-item');
     const text = row?.querySelector('.promotion-badge-label .promotion');
     const path = node.querySelector('path');
-    const glowStops = [...node.ownerSVGElement.querySelectorAll('#mira-promo-row-glow stop')];
     const itemName = row?.querySelector('.item-name');
     return {
       textSize:Number(text?.getAttribute('font-size') || 0),
@@ -124,8 +122,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
       textTransform:text?.getAttribute('transform') || '',
       baselineDelta:Math.abs(Number(text?.getAttribute('y') || 0) - Number(itemName?.getAttribute('y') || 0)),
       badgeHeight:path?.getBBox?.().height || 0,
-      badgeFill:path?.getAttribute('fill') || '',
-      maxGlowOpacity:Math.max(0, ...glowStops.map((stop) => Number(stop.getAttribute('stop-opacity') || 0)))
+      badgeFill:path?.getAttribute('fill') || ''
     };
   });
   expect(promotionVisual.textSize).toBeGreaterThanOrEqual(15);
@@ -134,7 +131,6 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(promotionVisual.baselineDelta).toBeLessThan(.1);
   expect(promotionVisual.badgeHeight).toBeGreaterThanOrEqual(29);
   expect(promotionVisual.badgeFill).toContain('mira-promo-badge-depth');
-  expect(promotionVisual.maxGlowOpacity).toBeGreaterThanOrEqual(.7);
 
   await page.locator('.scene-table-editor-close').click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
@@ -146,15 +142,6 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     Number(node.getAttribute('font-size'))
   )).toBeCloseTo(35.7, 1);
 
-  await promotionRowLayer.click();
-  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Акционная строка');
-  const rowInspector = page.locator('#scene-editor-properties');
-  const rowEffects = rowInspector.getByLabel('Пресет подсветки');
-  await expect(rowEffects.locator('option')).toHaveCount(5);
-  await rowEffects.selectOption('fill');
-  await expect(rowInspector.getByLabel('Подсветка строки')).toBeChecked();
-  await expect(rowInspector.getByLabel('Движение подсветки')).toBeChecked();
-
   await promotionLayer.click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Акция');
   const promotionInspector = page.locator('#scene-editor-properties');
@@ -163,43 +150,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await promotionInspector.getByLabel('Жирность шрифта акции').selectOption('800');
   await promotionInspector.getByLabel('Высота шрифта акции').fill('125');
   await promotionInspector.getByLabel('Межбуквенный интервал акции').fill('1');
-  const badgeEffects = promotionInspector.getByLabel('Пресет эффекта');
-  await expect(badgeEffects.locator('option')).toHaveCount(2);
-  await badgeEffects.selectOption('breathe');
-  await badgeEffects.selectOption('shine');
-  await expect(promotionInspector.getByLabel('Свечение плашки')).toBeChecked();
-  await expect(promotionInspector.getByLabel('Перелив')).toBeChecked();
-  await expect(promotionInspector.getByLabel('Солнечный блик')).toBeChecked();
   await expect(page.locator('#scene-editor-stage .promotion-badge')).toHaveAttribute('data-promotion-badge-shape', 'chevron');
-  await expect(page.locator('#scene-editor-stage .promotion-badge-glow')).toHaveAttribute('data-promotion-badge-animation', 'shine');
-
-  await promotionInspector.getByLabel('Вся анимация акции').selectOption('none');
-  const staticPromotionGlow = page.locator('#scene-editor-stage .promotion-row-glow');
-  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
-
-  await promotionRowLayer.click();
-  const staticRowInspector = page.locator('#scene-editor-properties');
-  await staticRowInspector.getByLabel('Движение подсветки').uncheck();
-  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0);
-  await staticRowInspector.getByLabel('Подсветка строки').uncheck();
-  await expect.poll(() => staticPromotionGlow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBe(0);
-  await staticRowInspector.getByLabel('Подсветка строки').check();
-
-  await promotionLayer.click();
-  await page.locator('#scene-editor-properties').getByLabel('Вся анимация акции').selectOption('cinematic');
-
-  await animationLayer.click();
-  await expect(page.locator('#scene-editor-properties-title')).toHaveText('Анимация сцены');
-  const animationInspector = page.locator('#scene-editor-properties');
-  await expect(animationInspector.getByRole('radiogroup')).toHaveCount(0);
-  await animationInspector.getByLabel('Характер').selectOption('wave');
-  const promotionGlow = page.locator('#scene-editor-stage .promotion-row-glow');
-  await expect(promotionGlow).toHaveAttribute('data-promotion-row-animation', 'fill');
-  await expect(promotionGlow).toHaveAttribute('data-motion', 'promotion-glow');
-  const promotionClip = promotionGlow.locator('..');
-  await expect(promotionClip).toHaveClass(/promotion-row-clip/);
-  expect(await promotionClip.evaluate((node) => getComputedStyle(node).clipPath)).not.toBe('none');
-  expect(await promotionClip.evaluate((node) => getComputedStyle(node).transform)).toBe('none');
+  await expect(page.locator('#scene-editor-properties').getByText(/анимац|эффект|блик|перелив/i)).toHaveCount(0);
+  await expect(page.locator('#scene-editor-stage .promotion-row-glow,#scene-editor-stage .promotion-badge-glow')).toHaveCount(0);
 
   await page.locator('#scene-editor-background-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Фон');
@@ -361,14 +314,6 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(stored.draft.settings.promotion_letter_spacing_px).toBe(1);
   const storedPromotion = stored.draft.rows.find((row) => row.kind === 'item');
   expect(storedPromotion.promotion).toBe(true);
-  expect(storedPromotion.promotion_animation).toBe('fill');
-  expect(storedPromotion.promotion_badge_animation).toBe('shine');
-  expect(stored.animation.profile.pattern).toBe('wave');
-  expect(stored.animation.profile.promotion_row_highlight_enabled).toBe(true);
-  expect(stored.animation.profile.promotion_row_animation_enabled).toBe(false);
-  expect(stored.animation.profile.promotion_badge_glow_enabled).toBe(true);
-  expect(stored.animation.profile.promotion_badge_shine_enabled).toBe(true);
-  expect(stored.animation.profile.promotion_badge_sparkle_enabled).toBe(true);
 
   await page.goto(`/screen-editor?id=${screen.id}`);
   await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
@@ -382,7 +327,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
 });
 
-test('background, weather, image and video settings apply atomically to selected monitors', async ({ page }) => {
+test('background, weather and image settings apply atomically to selected monitors', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
   const { screen, location } = await fixture(page);
@@ -440,23 +385,16 @@ test('background, weather, image and video settings apply atomically to selected
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
   await add.click();
-  await addMenu.getByRole('menuitem', { name:/Видео/ }).click();
-  await inspector.getByLabel('Y', { exact:true }).fill('470');
-  await inspector.getByLabel('Высота', { exact:true }).fill('280');
-  applyGroup = inspector.locator('.scene-editor-multi-apply');
-  await applyGroup.locator('summary').click();
-  await applyGroup.getByRole('checkbox', { name:`Применить к ${location.name} — ${target.name}`, exact:true }).check();
-  await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
-  await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
+  await expect(addMenu.getByRole('menuitem', { name:/Видео/ })).toHaveCount(0);
+  await page.keyboard.press('Escape');
 
   const storedTarget = await (await page.request.get(`/api/screens/${target.id}/editor`)).json();
   expect(storedTarget.draft.settings.background_color).toBe('#223344');
   const weather = storedTarget.draft.scene.elements.find((item) => item.type === 'weather');
   const image = storedTarget.draft.scene.elements.find((item) => item.type === 'image');
-  const video = storedTarget.draft.scene.elements.find((item) => item.type === 'video');
   expect({ x:weather.x, y:weather.y }).toEqual({ x:410, y:180 });
   expect({ x:image.x, width:image.width }).toEqual({ x:520, width:360 });
-  expect({ y:video.y, height:video.height }).toEqual({ y:470, height:280 });
+  expect(storedTarget.draft.scene.elements.some((item) => item.type === 'video')).toBe(false);
 });
 
 test('Scene table editor stays readable and scrollable with a dense menu', async ({ page }) => {
@@ -680,7 +618,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const promotionSave = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{
     revision:promotionBundle.draft.revision,
     rows:promotionBundle.draft.rows.map((row) => row.kind === 'item'
-      ? { ...row, promotion:true, promotion_text:'АКЦИЯ', promotion_animation:'wave', promotion_badge_animation:'shine' }
+      ? { ...row, promotion:true, promotion_text:'АКЦИЯ' }
       : row),
     settings:promotionBundle.draft.settings,
     scene:promotionBundle.draft.scene
@@ -777,7 +715,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const weatherTemperature = weatherNode.locator('.weather-widget-temperature');
   const weatherVisual = weatherNode.locator('.weather-widget-visual');
   await expect(weatherIcon).toBeVisible();
-  await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(1);
+  await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(0);
   const weatherColumns = await weatherNode.evaluate((node) => {
     const icon = node.querySelector('.weather-widget-icon')?.getBoundingClientRect();
     const temperature = node.querySelector('.weather-widget-temperature')?.getBoundingClientRect();
@@ -813,19 +751,10 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   const weatherContentScaleBefore = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
   const viewportScaleBefore = Number(await page.locator('#scene-editor-stage').getAttribute('data-scene-viewport-scale'));
 
-  await page.locator('#scene-editor-promotion-row-layer').click();
-  await page.locator('#scene-editor-properties').getByLabel('Пресет подсветки').selectOption('fill');
   await page.locator('#scene-editor-promotion-layer').click();
-  const badgeMotion = page.locator('#scene-editor-properties').getByLabel('Пресет эффекта');
-  await badgeMotion.selectOption('breathe');
-  await badgeMotion.selectOption('shine');
-  await page.locator('#scene-editor-animation-layer').click();
-  const animationScale = page.locator('#animation-scale');
-  const animationBrightness = page.locator('#animation-brightness');
-  await animationScale.fill('0.09');
-  await animationBrightness.fill('0.55');
-  await animationScale.fill('0.025');
-  await animationBrightness.fill('0.18');
+  const promotionTypography = page.locator('#scene-editor-properties').getByLabel('Размер шрифта акции');
+  await promotionTypography.fill('130');
+  await promotionTypography.fill('110');
 
   const weatherAfter = await weatherMetrics();
   const weatherContentScaleAfter = Number(await stableWeatherContent.getAttribute('data-scene-content-scale'));
@@ -961,11 +890,7 @@ test('Scene weather uses same-origin preview even when navigator reports offline
       forecast_items:3,
       temperature_font_family:'arial',
       temperature_size_percent:100,
-      location_size_percent:100,
-      animation_enabled:true,
-      animation_speed:1,
-      animation_intensity:1,
-      widget_motion_enabled:true
+      location_size_percent:100
     }
   };
   const save = await page.request.put(`/api/screens/${screen.id}/draft`, { data:{

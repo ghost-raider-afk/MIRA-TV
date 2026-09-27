@@ -6,14 +6,14 @@ test.use({
 });
 
 const hashes = Object.fromEntries(
-  ['screen', 'menu', 'scene', 'animation', 'scene_playlist', 'runtime']
+  ['screen', 'menu', 'scene', 'content_manifest', 'runtime']
     .map((name) => [name, `${name}-android-tv-compat-012345678901234567890123`])
 );
 
 function playerContext() {
   return {
-    schema_version: 4,
-    revision: 'android-tv-compat-v1',
+    schema_version: 7,
+    revision: '7:1',
     render_revision: 1,
     hashes,
     screen: {
@@ -42,10 +42,23 @@ function playerContext() {
       { id: 1, name: 'Бутылка', unit_price: '10' },
       { id: 2, name: 'ПЭТ', unit_price: '20' }
     ],
-    scene: { version: 1, elements: [] },
-    animation: { enabled: false, profile: null },
-    scene_playlist: { enabled: false, animation_enabled: true, menu_duration_seconds: 40, scenes: [] },
-    app_version: '1.14.5',
+    scene: {
+      version: 1,
+      elements: [{
+        id:'android-static-text',
+        type:'text',
+        enabled:true,
+        x:900, y:80, width:800, height:180,
+        z_index:5, opacity:1, rotation_deg:0,
+        text:{
+          runs:[{ value:'STATIC-TV', font_family:'system-sans', font_size_px:72, font_weight:800, color:'#FFFFFF' }],
+          paragraph:{ align:'center', vertical_align:'center', wrap:true },
+          effects:{ fill:{ enabled:true, mode:'solid', color:'#FFFFFF', opacity:1 } }
+        }
+      }]
+    },
+    content_manifest: { version:1, revision:'7:1', assets:[] },
+    app_version: '1.15.1',
     fallback_poll_interval_ms: 60_000,
     log_batch_size: 100,
     log_local_max_entries: 5000,
@@ -87,6 +100,7 @@ test('Player renders on Android TV Chromium without newer JS and DOM APIs', asyn
   await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg')).toHaveCount(1);
   await expect(page.locator('[data-player-menu-layer] .packaging-cell')).toHaveCount(2);
   await expect(page.locator('[data-player-menu-layer]')).toContainText('Напитки');
+  await expect(page.locator('[data-scene-element-id="android-static-text"] [data-scene-text]')).toContainText('STATIC-TV');
 
   const unsupported = await page.evaluate(() => ({
     replaceAll: typeof String.prototype.replaceAll,
@@ -133,24 +147,4 @@ test('Player never leaves Android TV on a blank screen while a saved pairing is 
   await expect(page.locator('[data-player-boot-status]')).toContainText('Проверяем сохранённое подключение');
   await expect(page.locator('[data-activation-view]')).toHaveClass(/is-hidden/);
   await expect(page.locator('[data-tv-player]')).toHaveClass(/is-hidden/);
-});
-
-test('Video runtime can mount and destroy without replaceChildren on Android TV', async ({ page }) => {
-  await emulateOlderAndroidTvApis(page);
-  await page.goto('/player');
-  const lifecycle = await page.evaluate(async () => {
-    const { SceneVideoRuntime } = await import('/js/player/scene-video-runtime.js');
-    const layer = document.createElement('div');
-    layer.appendChild(document.createElement('span'));
-    document.body.appendChild(layer);
-    const runtime = new SceneVideoRuntime(layer, { autoplay: false });
-    const mounted = layer.children.length === 1 && layer.firstElementChild === runtime.video;
-    const fallback = await runtime.render(null);
-    runtime.destroy();
-    runtime.destroy();
-    const empty = layer.childNodes.length === 0;
-    layer.remove();
-    return { mounted, fallback, empty, replaceChildren: typeof Element.prototype.replaceChildren };
-  });
-  expect(lifecycle).toEqual({ mounted: true, fallback: false, empty: true, replaceChildren: 'undefined' });
 });

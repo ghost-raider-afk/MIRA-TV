@@ -143,7 +143,7 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect.poll(tvNetworkState, { timeout:10000 }).toMatchObject({
       ok:true,
       online:true,
-      preview:true
+      preview:false
     });
     const measured = await tvNetworkState();
     expect(measured.ping).toBeGreaterThanOrEqual(0);
@@ -156,10 +156,18 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect(tvCard).toContainText('Последняя связь');
     await expect(tvCard).toContainText('IP-адрес');
     await expect(tvCard.locator('.screen-tv-meta-row', { hasText:'Ping' }).locator('strong')).toContainText('мс');
-    await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(1);
+    await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(0);
     await tvCard.locator('.screen-tv-card').click();
-    await expect(adminPage.locator('.screen-tv-preview-dialog')).toBeVisible();
-    await expect(adminPage.locator('.screen-tv-preview-dialog')).toContainText('IP-адрес');
+    const previewDialog = adminPage.locator('.screen-tv-preview-dialog');
+    await expect(previewDialog).toBeVisible();
+    await expect(previewDialog).toContainText('IP-адрес');
+    await expect(previewDialog.locator('.screen-tv-face img')).toHaveCount(1);
+    await expect(previewDialog.locator('.screen-tv-face')).toHaveClass(/has-player-frame/, { timeout:5000 });
+    await expect.poll(tvNetworkState, { timeout:5000 }).toMatchObject({
+      ok:true,
+      online:true,
+      preview:true
+    });
     await adminPage.locator('.screen-tv-preview-close').click();
 
     const liveText = `LIVE-E2E-${stamp}`;
@@ -193,7 +201,7 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
 
     const deltaResponse = await deltaPromise;
     const delta = await deltaResponse.json();
-    expect(delta.schema_version).toBe(6);
+    expect(delta.schema_version).toBe(7);
     expect(delta.changed.scene.elements[0].id).toBe('live-e2e-text');
 
     const sceneNode = tvPage.locator('[data-scene-element-id="live-e2e-text"]');

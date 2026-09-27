@@ -63,10 +63,15 @@ test.describe('mobile application shell', () => {
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
     await trigger.click();
     await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
-    await page.getByRole('link', { name: /^Плейлист/ }).click();
-    await expect(page).toHaveURL(/\/playlist$/);
+    await expect(page.getByRole('link', { name: /^Плейлист/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /^Сцена/ })).toBeVisible();
+    await page.getByRole('link', { name: /^Торговые точки/ }).click();
+    await expect(page).toHaveURL(/\/locations$/);
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
     await expectNoPageOverflow(page);
+
+    await page.goto('/playlist');
+    await expect(page).toHaveURL(/\/scene$/);
   });
 
   test('keeps core pages inside the viewport and touch controls usable', async ({ page }, testInfo) => {
@@ -76,8 +81,7 @@ test.describe('mobile application shell', () => {
       '/catalog',
       '/settings',
       '/events',
-      '/connect-tv',
-      '/playlist'
+      '/connect-tv'
     ];
 
     for (const route of routes) {

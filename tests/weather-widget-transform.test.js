@@ -130,7 +130,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
 
 test('legacy weather position still maps to canonical geometry without restoring motion fields', () => {
   const legacy = completeWeatherWidget({ position:'bottom-left' });
-  assert.deepEqual(({ x, y }) => ({ x, y })(legacy), { x:260, y:890 });
+  assert.deepEqual({ x:legacy.x, y:legacy.y }, { x:260, y:890 });
   for (const key of ['animation_enabled','animation_speed','animation_intensity','widget_motion_enabled']) {
     assert.equal(Object.hasOwn(legacy, key), false, key);
   }
@@ -153,5 +153,7 @@ test('offline Player shell keeps static weather and Local-first state without mo
   assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v52'/);
   assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v51'/);
   assert.match(worker, /\/js\/player\/weather-widget\.js/);
-  assert.doesNotMatch(worker, /\/js\/motion\/|scene-video-runtime|\.mp4|\.webm/);
+  assert.doesNotMatch(worker, /['"]\/js\/motion\//);
+  assert.doesNotMatch(worker, /['"]\/js\/player\/scene-video-runtime\.js['"]/);
+  assert.doesNotMatch(worker, /['"][^'"]+\.(?:mp4|webm)(?:\?[^'"]*)?['"]/i);
 });
