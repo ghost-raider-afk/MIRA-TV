@@ -134,3 +134,23 @@ test('Player never leaves Android TV on a blank screen while a saved pairing is 
   await expect(page.locator('[data-activation-view]')).toHaveClass(/is-hidden/);
   await expect(page.locator('[data-tv-player]')).toHaveClass(/is-hidden/);
 });
+
+test('Video runtime can mount and destroy without replaceChildren on Android TV', async ({ page }) => {
+  await emulateOlderAndroidTvApis(page);
+  await page.goto('/player');
+  const lifecycle = await page.evaluate(async () => {
+    const { SceneVideoRuntime } = await import('/js/player/scene-video-runtime.js');
+    const layer = document.createElement('div');
+    layer.appendChild(document.createElement('span'));
+    document.body.appendChild(layer);
+    const runtime = new SceneVideoRuntime(layer, { autoplay: false });
+    const mounted = layer.children.length === 1 && layer.firstElementChild === runtime.video;
+    const fallback = await runtime.render(null);
+    runtime.destroy();
+    runtime.destroy();
+    const empty = layer.childNodes.length === 0;
+    layer.remove();
+    return { mounted, fallback, empty, replaceChildren: typeof Element.prototype.replaceChildren };
+  });
+  expect(lifecycle).toEqual({ mounted: true, fallback: false, empty: true, replaceChildren: 'undefined' });
+});
