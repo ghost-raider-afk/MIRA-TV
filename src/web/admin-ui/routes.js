@@ -22,6 +22,8 @@ export const LEGACY_PAGE_REDIRECTS = Object.freeze(new Map([
   ['/scene.html', '/scene'],
   ['/profile.html', '/profile'],
   ['/settings.html', '/settings'],
+  ['/playlist.html', '/scene'],
+  ['/playlist', '/scene'],
   ['/animation.html', '/scene'],
   ['/animation', '/scene'],
   ['/events.html', '/events'],

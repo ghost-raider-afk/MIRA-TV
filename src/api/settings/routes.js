@@ -5,7 +5,7 @@ import { hashPassword, passwordChangeInput, verifyPassword } from '../../service
 import { issueSession, sessionCookie, themeCookie } from '../../services/session-service.js';
 import { replaceSiteImage, siteSettingsResponse } from '../../services/site-assets-service.js';
 
-export function createSettingsRouter({ store, config, realtime }) {
+export function createSettingsRouter({ store, config }) {
   const router = express.Router();
   router.get('/user', async (request, response) => response.json(await store.getUserPreferences(request.session.sub)));
   router.put('/user', async (request, response) => {

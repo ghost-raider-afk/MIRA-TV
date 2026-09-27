@@ -14,15 +14,6 @@ function resetTransientPageState(name) {
   }
 }
 
-function composeLifecycle(...lifecycles) {
-  const active = lifecycles.filter(Boolean);
-  if (!active.length) return undefined;
-  return {
-    canLeave() { return active.every((item) => typeof item.canLeave !== 'function' || item.canLeave() !== false); },
-    dispose() { for (const item of [...active].reverse()) item.dispose?.(); }
-  };
-}
-
 async function initialisePage(name) {
   resetTransientPageState(name);
   switch (name) {

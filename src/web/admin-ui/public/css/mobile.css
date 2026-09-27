@@ -44,16 +44,16 @@
   .ui-rail-icon svg{width:22px;height:22px;stroke-width:1.8}
   .ui-rail-label{display:block;max-width:none;overflow:visible;font-size:10px;font-weight:850;line-height:1.1;text-overflow:clip;white-space:nowrap}
 
-  .ui-context-backdrop{position:fixed;z-index:55;top:calc(58px + env(safe-area-inset-top));right:0;bottom:calc(68px + env(safe-area-inset-bottom));left:0;display:block;padding:0;border:0;background:color-mix(in srgb,var(--ui-overlay) 48%,transparent);opacity:0;pointer-events:none;transition:opacity .18s ease}
+  .ui-context-backdrop{position:fixed;z-index:55;top:calc(58px + env(safe-area-inset-top));right:0;bottom:calc(68px + env(safe-area-inset-bottom));left:0;display:block;padding:0;border:0;background:color-mix(in srgb,var(--ui-overlay) 48%,transparent);opacity:0;pointer-events:none;}
   .ui-context-backdrop.is-visible{opacity:1;pointer-events:auto}
-  .ui-context{position:fixed;z-index:70;top:auto;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));left:10px;width:auto;height:auto;max-height:min(72dvh,620px);overflow:hidden;border:1px solid var(--ui-chrome-border-strong);border-radius:18px;background:var(--ui-sidebar);box-shadow:0 24px 70px color-mix(in srgb,var(--ui-shadow-color) 36%,transparent);opacity:1;transform:translateY(0);transition:transform .18s ease,opacity .16s ease}
+  .ui-context{position:fixed;z-index:70;top:auto;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));left:10px;width:auto;height:auto;max-height:min(72dvh,620px);overflow:hidden;border:1px solid var(--ui-chrome-border-strong);border-radius:18px;background:var(--ui-sidebar);box-shadow:0 24px 70px color-mix(in srgb,var(--ui-shadow-color) 36%,transparent);opacity:1;transform:translateY(0);}
   .ui-context.is-collapsed{width:auto;opacity:0;transform:translateY(calc(100% + 28px));pointer-events:none}
   .app-shell.ui-context-collapsed{display:block}
   .ui-context-head{min-height:60px;padding:10px 12px;border-bottom:1px solid var(--ui-chrome-border)}
   .ui-context-kicker{font-size:9px;letter-spacing:.14em}
   .ui-context-head h2{margin-top:2px;font-size:18px;letter-spacing:-.025em}
   .ui-context-close{width:40px;height:40px;border-radius:11px;font-size:22px}
-  .ui-context-body{gap:6px;padding:8px 10px 10px;overflow:auto;overscroll-behavior:contain}
+  .ui-context-body{gap:6px;padding:8px 10px 10px;overflow:auto;over}
   .ui-context-body .app-route-link{min-height:48px;padding:0 13px;border-radius:11px;font-size:14px;font-weight:800}
   .ui-context-note{padding:11px;border-radius:12px}
   .ui-account-card{gap:7px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ui-chrome-border)}
@@ -206,7 +206,7 @@
   body[data-page="screen-editor"] .editor-add-actions{display:grid;width:100%;grid-template-columns:1fr;gap:7px}
   body[data-page="screen-editor"] .editor-add-actions .button{width:100%;min-height:44px}
   body[data-page="screen-editor"] .editor-menu-rows{max-width:calc(100% + 24px);margin-inline:-12px;border-right:0;border-left:0;border-radius:0}
-  body[data-page="screen-editor"] .editor-menu-table-scroll{overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+  body[data-page="screen-editor"] .editor-menu-table-scroll{over-webkit-overflow-scrolling:touch}
   body[data-page="screen-editor"] .editor-menu-editor-table{min-width:820px}
   body[data-page="screen-editor"] .editor-row-action{width:44px;height:44px;min-height:44px}
   body[data-page="screen-editor"] .editor-menu-preview{border-radius:10px}
@@ -248,5 +248,5 @@
 }
 
 @media(prefers-reduced-motion:reduce){
-  .ui-context,.ui-context-backdrop{transition:none!important}
+  .ui-context,.ui-context-backdrop{}
 }
