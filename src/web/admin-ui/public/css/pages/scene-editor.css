@@ -500,3 +500,12 @@ body[data-page="scene"] .scene-editor-table-content-state{
   body[data-page="scene"] .scene-table-editor-toolbar>span{display:none}
   body[data-page="scene"] .scene-table-editor-close{width:32px;height:32px;flex-basis:32px}
 }
+
+@media(min-width:1101px){
+  body[data-page="scene"] .app-shell{display:block;min-height:100dvh}
+  body[data-page="scene"] .app-content{display:block;min-width:0}
+  body[data-page="scene"] .app-header{display:flex}
+  body[data-page="scene"] .scene-editor-content{height:calc(100dvh - 56px);min-height:0;padding:8px;overflow:hidden}
+  body[data-page="scene"] .scene-editor-form{position:static;display:grid;width:auto;height:100%;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:8px}
+  body[data-page="scene"] .scene-editor-workspace{height:auto;min-height:0}
+}
