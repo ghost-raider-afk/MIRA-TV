@@ -1,39 +1,10 @@
 import { ValidationError } from '../shared/errors.js';
+import { MENU_THEME_PRESET_IDS, MENU_THEME_PRESETS, menuThemeCatalog } from '../web/admin-ui/public/js/themes/menu-theme-registry.js';
 
 export const MENU_THEME_SCHEMA_VERSION = 1;
 
-const THEME_PRESETS = Object.freeze([
-  Object.freeze({
-    id:'legacy',
-    label:'Текущая',
-    description:'Текущее оформление MIRA-TV без тематического пресета.',
-    preset_version:1,
-    default_utility_mode:'none'
-  }),
-  Object.freeze({
-    id:'premium',
-    label:'Премиальная',
-    description:'Тёмная чёрно-золотая тема в ресторанно-барном стиле.',
-    preset_version:1,
-    default_utility_mode:'weather'
-  }),
-  Object.freeze({
-    id:'chalk',
-    label:'Меловая',
-    description:'Светлая по восприятию тема цветного мела на доске без визуальной перегрузки.',
-    preset_version:1,
-    default_utility_mode:'weather'
-  }),
-  Object.freeze({
-    id:'brand-premium',
-    label:'Брендовая премиальная',
-    description:'Тёмная премиальная тема с крупным брендовым блоком и выделенной правой зоной.',
-    preset_version:1,
-    default_utility_mode:'weather'
-  })
-]);
-
-const PRESET_IDS = new Set(THEME_PRESETS.map((preset) => preset.id));
+const THEME_PRESETS = MENU_THEME_PRESETS;
+const PRESET_IDS = new Set(MENU_THEME_PRESET_IDS);
 const UTILITY_MODES = new Set(['none','weather','clock','text']);
 const FONT_FAMILIES = new Set([
   'arial-narrow',
@@ -172,10 +143,7 @@ export function validateMenuThemeBindings(theme, scene) {
   return current;
 }
 
-export function menuThemeCatalog() {
-  return THEME_PRESETS.map((preset) => ({ ...preset }));
-}
-
+export { menuThemeCatalog };
 export const MENU_THEME_PRESETS = THEME_PRESETS;
 export const MENU_THEME_PRESET_IDS = Object.freeze([...PRESET_IDS]);
 export const MENU_THEME_UTILITY_MODES = Object.freeze([...UTILITY_MODES]);

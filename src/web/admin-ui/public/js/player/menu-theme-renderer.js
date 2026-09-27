@@ -1,0 +1,113 @@
+const FONT_STACKS = Object.freeze({
+  'arial-narrow':"'Arial Narrow','Liberation Sans Narrow',Arial,sans-serif",
+  'tahoma-bold':"Tahoma,Arial,sans-serif",
+  arial:"Arial,'Liberation Sans',sans-serif",
+  'dejavu-condensed':"'DejaVu Sans Condensed','DejaVu Sans',sans-serif",
+  'liberation-narrow':"'Liberation Sans Narrow','Arial Narrow',Arial,sans-serif",
+  'system-sans':"'MIRA Sans',Arial,sans-serif"
+});
+
+function node(tag,className='') {
+  const value=document.createElement(tag);
+  if(className) value.className=className;
+  return value;
+}
+
+function rectStyle(target,rect) {
+  if(!target || !rect) return;
+  target.style.left=rect.x+'px';
+  target.style.top=rect.y+'px';
+  target.style.width=rect.width+'px';
+  target.style.height=rect.height+'px';
+}
+
+function fontFamily(key,fallback) {
+  return FONT_STACKS[key] || fallback;
+}
+
+export class MenuThemeRenderer {
+  constructor(layer) {
+    this.layer=layer;
+    this.clockTimer=null;
+    this.clockNode=null;
+    layer.classList.add('tv-player-theme-layer');
+    layer.setAttribute('aria-hidden','true');
+  }
+
+  clearClock() {
+    if(this.clockTimer) clearInterval(this.clockTimer);
+    this.clockTimer=null;
+    this.clockNode=null;
+  }
+
+  renderClock() {
+    if(!this.clockNode) return;
+    const now=new Date();
+    const time=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(now);
+    const date=new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'long'}).format(now);
+    this.clockNode.replaceChildren();
+    const strong=node('strong'); strong.textContent=time;
+    const small=node('span'); small.textContent=date;
+    this.clockNode.append(strong,small);
+  }
+
+  render(runtime,screen) {
+    this.clearClock();
+    this.layer.replaceChildren();
+    const { theme,preset,layout }=runtime || {};
+    this.layer.dataset.menuTheme=theme?.preset_id || 'legacy';
+    if(!theme || theme.preset_id==='legacy' || !layout) return;
+
+    const frame=node('div','menu-theme-frame');
+    const panel=node('div','menu-theme-side-panel');
+    const brand=node('div','menu-theme-brand');
+    const brandName=node('strong','menu-theme-brand-name');
+    brandName.textContent=theme.brand.name || preset.visual?.brandText || '';
+    brandName.style.fontFamily=fontFamily(theme.brand.name_font_family,'Arial,sans-serif');
+    const brandCaption=node('span','menu-theme-brand-caption');
+    brandCaption.textContent=theme.brand.caption || preset.visual?.brandCaption || '';
+    brandCaption.style.fontFamily=fontFamily(theme.brand.caption_font_family,'Arial,sans-serif');
+    brand.append(brandName,brandCaption);
+
+    const utility=node('div','menu-theme-utility');
+    const utilityMode=theme.utility_slot.mode || 'none';
+    utility.dataset.utilityMode=utilityMode;
+    if(utilityMode==='clock'){
+      utility.classList.add('is-clock');
+      this.clockNode=utility;
+      this.renderClock();
+      this.clockTimer=setInterval(()=>this.renderClock(),30000);
+    }else if(utilityMode==='text'){
+      utility.classList.add('is-text');
+      utility.style.fontFamily=fontFamily(theme.utility_slot.font_family,'Arial,sans-serif');
+      utility.textContent=theme.utility_slot.text || '';
+    }
+
+    const decor=node('div','menu-theme-decor');
+    const footer=node('div','menu-theme-footer');
+    const age=node('span','menu-theme-age'); age.textContent='18+';
+    const warning=node('span','menu-theme-warning'); warning.textContent=preset.visual?.footerText || '';
+    const pager=node('span','menu-theme-pager');
+    pager.textContent=screen?.location_number ? 'Экран '+screen.location_number : '';
+    footer.append(age,warning,pager);
+
+    rectStyle(frame,layout.frame);
+    rectStyle(panel,layout.panel);
+    rectStyle(brand,layout.brand);
+    rectStyle(utility,layout.weather);
+    rectStyle(decor,layout.decor);
+    rectStyle(footer,layout.footer);
+
+    frame.style.setProperty('--theme-border',preset.visual?.border || '#E3AD2B');
+    panel.style.setProperty('--theme-panel',preset.visual?.panelBackground || '#090B0D');
+    brand.style.setProperty('--theme-brand',preset.visual?.brandColor || '#F3B91F');
+
+    this.layer.append(frame,panel,brand,utility,decor,footer);
+  }
+
+  destroy() {
+    this.clearClock();
+    this.layer?.replaceChildren();
+    this.layer=null;
+  }
+}
