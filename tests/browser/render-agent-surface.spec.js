@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import sharp from 'sharp';
+
+test.use({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 
 test('Render Agent surface uses the shared PlayerSceneRenderer and supports deterministic seek', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   const renderPackage = {
     protocol_version: 1,
     renderer_version: 'test',
@@ -113,9 +118,28 @@ test('Render Agent surface uses the shared PlayerSceneRenderer and supports dete
   const geometry = await stage.evaluate((node) => ({
     width: node.style.width,
     height: node.style.height,
+    viewportWidth: node.dataset.sceneViewportWidth,
+    viewportHeight: node.dataset.sceneViewportHeight,
+    bounds: node.getBoundingClientRect().toJSON(),
+    hostBounds: node.parentElement.getBoundingClientRect().toJSON(),
     scale: node.dataset.sceneViewportScale
   }));
   expect(geometry.width).toBe('1920px');
   expect(geometry.height).toBe('1080px');
+  expect(geometry.viewportWidth).toBe('1920');
+  expect(geometry.viewportHeight).toBe('1080');
+  expect(geometry.bounds).toMatchObject({ x: 0, y: 0, width: 1920, height: 1080 });
+  expect(geometry.hostBounds).toMatchObject({ x: 0, y: 0, width: 1920, height: 1080 });
   expect(Number(geometry.scale)).toBeCloseTo(1, 5);
+
+  // Use the same viewport capture mode as the local Agent, not a full-page screenshot.
+  const cdp = await page.context().newCDPSession(page);
+  const shot = await cdp.send('Page.captureScreenshot', {
+    format: 'jpeg', quality: 92, fromSurface: true, captureBeyondViewport: false
+  });
+  const metadata = await sharp(Buffer.from(shot.data, 'base64')).metadata();
+  expect(metadata.width).toBe(1920);
+  expect(metadata.height).toBe(1080);
+  await cdp.detach();
+  expect(errors).toEqual([]);
 });
