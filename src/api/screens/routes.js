@@ -285,6 +285,44 @@ export function createScreensRouter({ store, config, realtime }) {
     response.json({ screen:result.screen, draft:result.draft });
   });
 
+  router.put('/screens/:id', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const result = await store.transaction(async (tx) => {
+      if (!await tx.lockScreen(id)) throw notFound();
+      const current = await tx.getScreen(id);
+      if (!current) throw notFound();
+      const siteSettings = await tx.getSiteSettings();
+      const next = screenInput({
+        location_id: current.location_id,
+        name: request.body?.name ?? current.name,
+        resolution: request.body?.resolution ?? current.resolution,
+        status: request.body?.status ?? current.status,
+        active: request.body?.active ?? current.active
+      }, {
+        defaultScreenResolution: siteSettings.default_screen_resolution,
+        maxWidth: config.screenMaxWidth,
+        maxHeight: config.screenMaxHeight
+      });
+      if (sameJson(screenRenderState(current), screenRenderState(next))) {
+        return { screen: current, revisions: [], changed: false };
+      }
+      const screen = await tx.updateScreen(id, next);
+      if (!screen) throw notFound();
+      const revisions = await tx.markScreenRenderChanged([id], ['screen'], 'screen.settings.updated', request.session.sub);
+      return { screen, revisions, changed: true };
+    });
+    if (result.changed) {
+      await activity(store, request, {
+        action: 'screen.settings.updated',
+        entity_type: 'screen',
+        entity_id: id,
+        message: `Обновлены параметры монитора «${result.screen.name}».`
+      });
+      notifyRevisions(realtime, result.revisions);
+    }
+    response.json(result.screen);
+  });
+
   router.put('/screens/:id/background', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'], limit: config.screenBackgroundMaxBytes }), async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     const expectedRevision = draftRevisionHeader(request);
