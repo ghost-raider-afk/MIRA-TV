@@ -418,7 +418,7 @@ function updatePreviewDialog(screen, { requestFresh = false } = {}) {
   const binding = bindingForScreen(screen.id);
   dialog.querySelector('[data-tv-preview-title]').textContent = tvLabel(screen);
   dialog.querySelector('[data-tv-preview-visual]').replaceChildren(createTvFace(screen, binding, true, { requestFresh }));
-  fillMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
+  fillCardMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
 }
 
 function openPreview(screen) {
