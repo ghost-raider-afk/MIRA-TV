@@ -1,7 +1,5 @@
 import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
-import { publishPlayerPreview } from './player-preview-capture.js';
-import { createPlayerMetricsCollector } from './player-metrics.js';
 import { fetchWithTimeout } from './fetch-timeout.js';
 
 window.__miraPlayerModuleStarted = true;
@@ -25,7 +23,6 @@ const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
 const playerSceneRenderer = new PlayerSceneRenderer(playerStage);
-const playerMetrics = createPlayerMetricsCollector();
 
 let pollTimer = null;
 let expiryTimer = null;
@@ -37,10 +34,8 @@ let playerStateSync = null;
 let offlinePlayerRegistrationPromise = null;
 let playerBuildUpdatePromise = null;
 let serviceWorkerControllerChanged = false;
-let previewTimer = null;
-let previewInFlight = false;
-let previewCaptureIntervalMs = null;
-let previewMaxBytes = null;
+let backgroundServices = null;
+let backgroundServicesPromise = null;
 let playerInstallPrompt = null;
 
 if ('serviceWorker' in navigator) {
@@ -296,7 +291,7 @@ async function requestWakeLock() {
 }
 
 async function enterImmersiveMode() {
-  await requestWakeLock();
+  void requestWakeLock();
   if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
     await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
   }
@@ -304,7 +299,7 @@ async function enterImmersiveMode() {
 
 function showActivationScreen() {
   finishPlayerBoot();
-  playerMetrics.stop();
+  backgroundServices?.stop();
   playerStateSync?.stop();
   playerSceneRenderer.reset();
   setHidden(player, true);
@@ -329,7 +324,7 @@ function keepNeutralBoot() {
 }
 
 function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
-  playerMetrics.stop();
+  backgroundServices?.stop();
   playerStateSync?.stop();
   playerSceneRenderer.reset();
   setHidden(player, true);
@@ -504,39 +499,28 @@ async function createActivation({ automatic = false } = {}) {
   }
 }
 
-function stopPreviewPublishing() {
-  if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = null;
-}
-
-function schedulePreviewPublish(delayMs = previewCaptureIntervalMs) {
-  stopPreviewPublishing();
-  if (!Number.isFinite(previewCaptureIntervalMs) || previewCaptureIntervalMs < 10_000) return;
-  const delay = Math.max(250, Number.isFinite(delayMs) ? delayMs : previewCaptureIntervalMs);
-  previewTimer = setTimeout(() => void publishPreviewFrame(), delay);
+async function ensureBackgroundServices() {
+  if (backgroundServices) return backgroundServices;
+  if (!backgroundServicesPromise) {
+    backgroundServicesPromise = import('./player-background-services.js')
+      .then(({ createPlayerBackgroundServices }) => {
+        backgroundServices = createPlayerBackgroundServices(playerStage, {
+          isVisible:() => document.visibilityState !== 'hidden' && !player?.classList.contains('is-hidden')
+        });
+        return backgroundServices;
+      })
+      .catch((error) => {
+        backgroundServicesPromise = null;
+        console.warn('Player background services unavailable', error);
+        return null;
+      });
+  }
+  return backgroundServicesPromise;
 }
 
 window.addEventListener('mira:player-preview-request', () => {
-  if (document.visibilityState === 'hidden' || player?.classList.contains('is-hidden')) return;
-  void publishPreviewFrame();
+  void ensureBackgroundServices().then((services) => services?.requestPreview());
 });
-
-async function publishPreviewFrame() {
-  previewTimer = null;
-  if (previewInFlight || document.visibilityState === 'hidden' || !navigator.onLine || player?.classList.contains('is-hidden')) {
-    schedulePreviewPublish();
-    return;
-  }
-  previewInFlight = true;
-  try {
-    await publishPlayerPreview(playerStage, { maxBytes:previewMaxBytes });
-  } catch (error) {
-    console.debug('TV Player preview publish skipped', error);
-  } finally {
-    previewInFlight = false;
-    schedulePreviewPublish();
-  }
-}
 
 function showConnectionMessage(message) {
   if (!message) {
@@ -553,32 +537,20 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
   await playerSceneRenderer.render(context, changedNames);
   finishPlayerBoot();
   reconcilePlayerBuild(context, changedNames, source);
-  const configuredMetricsInterval = Number(context?.metrics_interval_ms);
-  playerMetrics.configure({ intervalMs:configuredMetricsInterval });
-  if (source !== 'last-known-good') playerMetrics.start();
-  const configuredPreviewInterval = Number(context?.preview_capture_interval_ms);
-  if (Number.isFinite(configuredPreviewInterval) && configuredPreviewInterval >= 10_000) {
-    previewCaptureIntervalMs = configuredPreviewInterval;
-  }
-  const configuredPreviewMaxBytes = Number(context?.preview_max_bytes);
-  if (Number.isFinite(configuredPreviewMaxBytes) && configuredPreviewMaxBytes > 0) {
-    previewMaxBytes = configuredPreviewMaxBytes;
-  }
+  void ensureBackgroundServices().then((services) => services?.configure(context, { source }));
   setHidden(activationView, true);
   setHidden(player, false);
   dispatchPlayerActivity(true);
-  if (source !== 'last-known-good') schedulePreviewPublish(450);
   if (source === 'last-known-good') {
     showConnectionMessage('ТВ запущен по последнему рабочему состоянию. Проверяем связь с сервером…');
   }
-  await requestWakeLock();
+  void requestWakeLock();
 }
 
 function playerConnectivityChanged(state) {
   if (state === 'online') {
-    playerMetrics.start();
+    void ensureBackgroundServices().then((services) => services?.online());
     showConnectionMessage('');
-    schedulePreviewPublish(450);
     return;
   }
   if (!playerStateSync?.hasContext) return;
@@ -590,8 +562,7 @@ function playerConnectivityChanged(state) {
 }
 
 function playerUnauthorized() {
-  playerMetrics.stop();
-  stopPreviewPublishing();
+  backgroundServices?.stop();
   if (activationFromStorage()) {
     showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
     return;
@@ -624,7 +595,7 @@ async function loadPlayer({ fallbackToActivation = true } = {}) {
   }
   if (result.hasContext || playerStateSync.hasContext) {
     playerStateSync.start();
-    await requestWakeLock();
+    void requestWakeLock();
     return true;
   }
   if (fallbackToActivation) showPairingIntro();
@@ -808,14 +779,11 @@ async function initialisePlayer() {
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {
     syncPlayerPageVisibility();
-    if (document.visibilityState === 'visible') {
-      void requestWakeLock();
-      schedulePreviewPublish(450);
-    }
+    if (document.visibilityState === 'visible') void requestWakeLock();
+    backgroundServices?.visibilityChanged();
   });
   window.addEventListener('pagehide', () => {
-    stopPreviewPublishing();
-    playerMetrics.stop();
+      backgroundServices?.stop();
   });
   void navigator.storage?.persist?.().catch(() => undefined);
   void registerOfflinePlayer();
