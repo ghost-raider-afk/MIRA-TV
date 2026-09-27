@@ -1,5 +1,21 @@
 # История изменений
 
+## 1.16.0
+
+Архитектурный релиз статического live-render для MIRA-TV: Preview и TV снова используют один лёгкий runtime без Render Agent, MP4 Video Mode и motion-инфраструктуры.
+
+- Player State переведён на schema v7 с пятью компонентами: `screen`, `menu`, `scene`, `content_manifest`, `runtime`.
+- Preview и TV Runtime используют общий `PlayerSceneRenderer`; исправлены responsive-геометрия Scene Editor и масштабирование canonical stage без отдельных визуальных костылей.
+- Render Agent, baked-video runtime, Scene Playlist Studio, motion engine, native motion kernel, GPU/video runtime и связанные production-модули удалены.
+- Scene Editor очищен от Video/Animation motion controls; сохранены статические элементы сцены, системная таблица меню, акция и живая погода.
+- Погода стала статичной визуально, но сохранила live-данные, cache/LKG и timezone по выбранному городу.
+- Local-first контур, WebSocket realtime, Last Known Good и атомарная подготовка content manifest сохранены.
+- Первый видимый кадр Player теперь приоритетнее Service Worker, метрик, preview capture и update-check; фоновые сервисы стартуют после первого browser frame.
+- TV preview переведён на on-demand snapshot без постоянного capture loop.
+- Существующие DB migrations и исторические таблицы оставлены для безопасного обновления; сохранённые draft-сцены не мигрируются принудительно.
+- Добавлены и обновлены regression-проверки Editor → Preview → TV, Android TV boot/offline, static runtime ownership, weather parity, responsive layout и Local-first resilience.
+- Player build поднят до 1.16.0; offline Player shell — до v53.
+
 ## 1.15.1
 
 Hotfix удобства Video Mode и общей геометрии Preview после первого реального обновления до 1.15.0.
