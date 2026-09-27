@@ -8,18 +8,29 @@ function hashes(suffix = 'a') {
   return Object.fromEntries(COMPONENTS.map((name) => [name, `${name}-${suffix}-012345678901234567890123456789`]));
 }
 
+function contentManifest(revision, draft, scene) {
+  const assets = [
+    draft?.settings?.background_image_url,
+    ...(Array.isArray(scene?.elements) ? scene.elements
+      .filter((element) => element?.enabled !== false && ['image', 'logo'].includes(element?.type))
+      .map((element) => element?.media?.source_url) : [])
+  ].filter(Boolean);
+  return { version:1, revision, assets:[...new Set(assets)].map((url) => ({ url, required:true })) };
+}
+
 function playerContext({ revision = 'revision-a', hashSuffix = 'a', scene = { version: 1, elements: [] }, fallbackMs = 60_000 } = {}) {
   const stateHashes = hashes(hashSuffix);
+  const draft = { rows: [], settings: { background_color: '#101828' }, revision: 1 };
   return {
     schema_version: 7,
     revision,
     render_revision: 1,
     hashes: stateHashes,
     screen: { id: 17, name: 'Экран 1', resolution: '1920x1080', status: 'active', location_id: 3, location_name: 'Точка 1', location_number: 1 },
-    draft: { rows: [], settings: { background_color: '#101828' }, revision: 1 },
+    draft,
     products: [], packaging: [],
     scene,
-    content_manifest: { version:1, revision, assets:[] },
+    content_manifest: contentManifest(revision, draft, scene),
     app_version: '1.10.2',
     fallback_poll_interval_ms: fallbackMs, log_batch_size: 100, log_local_max_entries: 5000, log_local_max_bytes: 10 * 1024 * 1024
   };
@@ -160,6 +171,7 @@ test('first boot renders available scene content when a critical background is u
   const context = playerContext({ revision: 'revision-first-boot', hashSuffix: 'first-boot' });
   context.draft.settings.background_color = '#264653';
   context.draft.settings.background_image_url = '/site-assets/backgrounds/critical-missing.png';
+  context.content_manifest = contentManifest(context.revision, context.draft, context.scene);
 
   const diagnostics = [];
   await page.route('**/site-assets/backgrounds/critical-missing.png', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
@@ -187,6 +199,7 @@ test('failed critical background never replaces the previous Last Known Good sta
   previous.draft.settings.background_color = '#123456';
   const candidate = playerContext({ revision: 'revision-candidate', hashSuffix: 'candidate' });
   candidate.draft = { rows: [], revision: 2, settings: { background_color: '#dc2626', background_image_url: '/site-assets/backgrounds/critical-missing.png' } };
+  candidate.content_manifest = contentManifest(candidate.revision, candidate.draft, candidate.scene);
   await seedLastKnownGood(page, previous);
   await installFailingWebSocket(page);
   await mockAuthorizedSession(page);

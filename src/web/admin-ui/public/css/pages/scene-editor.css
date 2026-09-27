@@ -141,7 +141,6 @@
   body[data-page="scene"] .scene-editor-canvas-footer{min-height:22px;padding-top:3px}
   body[data-page="scene"] .scene-editor-canvas-footer>span:first-child{display:none}
   body[data-page="scene"] .scene-editor-layers-panel,
-  body[data-page="scene"] .scene-editor-layers-panel,
   body[data-page="scene"] .scene-editor-properties-panel{position:absolute;z-index:70;top:4px;bottom:4px;width:min(82vw,300px);min-height:0;margin:0;padding:6px;border-radius:8px;background:var(--ui-panel);box-shadow:0 16px 42px rgba(0,0,0,.28)}
   body[data-page="scene"] .scene-editor-layers-panel{left:4px;transform:translateX(calc(-100% - 12px));opacity:0}
   body[data-page="scene"] .scene-editor-properties-panel{right:4px;transform:translateX(calc(100% + 12px));opacity:0}

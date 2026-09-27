@@ -37,6 +37,9 @@ let serviceWorkerControllerChanged = false;
 let backgroundServices = null;
 let backgroundServicesPromise = null;
 let playerInstallPrompt = null;
+let firstPlayerFramePresented = false;
+let firstFrameWorkScheduled = false;
+let pendingPostFrameWork = null;
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -532,20 +535,50 @@ function showConnectionMessage(message) {
   setHidden(playerMessage, false);
 }
 
-async function applySyncedContext(context, changedNames, { source } = {}) {
-  clearPairingTimers();
-  await playerSceneRenderer.render(context, changedNames);
-  finishPlayerBoot();
+function afterFirstPlayerFrame(callback) {
+  if (typeof requestAnimationFrame !== 'function') {
+    setTimeout(callback, 0);
+    return;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(callback));
+}
+
+function runPostFrameWork({ context, changedNames, source }) {
   reconcilePlayerBuild(context, changedNames, source);
   void ensureBackgroundServices().then((services) => services?.configure(context, { source }));
   void registerOfflinePlayer();
+}
+
+function schedulePostFrameWork(context, changedNames, source) {
+  const work = { context, changedNames:[...(changedNames || [])], source };
+  if (firstPlayerFramePresented) {
+    runPostFrameWork(work);
+    return;
+  }
+  pendingPostFrameWork = work;
+  if (firstFrameWorkScheduled) return;
+  firstFrameWorkScheduled = true;
+  afterFirstPlayerFrame(() => {
+    firstPlayerFramePresented = true;
+    firstFrameWorkScheduled = false;
+    const pending = pendingPostFrameWork;
+    pendingPostFrameWork = null;
+    if (pending) runPostFrameWork(pending);
+  });
+}
+
+async function applySyncedContext(context, changedNames, { source } = {}) {
+  clearPairingTimers();
+  await playerSceneRenderer.render(context, changedNames);
   setHidden(activationView, true);
   setHidden(player, false);
   dispatchPlayerActivity(true);
+  finishPlayerBoot();
   if (source === 'last-known-good') {
     showConnectionMessage('ТВ запущен по последнему рабочему состоянию. Проверяем связь с сервером…');
   }
   void requestWakeLock();
+  schedulePostFrameWork(context, changedNames, source);
 }
 
 function playerConnectivityChanged(state) {

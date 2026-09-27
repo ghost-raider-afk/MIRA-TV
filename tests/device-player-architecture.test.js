@@ -68,6 +68,13 @@ test('Player boot defers noncritical background work until a scene is rendered',
   assert.doesNotMatch(player, /^import .*player-preview-capture/m);
   assert.doesNotMatch(player, /^import .*player-metrics/m);
   assert.match(player, /finishPlayerBoot\(\)/);
+  assert.match(player, /afterFirstPlayerFrame/);
+  assert.match(player, /requestAnimationFrame\(\(\) => requestAnimationFrame\(callback\)\)/);
+  assert.match(player, /schedulePostFrameWork\(context, changedNames, source\)/);
+  const apply = player.match(/async function applySyncedContext[\s\S]*?\n\}/)?.[0] || '';
+  assert.ok(apply.indexOf('setHidden(player, false)') >= 0);
+  assert.ok(apply.indexOf('schedulePostFrameWork') > apply.indexOf('setHidden(player, false)'));
+  assert.doesNotMatch(apply, /registerOfflinePlayer\(\)|ensureBackgroundServices\(\)/);
   assert.match(player, /ensureBackgroundServices/);
   assert.match(background, /publishPlayerPreview/);
   assert.match(background, /createPlayerMetricsCollector/);

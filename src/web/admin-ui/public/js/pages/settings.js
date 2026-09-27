@@ -154,6 +154,7 @@ function initialiseManagers() {
 export function initialiseSettings() {
   const siteForm = element('site-settings-form');
   if (!(siteForm instanceof HTMLFormElement)) return;
+  siteForm.noValidate = true;
   populateSiteForm(state.site);
   element('upload-logo')?.addEventListener('click', () => uploadSiteAsset('logo'));
   element('upload-favicon')?.addEventListener('click', () => uploadSiteAsset('favicon'));

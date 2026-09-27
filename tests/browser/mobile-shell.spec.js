@@ -64,7 +64,7 @@ test.describe('mobile application shell', () => {
     await trigger.click();
     await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
     await expect(page.getByRole('link', { name: /^Плейлист/ })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /^Сцена/ })).toBeVisible();
+    await expect(page.locator('.ui-context').getByRole('link', { name: /^Сцена/ })).toBeVisible();
     await page.getByRole('link', { name: /^Торговые точки/ }).click();
     await expect(page).toHaveURL(/\/locations$/);
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
