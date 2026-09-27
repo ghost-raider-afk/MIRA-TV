@@ -1,5 +1,25 @@
 # История изменений
 
+## 1.15.0
+
+Добавлен Video Mode с локальным Render Agent: тяжёлая анимированная сцена может быть заранее отрендерена в H.264 MP4 на компьютере администратора, а телевизор получает готовое видео через существующий Local-first контур.
+
+- Scene Editor формирует immutable Render Package; локальный Render Agent рендерит сцену тем же `PlayerSceneRenderer`, который используется Preview и TV, без второго renderer.
+- VPS не запускает Chromium и не кодирует сцену: сервер выдаёт короткоживущий подписанный upload token, валидирует готовый MP4 через ffprobe и хранит его как content-addressed asset.
+- Upload защищён `screen_id`, `render_revision` и visual `input_hash`; устаревший результат не может стать ACTIVE после изменения сцены.
+- Одинаковые визуальные сцены разных телевизоров переиспользуют один MP4 по visual hash, при этом revision остаётся отдельной защитой публикации.
+- Публикация Video Scene атомарна: обычное сохранение draft не сбрасывает ACTIVE MP4, а телевизор продолжает показывать предыдущую опубликованную версию до готовности новой.
+- Weather не запекается в видео и остаётся live overlay; конфигурация погоды привязана к опубликованной Video Scene.
+- Player получил baked layer и state schema v6; при успешной загрузке MP4 тяжёлые DOM/motion-слои отключаются, а при ошибке сохраняется существующий live-render fallback.
+- Baked MP4 входит в Player Content Manifest и сначала загружается в Local-first cache; ACTIVE/PREVIOUS/STAGING lifecycle и защита предыдущей рабочей версии сохранены.
+- Scene Playlist не удалён: в pilot активный playlist остаётся на live renderer до отдельного deterministic timeline.
+- Manager Preview переведён на snapshot-only и показывает фактический кадр подключённого TV, включая текущий video frame.
+- Исправлена совместимость Video Mode со старыми Android TV Chromium/WebView: новый runtime использует общий `replaceChildrenCompat`, поэтому отсутствие `Element.replaceChildren` больше не блокирует boot Player.
+- Исправлено владение canonical geometry Render Agent surface: внутренний menu renderer больше не сбрасывает 1920×1080 stage в `100% / auto`.
+- Устранена гонка hydration формы менеджеров без увеличения таймаутов; browser regression сохраняет полный сценарий создания менеджера и Manager Preview.
+- Добавлены и усилены browser regression-тесты для Android TV compatibility, deterministic Render Surface, реального 1920×1080 capture, Admin → Player delta и Manager hydration.
+- Offline Player shell остаётся v49; Player build поднят до 1.15.0.
+
 ## 1.14.9
 
 Добавлены независимые настройки анимации «Акции», Local-first кэш контента Player и первая целевая оптимизация нагрузки на Android TV.
