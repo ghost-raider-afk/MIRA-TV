@@ -538,6 +538,7 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
   finishPlayerBoot();
   reconcilePlayerBuild(context, changedNames, source);
   void ensureBackgroundServices().then((services) => services?.configure(context, { source }));
+  void registerOfflinePlayer();
   setHidden(activationView, true);
   setHidden(player, false);
   dispatchPlayerActivity(true);
@@ -780,14 +781,11 @@ async function initialisePlayer() {
   document.addEventListener('visibilitychange', () => {
     syncPlayerPageVisibility();
     if (document.visibilityState === 'visible') void requestWakeLock();
-    backgroundServices?.visibilityChanged();
   });
   window.addEventListener('pagehide', () => {
       backgroundServices?.stop();
   });
   void navigator.storage?.persist?.().catch(() => undefined);
-  void registerOfflinePlayer();
-
   const restored = await playerStateSync.restoreLastKnownGood();
   playerStateSync.note('player.boot', { restored });
   await bootstrapPlayer();
