@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { menuSettingsInput } from '../src/contracts/menu-settings.js';
 
-test('monitor settings contract stores only canonical renderer fields', () => {
+test('monitor settings contract stores only canonical renderer and theme fields', () => {
   const settings = menuSettingsInput({
     background_color: '#101828',
     background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.png',
@@ -11,6 +11,14 @@ test('monitor settings contract stores only canonical renderer fields', () => {
     font_scale: 'large', table_width: 'wide', title: 'legacy'
   });
   assert.deepEqual(settings, {
+    theme: {
+      schema_version: 1,
+      preset_id: 'legacy',
+      preset_version: 1,
+      brand: { name:'', caption:'', logo_element_id:'', name_font_family:'', caption_font_family:'' },
+      utility_slot: { mode:'none', text:'', weather_element_id:'', font_family:'' },
+      overrides: []
+    },
     background_color: '#101828',
     background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.png',
     accent_color: '#F4C915', text_color: '#F8FAFC', font_scale_percent: 92, font_family: 'tahoma-bold',

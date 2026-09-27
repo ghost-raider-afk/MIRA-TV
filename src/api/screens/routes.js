@@ -1,6 +1,7 @@
 import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
+import { MENU_THEME_SCHEMA_VERSION, menuThemeCatalog, validateMenuThemeBindings } from '../../contracts/menu-theme.js';
 import { sceneInput } from '../../contracts/scene.js';
 import { ValidationError } from '../../shared/errors.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
@@ -120,6 +121,7 @@ export function createScreensRouter({ store, config, realtime }) {
   const router = express.Router();
 
   router.get('/screens', async (_request, response) => response.json(await store.listScreens()));
+  router.get('/screens/menu-themes', (_request, response) => response.json({ schema_version:MENU_THEME_SCHEMA_VERSION, presets:menuThemeCatalog() }));
   router.get('/screens/:id', async (request, response) => {
     const screen = await store.getScreen(positiveId(request.params.id, 'id'));
     if (!screen) throw notFound();
@@ -260,6 +262,7 @@ export function createScreensRouter({ store, config, realtime }) {
       const previousSceneAssets = new Set(sceneAssetUrls(currentDraft?.scene));
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
+      validateMenuThemeBindings(draft.settings.theme, draft.scene);
       let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: current.status, active: current.active };
       if (request.body?.screen && typeof request.body.screen === 'object' && !Array.isArray(request.body.screen)) {
         const siteSettings = await tx.getSiteSettings();
