@@ -1,3 +1,5 @@
+import { replaceChildrenCompat } from '../core/dom-compat.js';
+
 function sameOriginVideoUrl(value) {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -53,7 +55,7 @@ export class SceneVideoRuntime {
     this.video.preload = 'auto';
     this.video.disablePictureInPicture = true;
     this.video.setAttribute('aria-hidden', 'true');
-    this.layer.replaceChildren(this.video);
+    replaceChildrenCompat(this.layer, this.video);
     this.layer.hidden = true;
 
     this.handleVisibility = () => this.syncPlayback();
@@ -129,7 +131,7 @@ export class SceneVideoRuntime {
     this.destroyed = true;
     this.video.pause();
     this.video.removeAttribute('src');
-    this.layer.replaceChildren();
+    replaceChildrenCompat(this.layer);
     this.source = '';
   }
 }
