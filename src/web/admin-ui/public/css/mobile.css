@@ -1,7 +1,7 @@
 .ui-mobile-primary,.mobile-context-trigger,.ui-context-backdrop{display:none}
 
 @media(max-width:960px){
-  :root{--ui-control-height:44px;--ui-page-pad-x:12px;--ui-page-pad-y:14px;--ui-page-pad-bottom:22px;--ui-radius-sm:8px;--ui-radius-md:11px;--ui-radius-lg:14px}
+  :root{--ui-header-height:calc(58px + env(safe-area-inset-top));--ui-control-height:44px;--ui-page-pad-x:12px;--ui-page-pad-y:14px;--ui-page-pad-bottom:22px;--ui-radius-sm:8px;--ui-radius-md:11px;--ui-radius-lg:14px}
   html{scroll-padding-top:72px}
   body{font-size:14px;line-height:1.42;-webkit-text-size-adjust:100%;text-size-adjust:100%}
   body.ui-context-open{overflow:hidden}

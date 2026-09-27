@@ -75,6 +75,17 @@ test('site interface scale uses 100% as the enlarged 125% baseline and can move 
   expect(buttonHeightAt80).toBeGreaterThanOrEqual(32);
   expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('');
 
+  await page.locator('.app-header-home').click();
+  await expect(page).toHaveURL(/\/$/);
+  await waitForRouteReady(page);
+  const density80 = await page.locator('[data-dashboard-range="24h"]').evaluate((node) => ({
+    height:node.getBoundingClientRect().height,
+    fontSize:parseFloat(getComputedStyle(node).fontSize)
+  }));
+  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await waitForRouteReady(page);
+
   await input.fill('100');
   await page.locator('#site-settings-submit').click();
   await expect(page.locator('#site-settings-message')).toContainText('сохранены');
@@ -87,7 +98,20 @@ test('site interface scale uses 100% as the enlarged 125% baseline and can move 
   expect(await page.locator('html').evaluate((node) => node.style.zoom)).toBe('');
   expect(await page.evaluate(() => localStorage.getItem('mira-tv-ui-scale-percent'))).toBe('100');
 
+  await page.locator('.app-header-home').click();
+  await expect(page).toHaveURL(/\/$/);
+  await waitForRouteReady(page);
+  const density100 = await page.locator('[data-dashboard-range="24h"]').evaluate((node) => ({
+    height:node.getBoundingClientRect().height,
+    fontSize:parseFloat(getComputedStyle(node).fontSize)
+  }));
+  expect(density100.height).toBeGreaterThan(density80.height);
+  expect(density100.fontSize).toBeGreaterThan(density80.fontSize);
+
   if (original !== 100) {
+    await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await waitForRouteReady(page);
     await input.fill(String(original));
     await page.locator('#site-settings-submit').click();
     await expect(page.locator('#site-settings-message')).toContainText('сохранены');

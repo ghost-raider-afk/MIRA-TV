@@ -1,4 +1,4 @@
-.scene-editor-content{height:calc(100dvh - 56px);min-height:620px;padding:8px;overflow:hidden}
+.scene-editor-content{height:calc(100dvh - var(--ui-header-height));min-height:620px;padding:8px;overflow:hidden}
 .scene-editor-form{--ui-control-height:32px;display:grid;height:100%;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:8px}
 .scene-editor-commandbar{display:flex;min-width:0;min-height:48px;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px;border:1px solid var(--ui-border);border-radius:10px;background:color-mix(in srgb,var(--ui-panel) 96%,transparent);box-shadow:0 8px 28px color-mix(in srgb,var(--ui-shadow-color) 14%,transparent)}
 .scene-editor-commandbar-main,.scene-editor-command-actions{display:flex;min-width:0;align-items:center;gap:8px}
@@ -330,7 +330,7 @@ body[data-page="scene"] .scene-table-editor-dialog{
   display:grid;
   grid-template-rows:auto auto minmax(0,1fr);
   width:min(1180px,calc(100vw - 48px));
-  height:min(760px,calc(100dvh - 56px));
+  height:min(760px,calc(100dvh - var(--ui-header-height)));
   min-width:0;
   min-height:360px;
   overflow:hidden;
@@ -505,7 +505,7 @@ body[data-page="scene"] .scene-editor-table-content-state{
   body[data-page="scene"] .app-shell{display:block;min-height:100dvh}
   body[data-page="scene"] .app-content{display:block;min-width:0}
   body[data-page="scene"] .app-header{display:flex}
-  body[data-page="scene"] .scene-editor-content{height:calc(100dvh - 56px);min-height:0;padding:8px;overflow:hidden}
+  body[data-page="scene"] .scene-editor-content{height:calc(100dvh - var(--ui-header-height));min-height:0;padding:8px;overflow:hidden}
   body[data-page="scene"] .scene-editor-form{position:static;display:grid;width:auto;height:100%;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:8px}
   body[data-page="scene"] .scene-editor-workspace{height:auto;min-height:0}
 }
