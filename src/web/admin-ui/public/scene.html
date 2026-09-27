@@ -37,7 +37,16 @@
               </div>
             </section>
 
-            <p class="form-message is-hidden scene-editor-message" id="scene-editor-message" role="status" aria-live="polite"></p>
+            <div class="scene-editor-status-stack">
+              <p class="form-message is-hidden scene-editor-message" id="scene-editor-message" role="status" aria-live="polite"></p>
+              <div id="scene-editor-agent-setup" class="scene-editor-agent-setup" hidden>
+                <div>
+                  <strong>Для Video Mode нужен MIRA Render Agent</strong>
+                  <span>Установите его один раз на этом компьютере. Node.js, FFmpeg и автозапуск настроятся автоматически.</span>
+                </div>
+                <a id="scene-editor-agent-install" class="button button-primary" href="/api/render-agent/installer/windows" download="MIRA-Render-Agent-Setup.cmd">Установить Render Agent</a>
+              </div>
+            </div>
 
             <div class="scene-editor-workspace">
               <aside class="scene-editor-panel scene-editor-layers-panel" aria-label="Слои сцены">

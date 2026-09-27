@@ -1,6 +1,12 @@
 import express from 'express';
 import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
 import {
+  readRenderAgentSource,
+  readWindowsInstallerSource,
+  renderAgentServerOrigin,
+  windowsBootstrapCommand
+} from '../../services/render-agent-installer-service.js';
+import {
   buildRenderAgentPackage,
   verifyRenderUploadToken
 } from '../../services/render-agent-package-service.js';
@@ -17,6 +23,26 @@ function closeEnough(value, expected, tolerance) {
 
 export function createRenderAgentPublicRouter({ store, config, realtime }) {
   const router = express.Router();
+
+  router.get('/agent.js', async (_request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    response.type('text/javascript; charset=utf-8');
+    response.send(await readRenderAgentSource());
+  });
+
+  router.get('/installer/windows.ps1', async (_request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    response.type('text/plain; charset=utf-8');
+    response.send(await readWindowsInstallerSource());
+  });
+
+  router.get('/installer/windows', (request, response) => {
+    const origin = renderAgentServerOrigin(request, config);
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('Content-Disposition', 'attachment; filename="MIRA-Render-Agent-Setup.cmd"');
+    response.type('application/octet-stream');
+    response.send(windowsBootstrapCommand(origin));
+  });
 
   router.get('/context', async (request, response) => {
     const token = verifyRenderUploadToken(String(request.query?.token || ''), config);
