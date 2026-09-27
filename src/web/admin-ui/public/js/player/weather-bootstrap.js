@@ -1,5 +1,5 @@
 import { replaceChildrenCompat } from '../core/dom-compat.js';
-import { normaliseWeatherWidget, renderWeatherWidget } from '../motion/weather-widget.js';
+import { normaliseWeatherWidget, renderWeatherWidget } from './weather-widget.js';
 
 const LEGACY_CACHE_KEY = 'mira-tv.weather.last.v1';
 const CACHE_PREFIX = 'mira-tv.weather.last.v2.';

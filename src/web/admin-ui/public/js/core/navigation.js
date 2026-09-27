@@ -8,7 +8,6 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Настройки монитора', prefetch: true }),
   Object.freeze({ path: '/scene', page: 'scene', section: 'monitors', title: 'Сцена', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
-  Object.freeze({ path: '/playlist', page: 'playlist', section: 'monitors', title: 'Плейлист', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
   Object.freeze({ path: '/events', page: 'events', section: 'settings', title: 'Журнал событий', prefetch: true }),
   Object.freeze({ path: '/profile', page: 'profile', section: 'settings', title: 'Профиль', prefetch: true })
@@ -21,7 +20,7 @@ const ROUTE_PATHS = new Set(ROUTE_DEFINITIONS.map((route) => route.path));
 export function canonicalRoutePath(pathname) {
   const source = String(pathname || '/');
   if (source === '/index.html' || source === '/index') return '/';
-  if (source === '/animation.html' || source === '/animation') return '/playlist';
+  if (source === '/animation.html' || source === '/animation' || source === '/playlist.html' || source === '/playlist') return '/scene';
   if (source.endsWith('.html')) return source.slice(0, -5) || '/';
   return source;
 }
@@ -38,7 +37,7 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Плейлист', '/playlist'], ['Подключить ТВ', '/connect-tv']]),
+  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Подключить ТВ', '/connect-tv']]),
   catalog: Object.freeze([['Продукция', '/catalog']]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });

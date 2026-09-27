@@ -102,7 +102,7 @@ function contentScaleFactor(node, content, element) {
 }
 
 function responsiveContent(element) {
-  return ['weather', 'image', 'video', 'logo'].includes(element?.type);
+  return ['weather', 'image', 'logo'].includes(element?.type);
 }
 
 function applyContentGeometry(node, content, element) {
@@ -175,23 +175,12 @@ function objectFit(value) {
   return value === 'cover' || value === 'fill' ? value : 'contain';
 }
 
-function mediaNode(type) {
-  if (type === 'video') {
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    video.controls = false;
-    video.preload = 'metadata';
-    video.setAttribute('playsinline', '');
-    video.setAttribute('disablepictureinpicture', '');
-    video.setAttribute('aria-hidden', 'true');
-    return video;
-  }
+function mediaNode() {
   const image = document.createElement('img');
   image.alt = '';
   image.decoding = 'async';
   image.loading = 'eager';
-  image.setAttribute('aria-hidden', 'true');
+  image.setAttribute('aria-hidden','true');
   return image;
 }
 
@@ -295,36 +284,15 @@ function renderText(node, text) {
   node.append(flow);
 }
 
-function syncVideo(video, element, playbackAllowed) {
-  if (!(video instanceof HTMLVideoElement)) return;
-  const media = element?.media || {};
-  video.loop = media.loop !== false;
-  video.muted = media.muted !== false;
-  video.defaultMuted = video.muted;
-  const playbackRate = Number(media.playback_rate || 1);
-  if (Number.isFinite(playbackRate) && playbackRate >= 0.25 && playbackRate <= 4) video.playbackRate = playbackRate;
-
-  const shouldPlay = element?.enabled !== false && playbackAllowed && Boolean(video.dataset.sceneSource);
-  if (!shouldPlay) {
-    video.pause();
-    return;
-  }
-  const play = video.play();
-  if (play && typeof play.catch === 'function') play.catch(() => {});
-}
-
-function updateMedia(node, element, playbackAllowed) {
+function updateMedia(node, element) {
   const media = element?.media || {};
   const source = element?.enabled === false ? '' : sameOriginAsset(media.source_url);
   applyMediaLayout(node, media);
   if (node.dataset.sceneSource !== source) {
     node.dataset.sceneSource = source;
-    if (node instanceof HTMLVideoElement) node.pause();
     if (source) node.setAttribute('src', source);
     else node.removeAttribute('src');
-    if (node instanceof HTMLVideoElement) node.load();
   }
-  if (node instanceof HTMLVideoElement) syncVideo(node, element, playbackAllowed);
 }
 
 function createContent(type) {
@@ -339,10 +307,10 @@ function createContent(type) {
     node.setAttribute('aria-hidden', 'true');
     return node;
   }
-  return mediaNode(type);
+  return mediaNode();
 }
 
-function updateContent(content, element, playbackAllowed) {
+function updateContent(content, element) {
   if (element.type === 'text') {
     renderText(content, element.text);
     return;
@@ -353,7 +321,7 @@ function updateContent(content, element, playbackAllowed) {
     content.dataset.showCondition = element.weather?.show_condition === false ? 'false' : 'true';
     return;
   }
-  updateMedia(content, element, playbackAllowed);
+  updateMedia(content, element);
 }
 
 function applyGeometry(node, element) {
@@ -373,43 +341,25 @@ function applyGeometry(node, element) {
 }
 
 export class SceneElementRenderer {
-  constructor(layer, { activityTarget = null, autoplay = true } = {}) {
+  constructor(layer) {
     if (!(layer instanceof HTMLElement)) throw new TypeError('SceneElementRenderer requires an HTMLElement layer.');
     this.layer = layer;
-    this.activityTarget = activityTarget instanceof HTMLElement ? activityTarget : null;
-    this.autoplay = autoplay !== false;
-    this.active = this.activityTarget ? this.activityTarget.dataset.playerActive === 'true' : true;
-    this.sceneVisible = this.activityTarget?.dataset.scenePlaylistFullscreen !== 'true';
     this.entries = new Map();
     this.destroyed = false;
-    this.handleVisibilityChange = () => this.syncVideos();
-    this.handlePlayerActivity = (event) => {
-      this.active = event?.detail?.active === true;
-      this.syncVideos();
-    };
-    this.handleScenePlaylistMode = (event) => {
-      this.sceneVisible = event?.detail?.fullscreen !== true;
-      this.syncVideos();
-    };
-    layer.setAttribute('data-scene-elements-layer', '');
-    layer.setAttribute('aria-hidden', 'true');
+    layer.setAttribute('data-scene-elements-layer','');
+    layer.setAttribute('aria-hidden','true');
     layer.style.position = 'absolute';
     layer.style.inset = '0';
     layer.style.overflow = 'hidden';
     layer.style.pointerEvents = 'none';
     layer.style.containerType = 'inline-size';
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    this.activityTarget?.addEventListener('mira:player-active', this.handlePlayerActivity);
-    this.activityTarget?.addEventListener('mira:scene-playlist-mode', this.handleScenePlaylistMode);
-  }
-
-  playbackAllowed() {
-    return this.autoplay && this.active && this.sceneVisible && document.visibilityState !== 'hidden';
   }
 
   render(scene) {
     if (this.destroyed) return;
-    const elements = Array.isArray(scene?.elements) ? scene.elements : [];
+    const elements = Array.isArray(scene?.elements)
+      ? scene.elements.filter((element) => element?.type !== 'video')
+      : [];
     const liveIds = new Set();
 
     for (const element of elements) {
@@ -420,13 +370,12 @@ export class SceneElementRenderer {
       if (!entry) {
         const node = document.createElement('div');
         node.dataset.sceneElementId = id;
-        node.setAttribute('aria-hidden', 'true');
-        entry = { node, type: '', content: null, fingerprint: '', element: null };
+        node.setAttribute('aria-hidden','true');
+        entry = { node, type:'', content:null, fingerprint:'', element:null };
         this.entries.set(id, entry);
       }
 
       if (entry.type !== element.type || !(entry.content instanceof HTMLElement)) {
-        if (entry.content instanceof HTMLVideoElement) entry.content.pause();
         replaceChildrenCompat(entry.node);
         entry.content = createContent(element.type);
         entry.node.append(entry.content);
@@ -440,17 +389,14 @@ export class SceneElementRenderer {
       this.layer.append(entry.node);
       entry.element = element;
       if (entry.fingerprint !== fingerprint) {
-        updateContent(entry.content, element, this.playbackAllowed());
+        updateContent(entry.content, element);
         entry.fingerprint = fingerprint;
-      } else if (entry.content instanceof HTMLVideoElement) {
-        syncVideo(entry.content, element, this.playbackAllowed());
       }
       applyContentGeometry(entry.node, entry.content, element);
     }
 
-    for (const [id, entry] of this.entries) {
+    for (const [id,entry] of this.entries) {
       if (liveIds.has(id)) continue;
-      if (entry.content instanceof HTMLVideoElement) entry.content.pause();
       entry.node.remove();
       this.entries.delete(id);
     }
@@ -466,29 +412,15 @@ export class SceneElementRenderer {
     return this.entries.get(String(elementId || ''))?.content || null;
   }
 
-  syncVideos() {
-    if (this.destroyed) return;
-    for (const entry of this.entries.values()) {
-      if (entry.content instanceof HTMLVideoElement) syncVideo(entry.content, entry.element, this.playbackAllowed());
-    }
-  }
-
   clear() {
-    for (const entry of this.entries.values()) {
-      if (entry.content instanceof HTMLVideoElement) entry.content.pause();
-      entry.node.remove();
-    }
+    for (const entry of this.entries.values()) entry.node.remove();
     this.entries.clear();
   }
 
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    this.activityTarget?.removeEventListener('mira:player-active', this.handlePlayerActivity);
-    this.activityTarget?.removeEventListener('mira:scene-playlist-mode', this.handleScenePlaylistMode);
     this.clear();
-    this.activityTarget = null;
     this.layer = null;
   }
 }

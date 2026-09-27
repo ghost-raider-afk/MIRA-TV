@@ -8,8 +8,6 @@ export const API = Object.freeze({
   userSettings: '/api/settings/user',
   userPassword: '/api/settings/user/password',
   siteSettings: '/api/settings/site',
-  animationSettings: '/api/settings/animation',
-  animationApply: '/api/settings/animation/apply',
   notifications: '/api/notifications',
   frontendErrors: '/api/diagnostics/frontend-errors',
   locations: '/api/locations',
@@ -28,8 +26,5 @@ export const API = Object.freeze({
 });
 
 export function pageName() {
-  const declared = document.body?.dataset?.page || '';
-  const pathname = window.location.pathname;
-  if ((pathname === '/playlist' || pathname === '/playlist.html' || pathname === '/animation' || pathname === '/animation.html') && declared === 'animation') return 'playlist';
-  return declared;
+  return document.body?.dataset?.page || '';
 }

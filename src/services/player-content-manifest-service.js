@@ -44,7 +44,7 @@ function localPathForUrl(url, config) {
   return contentAssetPathForUrl(url, config) || legacyPathForUrl(url, config);
 }
 
-function collectAssetReferences(draft, scene, sceneVideo = null) {
+function collectAssetReferences(draft, scene) {
   const assets = new Map();
   const add = (value, role) => {
     const url = localAssetUrl(value);
@@ -56,10 +56,9 @@ function collectAssetReferences(draft, scene, sceneVideo = null) {
 
   add(draft?.settings?.background_image_url, 'background');
   for (const element of Array.isArray(scene?.elements) ? scene.elements : []) {
-    if (element?.enabled === false || !['image', 'logo', 'video'].includes(element?.type)) continue;
+    if (element?.enabled === false || !['image', 'logo'].includes(element?.type)) continue;
     add(element?.media?.source_url, element.type);
   }
-  if (sceneVideo?.status === 'ready') add(sceneVideo.source_url, 'baked-scene');
   return [...assets.values()];
 }
 
@@ -82,8 +81,8 @@ async function describeAsset(entry, config) {
   });
 }
 
-export async function buildPlayerContentManifest({ draft, scene, sceneVideo = null, renderRevision, config }) {
-  const references = collectAssetReferences(draft, scene, sceneVideo);
+export async function buildPlayerContentManifest({ draft, scene, renderRevision, config }) {
+  const references = collectAssetReferences(draft, scene);
   const assets = await Promise.all(references.map((entry) => describeAsset(entry, config)));
   assets.sort((a, b) => a.url.localeCompare(b.url));
   return Object.freeze({

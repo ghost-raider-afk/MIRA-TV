@@ -106,7 +106,7 @@ function wireContext(shell, rail, context, header) {
     if (!phoneLayout() || !contextAvailable(context)) return;
     const opening = context.classList.contains('is-collapsed');
     setCollapsed(shell, context, !opening);
-    if (opening) requestAnimationFrame(() => focusContext(context));
+    if (opening) focusContext(context);
   });
 
   backdrop?.addEventListener('click', () => {
@@ -216,5 +216,5 @@ export function initialiseShell() {
   wireContext(shell, rail, context, header);
   refreshShellRoute();
   shell.classList.add('ui-shell-ready');
-  requestAnimationFrame(() => shell.classList.remove('ui-shell-bootstrapping'));
+  shell.classList.remove('ui-shell-bootstrapping');
 }

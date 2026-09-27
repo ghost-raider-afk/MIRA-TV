@@ -95,11 +95,6 @@ function fitStage(stage, width, height) {
   observers.set(stage, resize);
 }
 
-export function playerMenuRenderMode(context = {}) {
-  const animation = context?.animation;
-  return animation?.enabled === true && animation?.profile ? 'flat-motion' : 'flat';
-}
-
 export class FlatMenuRenderer {
   constructor() {
     this.generation = 0;

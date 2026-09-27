@@ -1,12 +1,10 @@
 import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
-import { animationSettingsInput } from '../../contracts/animation.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { sceneInput } from '../../contracts/scene.js';
 import { ValidationError } from '../../shared/errors.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
 import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
-import { buildRenderAgentPackage, issueRenderUploadToken } from '../../services/render-agent-package-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 function settingsOptions(config) {
@@ -20,9 +18,7 @@ function notifyRevisions(realtime, revisions) {
 async function cloneScreen(tx, sourceId, targetLocationId, config, updatedBy) {
   const source = await tx.getScreen(sourceId);
   if (!source) throw notFound();
-  const [draft, sourceAnimation] = await Promise.all([
-    tx.getScreenDraft(source.id), tx.getScreenAnimationSettings(source.id)
-  ]);
+  const draft = await tx.getScreenDraft(source.id);
   const created = await tx.createScreen({ location_id: targetLocationId, resolution: source.resolution, status: 'draft', active: source.active !== false });
   const saved = await tx.saveScreenDraft(created.id, {
     rows: structuredClone(draft.rows || []),
@@ -30,11 +26,7 @@ async function cloneScreen(tx, sourceId, targetLocationId, config, updatedBy) {
     scene: structuredClone(draft.scene || { version: 1, elements: [] })
   }, 1);
   if (!saved) throw conflict('Не удалось создать независимую копию монитора.');
-  if (sourceAnimation) {
-    const applied = await tx.applyAnimationSettingsToScreens([created.id], sourceAnimation, updatedBy);
-    if (applied.length !== 1) throw conflict('Не удалось создать независимую копию плейлиста монитора.');
-  }
-  await tx.markScreenRenderChanged([created.id], ['screen', 'menu', 'scene', 'animation', 'scene_playlist'], 'screen.cloned', updatedBy);
+  await tx.markScreenRenderChanged([created.id], ['screen', 'menu', 'scene'], 'screen.cloned', updatedBy);
   return tx.getScreen(created.id);
 }
 
@@ -72,7 +64,7 @@ function changedDraftComponents(currentScreen, currentDraft, nextScreen, nextDra
   return changed;
 }
 
-const BULK_SCENE_KINDS = new Set(['weather', 'image', 'video']);
+const BULK_SCENE_KINDS = new Set(['weather', 'image']);
 
 function bulkTargetScreenIds(value, sourceScreenId) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
@@ -138,98 +130,16 @@ export function createScreensRouter({ store, config, realtime }) {
     if (!await store.getScreen(id)) throw notFound();
     response.json(await store.listScreenRenderEvents(id, request.query.limit));
   });
-  router.get('/screens/:id/render-package', async (request, response) => {
-    const id = positiveId(request.params.id, 'id');
-    const renderPackage = await buildRenderAgentPackage(store, id, config);
-    if (!renderPackage) throw notFound();
-    const reusable = typeof store.findBakedSceneByInputHash === 'function'
-      ? await store.findBakedSceneByInputHash(renderPackage.input_hash)
-      : null;
-    response.setHeader('Cache-Control', 'private, no-store');
-    response.json({
-      package: renderPackage,
-      upload: {
-        method: 'PUT',
-        url: `/api/render-agent/screens/${id}/video`,
-        token: issueRenderUploadToken(renderPackage, config)
-      },
-      reusable_scene_video: reusable ? {
-        source_url: reusable.active_url,
-        content_hash: reusable.active_hash,
-        width: reusable.width,
-        height: reusable.height,
-        fps: reusable.fps,
-        duration_ms: reusable.duration_ms
-      } : null
-    });
-  });
-
-  router.post('/screens/:id/render-package/reuse', async (request, response) => {
-    const id = positiveId(request.params.id, 'id');
-    const renderPackage = await buildRenderAgentPackage(store, id, config);
-    if (!renderPackage) throw notFound();
-    if (renderPackage.bake_supported !== true) {
-      return response.status(409).json({
-        error: 'Эта сцена пока требует live renderer.',
-        reason: renderPackage.unsupported_reason
-      });
-    }
-    const reusable = typeof store.findBakedSceneByInputHash === 'function'
-      ? await store.findBakedSceneByInputHash(renderPackage.input_hash)
-      : null;
-    if (!reusable?.active_url || !reusable?.active_hash) {
-      return response.status(404).json({ error: 'Готовый ролик для этой сцены не найден.' });
-    }
-    const record = await store.activateBakedScene({
-      screenId:id,
-      sourceRenderRevision:renderPackage.render_revision,
-      inputHash:renderPackage.input_hash,
-      activeUrl:reusable.active_url,
-      activeHash:reusable.active_hash,
-      width:reusable.width,
-      height:reusable.height,
-      fps:reusable.fps,
-      durationMs:reusable.duration_ms,
-      agentVersion:reusable.agent_version || 'reused',
-      liveScene:{
-        version:1,
-        elements:Array.isArray(renderPackage.live_overlays?.weather)
-          ? renderPackage.live_overlays.weather
-          : []
-      },
-      updatedBy:request.session.sub
-    });
-    realtime?.notifyScreen?.(id, renderPackage.render_revision);
-    await activity(store, request, {
-      action:'screen.baked_scene.reused',
-      entity_type:'screen',
-      entity_id:id,
-      message:`Готовая Video Scene повторно использована для монитора «${renderPackage.screen.name}».`
-    });
-    return response.json({
-      reused:true,
-      screen_id:id,
-      render_revision:record.source_render_revision,
-      input_hash:record.input_hash,
-      scene_video:{
-        source_url:record.active_url,
-        content_hash:record.active_hash
-      }
-    });
-  });
-
   router.get('/screens/:id/editor', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     const screen = await store.getScreen(id);
     if (!screen) throw notFound();
-    const [draft, products, packaging, screenAnimation, globalAnimation] = await Promise.all([
+    const [draft, products, packaging] = await Promise.all([
       store.getScreenDraft(id),
       store.listProducts(),
-      store.listPackaging(),
-      store.getScreenAnimationSettings(id),
-      store.getAnimationSettings()
+      store.listPackaging()
     ]);
-    response.json({ screen, draft, products, packaging, animation:screenAnimation || globalAnimation });
+    response.json({ screen, draft, products, packaging });
   });
 
   router.put('/screens/:id/scene-asset', async (request, response) => {
@@ -258,7 +168,7 @@ export function createScreensRouter({ store, config, realtime }) {
 
     const kind = String(request.body?.kind || '');
     if (kind !== 'background' && !BULK_SCENE_KINDS.has(kind)) {
-      throw new ValidationError('Комплексное применение поддерживает фон, погоду, картинку и видео.');
+      throw new ValidationError('Комплексное применение поддерживает фон, погоду и картинку.');
     }
     const targetScreenIds = bulkTargetScreenIds(request.body?.target_screen_ids, sourceScreenId);
     const typeIndex = kind === 'background' ? 0 : bulkElementTypeIndex(request.body?.type_index ?? 0);
@@ -347,7 +257,6 @@ export function createScreensRouter({ store, config, realtime }) {
       const current = await tx.getScreen(id);
       if (!current) throw notFound();
       const currentDraft = await tx.getScreenDraft(id);
-      const currentAnimation = await tx.getScreenAnimationSettings(id) || await tx.getAnimationSettings();
       const previousSceneAssets = new Set(sceneAssetUrls(currentDraft?.scene));
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
@@ -362,42 +271,18 @@ export function createScreensRouter({ store, config, realtime }) {
       const saved = await tx.saveScreenDraft(id, draft, expectedRevision);
       if (!saved) throw conflict('Меню уже было изменено в другом окне. Обновите редактор и повторите изменения.', { expected_revision: expectedRevision });
 
-      let savedAnimation = currentAnimation;
-      let animationChanged = false;
-      if (request.body?.animation && typeof request.body.animation === 'object' && !Array.isArray(request.body.animation)) {
-        savedAnimation = animationSettingsInput({
-          ...(currentAnimation || {}),
-          ...request.body.animation,
-          scene_playlist:currentAnimation?.scene_playlist
-        });
-        animationChanged = !sameJson({
-          enabled:currentAnimation?.enabled === true,
-          preset_id:currentAnimation?.preset_id || 'cinematic-live-menu',
-          profile:currentAnimation?.profile || {}
-        }, {
-          enabled:savedAnimation.enabled === true,
-          preset_id:savedAnimation.preset_id,
-          profile:savedAnimation.profile
-        });
-        if (animationChanged) {
-          const applied = await tx.applyAnimationSettingsToScreens([id], savedAnimation, request.session.sub);
-          if (applied.length !== 1) throw conflict('Не удалось сохранить анимацию текущего монитора.');
-        }
-      }
-
       const changedComponents = changedDraftComponents(current, currentDraft, updatedScreen, saved);
-      if (animationChanged) changedComponents.push('animation');
       const revisions = changedComponents.length
         ? await tx.markScreenRenderChanged([id], changedComponents, 'screen.state.saved', request.session.sub)
         : [];
       const nextSceneAssets = new Set(sceneAssetUrls(saved.scene));
       const droppedSceneAssets = [...previousSceneAssets].filter((url) => !nextSceneAssets.has(url));
-      return { screen: await tx.getScreen(id), draft: saved, animation:savedAnimation, revisions, droppedSceneAssets };
+      return { screen: await tx.getScreen(id), draft:saved, revisions, droppedSceneAssets };
     });
     await Promise.all((result.droppedSceneAssets || []).map((url) => deleteSceneAsset(url, { store, config })));
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
     notifyRevisions(realtime, result.revisions);
-    response.json({ screen: result.screen, draft: result.draft, animation:result.animation });
+    response.json({ screen:result.screen, draft:result.draft });
   });
 
   router.put('/screens/:id/background', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'], limit: config.screenBackgroundMaxBytes }), async (request, response) => {

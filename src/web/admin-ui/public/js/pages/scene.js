@@ -2,11 +2,7 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { element, setMessage, setPending } from '../core/dom.js';
 import { updateSceneElement, selectSceneElement } from '../editor/commands.js';
-import {
-  PROMOTION_BADGE_ANIMATION_OPTIONS,
-  PROMOTION_ROW_ANIMATION_OPTIONS,
-  renderTableEditorRows
-} from '../editor/rows.js';
+import { renderTableEditorRows } from '../editor/rows.js';
 import { createEditorHistory } from '../editor/history.js';
 import { createEditorState, replaceEditorState } from '../editor/state.js';
 import { MENU_PRICE_FONT_SIZE } from '../editor/renderer.js';
@@ -16,37 +12,24 @@ import {
   renderSceneLayerList
 } from '../editor/elements.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
-import {
-  DEFAULT_LIVE_PROFILE,
-  bindMotionProfileControls,
-  readMotionProfile,
-  writeMotionProfile
-} from '../motion/profile-editor.js';
-
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 const ELEMENT_LABELS = Object.freeze({
   text: 'Текстовое поле',
   logo: 'Логотип',
   image: 'Картинка',
-  video: 'Видео',
   weather: 'Погода',
   background: 'Фон',
   promotion: 'Акция',
-  'promotion-row': 'Акционная строка',
-  animation: 'Анимация сцены',
   table: 'Таблица меню'
 });
 const ELEMENT_ICONS = Object.freeze({
   text: 'T',
   logo: '◈',
   image: '▧',
-  video: '▶',
   weather: '☁',
   background: '▧',
   promotion: '◆',
-  'promotion-row': '═',
-  animation: '∿',
   table: '▦'
 });
 const TABLE_FONTS = Object.freeze([
@@ -59,7 +42,7 @@ const TABLE_FONTS = Object.freeze([
 ]);
 
 function systemOwnerIcon(type) {
-  if (!['background','promotion','promotion-row','animation','table'].includes(type)) return null;
+  if (!['background','promotion','table'].includes(type)) return null;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
@@ -69,26 +52,6 @@ function systemOwnerIcon(type) {
     const tag = document.createElementNS(svg.namespaceURI, 'path');
     tag.setAttribute('d', 'M4 7h12l4 5-4 5H4zM8 10h5M8 14h7');
     svg.append(tag);
-    return svg;
-  }
-
-  if (type === 'promotion-row') {
-    const row = document.createElementNS(svg.namespaceURI, 'rect');
-    row.setAttribute('x', '3.5');
-    row.setAttribute('y', '7');
-    row.setAttribute('width', '17');
-    row.setAttribute('height', '10');
-    row.setAttribute('rx', '2');
-    const line = document.createElementNS(svg.namespaceURI, 'path');
-    line.setAttribute('d', 'M6 12h12');
-    svg.append(row, line);
-    return svg;
-  }
-
-  if (type === 'animation') {
-    const wave = document.createElementNS(svg.namespaceURI, 'path');
-    wave.setAttribute('d', 'M3.5 15c2.1-5.3 4.2-5.3 6.3 0s4.2 5.3 6.3 0S20 9.7 21 12M4 9c1.5-2.5 3-2.5 4.5 0');
-    svg.append(wave);
     return svg;
   }
 
@@ -144,12 +107,6 @@ function labelForScreen(screen) {
   return `${screen.location_name || 'Без точки'} — ${screen.name}`;
 }
 
-function menuMotionEnabled(profile) {
-  return profile?.section_effect !== 'none'
-    || profile?.item_effect !== 'none'
-    || profile?.promotion_effect !== 'none';
-}
-
 function createState() {
   return createEditorState();
 }
@@ -167,15 +124,10 @@ export function initialiseSceneEditor() {
   const addMenu = element('scene-editor-add-menu');
   const backgroundLayer = element('scene-editor-background-layer');
   const promotionLayer = element('scene-editor-promotion-layer');
-  const promotionRowLayer = element('scene-editor-promotion-row-layer');
-  const animationLayer = element('scene-editor-animation-layer');
   const tableLayer = element('scene-editor-table-layer');
   const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
   const undoButton = element('scene-editor-undo');
   const redoButton = element('scene-editor-redo');
-  const publishButton = element('scene-editor-publish');
-  const agentSetup = element('scene-editor-agent-setup');
-  const agentInstallLink = element('scene-editor-agent-install');
   const screenSelect = element('scene-editor-screen');
   if (!(form instanceof HTMLFormElement)
       || !(stage instanceof HTMLElement)
@@ -189,14 +141,9 @@ export function initialiseSceneEditor() {
       || !(addMenu instanceof HTMLElement)
       || !(backgroundLayer instanceof HTMLButtonElement)
       || !(promotionLayer instanceof HTMLButtonElement)
-      || !(promotionRowLayer instanceof HTMLButtonElement)
-      || !(animationLayer instanceof HTMLButtonElement)
       || !(tableLayer instanceof HTMLButtonElement)
       || !(undoButton instanceof HTMLButtonElement)
       || !(redoButton instanceof HTMLButtonElement)
-      || !(publishButton instanceof HTMLButtonElement)
-      || !(agentSetup instanceof HTMLElement)
-      || !(agentInstallLink instanceof HTMLAnchorElement)
       || !(screenSelect instanceof HTMLSelectElement)) return undefined;
 
   const token = ++generation;
@@ -204,17 +151,10 @@ export function initialiseSceneEditor() {
   let renderer = null;
   let screens = [];
   let currentBundle = null;
-  let currentAnimationSettings = {
-    enabled:true,
-    preset_id:'cinematic-live-menu',
-    profile:structuredClone(DEFAULT_LIVE_PROFILE),
-    scene_playlist:null
-  };
   let currentScreenId = null;
   let disposed = false;
   let previewFrame = 0;
   let documentPreviewFrame = 0;
-  let agentProbeTimer = null;
   let resizeObserver = null;
   let interactionActive = false;
   let selectedOwner = 'none';
@@ -249,15 +189,11 @@ export function initialiseSceneEditor() {
       ? 'Фон'
       : selectedOwner === 'promotion'
         ? 'Акция'
-        : selectedOwner === 'promotion-row'
-          ? 'Акционная строка'
-          : selectedOwner === 'animation'
-            ? 'Анимация сцены'
-            : selectedOwner === 'table'
-              ? 'Таблица меню'
-              : selected
-                ? `Элемент ${index + 1}`
-                : 'Элемент не выбран';
+        : selectedOwner === 'table'
+          ? 'Таблица меню'
+          : selected
+            ? `Элемент ${index + 1}`
+            : 'Элемент не выбран';
 
     if (status) {
       status.textContent = selected
@@ -310,8 +246,6 @@ export function initialiseSceneEditor() {
     selectionLayer.querySelector('.scene-editor-table-selection-box')?.classList.toggle('is-selected', selectedOwner === 'table');
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
     promotionLayer.classList.toggle('is-selected', selectedOwner === 'promotion');
-    promotionRowLayer.classList.toggle('is-selected', selectedOwner === 'promotion-row');
-    animationLayer.classList.toggle('is-selected', selectedOwner === 'animation');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     setSelectionStatus();
   }
@@ -636,182 +570,27 @@ export function initialiseSceneEditor() {
     propertiesRoot.append(stack);
   }
 
-  function animationSelect(id, labelText, options) {
-    const select = document.createElement('select');
-    select.id = id;
-    select.setAttribute('aria-label', labelText);
-    for (const [value, label] of options) select.add(new Option(label, value));
-    return makeField(labelText, select);
-  }
-
-  function animationToggle(id, labelText, helperText = '') {
-    const label = document.createElement('label');
-    label.className = 'scene-animation-toggle';
-    const input = document.createElement('input');
-    input.id = id;
-    input.type = 'checkbox';
-    input.setAttribute('aria-label', labelText);
-    const copy = document.createElement('span');
-    const title = document.createElement('strong');
-    title.textContent = labelText;
-    copy.append(title);
-    if (helperText) copy.append(Object.assign(document.createElement('small'), { textContent:helperText }));
-    label.append(input, copy);
-    return label;
-  }
-
-  function animationRange(id, labelText, min, max, step, outputId) {
-    const label = document.createElement('label');
-    label.className = 'field scene-animation-range';
-    const caption = document.createElement('span');
-    caption.textContent = labelText;
-    const line = document.createElement('div');
-    const input = compactInput('range', '', { min, max, step });
-    input.id = id;
-    input.setAttribute('aria-label', labelText);
-    const output = document.createElement('output');
-    output.id = outputId;
-    line.append(input, output);
-    label.append(caption, line);
-    return label;
-  }
-
-  function hiddenAnimationControl(id, type = 'hidden', value = '') {
-    const control = document.createElement('input');
-    control.id = id;
-    control.type = type;
-    if (type === 'checkbox') control.className = 'is-hidden';
-    else control.value = value;
-    return control;
-  }
-
-  function promotionRows() {
-    return state.rows.filter((row) => row?.kind === 'item' && row?.promotion === true);
-  }
-
-  function renderPromotionPresetSelect(titleText, field, options, fallback) {
-    const fieldRoot = document.createElement('label');
-    fieldRoot.className = 'field scene-animation-preset-field';
-    const title = document.createElement('span');
-    title.textContent = titleText;
-    const select = document.createElement('select');
-    select.setAttribute('aria-label', titleText);
-    const rows = promotionRows();
-    const values = new Set(rows.map((row) => row[field] || fallback));
-    if (values.size > 1) select.add(new Option('— Разные значения —', ''));
-    for (const [value, label] of options) select.add(new Option(label, value));
-    select.value = values.size === 1 ? [...values][0] : '';
-    select.disabled = rows.length === 0;
-    select.addEventListener('change', () => {
-      if (!rows.length || !select.value) return;
-      history.checkpoint();
-      for (const row of rows) row[field] = select.value;
-      state.dirty = true;
-      setDirty();
-      scheduleDocumentRender();
-      renderInspector();
-      setSelectionStatus();
-    });
-    fieldRoot.append(title, select);
-    return fieldRoot;
-  }
-
-  function bindCurrentMotionInspector() {
-    const source = currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE;
-    writeMotionProfile(source);
-    bindMotionProfileControls((profile) => {
-      currentAnimationSettings = {
-        ...(currentAnimationSettings || {}),
-        enabled:menuMotionEnabled(profile),
-        preset_id:currentAnimationSettings?.preset_id || 'cinematic-live-menu',
-        profile
-      };
-      state.dirty = true;
-      setDirty();
-      void renderer?.render(sceneContext(), ['animation']);
-    }, source);
-  }
-
-  function renderAnimationInspector() {
-    tableEditLayer.hidden = true;
-    tableEditLayer.replaceChildren();
-    propertiesRoot.replaceChildren();
-
-    const stack = document.createElement('div');
-    stack.className = 'scene-editor-inspector-stack scene-animation-inspector';
-
-    const menu = document.createElement('details');
-    menu.className = 'scene-editor-inspector-group';
-    menu.open = true;
-    menu.append(Object.assign(document.createElement('summary'), { textContent:'Анимация сцены' }));
-    const menuPanel = document.createElement('div');
-    menuPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
-    const menuGrid = document.createElement('div');
-    menuGrid.className = 'scene-animation-control-grid';
-    menuGrid.append(
-      animationSelect('animation-pattern', 'Характер', [
-        ['cinematic','Cinematic light'],['ambient','Ambient Glow'],['wave','Light Drift'],
-        ['focus','Focus Pulse'],['pulse','Soft Pulse'],['spark','Neon Spark'],['parallax','Depth Light']
-      ]),
-      animationSelect('animation-flow-direction', 'Направление', [
-        ['alternate','Встречное'],['left-to-right','Слева направо'],['right-to-left','Справа налево'],
-        ['top-to-bottom','Сверху вниз'],['bottom-to-top','Снизу вверх'],['none','Без направления']
-      ]),
-      animationSelect('animation-easing', 'Пластика', [
-        ['cinematic','Киношная'],['smooth','Очень плавная'],['standard','Стандартная'],['snappy','Энергичная'],['elastic','Упругая']
-      ]),
-      animationSelect('animation-section-effect', 'Разделы', [
-        ['cinematic','Cinematic'],['wave','Волна света'],['lift','Световой подъём'],['glow','Свечение'],
-        ['pulse','Пульс'],['shimmer','Блик'],['none','Без движения']
-      ]),
-      animationSelect('animation-item-effect', 'Строки продукции', [
-        ['cinematic','Cinematic'],['wave','Light Drift'],['lift','Световой подъём'],
-        ['focus','Focus'],['breathe','Дыхание света'],['none','Без движения']
-      ])
-    );
-    const menuRanges = document.createElement('div');
-    menuRanges.className = 'scene-animation-range-grid';
-    menuRanges.append(
-      animationRange('animation-intensity','Выразительность',0,100,1,'animation-intensity-output'),
-      animationRange('animation-travel','Ход света',0,48,1,'animation-travel-output'),
-      animationRange('animation-scale','Масштаб',0,.12,.001,'animation-scale-output'),
-      animationRange('animation-brightness','Яркость',0,.7,.01,'animation-brightness-output'),
-      animationRange('animation-cycle','Период',4,30,.5,'animation-cycle-output'),
-      animationRange('animation-stagger','Фаза строк',0,600,10,'animation-stagger-output'),
-      animationRange('animation-event-duration','Длительность',400,10000,100,'animation-event-duration-output')
-    );
-    menuPanel.append(menuGrid, menuRanges);
-    menu.append(menuPanel);
-
-    const menuVisible = hiddenAnimationControl('animation-menu-visible', 'checkbox');
-    const priceEffect = hiddenAnimationControl('animation-price-effect', 'hidden', 'none');
-    stack.append(menu, menuVisible, priceEffect);
-    propertiesRoot.append(stack);
-    bindCurrentMotionInspector();
-  }
-
   function renderPromotionInspector() {
     tableEditLayer.hidden = true;
     tableEditLayer.replaceChildren();
     propertiesRoot.replaceChildren();
 
     const stack = document.createElement('div');
-    stack.className = 'scene-editor-inspector-stack scene-animation-inspector';
-
+    stack.className = 'scene-editor-inspector-stack';
     const style = document.createElement('details');
     style.className = 'scene-editor-inspector-group';
     style.open = true;
     style.append(Object.assign(document.createElement('summary'), { textContent:'Плашка акции' }));
     const stylePanel = document.createElement('div');
-    stylePanel.className = 'scene-editor-inspector-panel scene-animation-panel';
+    stylePanel.className = 'scene-editor-inspector-panel';
 
     const shape = document.createElement('select');
-    for (const [value, label] of [
+    for (const [value,label] of [
       ['base','База'],['capsule','Скруглённая капсула'],['cut','Срезанные углы'],
       ['chevron','Шеврон'],['tag','Ярлык / Tag']
-    ]) shape.add(new Option(label, value));
+    ]) shape.add(new Option(label,value));
     shape.value = state.settings.promotion_badge_shape || 'base';
-    shape.setAttribute('aria-label', 'Форма плашки акции');
+    shape.setAttribute('aria-label','Форма плашки акции');
     checkpointControl(shape);
     shape.addEventListener('change', () => patchMenuSettings({ promotion_badge_shape:shape.value }));
 
@@ -826,8 +605,8 @@ export function initialiseSceneEditor() {
     fontSize.setAttribute('aria-label','Размер шрифта акции');
     checkpointControl(fontSize);
     fontSize.addEventListener('input', () => {
-      const value=Number(fontSize.value);
-      if(Number.isFinite(value)) patchMenuSettings({promotion_font_size_percent:clamp(Math.round(value),60,180)});
+      const value = Number(fontSize.value);
+      if (Number.isFinite(value)) patchMenuSettings({ promotion_font_size_percent:clamp(Math.round(value),60,180) });
     });
 
     const weight = document.createElement('select');
@@ -835,122 +614,35 @@ export function initialiseSceneEditor() {
     weight.value = String(state.settings.promotion_font_weight || 900);
     weight.setAttribute('aria-label','Жирность шрифта акции');
     checkpointControl(weight);
-    weight.addEventListener('change', () => patchMenuSettings({promotion_font_weight:Number(weight.value)}));
+    weight.addEventListener('change', () => patchMenuSettings({ promotion_font_weight:Number(weight.value) }));
 
     const height = compactInput('number', state.settings.promotion_font_height_percent || 112, { min:70,max:180,step:1 });
     height.setAttribute('aria-label','Высота шрифта акции');
     checkpointControl(height);
     height.addEventListener('input', () => {
-      const value=Number(height.value);
-      if(Number.isFinite(value)) patchMenuSettings({promotion_font_height_percent:clamp(Math.round(value),70,180)});
+      const value = Number(height.value);
+      if (Number.isFinite(value)) patchMenuSettings({ promotion_font_height_percent:clamp(Math.round(value),70,180) });
     });
 
     const tracking = compactInput('number', state.settings.promotion_letter_spacing_px || 0, { min:-2,max:8,step:1 });
     tracking.setAttribute('aria-label','Межбуквенный интервал акции');
     checkpointControl(tracking);
     tracking.addEventListener('input', () => {
-      const value=Number(tracking.value);
-      if(Number.isFinite(value)) patchMenuSettings({promotion_letter_spacing_px:clamp(Math.round(value),-2,8)});
+      const value = Number(tracking.value);
+      if (Number.isFinite(value)) patchMenuSettings({ promotion_letter_spacing_px:clamp(Math.round(value),-2,8) });
     });
 
-    const typeGrid = document.createElement('div');
-    typeGrid.className = 'compact-form-grid';
-    typeGrid.append(
+    const grid = document.createElement('div');
+    grid.className = 'compact-form-grid';
+    grid.append(
       makeField('Форма',shape), makeField('Шрифт',font),
       makeField('Размер, %',fontSize), makeField('Жирность',weight),
       makeField('Высота, %',height), makeField('Трекинг, px',tracking)
     );
-    stylePanel.append(typeGrid);
+    stylePanel.append(grid);
     style.append(stylePanel);
-
-    const motion = document.createElement('details');
-    motion.className = 'scene-editor-inspector-group';
-    motion.open = true;
-    motion.append(Object.assign(document.createElement('summary'), { textContent:'Анимация плашки' }));
-    const motionPanel = document.createElement('div');
-    motionPanel.className = 'scene-editor-inspector-panel scene-animation-panel';
-    const presetNote = document.createElement('small');
-    presetNote.className = 'scene-animation-note';
-    presetNote.textContent = promotionRows().length
-      ? 'Настройка применяется ко всем плашкам «Акция» текущего меню.'
-      : 'В таблице пока нет строк с включённой «Акцией».';
-    motionPanel.append(
-      renderPromotionPresetSelect('Пресет эффекта', 'promotion_badge_animation', PROMOTION_BADGE_ANIMATION_OPTIONS, 'shine'),
-      presetNote
-    );
-    const motionGrid = document.createElement('div');
-    motionGrid.className = 'scene-animation-control-grid';
-    motionGrid.append(
-      animationSelect('animation-promotion-effect', 'Вся анимация акции', [['cinematic','Включена'],['none','Выключена']]),
-      animationSelect('animation-promotion-easing', 'Пластика', [['smooth','Плавная'],['cinematic','Киношная']])
-    );
-    const effectToggles = document.createElement('div');
-    effectToggles.className = 'scene-animation-toggle-grid';
-    effectToggles.append(
-      animationToggle('animation-promotion-badge-glow-enabled', 'Свечение плашки', 'Объёмное мягкое свечение'),
-      animationToggle('animation-promotion-badge-shine-enabled', 'Перелив', 'Свет проходит по всей плашке'),
-      animationToggle('animation-promotion-badge-sparkle-enabled', 'Солнечный блик', 'Короткая точечная вспышка')
-    );
-    const ranges = document.createElement('div');
-    ranges.className = 'scene-animation-range-grid';
-    ranges.append(
-      animationRange('animation-promotion-intensity','Сила плашки',0,100,1,'animation-promotion-intensity-output'),
-      animationRange('animation-promotion-brightness','Объём / яркость',0,.8,.01,'animation-promotion-brightness-output'),
-      animationRange('animation-promotion-glow','Свечение',0,48,1,'animation-promotion-glow-output'),
-      animationRange('animation-promotion-shine-speed','Скорость блика',0.5,3,0.1,'animation-promotion-shine-speed-output'),
-      animationRange('animation-promotion-shine-frequency','Частота цикла',2,20,1,'animation-promotion-shine-frequency-output'),
-      animationRange('animation-promotion-cycle','Период свечения',2,15,.5,'animation-promotion-cycle-output'),
-      animationRange('animation-promotion-duration','Длительность свечения',700,4000,100,'animation-promotion-duration-output')
-    );
-    motionPanel.append(motionGrid, effectToggles, ranges);
-    motion.append(motionPanel);
-
-    stack.append(style, motion);
+    stack.append(style);
     propertiesRoot.append(stack);
-    bindCurrentMotionInspector();
-  }
-
-  function renderPromotionRowInspector() {
-    tableEditLayer.hidden = true;
-    tableEditLayer.replaceChildren();
-    propertiesRoot.replaceChildren();
-
-    const stack = document.createElement('div');
-    stack.className = 'scene-editor-inspector-stack scene-animation-inspector';
-    const row = document.createElement('details');
-    row.className = 'scene-editor-inspector-group';
-    row.open = true;
-    row.append(Object.assign(document.createElement('summary'), { textContent:'Анимация акционной строки' }));
-    const panel = document.createElement('div');
-    panel.className = 'scene-editor-inspector-panel scene-animation-panel';
-    const note = document.createElement('small');
-    note.className = 'scene-animation-note';
-    note.textContent = promotionRows().length
-      ? 'Подсветку строки можно оставить статичной, а движение отключить. «Волна» и Gloss используют разные алгоритмы.'
-      : 'В таблице пока нет строк с включённой «Акцией».';
-    panel.append(
-      renderPromotionPresetSelect('Пресет подсветки', 'promotion_animation', PROMOTION_ROW_ANIMATION_OPTIONS, 'wave'),
-      note
-    );
-    const rowToggles = document.createElement('div');
-    rowToggles.className = 'scene-animation-toggle-grid';
-    rowToggles.append(
-      animationToggle('animation-promotion-row-highlight-enabled', 'Подсветка строки', 'Работает и при выключенной общей анимации'),
-      animationToggle('animation-promotion-row-animation-enabled', 'Движение подсветки', 'Можно отключить, оставив статическую подсветку')
-    );
-    const ranges = document.createElement('div');
-    ranges.className = 'scene-animation-range-grid';
-    ranges.append(
-      animationRange('animation-promotion-row-intensity','Интенсивность',0,100,1,'animation-promotion-row-intensity-output'),
-      animationRange('animation-promotion-row-glow','Свечение',0,48,1,'animation-promotion-row-glow-output'),
-      animationRange('animation-promotion-row-cycle','Период цикла',2,15,.5,'animation-promotion-row-cycle-output'),
-      animationRange('animation-promotion-row-duration','Длительность эффекта',300,6000,100,'animation-promotion-row-duration-output')
-    );
-    panel.append(rowToggles, ranges);
-    row.append(panel);
-    stack.append(row);
-    propertiesRoot.append(stack);
-    bindCurrentMotionInspector();
   }
 
   function renderTableInspector() {
@@ -1307,12 +999,7 @@ export function initialiseSceneEditor() {
       draft: { rows: state.rows, settings: state.settings },
       products: currentBundle?.products || [],
       packaging: currentBundle?.packaging || [],
-      scene: state.scene,
-      animation: {
-        enabled: currentAnimationSettings?.enabled === true,
-        profile: currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE
-      },
-      scene_playlist: null
+      scene: state.scene
     };
   }
 
@@ -1334,13 +1021,11 @@ export function initialiseSceneEditor() {
   function syncAddMenuAvailability() {
     const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
     const hasWeather = elements.some((item) => item?.type === 'weather');
-    const videoCount = elements.filter((item) => item?.type === 'video' && item.enabled !== false).length;
     addMenu.querySelectorAll('[data-scene-element-type]').forEach((button) => {
       const type = button.dataset.sceneElementType;
-      const unavailable = (type === 'weather' && hasWeather) || (type === 'video' && videoCount >= 2);
+      const unavailable = type === 'weather' && hasWeather;
       button.disabled = unavailable;
       if (type === 'weather') button.title = unavailable ? 'На сцене уже есть Погода' : '';
-      if (type === 'video') button.title = unavailable ? 'На сцене уже два активных видео' : '';
     });
   }
 
@@ -1354,8 +1039,6 @@ export function initialiseSceneEditor() {
   function renderLayers() {
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
     promotionLayer.classList.toggle('is-selected', selectedOwner === 'promotion');
-    promotionRowLayer.classList.toggle('is-selected', selectedOwner === 'promotion-row');
-    animationLayer.classList.toggle('is-selected', selectedOwner === 'animation');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
     renderSceneLayerList(state, {
       container: layersRoot,
@@ -1394,16 +1077,6 @@ export function initialiseSceneEditor() {
       setSelectionStatus();
       return;
     }
-    if (selectedOwner === 'promotion-row') {
-      renderPromotionRowInspector();
-      setSelectionStatus();
-      return;
-    }
-    if (selectedOwner === 'animation') {
-      renderAnimationInspector();
-      setSelectionStatus();
-      return;
-    }
     if (selectedOwner === 'table') {
       renderTableInspector();
       setSelectionStatus();
@@ -1425,7 +1098,7 @@ export function initialiseSceneEditor() {
       },
       onUpload: uploadSceneAsset
     });
-    if (selected && ['weather', 'image', 'video'].includes(selected.type)) {
+    if (selected && ['weather', 'image'].includes(selected.type)) {
       propertiesRoot.querySelector('.scene-editor-inspector-stack')?.append(multiScreenApplyGroup(selected.type, selected));
     }
     if (!selected) {
@@ -1446,7 +1119,7 @@ export function initialiseSceneEditor() {
     stage.replaceChildren();
     stage.dataset.playerActive = 'true';
     renderer = new PlayerSceneRenderer(stage, { autoplay: false, weatherPreview: true });
-    await renderer.render(sceneContext(), ['screen', 'menu', 'scene', 'animation']);
+    await renderer.render(sceneContext(), ['screen', 'menu', 'scene']);
     fitPreviewShell();
     refreshSelectionOverlay();
     if (selectedOwner === 'table' && tableEditorOpen) renderTableEditLayer();
@@ -1454,12 +1127,6 @@ export function initialiseSceneEditor() {
 
   function hydrate(bundle) {
     currentBundle = bundle;
-    currentAnimationSettings = structuredClone(bundle.animation || {
-      enabled:true,
-      preset_id:'cinematic-live-menu',
-      profile:DEFAULT_LIVE_PROFILE,
-      scene_playlist:null
-    });
     replaceEditorState(state, {
       screen:bundle.screen,
       rows:Array.isArray(bundle.draft?.rows) ? bundle.draft.rows : [],
@@ -1494,12 +1161,9 @@ export function initialiseSceneEditor() {
     addButton.disabled = true;
     backgroundLayer.disabled = true;
     promotionLayer.disabled = true;
-    promotionRowLayer.disabled = true;
-    animationLayer.disabled = true;
     tableLayer.disabled = true;
     const saveButton = element('scene-editor-save');
     if (saveButton) saveButton.disabled = true;
-    publishButton.disabled = true;
     setMessage('scene-editor-message', '');
     const bundle = await api.get(`${API.screens}/${id}/editor`);
     if (!active() || currentScreenId !== id) return;
@@ -1510,12 +1174,9 @@ export function initialiseSceneEditor() {
     if (!active()) return;
     form.setAttribute('aria-busy', 'false');
     element('scene-editor-save').disabled = false;
-    publishButton.disabled = false;
     addButton.disabled = false;
     backgroundLayer.disabled = false;
     promotionLayer.disabled = false;
-    promotionRowLayer.disabled = false;
-    animationLayer.disabled = false;
     tableLayer.disabled = false;
     syncAddMenuAvailability();
     screenSelect.disabled = false;
@@ -1609,8 +1270,6 @@ export function initialiseSceneEditor() {
 
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
   promotionLayer.addEventListener('click', () => selectOwner('promotion'));
-  promotionRowLayer.addEventListener('click', () => selectOwner('promotion-row'));
-  animationLayer.addEventListener('click', () => selectOwner('animation'));
   tableLayer.addEventListener('click', () => {
     selectOwner('table');
     openTableEditor();
@@ -1654,203 +1313,39 @@ export function initialiseSceneEditor() {
     }, 0);
   });
 
-  async function saveCurrentScene({ announce = true } = {}) {
-    if (!currentScreenId || !currentBundle) return null;
-    const saved = await api.put(`${API.screens}/${currentScreenId}/draft`, {
-      revision: state.draftRevision,
-      rows: structuredClone(state.rows),
-      settings: structuredClone(state.settings),
-      scene: structuredClone(state.scene),
-      animation: {
-        enabled: currentAnimationSettings?.enabled === true,
-        preset_id: currentAnimationSettings?.preset_id || 'cinematic-live-menu',
-        profile: structuredClone(currentAnimationSettings?.profile || DEFAULT_LIVE_PROFILE)
-      }
-    });
-    if (!active()) return null;
-    currentBundle = { ...currentBundle, screen:saved.screen, draft:saved.draft, animation:saved.animation || currentAnimationSettings };
-    currentAnimationSettings = structuredClone(saved.animation || currentAnimationSettings);
-    state.screen = structuredClone(saved.screen);
-    state.rows = structuredClone(saved.draft.rows || []);
-    state.settings = structuredClone(saved.draft.settings || {});
-    state.scene = structuredClone(saved.draft.scene || { version:1, elements:[] });
-    if (selectedOwner === 'element' && !state.scene.elements.some((item) => item.id === state.selectedElementId)) {
-      state.selectedElementId = state.scene.elements[0]?.id || null;
-      selectedOwner = state.selectedElementId ? 'element' : 'table';
-    }
-    state.draftRevision = Number(saved.draft.revision || state.draftRevision);
-    state.dirty = false;
-    history.clear();
-    setDirty();
-    renderSelectionOwners();
-    if (announce) {
-      setMessage(
-        'scene-editor-message',
-        'Сцена сохранена как черновик. Для обновления телевизора нажмите «Опубликовать».',
-        'success'
-      );
-    }
-    return saved;
-  }
-
-  const LOCAL_RENDER_AGENT = 'http://127.0.0.1:41417';
-
-  function setAgentSetupVisible(visible) {
-    agentSetup.hidden = !visible;
-    agentSetup.dataset.connected = visible ? 'false' : 'true';
-  }
-
-  async function probeLocalAgent() {
-    try {
-      const response = await fetch(LOCAL_RENDER_AGENT + '/health', { cache:'no-store' });
-      if (!response.ok) return false;
-      const health = await response.json().catch(() => null);
-      return health?.ok === true && health?.server_origin === window.location.origin;
-    } catch {
-      return false;
-    }
-  }
-
-  async function refreshLocalAgentState({ announce = false } = {}) {
-    const connected = await probeLocalAgent();
-    if (!active()) return false;
-    setAgentSetupVisible(!connected);
-    if (connected && announce) {
-      setMessage('scene-editor-message', 'MIRA Render Agent подключен. Можно публиковать Video Scene.', 'success');
-    }
-    return connected;
-  }
-
-  function watchAgentInstallation() {
-    if (agentProbeTimer) clearTimeout(agentProbeTimer);
-    const deadline = Date.now() + 180_000;
-    const poll = async () => {
-      if (!active()) return;
-      if (await refreshLocalAgentState({ announce:true })) {
-        agentProbeTimer = null;
-        return;
-      }
-      if (Date.now() < deadline) agentProbeTimer = setTimeout(poll, 1500);
-      else agentProbeTimer = null;
-    };
-    agentProbeTimer = setTimeout(poll, 1800);
-  }
-
-  function sleep(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-  }
-
-  async function localAgentJson(pathname, init = {}) {
-    let response;
-    try {
-      response = await fetch(LOCAL_RENDER_AGENT + pathname, {
-        cache:'no-store',
-        ...init,
-        headers:{
-          ...(init.body ? { 'content-type':'application/json' } : {}),
-          ...(init.headers || {})
-        }
-      });
-    } catch {
-      setAgentSetupVisible(true);
-      throw new Error('MIRA Render Agent не запущен на этом ПК. Нажмите «Установить Render Agent», откройте скачанный установщик и повторите публикацию.');
-    }
-    const body = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.error || ('Render Agent HTTP ' + response.status));
-    return body;
-  }
-
-  async function waitForRenderTask(taskId) {
-    const deadline = Date.now() + 15 * 60_000;
-    while (Date.now() < deadline) {
-      const task = await localAgentJson('/tasks/' + encodeURIComponent(taskId));
-      if (task.status === 'complete') return task;
-      if (task.status === 'failed') throw new Error(task.error || 'MIRA Render Agent не смог создать видео.');
-      const progress = Math.max(0, Math.min(100, Number(task.progress) || 0));
-      setMessage('scene-editor-message', `Публикация: создание Video Scene… ${progress}%`);
-      await sleep(750);
-    }
-    throw new Error('MIRA Render Agent не завершил публикацию за допустимое время.');
-  }
-
-  async function publishCurrentScene() {
-    if (!currentScreenId || !currentBundle) return;
-    setPending(publishButton, true, 'Публикуем…');
-    const save = element('scene-editor-save');
-    if (save instanceof HTMLButtonElement) save.disabled = true;
-    try {
-      if (state.dirty) {
-        setMessage('scene-editor-message', 'Сохраняем черновик перед публикацией…');
-        await saveCurrentScene({ announce:false });
-      }
-
-      const job = await api.get(`${API.screens}/${currentScreenId}/render-package`);
-      const renderPackage = job?.package;
-      if (!renderPackage) throw new Error('Сервер не сформировал Render Package.');
-      if (renderPackage.bake_supported !== true) {
-        if (renderPackage.unsupported_reason === 'scene-playlist') {
-          throw new Error('Video Mode для активного плейлиста будет добавлен отдельным этапом. Этот экран пока продолжает работать через live renderer.');
-        }
-        throw new Error('Эта сцена пока не поддерживает Video Mode.');
-      }
-
-      if (job.reusable_scene_video) {
-        setMessage('scene-editor-message', 'Найден готовый Video Scene. Публикуем без повторного рендера…');
-        await api.post(`${API.screens}/${currentScreenId}/render-package/reuse`, {});
-        setMessage('scene-editor-message', 'Опубликовано. Готовый ролик переиспользован и отправлен на TV.', 'success');
-        return;
-      }
-
-      const health = await localAgentJson('/health');
-      if (health?.server_origin !== window.location.origin) {
-        setAgentSetupVisible(true);
-        throw new Error('MIRA Render Agent настроен на другой сервер. Переустановите его кнопкой ниже для текущего MIRA-TV.');
-      }
-      setAgentSetupVisible(false);
-
-      setMessage('scene-editor-message', 'MIRA Render Agent найден. Создаём Video Scene на этом ПК…');
-      const accepted = await localAgentJson('/render', {
-        method:'POST',
-        body:JSON.stringify({
-          server_origin:window.location.origin,
-          screen_id:currentScreenId,
-          render_revision:renderPackage.render_revision,
-          input_hash:renderPackage.input_hash,
-          token:job.upload?.token,
-          upload_url:job.upload?.url
-        })
-      });
-      if (!accepted?.task_id) throw new Error('MIRA Render Agent не вернул идентификатор задания.');
-      await waitForRenderTask(accepted.task_id);
-      setMessage('scene-editor-message', 'Опубликовано. TV получит новый MP4 через Local-first обновление.', 'success');
-    } catch (error) {
-      if (active()) setMessage('scene-editor-message', error.message);
-    } finally {
-      if (active()) {
-        setPending(publishButton, false, 'Публикуем…');
-        if (save instanceof HTMLButtonElement) save.disabled = false;
-      }
-    }
-  }
-
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!currentScreenId || !currentBundle) return;
     const save = element('scene-editor-save');
     setPending(save, true, 'Сохраняем…');
     try {
-      await saveCurrentScene();
+      const saved = await api.put(`${API.screens}/${currentScreenId}/draft`, {
+        revision: state.draftRevision,
+        rows: structuredClone(state.rows),
+        settings: structuredClone(state.settings),
+        scene: structuredClone(state.scene)
+      });
+      if (!active()) return;
+      currentBundle = { ...currentBundle, screen:saved.screen, draft:saved.draft };
+      state.screen = structuredClone(saved.screen);
+      state.rows = structuredClone(saved.draft.rows || []);
+      state.settings = structuredClone(saved.draft.settings || {});
+      state.scene = structuredClone(saved.draft.scene || { version: 1, elements: [] });
+      if (selectedOwner === 'element' && !state.scene.elements.some((item) => item.id === state.selectedElementId)) {
+        state.selectedElementId = state.scene.elements[0]?.id || null;
+        selectedOwner = state.selectedElementId ? 'element' : 'table';
+      }
+      state.draftRevision = Number(saved.draft.revision || state.draftRevision);
+      state.dirty = false;
+      history.clear();
+      setDirty();
+      renderSelectionOwners();
+      setMessage('scene-editor-message', 'Сцена сохранена и отправлена на TV Player.', 'success');
     } catch (error) {
       if (active()) setMessage('scene-editor-message', error.message);
     } finally {
       if (active()) setPending(save, false, 'Сохраняем…');
     }
-  });
-
-  publishButton.addEventListener('click', () => void publishCurrentScene());
-  agentInstallLink.addEventListener('click', () => {
-    setMessage('scene-editor-message', 'Установщик Render Agent скачан. Откройте его — после установки эта страница подключит Agent автоматически.');
-    watchAgentInstallation();
   });
 
   const onBeforeUnload = (event) => {
@@ -1866,7 +1361,6 @@ export function initialiseSceneEditor() {
   });
   resizeObserver.observe(canvasPane);
 
-  void refreshLocalAgentState();
   void loadScreens().catch((error) => {
     if (!active()) return;
     form.setAttribute('aria-busy', 'false');
@@ -1883,7 +1377,6 @@ export function initialiseSceneEditor() {
       generation += 1;
       if (previewFrame) cancelAnimationFrame(previewFrame);
       if (documentPreviewFrame) cancelAnimationFrame(documentPreviewFrame);
-      if (agentProbeTimer) clearTimeout(agentProbeTimer);
       resizeObserver?.disconnect();
       renderer?.destroy();
       renderer = null;

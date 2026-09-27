@@ -1,9 +1,8 @@
 import crypto from 'node:crypto';
 import { menuSettingsInput } from '../contracts/menu-settings.js';
 import { buildPlayerContentManifest } from './player-content-manifest-service.js';
-import { bakedSceneComponent, bakedSceneRuntimeToken } from './baked-scene-service.js';
 
-export const PLAYER_STATE_SCHEMA_VERSION = 6;
+export const PLAYER_STATE_SCHEMA_VERSION = 7;
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('base64url');
@@ -18,45 +17,43 @@ function catalogIds(draft) {
     if (Number.isSafeInteger(productId) && productId > 0) productIds.add(productId);
     if (Number.isSafeInteger(packagingId) && packagingId > 0) packagingIds.add(packagingId);
   }
-  return { productIds: [...productIds], packagingIds: [...packagingIds] };
+  return { productIds:[...productIds], packagingIds:[...packagingIds] };
 }
 
 function screenComponent(screen) {
   return {
-    id: screen.id,
-    name: screen.name,
-    resolution: screen.resolution,
-    status: screen.status,
-    location_id: screen.location_id,
-    location_name: screen.location_name,
-    location_number: screen.location_number
+    id:screen.id,
+    name:screen.name,
+    resolution:screen.resolution,
+    status:screen.status,
+    location_id:screen.location_id,
+    location_name:screen.location_name,
+    location_number:screen.location_number
   };
 }
 
-export function playerRuntimeComponent(config, renderRevision = 1, sceneVideoToken = '') {
+export function playerRuntimeComponent(config, renderRevision = 1) {
   return {
-    app_version: config.appVersion,
-    fallback_poll_interval_ms: config.playerFallbackPollSeconds * 1000,
-    log_batch_size: config.playerLogBatchSize,
-    log_local_max_entries: config.playerLogLocalMaxEntries,
-    log_local_max_bytes: config.playerLogLocalMaxBytes,
-    metrics_interval_ms: config.playerMetricsIntervalSeconds * 1000,
-    preview_capture_interval_ms: config.tvPreviewCaptureSeconds * 1000,
-    preview_max_bytes: config.tvPreviewMaxBytes,
-    render_revision: Number(renderRevision) || 1,
-    scene_video_revision: String(sceneVideoToken || '')
+    app_version:config.appVersion,
+    fallback_poll_interval_ms:config.playerFallbackPollSeconds * 1000,
+    log_batch_size:config.playerLogBatchSize,
+    log_local_max_entries:config.playerLogLocalMaxEntries,
+    log_local_max_bytes:config.playerLogLocalMaxBytes,
+    metrics_interval_ms:config.playerMetricsIntervalSeconds * 1000,
+    preview_capture_interval_ms:config.tvPreviewCaptureSeconds * 1000,
+    preview_max_bytes:config.tvPreviewMaxBytes,
+    render_revision:Number(renderRevision) || 1
   };
 }
 
-export function playerRuntimeHash(config, renderRevision = 1, sceneVideoToken = '') {
-  return digest(playerRuntimeComponent(config, renderRevision, sceneVideoToken));
+export function playerRuntimeHash(config, renderRevision = 1) {
+  return digest(playerRuntimeComponent(config, renderRevision));
 }
 
 export async function buildPlayerState(store, session, config, { renderRevision = null } = {}) {
-  const [screen, draft, animationSettings] = await Promise.all([
+  const [screen, draft] = await Promise.all([
     store.getScreen(session.screen_id),
-    store.getScreenDraft(session.screen_id),
-    store.getScreenAnimationSettings(session.screen_id)
+    store.getScreenDraft(session.screen_id)
   ]);
   if (!screen || screen.active === false) return null;
 
@@ -70,58 +67,44 @@ export async function buildPlayerState(store, session, config, { renderRevision 
   ]);
 
   const canonicalMenuSettings = menuSettingsInput(draft.settings || {}, {
-    allowBackgroundImage: true,
-    maxWidth: config.screenMaxWidth,
-    maxHeight: config.screenMaxHeight
+    allowBackgroundImage:true,
+    maxWidth:config.screenMaxWidth,
+    maxHeight:config.screenMaxHeight
   });
-
-  const canonicalScene = draft.scene || { version: 1, elements: [] };
-  const canonicalDraft = { rows: draft.rows || [], settings: canonicalMenuSettings };
-  const bakedRecord = typeof store.getBakedScene === 'function'
-    ? await store.getBakedScene(session.screen_id)
-    : null;
-  const sceneVideo = bakedSceneComponent(bakedRecord, currentRenderRevision || 1);
-  const sceneVideoToken = bakedSceneRuntimeToken(bakedRecord, currentRenderRevision || 1);
+  const canonicalScene = draft.scene || { version:1, elements:[] };
+  const canonicalDraft = { rows:draft.rows || [], settings:canonicalMenuSettings };
   const contentManifest = await buildPlayerContentManifest({
-    draft: canonicalDraft,
-    scene: canonicalScene,
-    sceneVideo,
-    renderRevision: currentRenderRevision || 1,
+    draft:canonicalDraft,
+    scene:canonicalScene,
+    renderRevision:currentRenderRevision || 1,
     config
   });
 
   const components = {
-    screen: screenComponent(screen),
-    menu: { draft: canonicalDraft, products, packaging },
-    scene: canonicalScene,
-    animation: { enabled: animationSettings?.enabled === true, profile: animationSettings?.profile || null },
-    scene_playlist: animationSettings?.scene_playlist || null,
-    scene_video: sceneVideo,
-    content_manifest: contentManifest,
-    runtime: playerRuntimeComponent(config, currentRenderRevision || 1, sceneVideoToken)
+    screen:screenComponent(screen),
+    menu:{ draft:canonicalDraft, products, packaging },
+    scene:canonicalScene,
+    content_manifest:contentManifest,
+    runtime:playerRuntimeComponent(config, currentRenderRevision || 1)
   };
-
-  const hashes = Object.fromEntries(Object.entries(components).map(([name, value]) => [name, digest(value)]));
+  const hashes = Object.fromEntries(Object.entries(components).map(([name,value]) => [name,digest(value)]));
   const revision = `${PLAYER_STATE_SCHEMA_VERSION}:${currentRenderRevision || 1}`;
-  return { schema_version: PLAYER_STATE_SCHEMA_VERSION, revision, render_revision: currentRenderRevision || 1, hashes, components };
+  return { schema_version:PLAYER_STATE_SCHEMA_VERSION, revision, render_revision:currentRenderRevision || 1, hashes, components };
 }
 
 export function fullPlayerContext(state) {
   const { components } = state;
   return {
-    schema_version: state.schema_version,
-    revision: state.revision,
-    render_revision: state.render_revision,
-    hashes: state.hashes,
-    screen: components.screen,
-    draft: components.menu.draft,
-    products: components.menu.products,
-    packaging: components.menu.packaging,
-    scene: components.scene,
-    animation: components.animation,
-    scene_playlist: components.scene_playlist,
-    scene_video: components.scene_video,
-    content_manifest: components.content_manifest,
+    schema_version:state.schema_version,
+    revision:state.revision,
+    render_revision:state.render_revision,
+    hashes:state.hashes,
+    screen:components.screen,
+    draft:components.menu.draft,
+    products:components.menu.products,
+    packaging:components.menu.packaging,
+    scene:components.scene,
+    content_manifest:components.content_manifest,
     ...components.runtime
   };
 }
@@ -129,17 +112,17 @@ export function fullPlayerContext(state) {
 export function deltaPlayerContext(state, known = {}) {
   const knownSchema = Number(known?.schema_version);
   const knownHashes = known?.hashes && typeof known.hashes === 'object' && !Array.isArray(known.hashes) ? known.hashes : {};
-  if (knownSchema !== PLAYER_STATE_SCHEMA_VERSION) return { full_snapshot_required: true, context: fullPlayerContext(state) };
+  if (knownSchema !== PLAYER_STATE_SCHEMA_VERSION) return { full_snapshot_required:true, context:fullPlayerContext(state) };
   const changed = {};
-  for (const [name, hash] of Object.entries(state.hashes)) {
+  for (const [name,hash] of Object.entries(state.hashes)) {
     if (knownHashes[name] !== hash) changed[name] = state.components[name];
   }
   return {
-    schema_version: state.schema_version,
-    revision: state.revision,
-    render_revision: state.render_revision,
-    hashes: state.hashes,
+    schema_version:state.schema_version,
+    revision:state.revision,
+    render_revision:state.render_revision,
+    hashes:state.hashes,
     changed,
-    unchanged: Object.keys(changed).length === 0
+    unchanged:Object.keys(changed).length === 0
   };
 }
