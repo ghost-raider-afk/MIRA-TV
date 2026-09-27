@@ -2,44 +2,58 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const root = new URL('../src/web/admin-ui/public/', import.meta.url);
+const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
-test('LiveMenuMotion does not compile Entity behavior a second time', async () => {
-  const source = await read('js/motion/live-menu-motion.js');
-  assert.doesNotMatch(source, /compileEntityBehaviorProgram/);
-  assert.match(source, /compilers:\s*DEFAULT_SCENE_COMPILERS/);
-});
-
-test('TV Player and Preview share one SceneMotionRuntime ownership model', async () => {
-  const [player, sceneRenderer, preview, runtime, plan, worker] = await Promise.all([
-    read('js/player/player.js'),
-    read('js/player/player-scene-renderer.js'),
-    read('js/motion/preview-player.js'),
-    read('js/motion/scene-motion-runtime.js'),
-    read('js/motion/motion-plan.js'),
-    read('player-sw.js')
+test('TV Player has one static renderer and no motion/video runtime', async () => {
+  const [player, renderer, elements, stateSync, worker] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/player.js'),
+    read('src/web/admin-ui/public/js/player/player-scene-renderer.js'),
+    read('src/web/admin-ui/public/js/player/scene-element-renderer.js'),
+    read('src/web/admin-ui/public/js/player/player-state-sync.js'),
+    read('src/web/admin-ui/public/player-sw.js')
   ]);
 
   assert.match(player, /new PlayerSceneRenderer\(playerStage\)/);
-  assert.match(sceneRenderer, /new SceneMotionRuntime\(stage/);
-  assert.match(sceneRenderer, /this\.sceneMotionRuntime\.render\(/);
-  assert.doesNotMatch(player, /new GpuSceneRuntime|new WasmMotionDriver|new LiveMenuMotion/);
-  assert.doesNotMatch(sceneRenderer, /new GpuSceneRuntime|new LiveMenuMotion/);
+  assert.doesNotMatch(player, /player-preview-capture\.js/);
+  assert.doesNotMatch(player, /player-metrics\.js/);
+  assert.match(player, /import\('\.\/player-background-services\.js'\)/);
 
-  assert.match(preview, /new SceneMotionRuntime\(stage/);
-  assert.doesNotMatch(preview, /new SceneRuntime|new WasmMotionDriver/);
+  assert.match(renderer, /'screen',[\s\S]*'menu',[\s\S]*'scene',[\s\S]*'runtime'/);
+  assert.doesNotMatch(renderer, /SceneMotionRuntime|ScenePlaylistRuntime|SceneVideoRuntime|\/motion\//);
+  assert.match(renderer, /element\?\.type !== 'video'/);
 
-  assert.match(runtime, /buildDomMotionScene/);
-  assert.match(runtime, /new WasmMotionDriver/);
-  assert.doesNotMatch(runtime, /compileEntityBehaviorProgram|entityMedia/);
-  assert.match(runtime, /this\.compilers = compilers \|\| DEFAULT_SCENE_COMPILERS/);
-  assert.match(runtime, /if \(!this\.plan\?\.tracks\?\.length\) return;/);
+  assert.match(elements, /element\?\.type !== 'video'/);
+  assert.doesNotMatch(elements, /HTMLVideoElement|autoplay|playback_rate|scene-playlist-mode/);
 
-  assert.match(plan, /compileMenuMotionProgram/);
-  assert.match(plan, /compilePromotionMotionProgram/);
-  assert.match(plan, /context\.menuEnabled === false/);
+  assert.match(stateSync, /'screen', 'menu', 'scene', 'content_manifest', 'runtime'/);
+  assert.doesNotMatch(stateSync, /scene_video|scene_playlist|'animation'/);
 
-  assert.ok(worker.includes('/js/motion/wasm-motion-kernel.js'));
-  assert.ok(!worker.includes('/wasm/mira-motion-kernel.wasm'));
+  assert.match(worker, /mira-tv-player-shell-v52/);
+  assert.match(worker, /mira-tv-player-shell-v51/);
+  assert.doesNotMatch(worker, /\/js\/motion\/|scene-video-runtime|\.mp4|\.webm/);
+});
+
+test('removed motion and Render Agent modules stay physically absent', async () => {
+  await assert.rejects(read('src/web/admin-ui/public/js/motion/scene-motion-runtime.js'));
+  await assert.rejects(read('src/web/admin-ui/public/js/player/scene-video-runtime.js'));
+  await assert.rejects(read('src/api/render-agent/public-routes.js'));
+  await assert.rejects(read('tools/render-agent/agent.js'));
+});
+
+test('noncritical TV diagnostics are deferred until after the first rendered frame', async () => {
+  const [player, background, dockerfile] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/player.js'),
+    read('src/web/admin-ui/public/js/player/player-background-services.js'),
+    read('Dockerfile')
+  ]);
+
+  assert.doesNotMatch(player, /^import .*player-preview-capture/m);
+  assert.doesNotMatch(player, /^import .*player-metrics/m);
+  assert.match(player, /finishPlayerBoot\(\)/);
+  assert.match(player, /void ensureBackgroundServices\(\)\.then/);
+  assert.match(background, /publishPlayerPreview/);
+  assert.match(background, /createPlayerMetricsCollector/);
+  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);
+  assert.doesNotMatch(dockerfile, /ffmpeg|fonts-dejavu-core/);
 });
