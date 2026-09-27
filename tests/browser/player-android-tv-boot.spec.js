@@ -1,4 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
+
+const CURRENT_APP_VERSION = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+).miraVersion;
 
 test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 9; Android TV) AppleWebKit/537.36 Chrome/70.0.3538.110 Safari/537.36' });
 
@@ -29,7 +34,7 @@ const contextPayload = {
   scene: { version: 1, elements: [] },
   animation: { enabled: false, profile: null },
   scene_playlist: null,
-  app_version: '1.14.5',
+  app_version: CURRENT_APP_VERSION,
   fallback_poll_interval_ms: 60000,
   log_batch_size: 100,
   log_local_max_entries: 5000,
