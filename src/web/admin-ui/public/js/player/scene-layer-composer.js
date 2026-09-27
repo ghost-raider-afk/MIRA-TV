@@ -1,7 +1,5 @@
 const LAYERS = Object.freeze([
   Object.freeze({ id: 'menu', className: 'tv-player-menu-layer', attribute: 'data-player-menu-layer' }),
-  Object.freeze({ id: 'fx', className: 'tv-player-fx-layer', attribute: 'data-player-fx-layer' }),
-  Object.freeze({ id: 'content', className: 'tv-player-content-layer', attribute: 'data-player-content-layer' }),
   Object.freeze({ id: 'scene', className: 'tv-player-scene-elements-layer', attribute: 'data-scene-elements-layer' })
 ]);
 

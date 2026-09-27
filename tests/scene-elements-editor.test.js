@@ -3,78 +3,29 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
-const read = (path) => readFile(new URL(path, root), 'utf8');
+const read = (p) => readFile(new URL(p, root), 'utf8');
 
-test('dedicated Scene editor is the only admin owner of generic scene elements', async () => {
-  const [sceneHtml, monitorHtml, scenePage, elements, service, routes, css] = await Promise.all([
+test('Scene Editor exposes only static element types plus live weather', async () => {
+  const [html, page, elements, routes, assets] = await Promise.all([
     read('src/web/admin-ui/public/scene.html'),
-    read('src/web/admin-ui/public/screen-editor.html'),
     read('src/web/admin-ui/public/js/pages/scene.js'),
     read('src/web/admin-ui/public/js/editor/elements.js'),
-    read('src/services/scene-assets-service.js'),
     read('src/api/screens/routes.js'),
-    read('src/web/admin-ui/public/css/pages/scene-editor.css')
+    read('src/services/scene-assets-service.js')
   ]);
+  for (const label of ['Текстовое поле','Погода','Картинка','Логотип']) assert.ok(elements.includes(label), label);
+  assert.doesNotMatch(elements, /\['video', 'Видео'\]|animation_enabled|Анимация/);
+  assert.doesNotMatch(html, /scene-editor-animation-layer|scene-editor-promotion-row-layer|scene-editor-publish|Render Agent|data-scene-element-type="video"/);
+  assert.match(page, /new PlayerSceneRenderer/);
+  assert.match(page, /renderPromotionInspector/);
+  assert.doesNotMatch(page, /renderAnimationInspector|renderPromotionRowInspector|bindMotionProfileControls|LOCAL_RENDER_AGENT/);
+  assert.doesNotMatch(routes, /render-package|animationSettingsInput|applyAnimationSettingsToScreens/);
+  assert.doesNotMatch(assets, /ffprobe|video\/mp4|video\/webm/);
+});
 
-  assert.match(sceneHtml, /id="scene-editor-layers"/);
-  assert.match(sceneHtml, /id="scene-editor-stage"/);
-  assert.match(sceneHtml, /id="scene-editor-properties"/);
-  assert.match(sceneHtml, /id="scene-editor-add"/);
-  assert.match(sceneHtml, /id="scene-editor-save"/);
-  assert.doesNotMatch(monitorHtml, /<summary>Элементы<\/summary>|editor-add-element|editor-elements-stack/);
-  assert.match(monitorHtml, /id="editor-scene-link"/);
-
-  for (const label of ['Текстовое поле','Погода','Картинка','Видео','Логотип']) assert.ok(elements.includes(label));
-  for (const photoshopControl of ['Трекинг, px','Интерлиньяж, %','Масштаб X, %','Масштаб Y, %','Смещение базы, px','Обводка','Тень','Свечение','Автомасштаб при resize','Масштаб внутри, %']) assert.ok(elements.includes(photoshopControl));
-  assert.match(sceneHtml, /scene-editor-background-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.match(sceneHtml, /scene-editor-promotion-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.match(sceneHtml, /scene-editor-promotion-row-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.match(sceneHtml, /scene-editor-animation-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.match(sceneHtml, /scene-editor-table-layer[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.ok(sceneHtml.indexOf('scene-editor-background-layer') < sceneHtml.indexOf('scene-editor-promotion-layer'));
-  assert.ok(sceneHtml.indexOf('scene-editor-promotion-layer') < sceneHtml.indexOf('scene-editor-promotion-row-layer'));
-  assert.ok(sceneHtml.indexOf('scene-editor-promotion-row-layer') < sceneHtml.indexOf('scene-editor-animation-layer'));
-  assert.ok(sceneHtml.indexOf('scene-editor-animation-layer') < sceneHtml.indexOf('scene-editor-table-layer'));
-  assert.match(css, /scene-editor-system-layer\{[^}]*min-height:25px/);
-  assert.match(css, /scene-editor-system-icon svg/);
-  assert.match(css, /scene-editor-layers-panel\{grid-template-rows:auto auto minmax\(0,1fr\) auto\}/);
-  assert.match(css, /scene-editor-system-layers\{[^}]*align-content:start/);
-  assert.match(elements, /export function renderSceneLayerList/);
-  assert.match(elements, /title\.textContent = typeLabel\(element\.type\)/);
-  assert.doesNotMatch(elements, /title\.textContent = `Элемент \$\{index \+ 1\}/);
-  assert.match(css, /scene-editor-layer\{[^}]*min-height:25px/);
-  assert.match(css, /scene-editor-selection-box\{[^}]*background:transparent/);
-  assert.match(elements, /export function renderSceneElementInspector/);
-  assert.match(elements, /SCENE_ELEMENT_TYPE_OPTIONS\.filter\(\(\[value\]\) => value !== 'weather'\)/);
-  assert.match(scenePage, /new PlayerSceneRenderer\(stage, \{ autoplay: false, weatherPreview: true \}\)/);
-  assert.match(scenePage, /renderer\?\.fitViewport\?\.\(resolution\)/);
-  assert.doesNotMatch(scenePage, /--scene-preview-width|--scene-preview-height|--scene-preview-scale/);
-  assert.doesNotMatch(css, /--scene-preview-width|--scene-preview-height|--scene-preview-scale/);
-  assert.match(scenePage, /const previewScale = Math\.max\(\.01, Math\.min\(widthLimit \/ resolution\.width, heightLimit \/ resolution\.height\)\)/);
-  assert.match(scenePage, /renderSceneElementInspector/);
-  assert.match(scenePage, /renderPromotionInspector/);
-  assert.match(scenePage, /renderPromotionRowInspector/);
-  assert.match(scenePage, /renderAnimationInspector/);
-  assert.match(scenePage, /bindMotionProfileControls/);
-  assert.match(scenePage, /PROMOTION_ROW_ANIMATION_OPTIONS/);
-  assert.match(scenePage, /PROMOTION_BADGE_ANIMATION_OPTIONS/);
-  assert.match(scenePage, /animation:\s*\{/);
-  assert.match(scenePage, /renderSceneLayerList/);
-  assert.match(scenePage, /\/scene-asset/);
-  assert.match(scenePage, /SCENE_WIDTH \/ Math\.max\(1, rect\.width\)/);
-  assert.match(css, /grid-template-columns:164px minmax\(0,1fr\) 304px/);
-  assert.match(css, /grid-template-columns:150px minmax\(0,1fr\) 286px/);
-  assert.match(css, /@media\(min-width:1101px\)/);
-  assert.doesNotMatch(css, /scene-editor-inspector-tabs|@media\(min-width:961px\)/);
-  assert.match(css, /overflow:hidden/);
-
-  assert.match(service, /SCENE_DIR = 'scene'/);
-  assert.match(service, /deleteSceneAsset/);
-  assert.match(service, /cleanupUnreferencedSceneAssets/);
-  assert.match(service, /videoCodecMatches/);
-  assert.match(routes, /createSceneAssetStream/);
-  assert.match(routes, /animation:screenAnimation \|\| globalAnimation/);
-  assert.match(routes, /applyAnimationSettingsToScreens\(\[id\], savedAnimation/);
-  assert.match(routes, /droppedSceneAssets/);
-  assert.match(routes, /deleteSceneAsset/);
+test('Scene Editor save goes directly through the live draft path', async () => {
+  const page = await read('src/web/admin-ui/public/js/pages/scene.js');
+  assert.ok(page.includes('/draft'));
+  assert.match(page, /Сцена сохранена и отправлена на TV Player/);
+  assert.doesNotMatch(page, /render-package|publishCurrentScene/);
 });
