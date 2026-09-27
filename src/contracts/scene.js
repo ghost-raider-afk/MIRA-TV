@@ -2,12 +2,11 @@ import { ValidationError } from '../shared/errors.js';
 
 const SCENE_VERSION = 1;
 const MAX_ELEMENTS = 64;
-const MAX_VIDEO_ELEMENTS = 2;
 const MAX_RUNS = 128;
 const MAX_TEXT_LENGTH = 12000;
 const MAX_GRADIENT_STOPS = 8;
 const HEX = /^#[0-9a-f]{6}$/i;
-const ELEMENT_TYPES = new Set(['text', 'weather', 'image', 'video', 'logo']);
+const ELEMENT_TYPES = new Set(['text', 'weather', 'image', 'logo']);
 const FONT_FAMILIES = new Set([
   'arial-narrow',
   'tahoma-bold',
@@ -179,20 +178,13 @@ function textInput(value) {
   };
 }
 
-function mediaInput(value, { video = false } = {}) {
+function mediaInput(value) {
   const source = record(value);
-  const base = {
+  return {
     source_url: assetUrl(source.source_url, 'media.source_url'),
     fit: enumValue(source.fit, 'media.fit', MEDIA_FITS, 'contain'),
     position_x_percent: number(source.position_x_percent, 'media.position_x_percent', 50, 0, 100),
     position_y_percent: number(source.position_y_percent, 'media.position_y_percent', 50, 0, 100)
-  };
-  if (!video) return base;
-  return {
-    ...base,
-    loop: source.loop !== false,
-    muted: source.muted !== false,
-    playback_rate: number(source.playback_rate, 'media.playback_rate', 1, 0.25, 4)
   };
 }
 
@@ -239,11 +231,7 @@ function weatherInput(value) {
     location_font_size_pt: legacyWeatherPointSize(source, 'location_font_size_pt', 'location_size_percent', 14, 8, 32),
     temperature_size_percent: integer(source.temperature_size_percent, 'weather.temperature_size_percent', 100, 60, 180),
     location_size_percent: integer(source.location_size_percent, 'weather.location_size_percent', 100, 60, 180),
-    icon_scale_percent: integer(source.icon_scale_percent, 'weather.icon_scale_percent', 100, 100, 200),
-    animation_enabled: source.animation_enabled !== false,
-    animation_speed: number(source.animation_speed, 'weather.animation_speed', 1, 0.25, 2),
-    animation_intensity: number(source.animation_intensity, 'weather.animation_intensity', 1, 0.25, 2),
-    widget_motion_enabled: source.widget_motion_enabled !== false
+    icon_scale_percent: integer(source.icon_scale_percent, 'weather.icon_scale_percent', 100, 100, 200)
   };
 }
 
@@ -277,7 +265,6 @@ function elementInput(value, index, options) {
 
   if (type === 'text') return { ...common, text: textInput(source.text) };
   if (type === 'weather') return { ...common, weather: weatherInput(source.weather) };
-  if (type === 'video') return { ...common, media: mediaInput(source.media, { video: true }) };
   return { ...common, media: mediaInput(source.media) };
 }
 
@@ -293,9 +280,6 @@ export function sceneInput(value, { maxWidth = 1920, maxHeight = 1080 } = {}) {
   const elements = elementsSource.map((element, index) => elementInput(element, index, { maxWidth, maxHeight }));
   if (elements.filter((element) => element.type === 'weather').length > 1) {
     throw new ValidationError('Сцена может содержать только один элемент «Погода».');
-  }
-  if (elements.filter((element) => element.type === 'video' && element.enabled !== false).length > MAX_VIDEO_ELEMENTS) {
-    throw new ValidationError(`Одновременно можно использовать не более ${MAX_VIDEO_ELEMENTS} видеоэлементов.`);
   }
   const ids = new Set();
   for (const element of elements) {
