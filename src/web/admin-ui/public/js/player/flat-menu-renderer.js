@@ -135,7 +135,8 @@ export class FlatMenuRenderer {
     // Full Player/Scene surfaces own their logical viewport geometry.
     // Manager TV cards also use the shared PlayerSceneRenderer canonical fit;
     // standalone menu-only previews keep their existing responsive fitting.
-    const canonicalStage = this.stage?.matches('[data-render-agent-stage], [data-player-stage], .manager-fullscreen-stage, .manager-screen-stage, #scene-editor-stage')
+    const canonicalStage = this.stage?.hasAttribute('data-scene-viewport-width')
+      || this.stage?.matches('[data-render-agent-stage], [data-player-stage], .manager-fullscreen-stage, .manager-screen-stage, #scene-editor-stage')
       || this.stage?.closest('.scene-editor-stage-shell');
     if (!canonicalStage) fitStage(this.stage, width, height);
     return generation === this.generation && layer === this.layer;
