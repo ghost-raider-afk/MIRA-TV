@@ -1,6 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { navigationState } from '../core/navigation.js';
+import { DESKTOP_PRIMARY_ROUTES, navigationState } from '../core/navigation.js';
 import { state } from '../core/state.js';
 import { applyTheme, currentTheme } from '../core/presentation.js';
 import { setIcon } from './icons.js';
@@ -27,6 +27,27 @@ function homeControl() {
   link.innerHTML = '<span class="app-header-home-mark" data-header-brand>ТВ</span>';
   syncHeaderBrand(link);
   return link;
+}
+
+function primaryNavigation(activeSection) {
+  const nav = document.createElement('nav');
+  nav.className = 'app-header-nav';
+  nav.setAttribute('aria-label', 'Основные разделы');
+  nav.innerHTML = DESKTOP_PRIMARY_ROUTES.map((route) => {
+    const active = route.key === activeSection;
+    return `<a class="app-header-nav-link${active ? ' active' : ''}" data-header-section="${route.key}" href="${route.href}"${active ? ' aria-current="page"' : ''}>${route.label}</a>`;
+  }).join('');
+  return nav;
+}
+
+function syncHeaderNavigation(root = document) {
+  const { section } = navigationState();
+  root.querySelectorAll('.app-header-nav-link[data-header-section]').forEach((link) => {
+    const active = link.dataset.headerSection === section;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
 }
 
 function syncHeaderBrand(root = document) {
@@ -69,16 +90,17 @@ export function refreshHeaderRoute(root = document) {
   if (nameNode) nameNode.textContent = appName();
   const sectionTrigger = header.querySelector('[data-mobile-context-trigger]');
   if (sectionTrigger) sectionTrigger.setAttribute('aria-label', `Открыть меню раздела: ${title}`);
+  syncHeaderNavigation(header);
   syncHeaderBrand(root);
 }
 
 export function createHeader() {
-  const { title } = navigationState();
+  const { title, section } = navigationState();
   document.title = `${appName()} — ${title}`;
   const header = document.createElement('header');
   header.className = 'app-header';
   header.innerHTML = `<button class="mobile-context-trigger" data-mobile-context-trigger type="button" aria-expanded="false" aria-controls="app-context-panel" aria-label="Открыть меню раздела: ${title}"></button><div class="app-header-title"><strong data-app-name></strong><span></span></div><div class="app-header-actions"></div>`;
-  header.prepend(homeControl());
+  header.prepend(homeControl(), primaryNavigation(section));
   setIcon(header.querySelector('[data-mobile-context-trigger]'), 'menu');
   header.querySelector('[data-app-name]').textContent = appName();
   header.querySelector('.app-header-title span').textContent = title;
