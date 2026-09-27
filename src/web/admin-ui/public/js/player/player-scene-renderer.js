@@ -101,8 +101,6 @@ export class PlayerSceneRenderer {
       ? new ResizeObserver(() => this.fitViewport())
       : null;
     this.viewportObserver?.observe(stage.parentElement);
-    this.onViewportResize = () => this.fitViewport();
-    window.addEventListener('resize', this.onViewportResize, { passive:true });
     this.fitViewport();
 
     this.weatherElementId = null;
@@ -204,8 +202,6 @@ export class PlayerSceneRenderer {
     this.weatherRuntime.destroy();
     this.viewportObserver?.disconnect();
     this.viewportObserver = null;
-    window.removeEventListener('resize', this.onViewportResize);
-    this.onViewportResize = null;
     this.weatherElementId = null;
     this.stage = null;
   }

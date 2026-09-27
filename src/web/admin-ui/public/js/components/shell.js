@@ -140,12 +140,12 @@ function wireContext(shell, rail, context, header) {
     if (!responsiveCollapsed()) setCollapsed(shell, context, true);
   }, { passive: true });
 
-  shell.querySelector('.app-content')?.addEventListener('pointerdown', (event) => {
+  shell.querySelector('.app-content')?.addEventListener('click', (event) => {
     if (context.classList.contains('is-collapsed') || !contextAvailable(context)) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('[data-mobile-context-trigger], .ui-context')) return;
     setCollapsed(shell, context, true);
-  }, { passive: true });
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || context.classList.contains('is-collapsed') || !contextAvailable(context)) return;
