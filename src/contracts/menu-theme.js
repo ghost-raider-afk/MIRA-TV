@@ -21,7 +21,15 @@ const FONT_FAMILIES = new Set([
   'mira-condensed',
   'mira-mono',
   'mira-serif',
-  'mira-serif-condensed'
+  'mira-serif-condensed',
+  'montserrat',
+  'roboto-condensed',
+  'oswald',
+  'russo-one',
+  'neucha',
+  'pt-sans-narrow',
+  'yanone-kaffeesatz',
+  'underdog'
 ]);
 const OVERRIDE_KEYS = Object.freeze([
   'background_color',

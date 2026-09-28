@@ -48,7 +48,15 @@ const THEME_FONTS = Object.freeze([
   ['mira-condensed', 'MIRA Sans Condensed'],
   ['mira-mono', 'MIRA Sans Mono'],
   ['mira-serif', 'MIRA Serif'],
-  ['mira-serif-condensed', 'MIRA Serif Condensed']
+  ['mira-serif-condensed', 'MIRA Serif Condensed'],
+  ['montserrat', 'Montserrat'],
+  ['roboto-condensed', 'Roboto Condensed'],
+  ['oswald', 'Oswald'],
+  ['russo-one', 'Russo One'],
+  ['neucha', 'Neucha'],
+  ['pt-sans-narrow', 'PT Sans Narrow'],
+  ['yanone-kaffeesatz', 'Yanone Kaffeesatz'],
+  ['underdog', 'Underdog']
 ]);
 
 function systemOwnerIcon(type) {

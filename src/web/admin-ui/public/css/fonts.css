@@ -31,3 +31,17 @@
 @font-face{font-family:"Liberation Sans";src:url("/fonts/DejaVuSans-Bold.ttf") format("truetype");font-style:normal;font-weight:700 900;font-display:block}
 @font-face{font-family:"Liberation Sans Narrow";src:url("/fonts/DejaVuSansCondensed.ttf") format("truetype");font-style:normal;font-weight:400;font-display:block}
 @font-face{font-family:"Liberation Sans Narrow";src:url("/fonts/DejaVuSansCondensed-Bold.ttf") format("truetype");font-style:normal;font-weight:700 900;font-display:block}
+
+/* Theme preset fonts. Bundled locally so Editor, Preview and TV use identical metrics. */
+@font-face{font-family:"MIRA Montserrat";src:url("/fonts/theme/montserrat-cyrillic-700-normal.woff2") format("woff2");font-style:normal;font-weight:700;font-display:block}
+@font-face{font-family:"MIRA Montserrat";src:url("/fonts/theme/montserrat-cyrillic-900-normal.woff2") format("woff2");font-style:normal;font-weight:900;font-display:block}
+@font-face{font-family:"MIRA Roboto Condensed";src:url("/fonts/theme/roboto-condensed-cyrillic-400-normal.woff2") format("woff2");font-style:normal;font-weight:400;font-display:block}
+@font-face{font-family:"MIRA Roboto Condensed";src:url("/fonts/theme/roboto-condensed-cyrillic-700-normal.woff2") format("woff2");font-style:normal;font-weight:700;font-display:block}
+@font-face{font-family:"MIRA Oswald";src:url("/fonts/theme/oswald-cyrillic-700-normal.woff2") format("woff2");font-style:normal;font-weight:700;font-display:block}
+@font-face{font-family:"MIRA Russo One";src:url("/fonts/theme/russo-one-cyrillic-400-normal.woff2") format("woff2");font-style:normal;font-weight:400;font-display:block}
+@font-face{font-family:"MIRA Neucha";src:url("/fonts/theme/neucha-cyrillic-400-normal.woff2") format("woff2");font-style:normal;font-weight:400;font-display:block}
+@font-face{font-family:"MIRA PT Sans Narrow";src:url("/fonts/theme/pt-sans-narrow-cyrillic-400-normal.woff2") format("woff2");font-style:normal;font-weight:400;font-display:block}
+@font-face{font-family:"MIRA PT Sans Narrow";src:url("/fonts/theme/pt-sans-narrow-cyrillic-700-normal.woff2") format("woff2");font-style:normal;font-weight:700;font-display:block}
+@font-face{font-family:"MIRA Yanone Kaffeesatz";src:url("/fonts/theme/yanone-kaffeesatz-cyrillic-400-normal.woff2") format("woff2");font-style:normal;font-weight:400;font-display:block}
+@font-face{font-family:"MIRA Yanone Kaffeesatz";src:url("/fonts/theme/yanone-kaffeesatz-cyrillic-700-normal.woff2") format("woff2");font-style:normal;font-weight:700;font-display:block}
+@font-face{font-family:"MIRA Underdog";src:url("/fonts/theme/underdog-cyrillic-400-normal.woff2") format("woff2");font-style:normal;font-weight:400;font-display:block}

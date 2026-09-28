@@ -10,7 +10,15 @@ const FONT_STACKS = Object.freeze({
   'mira-condensed':"'MIRA Sans Condensed','DejaVu Sans Condensed',Arial,sans-serif",
   'mira-mono':"'MIRA Sans Mono','DejaVu Sans Mono',monospace",
   'mira-serif':"'MIRA Serif',Georgia,serif",
-  'mira-serif-condensed':"'MIRA Serif Condensed','MIRA Serif',Georgia,serif"
+  'mira-serif-condensed':"'MIRA Serif Condensed','MIRA Serif',Georgia,serif",
+  montserrat:'"MIRA Montserrat","MIRA Sans",Arial,sans-serif',
+  'roboto-condensed':'"MIRA Roboto Condensed","MIRA Sans Condensed",Arial,sans-serif',
+  oswald:'"MIRA Oswald","MIRA Sans Condensed",Arial,sans-serif',
+  'russo-one':'"MIRA Russo One","MIRA Sans",Arial,sans-serif',
+  neucha:'"MIRA Neucha","MIRA Sans",Arial,sans-serif',
+  'pt-sans-narrow':'"MIRA PT Sans Narrow","MIRA Sans Condensed",Arial,sans-serif',
+  'yanone-kaffeesatz':'"MIRA Yanone Kaffeesatz","MIRA Sans Condensed",Arial,sans-serif',
+  underdog:'"MIRA Underdog","MIRA Sans",Arial,sans-serif'
 });
 
 function node(tag,className='') {

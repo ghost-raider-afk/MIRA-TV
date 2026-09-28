@@ -11,7 +11,15 @@ export const MENU_FONT_OPTIONS = Object.freeze([
   Object.freeze({ key: 'arial', label: 'Arial', family: 'Arial, Liberation Sans, sans-serif', weightFloor: 400 }),
   Object.freeze({ key: 'dejavu-condensed', label: 'DejaVu Sans Condensed', family: 'DejaVu Sans Condensed, DejaVu Sans, sans-serif', weightFloor: 400 }),
   Object.freeze({ key: 'liberation-narrow', label: 'Liberation Sans Narrow', family: 'Liberation Sans Narrow, Liberation Sans, Arial, sans-serif', weightFloor: 400 }),
-  Object.freeze({ key: 'system-sans', label: 'Системный sans-serif', family: 'Arial, sans-serif', weightFloor: 400 })
+  Object.freeze({ key: 'system-sans', label: 'Системный sans-serif', family: 'Arial, sans-serif', weightFloor: 400 }),
+  Object.freeze({ key: 'montserrat', label: 'Montserrat', family: '"MIRA Montserrat", "MIRA Sans", Arial, sans-serif', weightFloor: 700 }),
+  Object.freeze({ key: 'roboto-condensed', label: 'Roboto Condensed', family: '"MIRA Roboto Condensed", "MIRA Sans Condensed", Arial, sans-serif', weightFloor: 400 }),
+  Object.freeze({ key: 'oswald', label: 'Oswald', family: '"MIRA Oswald", "MIRA Sans Condensed", Arial, sans-serif', weightFloor: 700 }),
+  Object.freeze({ key: 'russo-one', label: 'Russo One', family: '"MIRA Russo One", "MIRA Sans", Arial, sans-serif', weightFloor: 400 }),
+  Object.freeze({ key: 'neucha', label: 'Neucha', family: '"MIRA Neucha", "MIRA Sans", Arial, sans-serif', weightFloor: 400 }),
+  Object.freeze({ key: 'pt-sans-narrow', label: 'PT Sans Narrow', family: '"MIRA PT Sans Narrow", "MIRA Sans Condensed", Arial, sans-serif', weightFloor: 400 }),
+  Object.freeze({ key: 'yanone-kaffeesatz', label: 'Yanone Kaffeesatz', family: '"MIRA Yanone Kaffeesatz", "MIRA Sans Condensed", Arial, sans-serif', weightFloor: 400 }),
+  Object.freeze({ key: 'underdog', label: 'Underdog', family: '"MIRA Underdog", "MIRA Sans", Arial, sans-serif', weightFloor: 400 })
 ]);
 
 export const MENU_REFERENCE = Object.freeze({
