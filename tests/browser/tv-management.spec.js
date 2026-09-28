@@ -62,7 +62,6 @@ test('TV network keeps cards concise and manages monitor metadata in one dialog'
     expect(saved.name).toBe(nextName);
     expect(saved.status).toBe('ready');
 
-
     await page.goto(`/screen-editor?id=${screen.id}`);
     await expect(page).toHaveURL(new RegExp(`/screens\\?manage=${screen.id}$`));
     await expect(page.locator('.screen-tv-management-dialog')).toBeVisible();

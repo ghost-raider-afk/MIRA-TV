@@ -932,4 +932,3 @@ test('Scene weather uses same-origin preview even when navigator reports offline
   await expect(weather.locator('.weather-widget-temperature')).toHaveText('9°');
   expect(previewRequests).toBeGreaterThanOrEqual(1);
 });
-
