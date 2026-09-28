@@ -322,6 +322,9 @@ export function initialiseSceneEditor() {
   function themeState() {
     const source = state.settings?.theme && typeof state.settings.theme === 'object' ? state.settings.theme : {};
     const preset = menuThemePreset(source.preset_id);
+    const visual = preset.visual || {};
+    const weather = preset.weather || {};
+    const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
     return {
       schema_version:1,
       preset_id:preset.id,
@@ -330,14 +333,24 @@ export function initialiseSceneEditor() {
         name:String(source.brand?.name || ''),
         caption:String(source.brand?.caption || ''),
         logo_element_id:String(source.brand?.logo_element_id || ''),
-        name_font_family:String(source.brand?.name_font_family || ''),
-        caption_font_family:String(source.brand?.caption_font_family || '')
+        name_font_family:String(source.brand?.name_font_family || visual.brandNameFontFamily || ''),
+        name_font_size_px:numberOr(source.brand?.name_font_size_px, Number(visual.brandNameFontSizePx) || 64),
+        name_font_weight:numberOr(source.brand?.name_font_weight, Number(visual.brandNameFontWeight) || 900),
+        caption_font_family:String(source.brand?.caption_font_family || visual.brandCaptionFontFamily || ''),
+        caption_font_size_px:numberOr(source.brand?.caption_font_size_px, Number(visual.brandCaptionFontSizePx) || 20),
+        caption_font_weight:numberOr(source.brand?.caption_font_weight, Number(visual.brandCaptionFontWeight) || 700)
       },
       utility_slot:{
-        mode:String(source.utility_slot?.mode || 'none'),
+        mode:String(source.utility_slot?.mode || (preset.id === 'legacy' ? 'none' : preset.default_utility_mode || 'none')),
         text:String(source.utility_slot?.text || ''),
         weather_element_id:String(source.utility_slot?.weather_element_id || ''),
-        font_family:String(source.utility_slot?.font_family || '')
+        font_family:String(source.utility_slot?.font_family || visual.utilityFontFamily || ''),
+        font_size_px:numberOr(source.utility_slot?.font_size_px, Number(visual.utilityFontSizePx) || 28),
+        font_weight:numberOr(source.utility_slot?.font_weight, Number(visual.utilityFontWeight) || 800),
+        temperature_font_family:String(source.utility_slot?.temperature_font_family || weather.temperature_font_family || ''),
+        temperature_font_size_pt:numberOr(source.utility_slot?.temperature_font_size_pt, Number(weather.temperature_font_size_pt) || 48),
+        location_font_size_pt:numberOr(source.utility_slot?.location_font_size_pt, Number(weather.location_font_size_pt) || 14),
+        icon_scale_percent:numberOr(source.utility_slot?.icon_scale_percent, Number(weather.icon_scale_percent) || 100)
       },
       overrides:Array.isArray(source.overrides) ? [...source.overrides] : []
     };
@@ -636,22 +649,40 @@ export function initialiseSceneEditor() {
       history.checkpoint();
       const nextPreset = menuThemePreset(presetSelect.value);
       const current = themeState();
-      const weather = weatherElements.find((item) => item.id === current.utility_slot.weather_element_id) || weatherElements[0] || null;
+      let weather = weatherElements.find((item) => item.id === current.utility_slot.weather_element_id) || weatherElements[0] || null;
       const logo = logos.find((item) => item.id === current.brand.logo_element_id) || logos[0] || null;
+      if (nextPreset.id !== 'legacy' && nextPreset.default_utility_mode === 'weather' && !weather) {
+        weather = appendSceneElement(state,'weather');
+      }
+      const visual = nextPreset.visual || {};
+      const weatherPreset = nextPreset.weather || {};
       const next = {
         ...current,
         preset_id:nextPreset.id,
         preset_version:nextPreset.preset_version || 1,
         brand:{
           ...current.brand,
-          name:current.brand.name || nextPreset.visual?.brandText || '',
-          caption:current.brand.caption || nextPreset.visual?.brandCaption || '',
-          logo_element_id:logo?.id || ''
+          name:current.brand.name || visual.brandText || '',
+          caption:current.brand.caption || visual.brandCaption || '',
+          logo_element_id:logo?.id || '',
+          name_font_family:visual.brandNameFontFamily || current.brand.name_font_family,
+          name_font_size_px:Number(visual.brandNameFontSizePx) || 64,
+          name_font_weight:Number(visual.brandNameFontWeight) || 900,
+          caption_font_family:visual.brandCaptionFontFamily || current.brand.caption_font_family,
+          caption_font_size_px:Number(visual.brandCaptionFontSizePx) || 20,
+          caption_font_weight:Number(visual.brandCaptionFontWeight) || 700
         },
         utility_slot:{
           ...current.utility_slot,
           mode:nextPreset.id === 'legacy' ? 'none' : weather ? 'weather' : 'clock',
-          weather_element_id:weather?.id || ''
+          weather_element_id:weather?.id || '',
+          font_family:visual.utilityFontFamily || current.utility_slot.font_family,
+          font_size_px:Number(visual.utilityFontSizePx) || 28,
+          font_weight:Number(visual.utilityFontWeight) || 800,
+          temperature_font_family:weatherPreset.temperature_font_family || current.utility_slot.temperature_font_family,
+          temperature_font_size_pt:Number(weatherPreset.temperature_font_size_pt) || 48,
+          location_font_size_pt:Number(weatherPreset.location_font_size_pt) || 14,
+          icon_scale_percent:Number(weatherPreset.icon_scale_percent) || 100
         },
         overrides:[]
       };
