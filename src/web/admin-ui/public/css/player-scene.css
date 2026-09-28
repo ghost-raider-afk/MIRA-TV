@@ -104,3 +104,6 @@
 .player-scene-stage[data-menu-theme="premium"] .menu-theme-decor-image{object-position:center bottom}
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor-image{object-position:center center;filter:contrast(1.04) saturate(.92)}
 .player-scene-stage[data-menu-theme="brand-premium"] .menu-theme-decor-image{object-position:center bottom}
+
+.player-scene-stage .menu-theme-brand.has-logo .menu-theme-brand-name{opacity:0}
+.player-scene-stage .menu-theme-brand.has-logo .menu-theme-brand-caption{align-self:end}

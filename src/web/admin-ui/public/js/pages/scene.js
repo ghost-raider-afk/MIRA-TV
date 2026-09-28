@@ -690,9 +690,34 @@ export function initialiseSceneEditor() {
       const next=themeState(); next.brand.logo_element_id=logo.value; setThemeState(next);
     });
 
+    const themeFontSelect=(value,label)=>{
+      const select=document.createElement('select');
+      select.setAttribute('aria-label',label);
+      select.add(new Option('Шрифт темы',''));
+      for(const [key,name] of TABLE_FONTS) select.add(new Option(name,key));
+      select.value=value || '';
+      return select;
+    };
+    const brandFont=themeFontSelect(theme.brand.name_font_family,'Шрифт названия бренда');
+    brandFont.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.brand.name_font_family=brandFont.value; setThemeState(next);
+    });
+    const captionFont=themeFontSelect(theme.brand.caption_font_family,'Шрифт подписи бренда');
+    captionFont.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.brand.caption_font_family=captionFont.value; setThemeState(next);
+    });
+
     const brandGrid=document.createElement('div');
     brandGrid.className='compact-form-grid';
-    brandGrid.append(makeField('Название бренда',brandName),makeField('Подпись / слоган',caption),makeField('Логотип',logo));
+    brandGrid.append(
+      makeField('Название бренда',brandName),
+      makeField('Подпись / слоган',caption),
+      makeField('Логотип',logo),
+      makeField('Шрифт бренда',brandFont),
+      makeField('Шрифт подписи',captionFont)
+    );
     panel.append(brandGrid);
 
     const utility=document.createElement('select');
@@ -731,9 +756,21 @@ export function initialiseSceneEditor() {
       const next=themeState(); next.utility_slot.text=utilityText.value; setThemeState(next);
     });
 
+    const utilityFont=themeFontSelect(theme.utility_slot.font_family,'Шрифт текстового слота');
+    utilityFont.disabled=theme.utility_slot.mode!=='text';
+    utilityFont.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.utility_slot.font_family=utilityFont.value; setThemeState(next);
+    });
+
     const utilityGrid=document.createElement('div');
     utilityGrid.className='compact-form-grid';
-    utilityGrid.append(makeField('Полезный слот',utility),makeField('Погода',weatherSelect),makeField('Текст',utilityText));
+    utilityGrid.append(
+      makeField('Полезный слот',utility),
+      makeField('Погода',weatherSelect),
+      makeField('Текст',utilityText),
+      makeField('Шрифт текста',utilityFont)
+    );
     panel.append(utilityGrid);
 
     const overrideState=document.createElement('div');

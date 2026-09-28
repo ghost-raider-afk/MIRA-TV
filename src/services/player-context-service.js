@@ -28,7 +28,8 @@ function screenComponent(screen) {
     status:screen.status,
     location_id:screen.location_id,
     location_name:screen.location_name,
-    location_number:screen.location_number
+    location_number:screen.location_number,
+    location_screen_count:Number(screen.location_screen_count) || 1
   };
 }
 

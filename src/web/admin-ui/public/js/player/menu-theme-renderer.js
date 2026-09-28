@@ -63,6 +63,7 @@ export class MenuThemeRenderer {
     const frame=node('div','menu-theme-frame');
     const panel=node('div','menu-theme-side-panel');
     const brand=node('div','menu-theme-brand');
+    if(theme.brand.logo_element_id) brand.classList.add('has-logo');
     const brandName=node('strong','menu-theme-brand-name');
     brandName.textContent=theme.brand.name || preset.visual?.brandText || '';
     brandName.style.fontFamily=fontFamily(theme.brand.name_font_family,'Arial,sans-serif');
@@ -99,7 +100,11 @@ export class MenuThemeRenderer {
     const age=node('span','menu-theme-age'); age.textContent='18+';
     const warning=node('span','menu-theme-warning'); warning.textContent=preset.visual?.footerText || '';
     const pager=node('span','menu-theme-pager');
-    pager.textContent=screen?.location_number ? 'Экран '+screen.location_number : '';
+    const screenNumber=Number(screen?.location_number) || 0;
+    const screenCount=Number(screen?.location_screen_count) || 0;
+    pager.textContent=screenNumber
+      ? screenCount > 1 ? 'Экран '+screenNumber+' из '+screenCount : 'Экран '+screenNumber
+      : '';
     footer.append(age,warning,pager);
 
     rectStyle(frame,layout.frame);

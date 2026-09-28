@@ -15,7 +15,7 @@ function sceneAssetUrls(scene) {
 export function createScreensRepository(pool) {
   async function getScreen(id) {
     const { rows } = await pool.query(
-      'SELECT s.*, l.name AS location_name FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.id = $1', [id]
+      'SELECT s.*, l.name AS location_name, (SELECT COUNT(*)::int FROM screens sx WHERE sx.location_id = s.location_id) AS location_screen_count FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.id = $1', [id]
     );
     return normaliseRow(rows[0]);
   }
