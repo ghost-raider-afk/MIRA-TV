@@ -74,6 +74,9 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   assert.notEqual(chalk.weather.current_layout,brand.weather.current_layout);
   assert.notEqual(premium.visual.legalVariant,chalk.visual.legalVariant);
   assert.notEqual(chalk.visual.legalVariant,brand.visual.legalVariant);
+  assert.equal(premium.visual.brandDivider,'hop');
+  assert.equal(chalk.visual.brandDivider,'none');
+  assert.equal(brand.visual.brandDivider,'wave');
   assert.equal(new Set([premium.visual.decorAsset,chalk.visual.decorAsset,brand.visual.decorAsset]).size,3);
   assert.equal(premium.visual.decorFit,'contain');
   assert.equal(chalk.visual.decorFit,'contain');
@@ -86,6 +89,11 @@ test('theme geometry keeps table, side composition and legal footer in separate 
     chalk:{tableRight:1455,panelX:1469,panelRight:1873},
     'brand-premium':{tableRight:1463,panelX:1475,panelRight:1896}
   };
+  const approvedVerticalGeometry={
+    premium:{weatherBottom:296,brandY:315,decorY:525,decorBottom:936},
+    chalk:{weatherBottom:222,brandY:260,decorY:620,decorBottom:936},
+    'brand-premium':{weatherBottom:280,brandY:300,decorY:570,decorBottom:936}
+  };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
     const tableRight=Number(preset.settings.table_x)+Number(preset.settings.table_width_px);
     const tableBottom=Number(preset.settings.table_y)+Number(preset.settings.table_height_px);
@@ -96,6 +104,16 @@ test('theme geometry keeps table, side composition and legal footer in separate 
       {tableRight,panelX:preset.layout.panel.x,panelRight},
       approvedHorizontalGeometry[preset.id],
       `${preset.id}: horizontal composition drifted from the approved prototype`
+    );
+    assert.deepEqual(
+      {
+        weatherBottom:preset.layout.weather.y+preset.layout.weather.height,
+        brandY:preset.layout.brand.y,
+        decorY:preset.layout.decor.y,
+        decorBottom
+      },
+      approvedVerticalGeometry[preset.id],
+      `${preset.id}: vertical side composition drifted from the approved prototype`
     );
     assert.ok(tableRight <= preset.layout.panel.x, `${preset.id}: table overlaps side panel`);
     assert.ok(preset.layout.decor.x >= preset.layout.panel.x, `${preset.id}: decor starts outside side panel`);

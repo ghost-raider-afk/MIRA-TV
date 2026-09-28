@@ -33,26 +33,26 @@ const BASE = Object.freeze({
 const LAYOUT = Object.freeze({
   premium:Object.freeze({
     panel:Object.freeze({ x:1495,y:24,width:397,height:912 }),
-    weather:Object.freeze({ x:1502,y:42,width:372,height:238 }),
-    logo:Object.freeze({ x:1516,y:302,width:344,height:92 }),
-    brand:Object.freeze({ x:1500,y:286,width:376,height:192 }),
-    decor:Object.freeze({ x:1501,y:496,width:387,height:440 }),
+    weather:Object.freeze({ x:1502,y:42,width:372,height:254 }),
+    logo:Object.freeze({ x:1516,y:306,width:344,height:92 }),
+    brand:Object.freeze({ x:1500,y:315,width:376,height:205 }),
+    decor:Object.freeze({ x:1501,y:525,width:387,height:411 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   chalk:Object.freeze({
     panel:Object.freeze({ x:1469,y:24,width:404,height:912 }),
-    weather:Object.freeze({ x:1481,y:42,width:380,height:204 }),
-    logo:Object.freeze({ x:1490,y:264,width:348,height:86 }),
-    brand:Object.freeze({ x:1481,y:252,width:380,height:250 }),
-    decor:Object.freeze({ x:1477,y:500,width:388,height:436 }),
+    weather:Object.freeze({ x:1481,y:42,width:380,height:180 }),
+    logo:Object.freeze({ x:1490,y:250,width:348,height:86 }),
+    brand:Object.freeze({ x:1481,y:260,width:380,height:430 }),
+    decor:Object.freeze({ x:1477,y:620,width:388,height:316 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   'brand-premium':Object.freeze({
     panel:Object.freeze({ x:1475,y:24,width:421,height:912 }),
     weather:Object.freeze({ x:1492,y:42,width:387,height:238 }),
-    logo:Object.freeze({ x:1514,y:300,width:348,height:92 }),
-    brand:Object.freeze({ x:1498,y:286,width:380,height:204 }),
-    decor:Object.freeze({ x:1488,y:498,width:400,height:438 }),
+    logo:Object.freeze({ x:1514,y:294,width:348,height:92 }),
+    brand:Object.freeze({ x:1498,y:300,width:380,height:230 }),
+    decor:Object.freeze({ x:1488,y:570,width:400,height:366 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   })
 });
@@ -176,7 +176,7 @@ const PRESETS = Object.freeze([
       brandColor:'#E5B62E',
       brandText:'БИР ФИШ',
       brandCaption:'Хорошее пиво рядом!',
-      brandDivider:'chalk-line',
+      brandDivider:'none',
       brandNameFontFamily:'underdog',
       brandNameFontSizePx:70,
       brandNameFontWeight:900,
