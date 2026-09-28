@@ -50,6 +50,7 @@ test('Scene Editor uses the shared Player renderer for an approved theme and can
     await expect(page.getByLabel('Размер названия бренда')).toBeEnabled();
     await expect(page.getByLabel('Кегль температуры темы')).toBeEnabled();
     await expect(page.getByLabel('Масштаб иконки погоды темы')).toBeEnabled();
+    await expect(page.getByRole('button',{ name:'Настроить погоду' })).toBeEnabled();
 
     await page.getByLabel('Размер названия бренда').fill('76');
     await page.getByLabel('Кегль температуры темы').fill('60');
