@@ -30,13 +30,23 @@ test('theme contract stores editable brand content, utility slot and explicit re
       caption:'Надпись над кружкой',
       logo_element_id:'logo-main',
       name_font_family:'arial-narrow',
-      caption_font_family:'tahoma-bold'
+      name_font_size_px:82,
+      name_font_weight:800,
+      caption_font_family:'mira-serif',
+      caption_font_size_px:26,
+      caption_font_weight:600
     },
     utility_slot:{
       mode:'text',
       text:'Сегодня свежее поступление',
       weather_element_id:'weather-main',
-      font_family:'system-sans'
+      font_family:'system-sans',
+      font_size_px:32,
+      font_weight:700,
+      temperature_font_family:'mira-mono',
+      temperature_font_size_pt:68,
+      location_font_size_pt:18,
+      icon_scale_percent:150
     },
     overrides:['font_family','background_image_url','font_family','table_x']
   });
@@ -44,6 +54,14 @@ test('theme contract stores editable brand content, utility slot and explicit re
   assert.equal(theme.brand.name, 'БИР ФИШ');
   assert.equal(theme.brand.caption, 'Надпись над кружкой');
   assert.equal(theme.utility_slot.mode, 'text');
+  assert.equal(theme.brand.name_font_size_px,82);
+  assert.equal(theme.brand.caption_font_family,'mira-serif');
+  assert.equal(theme.brand.caption_font_size_px,26);
+  assert.equal(theme.utility_slot.font_size_px,32);
+  assert.equal(theme.utility_slot.temperature_font_family,'mira-mono');
+  assert.equal(theme.utility_slot.temperature_font_size_pt,68);
+  assert.equal(theme.utility_slot.location_font_size_pt,18);
+  assert.equal(theme.utility_slot.icon_scale_percent,150);
   assert.deepEqual(theme.overrides, MENU_THEME_OVERRIDE_KEYS.filter((key) =>
     ['font_family','background_image_url','table_x'].includes(key)
   ));
@@ -82,4 +100,6 @@ test('legacy scenes receive a no-op theme identity and invalid theme data is rej
   assert.throws(() => menuThemeInput({ preset_id:'premium', preset_version:2 }), /Версия темы/);
   assert.throws(() => menuThemeInput({ overrides:['unknown_setting'] }), /нельзя переопределять/);
   assert.throws(() => menuThemeInput({ utility_slot:{ mode:'video' } }), /не поддерживается/);
+  assert.throws(() => menuThemeInput({ brand:{ name_font_size_px:200 } }), /name_font_size_px/);
+  assert.throws(() => menuThemeInput({ utility_slot:{ icon_scale_percent:240 } }), /icon_scale_percent/);
 });
