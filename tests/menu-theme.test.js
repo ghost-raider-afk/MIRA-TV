@@ -12,7 +12,7 @@ test('theme catalog keeps legacy plus the three approved MIRA-TV presets', () =>
   assert.deepEqual(MENU_THEME_PRESET_IDS, ['legacy','premium','chalk','brand-premium']);
   assert.deepEqual(menuThemeCatalog().map((item) => item.label), [
     'Текущая',
-    'Премиальная',
+    'Премиальная классическая',
     'Меловая',
     'Брендовая премиальная'
   ]);
