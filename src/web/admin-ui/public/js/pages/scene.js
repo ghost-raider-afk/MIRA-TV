@@ -100,27 +100,12 @@ function systemOwnerIcon(type) {
 }
 
 let generation = 0;
-const LAST_SCENE_SCREEN_KEY = 'mira-tv.scene.last-screen-id.v1';
-
-function rememberedScreenId() {
-  try {
-    const id = Number(window.localStorage.getItem(LAST_SCENE_SCREEN_KEY));
-    return Number.isSafeInteger(id) && id > 0 ? id : null;
-  } catch {
-    return null;
-  }
-}
-
 function screenFromQuery(screens) {
-  const queryId = Number(new URL(window.location.href).searchParams.get('screen'));
-  const explicit = screens.find((screen) => Number(screen.id) === queryId);
-  if (explicit) return explicit;
-  const rememberedId = rememberedScreenId();
-  return screens.find((screen) => Number(screen.id) === rememberedId) || screens[0] || null;
+  const id = Number(new URL(window.location.href).searchParams.get('screen'));
+  return screens.find((screen) => Number(screen.id) === id) || screens[0] || null;
 }
 
 function rememberScreen(id) {
-  try { window.localStorage.setItem(LAST_SCENE_SCREEN_KEY, String(id)); } catch {}
   const url = new URL(window.location.href);
   url.searchParams.set('screen', String(id));
   history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);

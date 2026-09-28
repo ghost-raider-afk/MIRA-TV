@@ -319,7 +319,7 @@ export function createScreensRouter({ store, config, realtime }) {
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
       validateMenuThemeBindings(draft.settings.theme, draft.scene);
-      let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: 'published', active: current.active };
+      let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: current.status, active: current.active };
       if (request.body?.screen && typeof request.body.screen === 'object' && !Array.isArray(request.body.screen)) {
         const siteSettings = await tx.getSiteSettings();
         screenData = screenInput(request.body.screen, { defaultScreenResolution: siteSettings.default_screen_resolution, maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
