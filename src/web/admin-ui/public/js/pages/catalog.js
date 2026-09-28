@@ -213,6 +213,7 @@ export function initialiseCatalog() {
       if (state.editingProductId) await api.put(`${API.products}/${state.editingProductId}`, payload);
       else await api.post(API.products, payload);
       resetProductForm();
+      closeCatalogDialog('product-dialog');
       await Promise.all([loadCatalog(), loadNotifications()]);
     } catch (error) {
       setMessage('product-message', error.message);

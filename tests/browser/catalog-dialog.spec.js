@@ -17,8 +17,10 @@ test('Catalog is list-first and opens create/edit forms on demand', async ({page
   const packagingDialog=page.locator('#packaging-dialog');
   await expect(productDialog).not.toBeVisible();
   await expect(packagingDialog).not.toBeVisible();
-  await expect(page.locator('[data-products-list]')).toBeVisible();
-  await expect(page.locator('[data-packaging-list]')).toBeVisible();
+  await expect(page.locator('.catalog-products-card')).toBeVisible();
+  await expect(page.locator('.catalog-list-card').nth(1)).toBeVisible();
+  await expect(page.locator('[data-products-list]')).toHaveCount(1);
+  await expect(page.locator('[data-packaging-list]')).toHaveCount(1);
 
   await page.locator('#new-product').click();
   await expect(productDialog).toBeVisible();

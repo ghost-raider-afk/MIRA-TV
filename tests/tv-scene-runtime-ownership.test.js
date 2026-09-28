@@ -29,8 +29,8 @@ test('TV Player has one static renderer and no motion/video runtime', async () =
   assert.match(stateSync, /'screen', 'menu', 'scene', 'content_manifest', 'runtime'/);
   assert.doesNotMatch(stateSync, /scene_video|scene_playlist|'animation'/);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v53'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v52'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v54'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v53'/);
   assert.doesNotMatch(worker, /['"]\/js\/motion\//);
   assert.doesNotMatch(worker, /['"]\/js\/player\/scene-video-runtime\.js['"]/);
   assert.doesNotMatch(worker, /['"][^'"]+\.(?:mp4|webm)(?:\?[^'"]*)?['"]/i);
