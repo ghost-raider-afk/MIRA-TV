@@ -124,7 +124,7 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
         : palette.accent;
   const radius = themeId === 'chalk' ? 3 : themeId === 'legacy' ? 5 : 7;
   const stroke = themeId === 'chalk' ? ' stroke="#F4E7B0" stroke-opacity=".20" stroke-width="1"' : '';
-  return `<g class="table-section theme-${themeId}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: 28 * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
+  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: 28 * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
 }
 
 function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
