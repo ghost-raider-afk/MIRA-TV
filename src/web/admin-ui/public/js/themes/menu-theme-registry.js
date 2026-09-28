@@ -290,6 +290,13 @@ export function resolveMenuThemeSettings(settings = {}) {
   for (const [key,value] of Object.entries(preset.settings)) {
     if (!overrides.has(key)) resolved[key] = value;
   }
-  resolved.theme_table_style = preset.table ? { ...preset.table } : null;
+  const tableStyle = preset.table ? { ...preset.table } : null;
+  if (tableStyle && overrides.has('font_family')) {
+    tableStyle.section_font_family = resolved.font_family;
+    tableStyle.item_font_family = resolved.font_family;
+    tableStyle.meta_font_family = resolved.font_family;
+    tableStyle.price_font_family = resolved.font_family;
+  }
+  resolved.theme_table_style = tableStyle;
   return Object.freeze(resolved);
 }

@@ -37,6 +37,10 @@ test('theme resolver applies preset background/table defaults but explicit overr
   },{ version:1,elements:[] });
   assert.equal(overridden.settings.background_color,'#123456');
   assert.equal(overridden.settings.font_family,'tahoma-bold');
+  assert.equal(overridden.settings.theme_table_style.section_font_family,'tahoma-bold');
+  assert.equal(overridden.settings.theme_table_style.item_font_family,'tahoma-bold');
+  assert.equal(overridden.settings.theme_table_style.meta_font_family,'tahoma-bold');
+  assert.equal(overridden.settings.theme_table_style.price_font_family,'tahoma-bold');
 });
 
 test('theme resolver reuses canonical logo/weather and applies theme weather design without mutating saved scene', () => {

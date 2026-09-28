@@ -164,7 +164,14 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect(managementDialog.locator('.screen-tv-meta-row', { hasText:'Ping' }).locator('strong')).toContainText('мс');
     await managementDialog.locator('[data-tv-management-cancel]').click();
 
-    await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(0);
+    await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(1, { timeout:5000 });
+    await expect(tvCard.locator('.screen-tv-face')).toHaveClass(/has-player-frame/, { timeout:5000 });
+    await expect.poll(tvNetworkState, { timeout:5000 }).toMatchObject({
+      ok:true,
+      online:true,
+      preview:true
+    });
+
     await tvCard.locator('.screen-tv-card').click();
     const previewDialog = adminPage.locator('.screen-tv-preview-dialog');
     await expect(previewDialog).toBeVisible();
