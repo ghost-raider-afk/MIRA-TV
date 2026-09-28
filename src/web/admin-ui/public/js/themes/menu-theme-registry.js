@@ -1,3 +1,15 @@
+export const ALCOHOL_WARNING_TEXT = 'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ';
+export const ALCOHOL_WARNING_MIN_AREA_RATIO = 0.10;
+export const ALCOHOL_WARNING_REFERENCE_AREA_RATIO = Object.freeze({
+  width:1920,
+  height:1080,
+  x:0,
+  y:968,
+  warning_width:1920,
+  warning_height:112,
+  ratio:(1920 * 112) / (1920 * 1080)
+});
+
 const BASE = Object.freeze({
   background_color:'#101828',
   background_image_url:'',
@@ -249,18 +261,6 @@ const PRESETS = Object.freeze([
   })
 ]);
 
-export const ALCOHOL_WARNING_TEXT = 'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ';
-export const ALCOHOL_WARNING_MIN_AREA_RATIO = 0.10;
-export const ALCOHOL_WARNING_REFERENCE_AREA_RATIO = Object.freeze({
-  width:1920,
-  height:1080,
-  x:0,
-  y:968,
-  warning_width:1920,
-  warning_height:112,
-  ratio:(1920 * 112) / (1920 * 1080)
-});
-
 export const MENU_THEME_OVERRIDE_KEYS = Object.freeze([
   'background_color','background_image_url','accent_color','text_color','font_scale_percent','font_family',
   'price_font_size_pt','promotion_badge_shape','promotion_font_family','promotion_font_size_percent',
@@ -290,5 +290,6 @@ export function resolveMenuThemeSettings(settings = {}) {
   for (const [key,value] of Object.entries(preset.settings)) {
     if (!overrides.has(key)) resolved[key] = value;
   }
+  resolved.theme_table_style = preset.table ? { ...preset.table } : null;
   return Object.freeze(resolved);
 }
