@@ -50,7 +50,7 @@ test('preset themes are self-contained and apply to another TV without creating 
     await expect(stage).toHaveAttribute('data-menu-theme','premium');
     await expect(stage.locator('.menu-theme-brand-name')).toHaveText('БИР ФИШ');
     await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/premium-side.svg');
-    await expect(page.getByLabel('Содержимое полезного слота')).toHaveValue('weather');
+    await expect(stage.locator('.menu-theme-utility')).toHaveAttribute('data-utility-mode','weather');
     await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(0);
     await expect(page.getByLabel('Кегль температуры темы')).toBeEnabled();
     await expect(page.getByLabel('Масштаб иконки погоды темы')).toBeEnabled();
@@ -114,7 +114,7 @@ test('Theme Constructor owns generic scene elements and preset selection does no
 
     await page.goto(`/scene?screen=${screenId}`);
     await page.locator('#scene-editor-theme-layer').click();
-    await expect(page.getByText('Конструктор темы',{exact:true}).first()).toBeVisible();
+    await expect(page.locator('#scene-editor-properties .scene-theme-constructor .scene-theme-subsection-title')).toHaveText('Конструктор темы');
 
     await page.getByRole('button',{name:'+ Погода'}).click();
     const stage=page.locator('#scene-editor-stage');

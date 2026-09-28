@@ -40,6 +40,23 @@ async function fixture(page) {
   return { screen, product, location };
 }
 
+async function openThemeConstructor(page) {
+  const themeLayer = page.locator('#scene-editor-theme-layer');
+  if (!(await themeLayer.isVisible())) {
+    const layersButton = page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Слои/ });
+    if (await layersButton.isVisible()) await layersButton.click();
+  }
+  await themeLayer.click();
+  const constructor = page.locator('#scene-editor-properties .scene-theme-constructor');
+  await expect(constructor).toBeVisible();
+  return constructor;
+}
+
+async function addConstructorElement(page, label) {
+  const constructor = await openThemeConstructor(page);
+  await constructor.getByRole('button', { name:`+ ${label}`, exact:true }).click();
+}
+
 test('Scene editor keeps layers, shared Player preview and contextual properties on one desktop page', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
@@ -215,11 +232,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     });
   });
 
-  await page.locator('#scene-editor-add').click();
-  const addMenu = page.locator('#scene-editor-add-menu');
-  await expect(addMenu).toBeVisible();
-  await expect(addMenu.getByRole('menuitem')).toHaveCount(4);
-  await addMenu.getByRole('menuitem', { name:/Текстовое поле/ }).click();
+  const constructor = await openThemeConstructor(page);
+  await expect(constructor.getByRole('button')).toHaveCount(4);
+  await constructor.getByRole('button', { name:'+ Текстовое поле', exact:true }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(1);
   await expect(page.locator('.scene-editor-layer-select strong')).toHaveText('Текстовое поле');
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
@@ -250,8 +265,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(Number(await inspector.getByLabel('Ширина', { exact:true }).inputValue())).toBeGreaterThan(720);
   expect(Number(await inspector.getByLabel('Высота', { exact:true }).inputValue())).toBeGreaterThan(220);
 
-  await page.locator('#scene-editor-add').click();
-  await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
+  await addConstructorElement(page, 'Погода');
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
   const weatherElement = page.locator('#scene-editor-stage [data-scene-element-type="weather"]');
   const weatherContent = weatherElement.locator('[data-scene-weather-mount]');
@@ -287,9 +301,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     transform:node.style.transform
   }))).toEqual({ scale:1, width:'100%', height:'100%', transform:'none' });
 
-  await page.locator('#scene-editor-add').click();
-  await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
-  await addMenu.getByRole('menuitem', { name:/Логотип/ }).click();
+  const constructorAfterWeather = await openThemeConstructor(page);
+  await expect(constructorAfterWeather.getByRole('button', { name:'+ Погода', exact:true })).toBeDisabled();
+  await constructorAfterWeather.getByRole('button', { name:'+ Логотип', exact:true }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(3);
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="logo"]')).toHaveCount(1);
 
@@ -360,11 +374,7 @@ test('background, weather and image settings apply atomically to selected monito
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
-  const add = page.locator('#scene-editor-add');
-  const addMenu = page.locator('#scene-editor-add-menu');
-
-  await add.click();
-  await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
+  await addConstructorElement(page, 'Погода');
   await inspector.getByLabel('X', { exact:true }).fill('410');
   await inspector.getByLabel('Y', { exact:true }).fill('180');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
@@ -373,8 +383,7 @@ test('background, weather and image settings apply atomically to selected monito
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
-  await add.click();
-  await addMenu.getByRole('menuitem', { name:/Картинка/ }).click();
+  await addConstructorElement(page, 'Картинка');
   await inspector.getByLabel('X', { exact:true }).fill('520');
   await inspector.getByLabel('Ширина', { exact:true }).fill('360');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
@@ -383,9 +392,8 @@ test('background, weather and image settings apply atomically to selected monito
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
-  await add.click();
-  await expect(addMenu.getByRole('menuitem', { name:/Видео/ })).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  const constructorAfterImage = await openThemeConstructor(page);
+  await expect(constructorAfterImage.getByRole('button', { name:'+ Видео', exact:true })).toHaveCount(0);
 
   const storedTarget = await (await page.request.get(`/api/screens/${target.id}/editor`)).json();
   expect(storedTarget.draft.settings.background_color).toBe('#223344');
@@ -601,9 +609,7 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
 
-  await page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Элемент/ }).click();
-  await expect(page.locator('#scene-editor-add-menu')).toBeVisible();
-  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Текстовое поле/ }).click();
+  await addConstructorElement(page, 'Текстовое поле');
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
   await expect(page.locator('.scene-editor-resize-handle')).toHaveCount(8);
 });
@@ -668,8 +674,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   });
 
   await page.goto(`/scene?screen=${screen.id}`);
-  await page.locator('#scene-editor-add').click();
-  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Погода/ }).click();
+  await addConstructorElement(page, 'Погода');
 
   const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
   await location.fill('Комсомольск-на-Амуре');
