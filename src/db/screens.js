@@ -102,21 +102,21 @@ export function createScreensRepository(pool) {
     },
     async isScreenBackgroundReferenced(url) {
       if (!url) return false;
-      const { rows } = await pool.query('SELECT settings_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT settings_json FROM screen_drafts UNION ALL SELECT settings_json FROM menu_theme_templates');
       return rows.some((row) => jsonValue(row.settings_json, {}).background_image_url === url);
     },
     async isSceneAssetReferenced(url) {
       if (!url) return false;
-      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts UNION ALL SELECT scene_json FROM menu_theme_templates');
       return rows.some((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] })).includes(url));
     },
     async listSceneAssetReferences() {
-      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts UNION ALL SELECT scene_json FROM menu_theme_templates');
       return [...new Set(rows.flatMap((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))))];
     },
     async isContentAssetReferenced(url) {
       if (!url || !String(url).startsWith('/site-assets/content/')) return false;
-      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts UNION ALL SELECT settings_json, scene_json FROM menu_theme_templates');
       return rows.some((row) => {
         const settings = jsonValue(row.settings_json, {});
         if (settings.background_image_url === url) return true;
@@ -124,7 +124,7 @@ export function createScreensRepository(pool) {
       });
     },
     async listContentAssetReferences() {
-      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts UNION ALL SELECT settings_json, scene_json FROM menu_theme_templates');
       const values = [];
       for (const row of rows) {
         const background = String(jsonValue(row.settings_json, {}).background_image_url || '');
