@@ -337,34 +337,72 @@ export function initialiseSceneEditor() {
     const source = state.settings?.theme && typeof state.settings.theme === 'object' ? state.settings.theme : {};
     const preset = menuThemePreset(source.preset_id);
     const visual = preset.visual || {};
-    const weather = preset.weather || {};
+    const weatherPreset = preset.weather || {};
+    const sourceBrand = source.brand && typeof source.brand === 'object' ? source.brand : {};
+    const sourceUtility = source.utility_slot && typeof source.utility_slot === 'object' ? source.utility_slot : {};
+    const sourceWeather = sourceUtility.weather && typeof sourceUtility.weather === 'object' ? sourceUtility.weather : {};
+    const sourceDecor = source.decor && typeof source.decor === 'object' ? source.decor : {};
+    const sourceLegal = source.legal && typeof source.legal === 'object' ? source.legal : {};
+    const linkedWeather = (state.scene?.elements || []).find((item) =>
+      item?.type === 'weather' && item.id === sourceUtility.weather_element_id
+    );
+    const linkedLogo = (state.scene?.elements || []).find((item) =>
+      item?.type === 'logo' && item.id === sourceBrand.logo_element_id
+    );
+    const migratedWeather = Object.keys(sourceWeather).length ? sourceWeather : (linkedWeather?.weather || {});
     const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const nullableNumber = (value) => value === null || value === undefined || value === '' || !Number.isFinite(Number(value))
+      ? null
+      : Number(value);
+
     return {
       schema_version:1,
       preset_id:preset.id,
       preset_version:preset.preset_version || 1,
       brand:{
-        name:String(source.brand?.name || ''),
-        caption:String(source.brand?.caption || ''),
-        logo_element_id:String(source.brand?.logo_element_id || ''),
-        name_font_family:String(source.brand?.name_font_family || visual.brandNameFontFamily || ''),
-        name_font_size_px:numberOr(source.brand?.name_font_size_px, Number(visual.brandNameFontSizePx) || 64),
-        name_font_weight:numberOr(source.brand?.name_font_weight, Number(visual.brandNameFontWeight) || 900),
-        caption_font_family:String(source.brand?.caption_font_family || visual.brandCaptionFontFamily || ''),
-        caption_font_size_px:numberOr(source.brand?.caption_font_size_px, Number(visual.brandCaptionFontSizePx) || 20),
-        caption_font_weight:numberOr(source.brand?.caption_font_weight, Number(visual.brandCaptionFontWeight) || 700)
+        name:String(sourceBrand.name || visual.brandText || ''),
+        caption:String(sourceBrand.caption || visual.brandCaption || ''),
+        logo_element_id:String(sourceBrand.logo_element_id || ''),
+        logo_url:String(sourceBrand.logo_url || linkedLogo?.media?.source_url || ''),
+        name_font_family:String(sourceBrand.name_font_family || visual.brandNameFontFamily || ''),
+        name_font_size_px:numberOr(sourceBrand.name_font_size_px, Number(visual.brandNameFontSizePx) || 64),
+        name_font_weight:numberOr(sourceBrand.name_font_weight, Number(visual.brandNameFontWeight) || 900),
+        caption_font_family:String(sourceBrand.caption_font_family || visual.brandCaptionFontFamily || ''),
+        caption_font_size_px:numberOr(sourceBrand.caption_font_size_px, Number(visual.brandCaptionFontSizePx) || 20),
+        caption_font_weight:numberOr(sourceBrand.caption_font_weight, Number(visual.brandCaptionFontWeight) || 700)
       },
       utility_slot:{
-        mode:String(source.utility_slot?.mode || (preset.id === 'legacy' ? 'none' : preset.default_utility_mode || 'none')),
-        text:String(source.utility_slot?.text || ''),
-        weather_element_id:String(source.utility_slot?.weather_element_id || ''),
-        font_family:String(source.utility_slot?.font_family || visual.utilityFontFamily || ''),
-        font_size_px:numberOr(source.utility_slot?.font_size_px, Number(visual.utilityFontSizePx) || 28),
-        font_weight:numberOr(source.utility_slot?.font_weight, Number(visual.utilityFontWeight) || 800),
-        temperature_font_family:String(source.utility_slot?.temperature_font_family || weather.temperature_font_family || ''),
-        temperature_font_size_pt:numberOr(source.utility_slot?.temperature_font_size_pt, Number(weather.temperature_font_size_pt) || 48),
-        location_font_size_pt:numberOr(source.utility_slot?.location_font_size_pt, Number(weather.location_font_size_pt) || 14),
-        icon_scale_percent:numberOr(source.utility_slot?.icon_scale_percent, Number(weather.icon_scale_percent) || 100)
+        mode:String(sourceUtility.mode || (preset.id === 'legacy' ? 'none' : preset.default_utility_mode || 'none')),
+        text:String(sourceUtility.text || ''),
+        weather_element_id:String(sourceUtility.weather_element_id || ''),
+        font_family:String(sourceUtility.font_family || visual.utilityFontFamily || ''),
+        font_size_px:numberOr(sourceUtility.font_size_px, Number(visual.utilityFontSizePx) || 28),
+        font_weight:numberOr(sourceUtility.font_weight, Number(visual.utilityFontWeight) || 800),
+        temperature_font_family:String(sourceUtility.temperature_font_family || weatherPreset.temperature_font_family || ''),
+        temperature_font_size_pt:numberOr(sourceUtility.temperature_font_size_pt, Number(weatherPreset.temperature_font_size_pt) || 48),
+        location_font_size_pt:numberOr(sourceUtility.location_font_size_pt, Number(weatherPreset.location_font_size_pt) || 14),
+        icon_scale_percent:numberOr(sourceUtility.icon_scale_percent, Number(weatherPreset.icon_scale_percent) || 100),
+        weather:{
+          location_name:String(migratedWeather.location_name || ''),
+          latitude:nullableNumber(migratedWeather.latitude),
+          longitude:nullableNumber(migratedWeather.longitude),
+          timezone:String(migratedWeather.timezone || 'auto'),
+          refresh_minutes:numberOr(migratedWeather.refresh_minutes,15),
+          show_condition:migratedWeather.show_condition !== false,
+          show_forecast:migratedWeather.show_forecast !== false,
+          forecast_items:numberOr(migratedWeather.forecast_items,Number(weatherPreset.forecast_items) || 3)
+        }
+      },
+      decor:{
+        source_url:String(sourceDecor.source_url || '')
+      },
+      legal:{
+        text:String(sourceLegal.text || visual.footerText || ''),
+        age_text:String(sourceLegal.age_text || visual.ageText || '18+'),
+        font_family:String(sourceLegal.font_family || visual.legalFontFamily || 'mira-condensed'),
+        font_size_px:numberOr(sourceLegal.font_size_px,Number(visual.legalFontSizePx) || 30),
+        font_weight:numberOr(sourceLegal.font_weight,Number(visual.legalFontWeight) || 600),
+        letter_spacing_px:numberOr(sourceLegal.letter_spacing_px,Number(visual.legalLetterSpacingPx) || 0)
       },
       overrides:Array.isArray(source.overrides) ? [...source.overrides] : []
     };
@@ -428,7 +466,7 @@ export function initialiseSceneEditor() {
     const note = document.createElement('small');
     note.className = 'scene-editor-multi-apply-note';
     note.textContent = kind === 'theme'
-      ? 'Пресет, бренд, полезный слот, связанные логотип/погода и ручные overrides будут применены к выбранным ТВ. Можно выбрать сразу всю торговую точку.'
+      ? 'Пресет, встроенные бренд/погода/часы, legal-блок, фон и ручные overrides будут применены к выбранным ТВ. Можно выбрать сразу всю торговую точку.'
       : kind === 'background'
         ? 'Цвет и фоновое изображение будут одинаково применены к выбранным мониторам.'
         : 'Положение, размер и все настройки этого элемента будут применены к выбранным мониторам.';
@@ -499,9 +537,7 @@ export function initialiseSceneEditor() {
         payload.override_settings=Object.fromEntries(
           theme.overrides.filter((key)=>MENU_THEME_OVERRIDE_KEYS.includes(key)).map((key)=>[key,state.settings[key]])
         );
-        const logo=state.scene?.elements?.find((item)=>item?.id===theme.brand.logo_element_id && item?.type==='logo') || null;
-        const weather=state.scene?.elements?.find((item)=>item?.id===theme.utility_slot.weather_element_id && item?.type==='weather') || null;
-        payload.bound_elements={ logo:logo ? structuredClone(logo) : null, weather:weather ? structuredClone(weather) : null };
+        payload.bound_elements={ logo:null,weather:null };
       } else if (kind === 'background') {
         payload.background = {
           background_color: state.settings.background_color || '#101828',
