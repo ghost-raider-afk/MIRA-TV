@@ -52,6 +52,19 @@ test('every approved theme owns its table, weather, typography and default backg
   assert.notEqual(chalk.table.variant,brand.table.variant);
 });
 
+test('theme geometry keeps menu, side composition and legal footer in separate regions', () => {
+  for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
+    const tableRight=Number(preset.settings.table_x)+Number(preset.settings.table_width_px);
+    const tableBottom=Number(preset.settings.table_y)+Number(preset.settings.table_height_px);
+    const panelRight=Number(preset.layout.panel.x)+Number(preset.layout.panel.width);
+    const decorBottom=Number(preset.layout.decor.y)+Number(preset.layout.decor.height);
+    assert.ok(tableRight <= preset.layout.panel.x, `${preset.id}: table overlaps side panel`);
+    assert.ok(tableBottom <= preset.layout.footer.y, `${preset.id}: table overlaps legal footer`);
+    assert.ok(decorBottom <= preset.layout.footer.y, `${preset.id}: decor overlaps legal footer`);
+    assert.ok(panelRight <= 1920, `${preset.id}: side panel leaves viewport`);
+  }
+});
+
 test('theme contract stores editable brand typography, utility slot and weather typography', () => {
   const theme = menuThemeInput({
     preset_id:'brand-premium',
