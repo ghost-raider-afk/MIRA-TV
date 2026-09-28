@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+<defs>
+  <linearGradient id="night" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#030405"/><stop offset=".62" stop-color="#090a0b"/><stop offset="1" stop-color="#050505"/></linearGradient>
+  <radialGradient id="glow" cx="87%" cy="64%" r="42%"><stop stop-color="#f2ad21" stop-opacity=".17"/><stop offset=".38" stop-color="#b77613" stop-opacity=".06"/><stop offset="1" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1920" height="1080" fill="url(#night)"/>
+<rect width="1920" height="1080" fill="url(#glow)"/>
+<g fill="#e8ad27" opacity=".075">
+  <circle cx="1652" cy="148" r="10"/><circle cx="1738" cy="204" r="5"/><circle cx="1833" cy="130" r="7"/>
+  <circle cx="1582" cy="816" r="8"/><circle cx="1792" cy="892" r="12"/><circle cx="1880" cy="754" r="6"/>
+</g>
+<path d="M1472 0H1920V1080H1472Z" fill="#08090a" fill-opacity=".34"/>
+<path d="M1490 0V1080" stroke="#dca720" stroke-opacity=".35"/>
+<path d="M1510 0V1080" stroke="#dca720" stroke-opacity=".08"/>
+</svg>
