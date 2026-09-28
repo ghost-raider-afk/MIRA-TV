@@ -10,6 +10,9 @@ test('offline Player shell contains only static runtime dependencies', async () 
   assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v54'/);
   assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v53'/);
   assert.match(worker, /\/css\/player-scene\.css/);
+  assert.match(worker, /\/brand\/themes\/premium-side\.jpg/);
+  assert.match(worker, /\/brand\/themes\/chalk-side\.jpg/);
+  assert.match(worker, /\/brand\/themes\/brand-premium-side\.jpg/);
   assert.match(worker, /\/js\/player\/weather-widget\.js/);
   assert.match(worker, /\/js\/player\/menu-theme-runtime\.js/);
   assert.match(worker, /\/js\/player\/menu-theme-renderer\.js/);

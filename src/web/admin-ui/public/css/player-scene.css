@@ -96,3 +96,11 @@
 .player-scene-stage[data-menu-theme="premium"] .weather-widget-forecast,
 .player-scene-stage[data-menu-theme="chalk"] .weather-widget-forecast,
 .player-scene-stage[data-menu-theme="brand-premium"] .weather-widget-forecast{padding-top:8px;border-top:1px solid rgba(242,183,42,.7)}
+
+.player-scene-stage .menu-theme-decor.has-asset{background:#080A0B}
+.player-scene-stage .menu-theme-decor.has-asset::before,
+.player-scene-stage .menu-theme-decor.has-asset::after{display:none}
+.player-scene-stage .menu-theme-decor-image{display:block;width:100%;height:100%;object-fit:cover;object-position:center bottom;opacity:.98}
+.player-scene-stage[data-menu-theme="premium"] .menu-theme-decor-image{object-position:center bottom}
+.player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor-image{object-position:center center;filter:contrast(1.04) saturate(.92)}
+.player-scene-stage[data-menu-theme="brand-premium"] .menu-theme-decor-image{object-position:center bottom}

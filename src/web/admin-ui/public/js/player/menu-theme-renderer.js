@@ -78,7 +78,7 @@ export class MenuThemeRenderer {
       utility.classList.add('is-clock');
       this.clockNode=utility;
       this.renderClock();
-      this.clockTimer=setInterval(()=>this.renderClock(),30000);
+      this.clockTimer=setInterval(()=>this.renderClock(),60000);
     }else if(utilityMode==='text'){
       utility.classList.add('is-text');
       utility.style.fontFamily=fontFamily(theme.utility_slot.font_family,'Arial,sans-serif');
@@ -86,6 +86,15 @@ export class MenuThemeRenderer {
     }
 
     const decor=node('div','menu-theme-decor');
+    if(preset.visual?.decorAsset){
+      decor.classList.add('has-asset');
+      const image=node('img','menu-theme-decor-image');
+      image.src=preset.visual.decorAsset;
+      image.alt='';
+      image.decoding='async';
+      image.loading='eager';
+      decor.append(image);
+    }
     const footer=node('div','menu-theme-footer');
     const age=node('span','menu-theme-age'); age.textContent='18+';
     const warning=node('span','menu-theme-warning'); warning.textContent=preset.visual?.footerText || '';

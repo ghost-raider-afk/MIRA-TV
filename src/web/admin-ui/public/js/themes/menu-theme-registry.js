@@ -83,6 +83,7 @@ const PRESETS = Object.freeze([
       brandColor:'#F3BB2E',
       brandText:'БИР ФИШ',
       brandCaption:'',
+      decorAsset:'/brand/themes/premium-side.jpg',
       footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
     }),
     layout:LAYOUT.premium
@@ -112,6 +113,7 @@ const PRESETS = Object.freeze([
       brandColor:'#F3B91F',
       brandText:'БИР ФИШ',
       brandCaption:'Хорошее пиво рядом!',
+      decorAsset:'/brand/themes/chalk-side.jpg',
       footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
     }),
     layout:LAYOUT.chalk
@@ -141,6 +143,7 @@ const PRESETS = Object.freeze([
       brandColor:'#F4B61F',
       brandText:'БИР ФИШ',
       brandCaption:'ПИВО · ЗАКУСКИ · ХОРОШАЯ КОМПАНИЯ',
+      decorAsset:'/brand/themes/brand-premium-side.jpg',
       footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
     }),
     layout:LAYOUT['brand-premium']
