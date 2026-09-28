@@ -49,7 +49,7 @@ test('preset themes are self-contained and apply to another TV without creating 
     await themeSelect.selectOption('premium');
     await expect(stage).toHaveAttribute('data-menu-theme','premium');
     await expect(stage.locator('.menu-theme-brand-name')).toHaveText('БИР ФИШ');
-    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/premium-side.svg');
+    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/premium-approved-decor.webp');
     await expect(stage.locator('.menu-theme-utility')).toHaveAttribute('data-utility-mode','weather');
     await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(0);
     await expect(page.getByLabel('Кегль температуры темы')).toBeEnabled();

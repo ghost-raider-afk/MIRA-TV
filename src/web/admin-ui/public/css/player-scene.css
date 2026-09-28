@@ -223,7 +223,7 @@
   color:#F2EEE4
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor-image{
-  object-position:center top
+  object-position:right top
 }
 
 .player-scene-stage .menu-theme-utility[data-utility-mode="weather"]{

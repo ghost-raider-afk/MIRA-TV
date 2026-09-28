@@ -43,7 +43,7 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     assert.match(preset.settings.background_image_url,/^\/brand\/themes\/.+-background\.svg$/);
     assert.ok(preset.visual?.legalVariant);
     assert.ok(preset.visual?.brandDivider);
-    assert.ok(preset.visual?.decorAsset);
+    assert.match(preset.visual?.decorAsset,/^\/brand\/themes\/.+-approved-decor\.webp$/);
   }
 
   assert.deepEqual(
@@ -70,6 +70,8 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   assert.notEqual(chalk.weather.current_layout,brand.weather.current_layout);
   assert.notEqual(premium.visual.legalVariant,chalk.visual.legalVariant);
   assert.notEqual(chalk.visual.legalVariant,brand.visual.legalVariant);
+  assert.equal(new Set([premium.visual.decorAsset,chalk.visual.decorAsset,brand.visual.decorAsset]).size,3);
+  assert.equal(chalk.visual.decorFit,'contain');
 });
 
 test('theme geometry keeps table, side composition and legal footer in separate regions', () => {
