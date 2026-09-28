@@ -932,3 +932,42 @@ test('Scene weather uses same-origin preview even when navigator reports offline
   await expect(weather.locator('.weather-widget-temperature')).toHaveText('9°');
   expect(previewRequests).toBeGreaterThanOrEqual(1);
 });
+
+
+test('Scene editor reopens the last edited TV when no screen query is provided', async ({ page }) => {
+  await page.setViewportSize({ width:1366, height:768 });
+  await login(page);
+
+  const stamp = Date.now();
+  let locationId = null;
+  const screenIds = [];
+  try {
+    const locationResponse = await page.request.post('/api/locations', {
+      data:{ name:`Last scene ${stamp}`, address:'Scene memory CI', active:true }
+    });
+    expect(locationResponse.status()).toBe(201);
+    const location = await locationResponse.json();
+    locationId = location.id;
+
+    for (let index = 0; index < 2; index += 1) {
+      const response = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+      expect(response.status()).toBe(201);
+      const screen = await response.json();
+      screenIds.push(screen.id);
+    }
+
+    const lastId = screenIds[1];
+    await page.goto(`/scene?screen=${lastId}`);
+    await expect(page.locator('#scene-editor-screen')).toHaveValue(String(lastId));
+
+    await page.goto('/screens');
+    await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
+
+    await page.goto('/scene');
+    await expect(page.locator('#scene-editor-screen')).toHaveValue(String(lastId));
+    await expect(page).toHaveURL(new RegExp(`/scene\\?screen=${lastId}$`));
+  } finally {
+    for (const id of screenIds) await page.request.delete(`/api/screens/${id}`).catch(() => undefined);
+    if (locationId) await page.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
+  }
+});
