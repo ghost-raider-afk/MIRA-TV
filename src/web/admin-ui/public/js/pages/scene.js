@@ -12,6 +12,7 @@ import {
   renderSceneLayerList
 } from '../editor/elements.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
+import { MENU_THEME_OVERRIDE_KEYS, MENU_THEME_PRESETS, menuThemePreset } from '../themes/menu-theme-registry.js';
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 const ELEMENT_LABELS = Object.freeze({
@@ -19,6 +20,7 @@ const ELEMENT_LABELS = Object.freeze({
   logo: 'Логотип',
   image: 'Картинка',
   weather: 'Погода',
+  theme: 'Тема меню',
   background: 'Фон',
   promotion: 'Акция',
   table: 'Таблица меню'
@@ -28,6 +30,7 @@ const ELEMENT_ICONS = Object.freeze({
   logo: '◈',
   image: '▧',
   weather: '☁',
+  theme: '◫',
   background: '▧',
   promotion: '◆',
   table: '▦'
@@ -42,11 +45,22 @@ const TABLE_FONTS = Object.freeze([
 ]);
 
 function systemOwnerIcon(type) {
-  if (!['background','promotion','table'].includes(type)) return null;
+  if (!['theme','background','promotion','table'].includes(type)) return null;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
+
+  if (type === 'theme') {
+    const rect = document.createElementNS(svg.namespaceURI, 'rect');
+    rect.setAttribute('x','3.5'); rect.setAttribute('y','4.5'); rect.setAttribute('width','17'); rect.setAttribute('height','15'); rect.setAttribute('rx','2');
+    const path = document.createElementNS(svg.namespaceURI, 'path');
+    path.setAttribute('d','M7 9h10M7 13h6');
+    const circle = document.createElementNS(svg.namespaceURI, 'circle');
+    circle.setAttribute('cx','17.5'); circle.setAttribute('cy','15.5'); circle.setAttribute('r','1.8');
+    svg.append(rect,path,circle);
+    return svg;
+  }
 
   if (type === 'promotion') {
     const tag = document.createElementNS(svg.namespaceURI, 'path');
@@ -122,6 +136,7 @@ export function initialiseSceneEditor() {
   const propertiesRoot = element('scene-editor-properties');
   const addButton = element('scene-editor-add');
   const addMenu = element('scene-editor-add-menu');
+  const themeLayer = element('scene-editor-theme-layer');
   const backgroundLayer = element('scene-editor-background-layer');
   const promotionLayer = element('scene-editor-promotion-layer');
   const tableLayer = element('scene-editor-table-layer');
@@ -139,6 +154,7 @@ export function initialiseSceneEditor() {
       || !(propertiesRoot instanceof HTMLElement)
       || !(addButton instanceof HTMLButtonElement)
       || !(addMenu instanceof HTMLElement)
+      || !(themeLayer instanceof HTMLButtonElement)
       || !(backgroundLayer instanceof HTMLButtonElement)
       || !(promotionLayer instanceof HTMLButtonElement)
       || !(tableLayer instanceof HTMLButtonElement)
@@ -185,7 +201,9 @@ export function initialiseSceneEditor() {
     const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
     const index = selected ? elements.indexOf(selected) : -1;
     const ownerType = selectedOwner === 'element' ? selected?.type : selectedOwner;
-    const caption = selectedOwner === 'background'
+    const caption = selectedOwner === 'theme'
+      ? 'Тема меню'
+      : selectedOwner === 'background'
       ? 'Фон'
       : selectedOwner === 'promotion'
         ? 'Акция'
@@ -244,6 +262,7 @@ export function initialiseSceneEditor() {
       node.classList.toggle('is-selected', selectedOwner === 'element' && node.dataset.sceneElementId === state.selectedElementId);
     });
     selectionLayer.querySelector('.scene-editor-table-selection-box')?.classList.toggle('is-selected', selectedOwner === 'table');
+    themeLayer.classList.toggle('is-selected', selectedOwner === 'theme');
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
     promotionLayer.classList.toggle('is-selected', selectedOwner === 'promotion');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
@@ -300,8 +319,51 @@ export function initialiseSceneEditor() {
     });
   }
 
-  function patchMenuSettings(patch) {
+  function themeState() {
+    const source = state.settings?.theme && typeof state.settings.theme === 'object' ? state.settings.theme : {};
+    const preset = menuThemePreset(source.preset_id);
+    return {
+      schema_version:1,
+      preset_id:preset.id,
+      preset_version:preset.preset_version || 1,
+      brand:{
+        name:String(source.brand?.name || ''),
+        caption:String(source.brand?.caption || ''),
+        logo_element_id:String(source.brand?.logo_element_id || ''),
+        name_font_family:String(source.brand?.name_font_family || ''),
+        caption_font_family:String(source.brand?.caption_font_family || '')
+      },
+      utility_slot:{
+        mode:String(source.utility_slot?.mode || 'none'),
+        text:String(source.utility_slot?.text || ''),
+        weather_element_id:String(source.utility_slot?.weather_element_id || ''),
+        font_family:String(source.utility_slot?.font_family || '')
+      },
+      overrides:Array.isArray(source.overrides) ? [...source.overrides] : []
+    };
+  }
+
+  function setThemeState(next, { rerenderInspector=false } = {}) {
+    state.settings = { ...state.settings, theme:structuredClone(next) };
+    state.dirty = true;
+    setDirty();
+    setSelectionStatus();
+    scheduleDocumentRender();
+    if (rerenderInspector) renderInspector();
+  }
+
+  function markThemeOverrides(keys) {
+    const theme = themeState();
+    if (theme.preset_id === 'legacy') return;
+    const requested = new Set(theme.overrides);
+    for (const key of keys) if (MENU_THEME_OVERRIDE_KEYS.includes(key)) requested.add(key);
+    theme.overrides = MENU_THEME_OVERRIDE_KEYS.filter((key) => requested.has(key));
+    state.settings = { ...state.settings, theme };
+  }
+
+  function patchMenuSettings(patch, { trackThemeOverride=true } = {}) {
     state.settings = { ...state.settings, ...patch };
+    if (trackThemeOverride) markThemeOverrides(Object.keys(patch));
     state.dirty = true;
     setDirty();
     setSelectionStatus();
@@ -338,9 +400,11 @@ export function initialiseSceneEditor() {
     const targets = screens.filter((screen) => Number(screen.id) !== Number(currentScreenId));
     const note = document.createElement('small');
     note.className = 'scene-editor-multi-apply-note';
-    note.textContent = kind === 'background'
-      ? 'Цвет и фоновое изображение будут одинаково применены к выбранным мониторам.'
-      : 'Положение, размер и все настройки этого элемента будут применены к выбранным мониторам.';
+    note.textContent = kind === 'theme'
+      ? 'Пресет, бренд, полезный слот, связанные логотип/погода и ручные overrides будут применены к выбранным ТВ. Можно выбрать сразу всю торговую точку.'
+      : kind === 'background'
+        ? 'Цвет и фоновое изображение будут одинаково применены к выбранным мониторам.'
+        : 'Положение, размер и все настройки этого элемента будут применены к выбранным мониторам.';
     panel.append(note);
 
     if (!targets.length) {
@@ -355,6 +419,7 @@ export function initialiseSceneEditor() {
     const list = document.createElement('div');
     list.className = 'scene-editor-multi-apply-list';
     const inputs = [];
+    const locationInputs = new Map();
     for (const target of targets) {
       const row = document.createElement('label');
       row.className = 'scene-editor-multi-apply-target';
@@ -367,6 +432,26 @@ export function initialiseSceneEditor() {
       row.append(checkbox, caption);
       list.append(row);
       inputs.push(checkbox);
+      const key=String(target.location_id || target.location_name || '');
+      if(!locationInputs.has(key)) locationInputs.set(key,{ label:target.location_name || 'Торговая точка', inputs:[] });
+      locationInputs.get(key).inputs.push(checkbox);
+    }
+
+    if(kind==='theme' && locationInputs.size){
+      const points=document.createElement('div');
+      points.className='scene-theme-point-selectors';
+      for(const group of locationInputs.values()){
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='scene-theme-point-button';
+        button.textContent=`Вся точка: ${group.label}`;
+        button.addEventListener('click',()=>{
+          const next=!group.inputs.every((input)=>input.checked);
+          group.inputs.forEach((input)=>{ input.checked=next; input.dispatchEvent(new Event('change',{bubbles:true})); });
+        });
+        points.append(button);
+      }
+      panel.append(points);
     }
 
     const apply = document.createElement('button');
@@ -381,7 +466,16 @@ export function initialiseSceneEditor() {
       const targetIds = inputs.filter((input) => input.checked).map((input) => Number(input.value));
       if (!targetIds.length || !currentScreenId) return;
       const payload = { kind, target_screen_ids: targetIds };
-      if (kind === 'background') {
+      if (kind === 'theme') {
+        const theme=themeState();
+        payload.theme=structuredClone(theme);
+        payload.override_settings=Object.fromEntries(
+          theme.overrides.filter((key)=>MENU_THEME_OVERRIDE_KEYS.includes(key)).map((key)=>[key,state.settings[key]])
+        );
+        const logo=state.scene?.elements?.find((item)=>item?.id===theme.brand.logo_element_id && item?.type==='logo') || null;
+        const weather=state.scene?.elements?.find((item)=>item?.id===theme.utility_slot.weather_element_id && item?.type==='weather') || null;
+        payload.bound_elements={ logo:logo ? structuredClone(logo) : null, weather:weather ? structuredClone(weather) : null };
+      } else if (kind === 'background') {
         payload.background = {
           background_color: state.settings.background_color || '#101828',
           background_image_url: state.settings.background_image_url || ''
@@ -428,6 +522,7 @@ export function initialiseSceneEditor() {
         ...state.settings,
         background_image_url: result.draft?.settings?.background_image_url || ''
       };
+      markThemeOverrides(['background_image_url']);
       state.draftRevision = Number(result.draft?.revision || state.draftRevision);
       state.screen = structuredClone(result.screen || state.screen);
       state.dirty = dirtyBefore;
@@ -451,6 +546,7 @@ export function initialiseSceneEditor() {
       });
       if (!active()) return;
       state.settings = { ...state.settings, background_image_url: '' };
+      markThemeOverrides(['background_image_url']);
       state.draftRevision = Number(result.draft?.revision || state.draftRevision);
       state.screen = structuredClone(result.screen || state.screen);
       state.dirty = dirtyBefore;
@@ -512,6 +608,156 @@ export function initialiseSceneEditor() {
     }
     tableEditorOpen = true;
     renderTableEditLayer();
+  }
+
+  function renderThemeInspector() {
+    tableEditLayer.hidden = true;
+    tableEditLayer.replaceChildren();
+    propertiesRoot.replaceChildren();
+    const stack = document.createElement('div');
+    stack.className = 'scene-editor-inspector-stack';
+    const theme = themeState();
+    const preset = menuThemePreset(theme.preset_id);
+    const logos = (state.scene?.elements || []).filter((item) => item?.type === 'logo');
+    const weatherElements = (state.scene?.elements || []).filter((item) => item?.type === 'weather');
+
+    const main = document.createElement('details');
+    main.className = 'scene-editor-inspector-group';
+    main.open = true;
+    main.append(Object.assign(document.createElement('summary'), { textContent:'Тема меню' }));
+    const panel = document.createElement('div');
+    panel.className = 'scene-editor-inspector-panel';
+
+    const presetSelect = document.createElement('select');
+    presetSelect.setAttribute('aria-label','Тема меню');
+    for (const item of MENU_THEME_PRESETS) presetSelect.add(new Option(item.label,item.id));
+    presetSelect.value = theme.preset_id;
+    presetSelect.addEventListener('change', () => {
+      history.checkpoint();
+      const nextPreset = menuThemePreset(presetSelect.value);
+      const current = themeState();
+      const weather = weatherElements.find((item) => item.id === current.utility_slot.weather_element_id) || weatherElements[0] || null;
+      const logo = logos.find((item) => item.id === current.brand.logo_element_id) || logos[0] || null;
+      const next = {
+        ...current,
+        preset_id:nextPreset.id,
+        preset_version:nextPreset.preset_version || 1,
+        brand:{
+          ...current.brand,
+          name:current.brand.name || nextPreset.visual?.brandText || '',
+          caption:current.brand.caption || nextPreset.visual?.brandCaption || '',
+          logo_element_id:logo?.id || ''
+        },
+        utility_slot:{
+          ...current.utility_slot,
+          mode:nextPreset.id === 'legacy' ? 'none' : weather ? 'weather' : 'clock',
+          weather_element_id:weather?.id || ''
+        },
+        overrides:[]
+      };
+      setThemeState(next,{ rerenderInspector:true });
+      renderLayers();
+    });
+
+    const description = document.createElement('small');
+    description.className = 'scene-theme-description';
+    description.textContent = preset.description || '';
+    panel.append(makeField('Пресет',presetSelect),description);
+
+    const brandName = compactInput('text',theme.brand.name);
+    brandName.maxLength = 120;
+    brandName.setAttribute('aria-label','Название бренда');
+    checkpointControl(brandName);
+    brandName.addEventListener('input', () => {
+      const next=themeState(); next.brand.name=brandName.value; setThemeState(next);
+    });
+
+    const caption = compactInput('text',theme.brand.caption);
+    caption.maxLength = 160;
+    caption.setAttribute('aria-label','Подпись бренда');
+    checkpointControl(caption);
+    caption.addEventListener('input', () => {
+      const next=themeState(); next.brand.caption=caption.value; setThemeState(next);
+    });
+
+    const logo = document.createElement('select');
+    logo.setAttribute('aria-label','Логотип темы');
+    logo.add(new Option('Без логотипа',''));
+    logos.forEach((item,index)=>logo.add(new Option(`Логотип ${index+1}`,item.id)));
+    logo.value=theme.brand.logo_element_id;
+    logo.addEventListener('change', () => {
+      history.checkpoint();
+      const next=themeState(); next.brand.logo_element_id=logo.value; setThemeState(next);
+    });
+
+    const brandGrid=document.createElement('div');
+    brandGrid.className='compact-form-grid';
+    brandGrid.append(makeField('Название бренда',brandName),makeField('Подпись / слоган',caption),makeField('Логотип',logo));
+    panel.append(brandGrid);
+
+    const utility=document.createElement('select');
+    for(const [value,label] of [['none','Не использовать'],['weather','Погода'],['clock','Часы'],['text','Текстовый блок']]){
+      const option=new Option(label,value);
+      if(value==='weather' && !weatherElements.length) option.disabled=true;
+      utility.add(option);
+    }
+    utility.value=theme.utility_slot.mode;
+    utility.setAttribute('aria-label','Содержимое полезного слота');
+    utility.addEventListener('change', () => {
+      history.checkpoint();
+      const next=themeState();
+      next.utility_slot.mode=utility.value;
+      if(utility.value==='weather' && !next.utility_slot.weather_element_id) next.utility_slot.weather_element_id=weatherElements[0]?.id || '';
+      setThemeState(next,{ rerenderInspector:true });
+    });
+
+    const weatherSelect=document.createElement('select');
+    weatherSelect.setAttribute('aria-label','Погодный элемент темы');
+    weatherSelect.add(new Option('Не выбран',''));
+    weatherElements.forEach((item,index)=>weatherSelect.add(new Option(`Погода ${index+1}`,item.id)));
+    weatherSelect.value=theme.utility_slot.weather_element_id;
+    weatherSelect.disabled=theme.utility_slot.mode!=='weather';
+    weatherSelect.addEventListener('change', () => {
+      history.checkpoint();
+      const next=themeState(); next.utility_slot.weather_element_id=weatherSelect.value; setThemeState(next);
+    });
+
+    const utilityText=compactInput('text',theme.utility_slot.text);
+    utilityText.maxLength=240;
+    utilityText.setAttribute('aria-label','Текст полезного слота');
+    utilityText.disabled=theme.utility_slot.mode!=='text';
+    checkpointControl(utilityText);
+    utilityText.addEventListener('input', () => {
+      const next=themeState(); next.utility_slot.text=utilityText.value; setThemeState(next);
+    });
+
+    const utilityGrid=document.createElement('div');
+    utilityGrid.className='compact-form-grid';
+    utilityGrid.append(makeField('Полезный слот',utility),makeField('Погода',weatherSelect),makeField('Текст',utilityText));
+    panel.append(utilityGrid);
+
+    const overrideState=document.createElement('div');
+    overrideState.className='scene-theme-overrides';
+    const overrideCopy=document.createElement('small');
+    overrideCopy.textContent=theme.preset_id==='legacy'
+      ? 'Текущая тема использует обычные настройки сцены.'
+      : theme.overrides.length
+        ? `Ручных переопределений: ${theme.overrides.length}. Они сохраняются поверх пресета.`
+        : 'Используются настройки пресета без ручных переопределений.';
+    const reset=document.createElement('button');
+    reset.type='button';
+    reset.className='button button-secondary';
+    reset.textContent='Сбросить ручные настройки темы';
+    reset.disabled=theme.preset_id==='legacy' || !theme.overrides.length;
+    reset.addEventListener('click', () => {
+      history.checkpoint();
+      const next=themeState(); next.overrides=[]; setThemeState(next,{ rerenderInspector:true });
+    });
+    overrideState.append(overrideCopy,reset);
+    panel.append(overrideState);
+    main.append(panel);
+    stack.append(main,multiScreenApplyGroup('theme'));
+    propertiesRoot.append(stack);
   }
 
   function renderBackgroundInspector() {
@@ -1037,6 +1283,7 @@ export function initialiseSceneEditor() {
   }
 
   function renderLayers() {
+    themeLayer.classList.toggle('is-selected', selectedOwner === 'theme');
     backgroundLayer.classList.toggle('is-selected', selectedOwner === 'background');
     promotionLayer.classList.toggle('is-selected', selectedOwner === 'promotion');
     tableLayer.classList.toggle('is-selected', selectedOwner === 'table');
@@ -1067,6 +1314,11 @@ export function initialiseSceneEditor() {
   }
 
   function renderInspector() {
+    if (selectedOwner === 'theme') {
+      renderThemeInspector();
+      setSelectionStatus();
+      return;
+    }
     if (selectedOwner === 'background') {
       renderBackgroundInspector();
       setSelectionStatus();
@@ -1159,6 +1411,7 @@ export function initialiseSceneEditor() {
     currentScreenId = id;
     screenSelect.disabled = true;
     addButton.disabled = true;
+    themeLayer.disabled = true;
     backgroundLayer.disabled = true;
     promotionLayer.disabled = true;
     tableLayer.disabled = true;
@@ -1175,6 +1428,7 @@ export function initialiseSceneEditor() {
     form.setAttribute('aria-busy', 'false');
     element('scene-editor-save').disabled = false;
     addButton.disabled = false;
+    themeLayer.disabled = false;
     backgroundLayer.disabled = false;
     promotionLayer.disabled = false;
     tableLayer.disabled = false;
@@ -1268,6 +1522,7 @@ export function initialiseSceneEditor() {
   };
   form.addEventListener('keydown', onEditorKeydown);
 
+  themeLayer.addEventListener('click', () => selectOwner('theme'));
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
   promotionLayer.addEventListener('click', () => selectOwner('promotion'));
   tableLayer.addEventListener('click', () => {

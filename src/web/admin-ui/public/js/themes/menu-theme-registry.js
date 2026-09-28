@@ -147,6 +147,13 @@ const PRESETS = Object.freeze([
   })
 ]);
 
+export const MENU_THEME_OVERRIDE_KEYS = Object.freeze([
+  'background_color','background_image_url','accent_color','text_color','font_scale_percent','font_family',
+  'price_font_size_pt','promotion_badge_shape','promotion_font_family','promotion_font_size_percent',
+  'promotion_font_weight','promotion_font_height_percent','promotion_letter_spacing_px',
+  'table_x','table_y','table_width_px','table_height_px'
+]);
+
 const BY_ID = new Map(PRESETS.map((item)=>[item.id,item]));
 export const MENU_THEME_PRESETS = PRESETS;
 export const MENU_THEME_PRESET_IDS = Object.freeze(PRESETS.map((item)=>item.id));
