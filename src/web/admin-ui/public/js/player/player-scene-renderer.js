@@ -78,6 +78,52 @@ function weatherSettingsFromElement(element) {
   };
 }
 
+function themeWeatherSettingsFromRuntime(runtime, sourceScene) {
+  if (!runtime || runtime.preset?.id === 'legacy' || runtime.theme?.utility_slot?.mode !== 'weather') return null;
+  const utility = runtime.theme.utility_slot;
+  let source = utility.weather && typeof utility.weather === 'object' ? utility.weather : {};
+  const hasCoordinates = source.latitude !== null
+    && source.latitude !== ''
+    && source.longitude !== null
+    && source.longitude !== ''
+    && Number.isFinite(Number(source.latitude))
+    && Number.isFinite(Number(source.longitude));
+
+  if (!hasCoordinates && utility.weather_element_id) {
+    const elements = Array.isArray(sourceScene?.elements) ? sourceScene.elements : [];
+    const legacy = elements.find((element) =>
+      element?.id === utility.weather_element_id && element?.type === 'weather'
+    );
+    if (legacy?.weather) source = { ...source, ...legacy.weather };
+  }
+
+  return {
+    enabled:true,
+    embedded:true,
+    ...source,
+    position:'top-left',
+    x:0,
+    y:0,
+    scale:1,
+    opacity:1,
+    temperature_font_family:utility.temperature_font_family,
+    temperature_font_size_pt:utility.temperature_font_size_pt,
+    location_font_size_pt:utility.location_font_size_pt,
+    icon_scale_percent:utility.icon_scale_percent,
+    show_condition:source.show_condition !== false,
+    show_feels_like:false,
+    show_humidity:false,
+    show_wind:false,
+    show_forecast:source.show_forecast !== false,
+    forecast_items:Number(source.forecast_items) || Number(runtime.preset?.weather?.forecast_items) || 3
+  };
+}
+
+function themeWeatherEndpoint(endpoint) {
+  const source = String(endpoint || '/api/device/weather');
+  return source.includes('?') ? `${source}&source=theme` : `${source}?source=theme`;
+}
+
 function sameOriginAsset(value) {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -114,6 +160,11 @@ export class PlayerSceneRenderer {
         const elementId = layer?.parentElement?.dataset?.sceneElementId || this.weatherElementId;
         if (elementId) this.sceneElementRenderer.refreshContentGeometry(elementId);
       }
+    });
+    this.themeWeatherRuntime = new PlayerWeatherRuntime(stage, {
+      endpoint:this.weatherPreview ? weatherPreviewEndpoint : themeWeatherEndpoint(weatherEndpoint),
+      preview:this.weatherPreview,
+      renderWidget:(layer, settings, snapshot) => this.themeRenderer.renderWeather(layer, settings, snapshot)
     });
     this.destroyed = false;
   }
@@ -200,6 +251,16 @@ export class PlayerSceneRenderer {
         menuChanged:menuDirty
       });
     }
+
+    this.themeWeatherRuntime.setLayer(this.themeRenderer.weatherMount());
+    this.themeWeatherRuntime.applyContext(
+      themeWeatherSettingsFromRuntime(themeRuntime, context.scene || { version:1,elements:[] }),
+      context.screen?.id,
+      {
+        configurationChanged:menuDirty || dirty.has('scene'),
+        menuChanged:menuDirty
+      }
+    );
   }
 
   reset() {
@@ -213,6 +274,7 @@ export class PlayerSceneRenderer {
     this.destroyed = true;
     this.sceneElementRenderer.destroy();
     this.flatMenuRenderer.destroy();
+    this.themeWeatherRuntime.destroy();
     this.themeRenderer.destroy();
     this.weatherRuntime.destroy();
     this.viewportObserver?.disconnect();
