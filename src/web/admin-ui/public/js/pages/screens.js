@@ -153,15 +153,15 @@ function fillCardMeta(container, screen, binding) {
   fillRows(container, cardMetaRows(screen, binding));
 }
 
-function syncTvUnit(unit, screen, binding) {
+function syncTvUnit(unit, screen, binding, { requestFresh = false } = {}) {
   const status = statusState(binding);
   unit.dataset.tvState = status.key;
   const host = unit.querySelector('[data-tv-face-host]');
   if (host) {
-    const faceKey = `${status.key}:${binding?.preview_updated_at || ''}`;
+    const faceKey = `${status.key}:${binding?.preview_updated_at || ''}:${requestFresh ? 'fresh' : 'cached'}`;
     if (host.dataset.tvFaceKey !== faceKey) {
       host.dataset.tvFaceKey = faceKey;
-      host.replaceChildren(createTvFace(screen, binding));
+      host.replaceChildren(createTvFace(screen, binding, false, { requestFresh }));
     }
   }
   const meta = unit.querySelector('[data-tv-meta]');
@@ -217,7 +217,9 @@ function createTvUnit(screen) {
   actions.append(manage, scene, bind);
 
   unit.append(open, actions);
-  syncTvUnit(unit, screen, binding);
+  syncTvUnit(unit, screen, binding, {
+    requestFresh:binding?.online === true && binding?.preview_available !== true
+  });
   return unit;
 }
 
