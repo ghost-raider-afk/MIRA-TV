@@ -12,7 +12,11 @@ const FONT_FAMILIES = new Set([
   'arial',
   'dejavu-condensed',
   'liberation-narrow',
-  'system-sans'
+  'system-sans',
+  'mira-condensed',
+  'mira-mono',
+  'mira-serif',
+  'mira-serif-condensed'
 ]);
 const OVERRIDE_KEYS = Object.freeze([
   'background_color',
