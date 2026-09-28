@@ -277,7 +277,10 @@ test('chalk preset uses approved brand hierarchy and recovers stale managed deco
     const brand=stage.locator('.menu-theme-brand-name');
     await expect(brand).toHaveCSS('font-family',/MIRA Montserrat/);
     await expect(brand).toHaveCSS('font-size','108px');
-    await expect(stage.locator('.menu-theme-brand-caption')).toHaveCSS('font-family',/MIRA Neucha/);
+    const caption=stage.locator('.menu-theme-brand-caption');
+    await expect(caption).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(caption).toHaveCSS('top','280px');
+    await expect(stage.locator('.menu-theme-brand')).toHaveCSS('z-index','2');
     await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/chalk-approved-decor.webp');
   } finally {
     if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);

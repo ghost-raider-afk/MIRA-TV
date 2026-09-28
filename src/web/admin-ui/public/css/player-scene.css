@@ -205,6 +205,7 @@
   border-right:2px solid rgba(216,172,44,.9)
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-brand{
+  z-index:2;
   align-content:start;
   gap:0;
   padding:0 10px;
@@ -227,7 +228,7 @@
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-brand-caption{
   position:absolute;
   left:28px;
-  top:216px;
+  top:280px;
   width:215px;
   max-width:215px;
   margin:0;
@@ -239,6 +240,7 @@
   color:#F4F1E9
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor{
+  z-index:1;
   background:transparent
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor-image{
