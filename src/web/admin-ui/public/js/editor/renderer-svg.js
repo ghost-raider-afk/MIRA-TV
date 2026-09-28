@@ -29,7 +29,7 @@ function separatorMarkup(box, horizontal, scale, themeId = 'legacy', themeStyle 
   return `<line x1="${horizontal.left + MENU_REFERENCE.separatorInset * horizontal.scaleX}" y1="${y}" x2="${horizontal.right}" y2="${y}" class="separator" stroke="${stroke}" stroke-width="${Math.max(1, scale)}"${dashed ? ` stroke-dasharray="${6 * scale} ${7 * scale}"` : ''} opacity="${opacity}"/>`;
 }
 
-function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFontSizePt, className = 'price') {
+function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFontSizePt, className = 'price', centsColor = toneColor) {
   const parts = priceParts(value);
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const baseSize = Math.max(MENU_PRICE_FONT_SIZE.minPt, Math.min(MENU_PRICE_FONT_SIZE.maxPt, Number(priceFontSizePt) || MENU_PRICE_FONT_SIZE.defaultPt));
@@ -38,7 +38,7 @@ function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFont
   const centsLift = wholeSize * (16 / 27);
   const attributes = textAttributes({ size: wholeSize, weight: 700, fill: toneColor, anchor: 'end', fontFamily:typography?.family }, typography);
   if (!parts) return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>—</text>`;
-  return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-centsLift}" font-size="${centsSize}" font-weight="700" fill="${toneColor}">${escapeXml(parts.cents)}</tspan></text>`;
+  return `<text x="${x}" y="${baseline}" class="${className}" ${attributes}>${escapeXml(parts.whole)}<tspan class="cents" dy="${-centsLift}" font-size="${centsSize}" font-weight="700" fill="${centsColor}">${escapeXml(parts.cents)}</tspan></text>`;
 }
 
 function promotionShapePath(shape, x, top, width, height, notch) {
@@ -148,15 +148,28 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
   const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
   const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
   const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
-  const primaryPriceColor = themeStyle.price_mode === 'primary-accent' ? palette.accentText : toneColor;
-  const secondaryPriceColor = themeStyle.price_mode === 'primary-accent' ? palette.primaryText : toneColor;
+  const priceMode = String(themeStyle.price_mode || 'alternating');
+  const primaryPriceColor = priceMode === 'primary-accent'
+    ? palette.accentText
+    : priceMode === 'white-primary'
+      ? palette.primaryText
+      : priceMode === 'chalk-accent'
+        ? palette.accentText
+        : toneColor;
+  const secondaryPriceColor = priceMode === 'primary-accent' || priceMode === 'white-primary'
+    ? palette.primaryText
+    : priceMode === 'chalk-accent'
+      ? palette.accentText
+      : toneColor;
+  const primaryCentsColor = priceMode === 'white-primary' ? palette.accentText : primaryPriceColor;
+  const secondaryCentsColor = priceMode === 'white-primary' ? palette.accentText : secondaryPriceColor;
   const numberMarkup = showSequence ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle', fontFamily:itemFont?.family }, itemFont)}>${escapeXml(line.sequence || '')}</text>` : '';
   return `<g class="table-item theme-${themeId} tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}
     ${numberMarkup}
     ${promotion.markup}
     <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor, fontFamily:metaFont?.family }, metaFont)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
-    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt)}</g>
+    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}</g>
   </g>`;
 }
 
