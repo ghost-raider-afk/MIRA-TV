@@ -1,5 +1,18 @@
+export const ALCOHOL_WARNING_TEXT = 'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ';
+export const ALCOHOL_WARNING_MIN_AREA_RATIO = 0.10;
+export const ALCOHOL_WARNING_REFERENCE_AREA_RATIO = Object.freeze({
+  width:1920,
+  height:1080,
+  x:0,
+  y:968,
+  warning_width:1920,
+  warning_height:112,
+  ratio:(1920 * 112) / (1920 * 1080)
+});
+
 const BASE = Object.freeze({
   background_color:'#101828',
+  background_image_url:'',
   accent_color:'#F4C915',
   text_color:'#F8FAFC',
   font_scale_percent:100,
@@ -19,31 +32,28 @@ const BASE = Object.freeze({
 
 const LAYOUT = Object.freeze({
   premium:Object.freeze({
-    frame:Object.freeze({ x:28,y:24,width:1864,height:984,radius:28 }),
-    panel:Object.freeze({ x:1490,y:24,width:402,height:984 }),
-    weather:Object.freeze({ x:1510,y:48,width:360,height:244 }),
-    logo:Object.freeze({ x:1530,y:314,width:320,height:118 }),
-    brand:Object.freeze({ x:1510,y:304,width:360,height:175 }),
-    decor:Object.freeze({ x:1491,y:490,width:400,height:495 }),
-    footer:Object.freeze({ x:62,y:1014,width:1815,height:54 })
+    panel:Object.freeze({ x:1490,y:24,width:402,height:912 }),
+    weather:Object.freeze({ x:1512,y:48,width:356,height:236 }),
+    logo:Object.freeze({ x:1522,y:300,width:336,height:112 }),
+    brand:Object.freeze({ x:1510,y:288,width:360,height:190 }),
+    decor:Object.freeze({ x:1492,y:490,width:398,height:446 }),
+    footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   chalk:Object.freeze({
-    frame:Object.freeze({ x:48,y:28,width:1822,height:955,radius:24 }),
-    panel:Object.freeze({ x:1470,y:28,width:400,height:955 }),
-    weather:Object.freeze({ x:1492,y:48,width:356,height:205 }),
-    logo:Object.freeze({ x:1510,y:270,width:322,height:115 }),
-    brand:Object.freeze({ x:1494,y:265,width:360,height:168 }),
-    decor:Object.freeze({ x:1472,y:430,width:396,height:515 }),
-    footer:Object.freeze({ x:72,y:1000,width:1774,height:62 })
+    panel:Object.freeze({ x:1490,y:24,width:402,height:912 }),
+    weather:Object.freeze({ x:1512,y:48,width:356,height:236 }),
+    logo:Object.freeze({ x:1522,y:300,width:336,height:112 }),
+    brand:Object.freeze({ x:1510,y:286,width:360,height:194 }),
+    decor:Object.freeze({ x:1492,y:492,width:398,height:444 }),
+    footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   'brand-premium':Object.freeze({
-    frame:Object.freeze({ x:32,y:20,width:1855,height:996,radius:22 }),
-    panel:Object.freeze({ x:1470,y:20,width:417,height:996 }),
-    weather:Object.freeze({ x:1490,y:42,width:375,height:225 }),
-    logo:Object.freeze({ x:1505,y:292,width:345,height:118 }),
-    brand:Object.freeze({ x:1495,y:286,width:370,height:195 }),
-    decor:Object.freeze({ x:1472,y:555,width:413,height:438 }),
-    footer:Object.freeze({ x:52,y:1014,width:1815,height:54 })
+    panel:Object.freeze({ x:1490,y:24,width:402,height:912 }),
+    weather:Object.freeze({ x:1512,y:48,width:356,height:236 }),
+    logo:Object.freeze({ x:1518,y:296,width:344,height:116 }),
+    brand:Object.freeze({ x:1508,y:282,width:364,height:204 }),
+    decor:Object.freeze({ x:1492,y:500,width:398,height:436 }),
+    footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   })
 });
 
@@ -56,95 +66,196 @@ const PRESETS = Object.freeze([
     default_utility_mode:'none',
     settings:BASE,
     visual:Object.freeze({ kind:'legacy' }),
+    table:null,
+    weather:null,
     layout:null
   }),
   Object.freeze({
     id:'premium',
     label:'Премиальная классическая',
-    description:'Строгая чёрно-золотая тема с погодой, брендингом и фото-зоной справа.',
+    description:'Строгая тёмно-золотая тема с отдельным фоном, погодной карточкой и брендовой зоной.',
     preset_version:1,
     default_utility_mode:'weather',
     settings:Object.freeze({
       ...BASE,
-      background_color:'#070A0C',
+      background_color:'#050607',
+      background_image_url:'/brand/themes/premium-background.svg',
       accent_color:'#F2B72A',
       text_color:'#F8F8F4',
       font_family:'arial',
       price_font_size_pt:28,
-      table_x:44,
-      table_y:36,
-      table_width_px:1420,
-      table_height_px:955
+      table_x:54,
+      table_y:42,
+      table_width_px:1390,
+      table_height_px:894
     }),
     visual:Object.freeze({
       kind:'premium',
-      panelBackground:'#070A0C',
-      border:'#E3AD2B',
+      panelBackground:'#07090A',
+      border:'#DFAE33',
       brandColor:'#F3BB2E',
       brandText:'БИР ФИШ',
       brandCaption:'',
-      decorAsset:'/brand/themes/premium-side.jpg',
-      footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
+      brandNameFontFamily:'arial',
+      brandNameFontSizePx:68,
+      brandNameFontWeight:900,
+      brandCaptionFontFamily:'arial',
+      brandCaptionFontSizePx:20,
+      brandCaptionFontWeight:700,
+      utilityFontFamily:'arial',
+      utilityFontSizePx:30,
+      utilityFontWeight:800,
+      clockFontSizePx:78,
+      decorAsset:'/brand/themes/premium-side.svg',
+      footerText:ALCOHOL_WARNING_TEXT
+    }),
+    table:Object.freeze({
+      variant:'premium',
+      section_font_family:'arial',
+      item_font_family:'arial',
+      meta_font_family:'arial-narrow',
+      price_font_family:'arial',
+      separator:'#4C5053',
+      separator_dashed:false,
+      price_mode:'alternating',
+      show_sequence:true,
+      price_column_borders:true
+    }),
+    weather:Object.freeze({
+      variant:'premium',
+      temperature_font_family:'arial',
+      temperature_font_size_pt:54,
+      location_font_size_pt:15,
+      icon_scale_percent:128,
+      show_condition:true,
+      show_forecast:true,
+      forecast_items:3
     }),
     layout:LAYOUT.premium
   }),
   Object.freeze({
     id:'chalk',
     label:'Меловая',
-    description:'Чёрная доска, золотые заголовки и крафтовая правая зона с меловой графикой.',
+    description:'Чистая меловая тема без наклонов и случайных рамок: тёмная доска, аккуратная графика и тёплые акценты.',
     preset_version:1,
     default_utility_mode:'weather',
     settings:Object.freeze({
       ...BASE,
       background_color:'#11110F',
-      accent_color:'#F1B91F',
+      background_image_url:'/brand/themes/chalk-background.svg',
+      accent_color:'#E5B62E',
       text_color:'#F4F1E9',
       font_family:'dejavu-condensed',
       price_font_size_pt:27,
-      table_x:60,
-      table_y:34,
+      table_x:56,
+      table_y:42,
       table_width_px:1388,
-      table_height_px:942
+      table_height_px:894
     }),
     visual:Object.freeze({
       kind:'chalk',
-      panelBackground:'#121210',
-      border:'#E0AB16',
-      brandColor:'#F3B91F',
+      panelBackground:'#10110E',
+      border:'#D8AC2C',
+      brandColor:'#E5B62E',
       brandText:'БИР ФИШ',
       brandCaption:'Хорошее пиво рядом!',
-      decorAsset:'/brand/themes/chalk-side.jpg',
-      footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
+      brandNameFontFamily:'dejavu-condensed',
+      brandNameFontSizePx:62,
+      brandNameFontWeight:800,
+      brandCaptionFontFamily:'mira-serif',
+      brandCaptionFontSizePx:24,
+      brandCaptionFontWeight:600,
+      utilityFontFamily:'dejavu-condensed',
+      utilityFontSizePx:28,
+      utilityFontWeight:700,
+      clockFontSizePx:74,
+      decorAsset:'/brand/themes/chalk-side.svg',
+      footerText:ALCOHOL_WARNING_TEXT
+    }),
+    table:Object.freeze({
+      variant:'chalk',
+      section_font_family:'dejavu-condensed',
+      item_font_family:'dejavu-condensed',
+      meta_font_family:'dejavu-condensed',
+      price_font_family:'dejavu-condensed',
+      separator:'#5C5C56',
+      separator_dashed:true,
+      price_mode:'alternating',
+      show_sequence:false,
+      price_column_borders:false
+    }),
+    weather:Object.freeze({
+      variant:'chalk',
+      temperature_font_family:'dejavu-condensed',
+      temperature_font_size_pt:52,
+      location_font_size_pt:15,
+      icon_scale_percent:122,
+      show_condition:true,
+      show_forecast:true,
+      forecast_items:3
     }),
     layout:LAYOUT.chalk
   }),
   Object.freeze({
     id:'brand-premium',
     label:'Брендовая премиальная',
-    description:'Чёрно-золотая тема с крупным брендовым блоком, слоганом и фото-зоной.',
+    description:'Брендовая тёмно-золотая тема с собственным фоном, крупным названием, слоганом и чистой правой композицией.',
     preset_version:1,
     default_utility_mode:'weather',
     settings:Object.freeze({
       ...BASE,
-      background_color:'#080B0D',
+      background_color:'#050607',
+      background_image_url:'/brand/themes/brand-premium-background.svg',
       accent_color:'#F4B51D',
       text_color:'#F8F8F5',
       font_family:'arial',
       price_font_size_pt:28,
-      table_x:46,
-      table_y:30,
-      table_width_px:1412,
-      table_height_px:962
+      table_x:54,
+      table_y:42,
+      table_width_px:1390,
+      table_height_px:894
     }),
     visual:Object.freeze({
       kind:'brand-premium',
-      panelBackground:'#090B0C',
+      panelBackground:'#08090A',
       border:'#DFA91E',
       brandColor:'#F4B61F',
       brandText:'БИР ФИШ',
       brandCaption:'ПИВО · ЗАКУСКИ · ХОРОШАЯ КОМПАНИЯ',
-      decorAsset:'/brand/themes/brand-premium-side.jpg',
-      footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
+      brandNameFontFamily:'arial',
+      brandNameFontSizePx:72,
+      brandNameFontWeight:900,
+      brandCaptionFontFamily:'arial-narrow',
+      brandCaptionFontSizePx:19,
+      brandCaptionFontWeight:800,
+      utilityFontFamily:'arial',
+      utilityFontSizePx:30,
+      utilityFontWeight:800,
+      clockFontSizePx:80,
+      decorAsset:'/brand/themes/brand-premium-side.svg',
+      footerText:ALCOHOL_WARNING_TEXT
+    }),
+    table:Object.freeze({
+      variant:'brand-premium',
+      section_font_family:'arial',
+      item_font_family:'arial-narrow',
+      meta_font_family:'arial-narrow',
+      price_font_family:'arial',
+      separator:'#43484B',
+      separator_dashed:false,
+      price_mode:'primary-accent',
+      show_sequence:false,
+      price_column_borders:true
+    }),
+    weather:Object.freeze({
+      variant:'brand-premium',
+      temperature_font_family:'arial',
+      temperature_font_size_pt:56,
+      location_font_size_pt:16,
+      icon_scale_percent:132,
+      show_condition:true,
+      show_forecast:true,
+      forecast_items:3
     }),
     layout:LAYOUT['brand-premium']
   })
@@ -166,7 +277,7 @@ export function menuThemePreset(id) {
 }
 
 export function menuThemeCatalog() {
-  return PRESETS.map(({ settings,visual,layout,...meta }) => ({ ...meta }));
+  return PRESETS.map(({ settings,visual,table,weather,layout,...meta }) => ({ ...meta }));
 }
 
 export function resolveMenuThemeSettings(settings = {}) {
@@ -179,5 +290,13 @@ export function resolveMenuThemeSettings(settings = {}) {
   for (const [key,value] of Object.entries(preset.settings)) {
     if (!overrides.has(key)) resolved[key] = value;
   }
+  const tableStyle = preset.table ? { ...preset.table } : null;
+  if (tableStyle && overrides.has('font_family')) {
+    tableStyle.section_font_family = resolved.font_family;
+    tableStyle.item_font_family = resolved.font_family;
+    tableStyle.meta_font_family = resolved.font_family;
+    tableStyle.price_font_family = resolved.font_family;
+  }
+  resolved.theme_table_style = tableStyle;
   return Object.freeze(resolved);
 }

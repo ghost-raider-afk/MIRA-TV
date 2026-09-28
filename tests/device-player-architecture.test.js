@@ -57,7 +57,7 @@ test('real TV Player uses one static renderer, WebSocket and Local-first state',
   assert.match(device, /playerRuntimeHash\(config, currentRevision\)/);
   assert.doesNotMatch(device, /getBakedScene|sceneVideoToken/);
   assert.doesNotMatch(renderer, /SceneMotionRuntime|SceneVideoRuntime|ScenePlaylistRuntime/);
-  assert.match(worker, /mira-tv-player-shell-v53/);
+  assert.match(worker, /mira-tv-player-shell-v55/);
 });
 
 test('Player boot defers noncritical background work until a scene is rendered', async () => {

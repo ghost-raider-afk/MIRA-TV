@@ -333,6 +333,16 @@ export function buildRenderLayout(model, lines) {
   const secondaryPriceX = frame.x + (MENU_REFERENCE.secondaryPriceX - MENU_REFERENCE.tableX) * scaleX;
   const primaryPriceX = secondaryPriceX - MENU_REFERENCE.priceColumnGap * scaleX;
 
+  const themeTableStyle = model.settings?.theme_table_style && typeof model.settings.theme_table_style === 'object'
+    ? { ...model.settings.theme_table_style }
+    : {};
+  const fallbackFont = model.settings.font_family;
+  const themeTypography = Object.freeze({
+    section:fontDefinition(themeTableStyle.section_font_family || fallbackFont),
+    item:fontDefinition(themeTableStyle.item_font_family || fallbackFont),
+    meta:fontDefinition(themeTableStyle.meta_font_family || fallbackFont),
+    price:fontDefinition(themeTableStyle.price_font_family || fallbackFont)
+  });
   return Object.freeze({
     frame,
     horizontal: Object.freeze({
@@ -361,6 +371,8 @@ export function buildRenderLayout(model, lines) {
     }),
     palette: buildMenuPalette(model.settings),
     typography: fontDefinition(model.settings.font_family),
+    themeTypography,
+    themeTableStyle:Object.freeze(themeTableStyle),
     priceFontSizePt: requestedPriceFontSizePt(model.settings)
   });
 }

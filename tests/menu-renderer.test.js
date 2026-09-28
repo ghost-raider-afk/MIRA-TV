@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { resolveMenuThemeSettings } from '../src/web/admin-ui/public/js/themes/menu-theme-registry.js';
 import {
   buildDisplayLines,
   buildRenderLayout,
@@ -157,25 +158,27 @@ test('menu that cannot fit even at minimum scale is explicitly rejected by layou
 });
 
 
-test('approved themed menu adds numbering, gold header and price-column guides without changing legacy SVG', () => {
+test('approved branded theme uses its own table chrome without changing legacy SVG', () => {
   const legacy = rendered(4).svg;
-  assert.doesNotMatch(legacy, /item-sequence|theme-price-columns|mira-theme-gold[^\s\S]*fill="url\(#mira-theme-gold\)"/);
+  assert.doesNotMatch(legacy, /item-sequence|theme-price-columns/);
+  assert.doesNotMatch(legacy, /fill="url\(#mira-theme-(?:premium|chalk|brand)-gold\)"/);
 
   const themedState = state(4);
   themedState.settings.theme = {
     schema_version:1,
     preset_id:'brand-premium',
     preset_version:1,
-    brand:{ name:'БИР ФИШ',caption:'',logo_element_id:'',name_font_family:'',caption_font_family:'' },
-    utility_slot:{ mode:'none',text:'',weather_element_id:'',font_family:'' },
+    brand:{ name:'БИР ФИШ',caption:'',logo_element_id:'',name_font_family:'arial',caption_font_family:'arial-narrow' },
+    utility_slot:{ mode:'none',text:'',weather_element_id:'',font_family:'arial' },
     overrides:[]
   };
+  themedState.settings = { ...resolveMenuThemeSettings(themedState.settings) };
   const model = buildRenderModel(themedState,{ width:1920,height:1080 });
   const lines = buildDisplayLines(model,{ products:[product] });
   const layout = buildRenderLayout(model,lines);
   const svg = buildTableSvg(model,lines,layout);
-  assert.match(svg,/class="item-sequence"/);
+  assert.doesNotMatch(svg,/class="item-sequence"/);
   assert.match(svg,/class="theme-price-columns"/);
-  assert.match(svg,/fill="url\(#mira-theme-gold\)"/);
-  assert.match(svg,/>1<\/text>/);
+  assert.match(svg,/fill="url\(#mira-theme-brand-gold\)"/);
+  assert.match(svg,/font-family="Arial Narrow, Liberation Sans Narrow, DejaVu Sans Condensed, Arial, sans-serif"/);
 });

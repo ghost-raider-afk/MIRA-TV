@@ -43,6 +43,13 @@ const TABLE_FONTS = Object.freeze([
   ['liberation-narrow', 'Liberation Sans Narrow'],
   ['system-sans', 'Системный sans-serif']
 ]);
+const THEME_FONTS = Object.freeze([
+  ...TABLE_FONTS,
+  ['mira-condensed', 'MIRA Sans Condensed'],
+  ['mira-mono', 'MIRA Sans Mono'],
+  ['mira-serif', 'MIRA Serif'],
+  ['mira-serif-condensed', 'MIRA Serif Condensed']
+]);
 
 function systemOwnerIcon(type) {
   if (!['theme','background','promotion','table'].includes(type)) return null;
@@ -93,7 +100,6 @@ function systemOwnerIcon(type) {
 }
 
 let generation = 0;
-
 function screenFromQuery(screens) {
   const id = Number(new URL(window.location.href).searchParams.get('screen'));
   return screens.find((screen) => Number(screen.id) === id) || screens[0] || null;
@@ -322,6 +328,9 @@ export function initialiseSceneEditor() {
   function themeState() {
     const source = state.settings?.theme && typeof state.settings.theme === 'object' ? state.settings.theme : {};
     const preset = menuThemePreset(source.preset_id);
+    const visual = preset.visual || {};
+    const weather = preset.weather || {};
+    const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
     return {
       schema_version:1,
       preset_id:preset.id,
@@ -330,14 +339,24 @@ export function initialiseSceneEditor() {
         name:String(source.brand?.name || ''),
         caption:String(source.brand?.caption || ''),
         logo_element_id:String(source.brand?.logo_element_id || ''),
-        name_font_family:String(source.brand?.name_font_family || ''),
-        caption_font_family:String(source.brand?.caption_font_family || '')
+        name_font_family:String(source.brand?.name_font_family || visual.brandNameFontFamily || ''),
+        name_font_size_px:numberOr(source.brand?.name_font_size_px, Number(visual.brandNameFontSizePx) || 64),
+        name_font_weight:numberOr(source.brand?.name_font_weight, Number(visual.brandNameFontWeight) || 900),
+        caption_font_family:String(source.brand?.caption_font_family || visual.brandCaptionFontFamily || ''),
+        caption_font_size_px:numberOr(source.brand?.caption_font_size_px, Number(visual.brandCaptionFontSizePx) || 20),
+        caption_font_weight:numberOr(source.brand?.caption_font_weight, Number(visual.brandCaptionFontWeight) || 700)
       },
       utility_slot:{
-        mode:String(source.utility_slot?.mode || 'none'),
+        mode:String(source.utility_slot?.mode || (preset.id === 'legacy' ? 'none' : preset.default_utility_mode || 'none')),
         text:String(source.utility_slot?.text || ''),
         weather_element_id:String(source.utility_slot?.weather_element_id || ''),
-        font_family:String(source.utility_slot?.font_family || '')
+        font_family:String(source.utility_slot?.font_family || visual.utilityFontFamily || ''),
+        font_size_px:numberOr(source.utility_slot?.font_size_px, Number(visual.utilityFontSizePx) || 28),
+        font_weight:numberOr(source.utility_slot?.font_weight, Number(visual.utilityFontWeight) || 800),
+        temperature_font_family:String(source.utility_slot?.temperature_font_family || weather.temperature_font_family || ''),
+        temperature_font_size_pt:numberOr(source.utility_slot?.temperature_font_size_pt, Number(weather.temperature_font_size_pt) || 48),
+        location_font_size_pt:numberOr(source.utility_slot?.location_font_size_pt, Number(weather.location_font_size_pt) || 14),
+        icon_scale_percent:numberOr(source.utility_slot?.icon_scale_percent, Number(weather.icon_scale_percent) || 100)
       },
       overrides:Array.isArray(source.overrides) ? [...source.overrides] : []
     };
@@ -636,22 +655,40 @@ export function initialiseSceneEditor() {
       history.checkpoint();
       const nextPreset = menuThemePreset(presetSelect.value);
       const current = themeState();
-      const weather = weatherElements.find((item) => item.id === current.utility_slot.weather_element_id) || weatherElements[0] || null;
+      let weather = weatherElements.find((item) => item.id === current.utility_slot.weather_element_id) || weatherElements[0] || null;
       const logo = logos.find((item) => item.id === current.brand.logo_element_id) || logos[0] || null;
+      if (nextPreset.id !== 'legacy' && nextPreset.default_utility_mode === 'weather' && !weather) {
+        weather = appendSceneElement(state,'weather');
+      }
+      const visual = nextPreset.visual || {};
+      const weatherPreset = nextPreset.weather || {};
       const next = {
         ...current,
         preset_id:nextPreset.id,
         preset_version:nextPreset.preset_version || 1,
         brand:{
           ...current.brand,
-          name:current.brand.name || nextPreset.visual?.brandText || '',
-          caption:current.brand.caption || nextPreset.visual?.brandCaption || '',
-          logo_element_id:logo?.id || ''
+          name:current.brand.name || visual.brandText || '',
+          caption:current.brand.caption || visual.brandCaption || '',
+          logo_element_id:logo?.id || '',
+          name_font_family:visual.brandNameFontFamily || current.brand.name_font_family,
+          name_font_size_px:Number(visual.brandNameFontSizePx) || 64,
+          name_font_weight:Number(visual.brandNameFontWeight) || 900,
+          caption_font_family:visual.brandCaptionFontFamily || current.brand.caption_font_family,
+          caption_font_size_px:Number(visual.brandCaptionFontSizePx) || 20,
+          caption_font_weight:Number(visual.brandCaptionFontWeight) || 700
         },
         utility_slot:{
           ...current.utility_slot,
           mode:nextPreset.id === 'legacy' ? 'none' : weather ? 'weather' : 'clock',
-          weather_element_id:weather?.id || ''
+          weather_element_id:weather?.id || '',
+          font_family:visual.utilityFontFamily || current.utility_slot.font_family,
+          font_size_px:Number(visual.utilityFontSizePx) || 28,
+          font_weight:Number(visual.utilityFontWeight) || 800,
+          temperature_font_family:weatherPreset.temperature_font_family || current.utility_slot.temperature_font_family,
+          temperature_font_size_pt:Number(weatherPreset.temperature_font_size_pt) || 48,
+          location_font_size_pt:Number(weatherPreset.location_font_size_pt) || 14,
+          icon_scale_percent:Number(weatherPreset.icon_scale_percent) || 100
         },
         overrides:[]
       };
@@ -694,7 +731,7 @@ export function initialiseSceneEditor() {
       const select=document.createElement('select');
       select.setAttribute('aria-label',label);
       select.add(new Option('Шрифт темы',''));
-      for(const [key,name] of TABLE_FONTS) select.add(new Option(name,key));
+      for(const [key,name] of THEME_FONTS) select.add(new Option(name,key));
       select.value=value || '';
       return select;
     };
@@ -708,6 +745,38 @@ export function initialiseSceneEditor() {
       history.checkpoint();
       const next=themeState(); next.brand.caption_font_family=captionFont.value; setThemeState(next);
     });
+    const brandSize=compactInput('number',theme.brand.name_font_size_px,{ min:24,max:128,step:1 });
+    brandSize.setAttribute('aria-label','Размер названия бренда');
+    checkpointControl(brandSize);
+    brandSize.addEventListener('input',()=>{
+      const value=Number(brandSize.value);
+      if(!Number.isFinite(value)) return;
+      const next=themeState(); next.brand.name_font_size_px=clamp(Math.round(value),24,128); setThemeState(next);
+    });
+    const brandWeight=document.createElement('select');
+    brandWeight.setAttribute('aria-label','Жирность названия бренда');
+    for(const value of [300,400,500,600,700,800,900]) brandWeight.add(new Option(String(value),String(value)));
+    brandWeight.value=String(theme.brand.name_font_weight || 900);
+    brandWeight.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.brand.name_font_weight=Number(brandWeight.value); setThemeState(next);
+    });
+    const captionSize=compactInput('number',theme.brand.caption_font_size_px,{ min:10,max:64,step:1 });
+    captionSize.setAttribute('aria-label','Размер подписи бренда');
+    checkpointControl(captionSize);
+    captionSize.addEventListener('input',()=>{
+      const value=Number(captionSize.value);
+      if(!Number.isFinite(value)) return;
+      const next=themeState(); next.brand.caption_font_size_px=clamp(Math.round(value),10,64); setThemeState(next);
+    });
+    const captionWeight=document.createElement('select');
+    captionWeight.setAttribute('aria-label','Жирность подписи бренда');
+    for(const value of [300,400,500,600,700,800,900]) captionWeight.add(new Option(String(value),String(value)));
+    captionWeight.value=String(theme.brand.caption_font_weight || 700);
+    captionWeight.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.brand.caption_font_weight=Number(captionWeight.value); setThemeState(next);
+    });
 
     const brandGrid=document.createElement('div');
     brandGrid.className='compact-form-grid';
@@ -716,15 +785,17 @@ export function initialiseSceneEditor() {
       makeField('Подпись / слоган',caption),
       makeField('Логотип',logo),
       makeField('Шрифт бренда',brandFont),
-      makeField('Шрифт подписи',captionFont)
+      makeField('Размер бренда, px',brandSize),
+      makeField('Жирность бренда',brandWeight),
+      makeField('Шрифт подписи',captionFont),
+      makeField('Размер подписи, px',captionSize),
+      makeField('Жирность подписи',captionWeight)
     );
     panel.append(brandGrid);
 
     const utility=document.createElement('select');
     for(const [value,label] of [['none','Не использовать'],['weather','Погода'],['clock','Часы'],['text','Текстовый блок']]){
-      const option=new Option(label,value);
-      if(value==='weather' && !weatherElements.length) option.disabled=true;
-      utility.add(option);
+      utility.add(new Option(label,value));
     }
     utility.value=theme.utility_slot.mode;
     utility.setAttribute('aria-label','Содержимое полезного слота');
@@ -732,7 +803,11 @@ export function initialiseSceneEditor() {
       history.checkpoint();
       const next=themeState();
       next.utility_slot.mode=utility.value;
-      if(utility.value==='weather' && !next.utility_slot.weather_element_id) next.utility_slot.weather_element_id=weatherElements[0]?.id || '';
+      if(utility.value==='weather' && !next.utility_slot.weather_element_id) {
+        const weather = weatherElements[0] || appendSceneElement(state,'weather');
+        next.utility_slot.weather_element_id=weather?.id || '';
+        renderLayers();
+      }
       setThemeState(next,{ rerenderInspector:true });
     });
 
@@ -745,6 +820,32 @@ export function initialiseSceneEditor() {
     weatherSelect.addEventListener('change', () => {
       history.checkpoint();
       const next=themeState(); next.utility_slot.weather_element_id=weatherSelect.value; setThemeState(next);
+    });
+
+    const configureWeather=document.createElement('button');
+    configureWeather.type='button';
+    configureWeather.className='button button-secondary';
+    configureWeather.textContent='Настроить погоду';
+    configureWeather.disabled=theme.utility_slot.mode!=='weather';
+    configureWeather.addEventListener('click',()=>{
+      history.checkpoint();
+      let weather=state.scene?.elements?.find((item)=>item?.type==='weather' && item.id===themeState().utility_slot.weather_element_id)
+        || state.scene?.elements?.find((item)=>item?.type==='weather')
+        || null;
+      if(!weather) {
+        weather=appendSceneElement(state,'weather');
+        if(!weather) return;
+        const next=themeState();
+        next.utility_slot.mode='weather';
+        next.utility_slot.weather_element_id=weather.id;
+        setThemeState(next);
+        setDirty();
+        scheduleSceneRender();
+      }
+      state.selectedElementId=weather.id;
+      selectedOwner='element';
+      renderSelectionOwners();
+      if(window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel='properties';
     });
 
     const utilityText=compactInput('text',theme.utility_slot.text);
@@ -762,14 +863,73 @@ export function initialiseSceneEditor() {
       history.checkpoint();
       const next=themeState(); next.utility_slot.font_family=utilityFont.value; setThemeState(next);
     });
+    const utilitySize=compactInput('number',theme.utility_slot.font_size_px,{ min:12,max:72,step:1 });
+    utilitySize.setAttribute('aria-label','Размер текста полезного слота');
+    utilitySize.disabled=theme.utility_slot.mode!=='text';
+    checkpointControl(utilitySize);
+    utilitySize.addEventListener('input',()=>{
+      const value=Number(utilitySize.value);
+      if(!Number.isFinite(value)) return;
+      const next=themeState(); next.utility_slot.font_size_px=clamp(Math.round(value),12,72); setThemeState(next);
+    });
+    const utilityWeight=document.createElement('select');
+    utilityWeight.setAttribute('aria-label','Жирность текста полезного слота');
+    for(const value of [300,400,500,600,700,800,900]) utilityWeight.add(new Option(String(value),String(value)));
+    utilityWeight.value=String(theme.utility_slot.font_weight || 800);
+    utilityWeight.disabled=theme.utility_slot.mode!=='text';
+    utilityWeight.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.utility_slot.font_weight=Number(utilityWeight.value); setThemeState(next);
+    });
+
+    const weatherFont=themeFontSelect(theme.utility_slot.temperature_font_family,'Шрифт температуры темы');
+    weatherFont.disabled=theme.utility_slot.mode!=='weather';
+    weatherFont.addEventListener('change',()=>{
+      history.checkpoint();
+      const next=themeState(); next.utility_slot.temperature_font_family=weatherFont.value; setThemeState(next);
+    });
+    const temperatureSize=compactInput('number',theme.utility_slot.temperature_font_size_pt,{ min:24,max:96,step:1 });
+    temperatureSize.setAttribute('aria-label','Кегль температуры темы');
+    temperatureSize.disabled=theme.utility_slot.mode!=='weather';
+    checkpointControl(temperatureSize);
+    temperatureSize.addEventListener('input',()=>{
+      const value=Number(temperatureSize.value);
+      if(!Number.isFinite(value)) return;
+      const next=themeState(); next.utility_slot.temperature_font_size_pt=clamp(Math.round(value),24,96); setThemeState(next);
+    });
+    const locationSize=compactInput('number',theme.utility_slot.location_font_size_pt,{ min:8,max:32,step:1 });
+    locationSize.setAttribute('aria-label','Кегль города темы');
+    locationSize.disabled=theme.utility_slot.mode!=='weather';
+    checkpointControl(locationSize);
+    locationSize.addEventListener('input',()=>{
+      const value=Number(locationSize.value);
+      if(!Number.isFinite(value)) return;
+      const next=themeState(); next.utility_slot.location_font_size_pt=clamp(Math.round(value),8,32); setThemeState(next);
+    });
+    const weatherIconScale=compactInput('number',theme.utility_slot.icon_scale_percent,{ min:80,max:200,step:1 });
+    weatherIconScale.setAttribute('aria-label','Масштаб иконки погоды темы');
+    weatherIconScale.disabled=theme.utility_slot.mode!=='weather';
+    checkpointControl(weatherIconScale);
+    weatherIconScale.addEventListener('input',()=>{
+      const value=Number(weatherIconScale.value);
+      if(!Number.isFinite(value)) return;
+      const next=themeState(); next.utility_slot.icon_scale_percent=clamp(Math.round(value),80,200); setThemeState(next);
+    });
 
     const utilityGrid=document.createElement('div');
     utilityGrid.className='compact-form-grid';
     utilityGrid.append(
       makeField('Полезный слот',utility),
       makeField('Погода',weatherSelect),
+      configureWeather,
       makeField('Текст',utilityText),
-      makeField('Шрифт текста',utilityFont)
+      makeField('Шрифт текста',utilityFont),
+      makeField('Размер текста, px',utilitySize),
+      makeField('Жирность текста',utilityWeight),
+      makeField('Шрифт температуры',weatherFont),
+      makeField('Температура, pt',temperatureSize),
+      makeField('Город, pt',locationSize),
+      makeField('Иконка, %',weatherIconScale)
     );
     panel.append(utilityGrid);
 

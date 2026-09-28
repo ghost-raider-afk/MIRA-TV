@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v53';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v54';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v54';
+const SHELL_CACHE = 'mira-tv-player-shell-v55';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: navigation-based Device Session handoff for TV browsers.
 const SHELL_ASSETS = [
@@ -8,9 +8,12 @@ const SHELL_ASSETS = [
   '/player.webmanifest',
   '/brand/player-icon-192.png',
   '/brand/player-icon-512.png',
-  '/brand/themes/premium-side.jpg',
-  '/brand/themes/chalk-side.jpg',
-  '/brand/themes/brand-premium-side.jpg',
+  '/brand/themes/premium-background.svg',
+  '/brand/themes/chalk-background.svg',
+  '/brand/themes/brand-premium-background.svg',
+  '/brand/themes/premium-side.svg',
+  '/brand/themes/chalk-side.svg',
+  '/brand/themes/brand-premium-side.svg',
   '/css/fonts.css',
   '/fonts/DejaVuSans.ttf',
   '/fonts/DejaVuSans-Bold.ttf',

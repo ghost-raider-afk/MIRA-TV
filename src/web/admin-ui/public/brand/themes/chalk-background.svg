@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+<defs>
+  <linearGradient id="board" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#151511"/><stop offset=".48" stop-color="#0f100d"/><stop offset="1" stop-color="#171711"/></linearGradient>
+  <pattern id="chalk" width="54" height="54" patternUnits="userSpaceOnUse">
+    <path d="M7 12l19-4M30 31l16-3M9 46l11-2" stroke="#f4efe1" stroke-opacity=".024" stroke-linecap="round"/>
+    <circle cx="42" cy="11" r="1" fill="#f4efe1" fill-opacity=".03"/>
+  </pattern>
+</defs>
+<rect width="1920" height="1080" fill="url(#board)"/>
+<rect width="1920" height="1080" fill="url(#chalk)"/>
+<path d="M1470 0H1920V1080H1470Z" fill="#0c0d0a" fill-opacity=".46"/>
+<path d="M1490 34V1046" stroke="#e4b82f" stroke-width="2" stroke-opacity=".46" stroke-dasharray="10 8"/>
+<path d="M1510 48c92 18 184 17 276-2M1510 1018c99-13 196-13 294 1" fill="none" stroke="#f5f0e5" stroke-opacity=".11" stroke-linecap="round"/>
+</svg>
