@@ -46,12 +46,27 @@ test('preset themes are self-contained and apply to another TV without creating 
       'Брендовая премиальная'
     ]);
 
+    const approvedPresets=[
+      ['premium','/brand/themes/premium-approved-decor.webp','premium'],
+      ['chalk','/brand/themes/chalk-approved-decor.webp','chalk'],
+      ['brand-premium','/brand/themes/brand-premium-approved-decor.webp','brand-premium']
+    ];
+    for(const [presetId,decorSource,weatherVariant] of approvedPresets){
+      await themeSelect.selectOption(presetId);
+      await expect(stage).toHaveAttribute('data-menu-theme',presetId);
+      await expect(stage.locator('.menu-theme-side-panel')).toHaveAttribute('data-theme-variant',presetId);
+      await expect(stage.locator('.menu-theme-brand-name')).toHaveText('БИР ФИШ');
+      await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src',decorSource);
+      await expect(stage.locator('.menu-theme-utility')).toHaveAttribute('data-utility-mode','weather');
+      await expect(stage.locator('.menu-theme-utility')).toHaveAttribute('data-weather-variant',weatherVariant);
+      await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(0);
+      if(presetId==='chalk'){
+        await expect(stage.locator('.menu-theme-brand-divider')).toHaveCSS('display','none');
+        await expect(stage.locator('.menu-theme-brand-caption')).toHaveText('Хорошее пиво рядом!');
+      }
+    }
     await themeSelect.selectOption('premium');
     await expect(stage).toHaveAttribute('data-menu-theme','premium');
-    await expect(stage.locator('.menu-theme-brand-name')).toHaveText('БИР ФИШ');
-    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/premium-approved-decor.webp');
-    await expect(stage.locator('.menu-theme-utility')).toHaveAttribute('data-utility-mode','weather');
-    await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(0);
     await expect(page.getByLabel('Кегль температуры темы')).toBeEnabled();
     await expect(page.getByLabel('Масштаб иконки погоды темы')).toBeEnabled();
     await expect(page.getByLabel('Текст предупреждения')).toBeEnabled();
