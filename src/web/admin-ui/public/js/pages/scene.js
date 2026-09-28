@@ -810,9 +810,7 @@ export function initialiseSceneEditor() {
 
     const utility=document.createElement('select');
     for(const [value,label] of [['none','Не использовать'],['weather','Погода'],['clock','Часы'],['text','Текстовый блок']]){
-      const option=new Option(label,value);
-      if(value==='weather' && !weatherElements.length) option.disabled=true;
-      utility.add(option);
+      utility.add(new Option(label,value));
     }
     utility.value=theme.utility_slot.mode;
     utility.setAttribute('aria-label','Содержимое полезного слота');
@@ -820,7 +818,11 @@ export function initialiseSceneEditor() {
       history.checkpoint();
       const next=themeState();
       next.utility_slot.mode=utility.value;
-      if(utility.value==='weather' && !next.utility_slot.weather_element_id) next.utility_slot.weather_element_id=weatherElements[0]?.id || '';
+      if(utility.value==='weather' && !next.utility_slot.weather_element_id) {
+        const weather = weatherElements[0] || appendSceneElement(state,'weather');
+        next.utility_slot.weather_element_id=weather?.id || '';
+        renderLayers();
+      }
       setThemeState(next,{ rerenderInspector:true });
     });
 
