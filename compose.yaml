@@ -33,6 +33,17 @@ services:
     network_mode: none
     restart: "no"
 
+  backup-helper:
+    image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+    container_name: mira-tv-backup-helper
+    command: ["true"]
+    volumes:
+      - mira-tv-site-assets:/backup/site-assets
+      - mira-tv-letsencrypt:/backup/letsencrypt
+    network_mode: none
+    restart: "no"
+    profiles: [tools]
+
   app:
     build:
       context: .
