@@ -14,8 +14,9 @@
         <main class="main-content workspace-content">
           <div class="page-heading"><p class="eyebrow">КАТАЛОГ</p><h1>Продукция и тара</h1><p>Позиции каталога используются редакторами всех мониторов.</p></div>
           <div class="workspace-grid catalog-grid">
-            <section class="settings-card" id="products">
-              <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2 id="product-form-title">Новая продукция</h2></div><button class="text-button is-hidden" id="cancel-product-edit" type="button">Отменить</button></div>
+            <dialog class="catalog-editor-dialog" id="product-dialog" aria-labelledby="product-form-title">
+            <section class="settings-card catalog-editor-card" id="products">
+              <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2 id="product-form-title">Новая продукция</h2></div><button class="text-button" id="cancel-product-edit" type="button">Закрыть</button></div>
               <form id="product-form" class="form-grid">
                 <label class="field field-full"><span>Название</span><input id="product-name" maxlength="120" required /></label>
                 <label class="field"><span>Производитель</span><input id="product-producer" maxlength="120" /></label>
@@ -31,8 +32,9 @@
                 <div class="form-actions field-full"><button class="button button-primary" id="product-submit" type="submit">Добавить продукцию</button></div>
               </form>
             </section>
-            <section class="settings-card">
-              <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2>Список</h2></div><div class="list-tools"><input class="list-filter" id="product-filter" type="search" placeholder="Поиск продукции" aria-label="Поиск продукции" /><input class="is-hidden" id="product-import-file" type="file" accept=".csv,text/csv" /><button class="button button-secondary" id="product-import" type="button">Загрузить в базу</button><button class="button button-secondary" id="product-export" type="button">Выгрузить из базы</button><button class="button button-secondary" id="refresh-catalog" type="button">Обновить</button></div></div>
+            </dialog>
+            <section class="settings-card catalog-list-card catalog-products-card">
+              <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2>База продукции</h2></div><div class="list-tools"><input class="list-filter" id="product-filter" type="search" placeholder="Поиск продукции" aria-label="Поиск продукции" /><input class="is-hidden" id="product-import-file" type="file" accept=".csv,text/csv" /><button class="button button-secondary" id="product-import" type="button">Загрузить в базу</button><button class="button button-secondary" id="product-export" type="button">Выгрузить из базы</button><button class="button button-secondary" id="refresh-catalog" type="button">Обновить</button><button class="button button-primary" id="new-product" type="button">+ Продукция</button></div></div>
               <div class="record-list" data-products-list></div><p class="empty-state is-hidden" data-products-empty>Продукции пока нет.</p>
             </section>
             <section class="settings-card catalog-import-card is-hidden" id="product-import-preview" aria-live="polite">
@@ -44,8 +46,9 @@
               <div class="catalog-import-table-wrap"><table class="catalog-import-table"><thead><tr><th>Статус</th><th>ID</th><th>Название</th><th>Производитель</th><th>Характеристики</th><th>Крепость</th><th>Цена 1 л</th><th>Цена 1,5 л<br /><small>расчётная</small></th><th>Алкогольная</th><th>Цвет</th><th>Фильтрация</th><th>Активна</th><th>Исключить</th></tr></thead><tbody id="product-import-body"></tbody></table></div>
               <div class="catalog-import-actions"><span class="catalog-import-hint" id="product-import-hint">Сначала исправьте все ошибки.</span><button class="button button-primary" id="product-import-apply" type="button" disabled>Применить изменения</button></div>
             </section>
-            <section class="settings-card" id="packaging">
-              <div class="card-heading"><div><p class="eyebrow">ТАРА</p><h2 id="packaging-form-title">Новая тара</h2></div><button class="text-button is-hidden" id="cancel-packaging-edit" type="button">Отменить</button></div>
+            <dialog class="catalog-editor-dialog" id="packaging-dialog" aria-labelledby="packaging-form-title">
+            <section class="settings-card catalog-editor-card" id="packaging">
+              <div class="card-heading"><div><p class="eyebrow">ТАРА</p><h2 id="packaging-form-title">Новая тара</h2></div><button class="text-button" id="cancel-packaging-edit" type="button">Закрыть</button></div>
               <form id="packaging-form" class="form-grid">
                 <label class="field field-full"><span>Название тары</span><input id="packaging-name" maxlength="120" placeholder="Например, бутылка ПЭТ 1,5 л" required /></label>
                 <label class="field"><span>Цена, ₽</span><input id="packaging-price" inputmode="decimal" maxlength="16" placeholder="12" required /></label>
@@ -54,8 +57,9 @@
                 <div class="form-actions field-full"><button class="button button-primary" id="packaging-submit" type="submit">Добавить тару</button></div>
               </form>
             </section>
-            <section class="settings-card">
-              <div class="card-heading"><div><p class="eyebrow">ТАРА</p><h2>Список</h2></div><input class="list-filter" id="packaging-filter" type="search" placeholder="Поиск тары" aria-label="Поиск тары" /></div>
+            </dialog>
+            <section class="settings-card catalog-list-card">
+              <div class="card-heading"><div><p class="eyebrow">ТАРА</p><h2>База тары</h2></div><div class="list-tools"><input class="list-filter" id="packaging-filter" type="search" placeholder="Поиск тары" aria-label="Поиск тары" /><button class="button button-primary" id="new-packaging" type="button">+ Тара</button></div></div>
               <div class="record-list" data-packaging-list></div><p class="empty-state is-hidden" data-packaging-empty>Тара пока не добавлена.</p>
             </section>
           </div>
