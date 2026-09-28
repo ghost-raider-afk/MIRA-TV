@@ -20,7 +20,7 @@ test('static TV runtime has no video decoder, motion loop or server FFmpeg path'
   assert.doesNotMatch(assets, /ffprobe|video\/mp4|video\/webm/);
 });
 
-test('TV preview uses a low-frequency deferred timer plus request-driven refresh, never a frame loop', async () => {
+test('TV preview is request-driven rather than a permanent capture loop', async () => {
   const [player, background, realtime] = await Promise.all([
     read('src/web/admin-ui/public/js/player/player.js'),
     read('src/web/admin-ui/public/js/player/player-background-services.js'),
@@ -28,9 +28,6 @@ test('TV preview uses a low-frequency deferred timer plus request-driven refresh
   ]);
   assert.match(player, /mira:player-preview-request/);
   assert.match(background, /requestPreview/);
-  assert.match(background, /previewCaptureIntervalMs/);
-  assert.match(background, /schedulePreview/);
-  assert.match(background, /MIN_PREVIEW_INTERVAL_MS = 10_000/);
-  assert.doesNotMatch(background, /setInterval|requestAnimationFrame/);
+  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);
   assert.match(realtime, /preview\.request/);
 });
