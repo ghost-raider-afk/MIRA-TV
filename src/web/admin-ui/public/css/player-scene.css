@@ -65,18 +65,17 @@
 .player-scene-stage .menu-theme-decor{overflow:hidden;background:#080A0B}
 .player-scene-stage .menu-theme-decor-image{display:block;width:100%;height:100%;object-fit:cover;object-position:center center;opacity:1}
 .player-scene-stage .menu-theme-footer{
-  display:grid;
-  grid-template-columns:82px minmax(0,1fr);
-  align-items:center;
-  gap:18px;
-  padding:10px 22px;
+  position:absolute;
   border-top:2px solid color-mix(in srgb,var(--theme-border,#E3AD2B) 72%,transparent);
-  border-bottom:2px solid color-mix(in srgb,var(--theme-border,#E3AD2B) 45%,transparent);
-  background:rgba(4,5,6,.94);
+  background:rgba(4,5,6,.96);
   color:#E7E9EB;
   overflow:hidden
 }
 .player-scene-stage .menu-theme-age{
+  position:absolute;
+  z-index:2;
+  left:24px;
+  top:50%;
   display:grid;
   width:72px;
   height:72px;
@@ -85,14 +84,24 @@
   border-radius:50%;
   color:#F2B72A;
   font-size:25px;
-  font-weight:900
+  font-weight:900;
+  transform:translateY(-50%)
 }
 .player-scene-stage .menu-theme-warning{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  display:flex;
+  box-sizing:border-box;
+  align-items:center;
+  justify-content:center;
   min-width:0;
+  padding:8px 34px 8px 122px;
   font-size:30px;
   font-weight:650;
   line-height:1.12;
-  letter-spacing:.14em;
+  letter-spacing:.12em;
+  text-align:center;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:clip
