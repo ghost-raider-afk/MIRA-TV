@@ -111,6 +111,111 @@ test('preset themes are self-contained and apply to another TV without creating 
   }
 });
 
+test('approved weather informers render three distinct preset visual systems', async ({ page }) => {
+  await page.setViewportSize({width:1440,height:900});
+
+  const snapshot={
+    location_name:'Комсомольск-на-Амуре',
+    latitude:50.55,
+    longitude:137.01,
+    timezone:'Asia/Vladivostok',
+    updated_at:'2026-09-29T07:00',
+    temperature:9,
+    apparent_temperature:8,
+    humidity:70,
+    wind_speed:8,
+    wind_direction:90,
+    weather_code:2,
+    is_day:true,
+    condition:'Облачно',
+    icon:'partly-cloudy',
+    forecast:[
+      {time:'2026-09-29T23:00',temperature:8,icon:'partly-cloudy'},
+      {time:'2026-09-30T00:00',temperature:7,icon:'partly-cloudy'},
+      {time:'2026-09-30T01:00',temperature:6,icon:'moon'}
+    ]
+  };
+  await page.route('**/api/weather/locations**', async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify([{
+        name:'Комсомольск-на-Амуре',
+        admin1:'Хабаровский край',
+        country:'Россия',
+        latitude:50.55,
+        longitude:137.01,
+        timezone:'Asia/Vladivostok'
+      }])
+    });
+  });
+  await page.route('**/api/weather/preview**', async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify(snapshot)
+    });
+  });
+
+  await login(page);
+  const stamp=Date.now();
+  let locationId=null;
+  let screenId=null;
+  try {
+    const location=await (await page.request.post('/api/locations',{
+      data:{name:`Weather informer CI ${stamp}`,address:'Weather visual regression',active:true}
+    })).json();
+    locationId=location.id;
+    const screen=await (await page.request.post(`/api/locations/${location.id}/screens`,{data:{}})).json();
+    screenId=screen.id;
+
+    await page.goto(`/scene?screen=${screenId}`);
+    const stage=page.locator('#scene-editor-stage');
+    await page.locator('#scene-editor-theme-layer').click();
+    const themeSelect=page.getByLabel('Тема меню');
+    await themeSelect.selectOption('premium');
+
+    const city=page.getByLabel('Город встроенной погоды');
+    await city.fill('Комсомольск');
+    const cityOption=page.locator('.weather-location-option').filter({hasText:'Комсомольск-на-Амуре'}).first();
+    await expect(cityOption).toBeVisible();
+    await cityOption.click();
+
+    const premium=stage.locator('.theme-weather--premium');
+    await expect(premium).toBeVisible();
+    await expect(premium).toHaveAttribute('data-icon-style','premium-line');
+    await expect(premium.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(premium.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Oswald/);
+    await expect(premium.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(248, 248, 245)');
+    await expect(premium.locator('.theme-weather-current-icon svg')).toHaveAttribute('data-icon','partly-cloudy');
+    await expect(premium.locator('.theme-weather-brand-mark')).toHaveCount(0);
+
+    await page.locator('#scene-editor-theme-layer').click();
+    await page.getByLabel('Тема меню').selectOption('chalk');
+    const chalk=stage.locator('.theme-weather--chalk');
+    await expect(chalk).toBeVisible();
+    await expect(chalk).toHaveAttribute('data-icon-style','chalk-drawn');
+    await expect(chalk.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Underdog/);
+    await expect(chalk.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('text-transform','lowercase');
+    await expect(chalk.locator('.theme-weather-brand-mark')).toHaveCount(0);
+
+    await page.locator('#scene-editor-theme-layer').click();
+    await page.getByLabel('Тема меню').selectOption('brand-premium');
+    const brand=stage.locator('.theme-weather--brand-premium');
+    await expect(brand).toBeVisible();
+    await expect(brand).toHaveAttribute('data-icon-style','brand-gold');
+    await expect(brand.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Russo One/);
+    await expect(brand.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(brand.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(244, 182, 31)');
+    await expect(brand.locator('.theme-weather-brand-mark')).toHaveCount(1);
+    await expect(brand.locator('.theme-weather-forecast-item')).toHaveCount(3);
+  } finally {
+    if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
+    if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
+  }
+});
+
 test('Theme Constructor owns generic scene elements and preset selection does not consume them', async ({ page }) => {
   await page.setViewportSize({width:1280,height:800});
   await login(page);
