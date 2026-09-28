@@ -51,8 +51,8 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     ['montserrat','roboto-condensed','oswald']
   );
   assert.deepEqual(
-    [chalk.table.section_font_family,chalk.table.item_font_family,chalk.visual.brandCaptionFontFamily],
-    ['underdog','yanone-kaffeesatz','neucha']
+    [chalk.table.section_font_family,chalk.table.item_font_family,chalk.table.meta_font_family,chalk.table.price_font_family,chalk.visual.brandNameFontFamily,chalk.visual.brandCaptionFontFamily],
+    ['montserrat','montserrat','roboto-condensed','oswald','montserrat','neucha']
   );
   assert.deepEqual(
     [brand.table.section_font_family,brand.table.item_font_family,brand.table.price_font_family],
@@ -76,7 +76,7 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   );
   assert.deepEqual(
     [chalk.visual.utilityFontFamily,chalk.weather.temperature_font_family,chalk.weather.condition_font_family,chalk.weather.forecast_font_family,chalk.weather.icon_style],
-    ['underdog','neucha','neucha','neucha','chalk-drawn']
+    ['montserrat','neucha','neucha','neucha','chalk-drawn']
   );
   assert.deepEqual(
     [brand.visual.utilityFontFamily,brand.weather.temperature_font_family,brand.weather.condition_font_family,brand.weather.forecast_font_family,brand.weather.icon_style],
@@ -103,7 +103,7 @@ test('theme geometry keeps table, side composition and legal footer in separate 
   };
   const approvedVerticalGeometry={
     premium:{weatherBottom:296,brandY:315,decorY:525,decorBottom:936},
-    chalk:{weatherBottom:250,brandY:260,decorY:620,decorBottom:936},
+    chalk:{weatherBottom:250,brandY:258,decorY:512,decorBottom:936},
     'brand-premium':{weatherBottom:280,brandY:300,decorY:570,decorBottom:936}
   };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {

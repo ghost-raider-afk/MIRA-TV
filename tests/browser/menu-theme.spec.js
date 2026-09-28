@@ -195,7 +195,7 @@ test('approved weather informers render three distinct preset visual systems', a
     const chalk=stage.locator('.theme-weather--chalk');
     await expect(chalk).toBeVisible();
     await expect(chalk).toHaveAttribute('data-icon-style','chalk-drawn');
-    await expect(chalk.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Underdog/);
+    await expect(chalk.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Montserrat/);
     await expect(chalk.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Neucha/);
     await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('text-transform','lowercase');
     await expect(chalk.locator('.theme-weather-brand-mark')).toHaveCount(0);
@@ -210,6 +210,60 @@ test('approved weather informers render three distinct preset visual systems', a
     await expect(brand.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(244, 182, 31)');
     await expect(brand.locator('.theme-weather-brand-mark')).toHaveCount(1);
     await expect(brand.locator('.theme-weather-forecast-item')).toHaveCount(3);
+  } finally {
+    if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
+    if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
+  }
+});
+
+test('chalk preset uses approved brand hierarchy and recovers stale managed decor assets', async ({ page }) => {
+  await page.setViewportSize({width:1440,height:900});
+  await login(page);
+
+  const stamp=Date.now();
+  let locationId=null;
+  let screenId=null;
+  try {
+    const location=await (await page.request.post('/api/locations',{
+      data:{name:`Chalk visual CI ${stamp}`,address:'Chalk preset regression',active:true}
+    })).json();
+    locationId=location.id;
+    const screen=await (await page.request.post(`/api/locations/${location.id}/screens`,{data:{}})).json();
+    screenId=screen.id;
+    const editor=await (await page.request.get(`/api/screens/${screenId}/editor`)).json();
+
+    const saved=await page.request.put(`/api/screens/${screenId}/draft`,{data:{
+      revision:editor.draft.revision,
+      rows:editor.draft.rows,
+      settings:{
+        ...editor.draft.settings,
+        theme:{
+          preset_id:'chalk',
+          preset_version:1,
+          brand:{name:'БИР ФИШ',caption:'Хорошее пиво рядом!'},
+          utility_slot:{mode:'none'},
+          decor:{source_url:'/brand/themes/chalk-side.svg'}
+        }
+      },
+      scene:editor.draft.scene,
+      screen:{
+        location_id:screen.location_id,
+        name:screen.name,
+        resolution:screen.resolution || '1920×1080',
+        status:'draft',
+        active:true
+      }
+    }});
+    expect(saved.ok()).toBeTruthy();
+
+    await page.goto(`/scene?screen=${screenId}`);
+    const stage=page.locator('#scene-editor-stage');
+    await expect(stage).toHaveAttribute('data-menu-theme','chalk');
+    const brand=stage.locator('.menu-theme-brand-name');
+    await expect(brand).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(brand).toHaveCSS('font-size','108px');
+    await expect(stage.locator('.menu-theme-brand-caption')).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/chalk-approved-decor.webp');
   } finally {
     if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
     if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);

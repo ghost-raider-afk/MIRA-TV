@@ -249,7 +249,10 @@ export class MenuThemeRenderer {
     }
 
     const decor=node('div','menu-theme-decor');
-    const decorSource=theme.decor?.source_url || preset.visual?.decorAsset || '';
+    const presetDecor=String(preset.visual?.decorAsset || '');
+    const configuredDecor=String(theme.decor?.source_url || '').trim();
+    const managedThemeAsset=configuredDecor.startsWith('/brand/themes/');
+    const decorSource=(managedThemeAsset ? presetDecor : configuredDecor) || presetDecor;
     if(decorSource){
       decor.classList.add('has-asset');
       const image=node('img','menu-theme-decor-image');
@@ -258,6 +261,18 @@ export class MenuThemeRenderer {
       image.decoding='async';
       image.loading='eager';
       image.style.objectFit=preset.visual?.decorFit || 'cover';
+      const handleDecorError=()=>{
+        if(presetDecor && image.dataset.presetFallback!=='true' && image.getAttribute('src')!==presetDecor){
+          image.dataset.presetFallback='true';
+          image.src=presetDecor;
+          return;
+        }
+        image.removeEventListener('error',handleDecorError);
+        image.remove();
+        decor.classList.remove('has-asset');
+        decor.classList.add('is-missing');
+      };
+      image.addEventListener('error',handleDecorError);
       decor.append(image);
     }
 

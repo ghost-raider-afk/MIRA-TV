@@ -199,38 +199,53 @@
 
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-side-panel{
   background:
-    linear-gradient(180deg,rgba(15,16,14,.96),rgba(10,11,10,.98)),
+    linear-gradient(180deg,rgba(9,10,9,.22),rgba(8,9,8,.42)),
     var(--theme-panel,#10110E);
-  border-right:1px solid rgba(229,182,46,.68)
+  border-left:2px solid #D8AC2C;
+  border-right:2px solid rgba(216,172,44,.9)
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-brand{
   align-content:start;
-  gap:5px;
-  padding:4px 12px;
-  justify-items:start;
-  text-align:left
+  gap:0;
+  padding:0 10px;
+  justify-items:center;
+  text-align:center;
+  overflow:visible
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-brand-name{
-  width:100%;
+  display:block;
+  width:286px;
+  max-width:286px;
+  white-space:normal;
+  overflow-wrap:normal;
+  line-height:.82;
+  letter-spacing:-.065em;
   text-align:center;
-  letter-spacing:-.04em;
-  text-shadow:1px 1px 0 rgba(255,255,255,.1),-1px 0 0 rgba(0,0,0,.7)
+  color:#E9B92E;
+  text-shadow:none
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-brand-caption{
   position:absolute;
   left:28px;
-  top:280px;
-  width:225px;
-  max-width:225px;
+  top:216px;
+  width:215px;
+  max-width:215px;
   margin:0;
-  transform:rotate(-6deg);
-  line-height:1.25;
-  letter-spacing:.01em;
+  transform:rotate(-7deg);
+  line-height:1.16;
+  letter-spacing:.005em;
+  text-align:left;
   text-transform:none;
-  color:#F2EEE4
+  color:#F4F1E9
+}
+.player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor{
+  background:transparent
 }
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor-image{
-  object-position:right top
+  object-position:center bottom
+}
+.player-scene-stage[data-menu-theme="chalk"] .menu-theme-decor.is-missing{
+  background:transparent
 }
 
 .player-scene-stage .menu-theme-utility[data-utility-mode="weather"]{
@@ -433,7 +448,8 @@
 .player-scene-stage .theme-weather--chalk .theme-weather-location{
   padding-bottom:4px;
   border-bottom:2px solid #E5B62E;
-  letter-spacing:.035em
+  letter-spacing:.035em;
+  font-family:"MIRA Montserrat","MIRA Sans",Arial,sans-serif
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-current{
   display:grid;
