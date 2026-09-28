@@ -189,6 +189,8 @@ test('approved weather informers render three distinct preset visual systems', a
     await expect(premium.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(248, 248, 245)');
     await expect(premium.locator('.theme-weather-current-icon svg')).toHaveAttribute('data-icon','partly-cloudy');
     await expect(premium.locator('.theme-weather-brand-mark')).toHaveCount(0);
+    await expect(stage.locator('.menu-theme-utility[data-weather-variant="premium"]')).toHaveCSS('border-top-width','0px');
+    await expect(premium.locator('.theme-weather-forecast')).toHaveCSS('border-bottom-width','2px');
 
     await page.locator('#scene-editor-theme-layer').click();
     await page.getByLabel('Тема меню').selectOption('chalk');
