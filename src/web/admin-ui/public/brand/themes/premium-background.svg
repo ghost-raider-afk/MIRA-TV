@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#040506"/><stop offset=".58" stop-color="#0a0b0c"/><stop offset="1" stop-color="#050506"/></linearGradient>
+  <radialGradient id="gold" cx="82%" cy="42%" r="48%"><stop stop-color="#d79a22" stop-opacity=".18"/><stop offset=".42" stop-color="#9b6514" stop-opacity=".07"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <pattern id="pin" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M0 35.5H36" stroke="#fff" stroke-opacity=".018"/><path d="M35.5 0V36" stroke="#fff" stroke-opacity=".012"/></pattern>
+</defs>
+<rect width="1920" height="1080" fill="url(#bg)"/>
+<rect width="1920" height="1080" fill="url(#gold)"/>
+<rect width="1920" height="1080" fill="url(#pin)"/>
+<path d="M1465 0H1920V1080H1435C1490 920 1510 735 1492 553C1476 383 1458 205 1465 0Z" fill="#0b0c0d" fill-opacity=".62"/>
+<path d="M1504 0V1080" stroke="#e0a928" stroke-opacity=".18"/>
+<path d="M1519 0V1080" stroke="#e0a928" stroke-opacity=".05"/>
+</svg>
