@@ -52,6 +52,15 @@ function stableElementId(value, field) {
   return text;
 }
 
+function boundedInteger(value, field, fallback, minimum, maximum) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < minimum || number > maximum) {
+    throw new ValidationError(`Поле «${field}» должно быть от ${minimum} до ${maximum}.`);
+  }
+  return number;
+}
+
 function fontOverride(value, field) {
   const text = shortText(value, field, '', 64);
   if (!text) return '';
@@ -98,6 +107,9 @@ export function menuThemeInput(value) {
   const id = presetId(source.preset_id);
   const brand = record(source.brand);
   const utility = record(source.utility_slot);
+  const preset = THEME_PRESETS.find((item) => item.id === id) || THEME_PRESETS[0];
+  const visual = preset?.visual || {};
+  const weatherPreset = preset?.weather || {};
   return Object.freeze({
     schema_version:MENU_THEME_SCHEMA_VERSION,
     preset_id:id,
@@ -106,14 +118,24 @@ export function menuThemeInput(value) {
       name:shortText(brand.name, 'theme.brand.name', '', 120),
       caption:shortText(brand.caption, 'theme.brand.caption', '', 160),
       logo_element_id:stableElementId(brand.logo_element_id, 'theme.brand.logo_element_id'),
-      name_font_family:fontOverride(brand.name_font_family, 'theme.brand.name_font_family'),
-      caption_font_family:fontOverride(brand.caption_font_family, 'theme.brand.caption_font_family')
+      name_font_family:fontOverride(brand.name_font_family, 'theme.brand.name_font_family') || String(visual.brandNameFontFamily || ''),
+      name_font_size_px:boundedInteger(brand.name_font_size_px, 'theme.brand.name_font_size_px', Number(visual.brandNameFontSizePx) || 64, 24, 128),
+      name_font_weight:boundedInteger(brand.name_font_weight, 'theme.brand.name_font_weight', Number(visual.brandNameFontWeight) || 900, 300, 900),
+      caption_font_family:fontOverride(brand.caption_font_family, 'theme.brand.caption_font_family') || String(visual.brandCaptionFontFamily || ''),
+      caption_font_size_px:boundedInteger(brand.caption_font_size_px, 'theme.brand.caption_font_size_px', Number(visual.brandCaptionFontSizePx) || 20, 10, 64),
+      caption_font_weight:boundedInteger(brand.caption_font_weight, 'theme.brand.caption_font_weight', Number(visual.brandCaptionFontWeight) || 700, 300, 900)
     }),
     utility_slot:Object.freeze({
       mode:utilityMode(utility.mode),
       text:shortText(utility.text, 'theme.utility_slot.text', '', 240),
       weather_element_id:stableElementId(utility.weather_element_id, 'theme.utility_slot.weather_element_id'),
-      font_family:fontOverride(utility.font_family, 'theme.utility_slot.font_family')
+      font_family:fontOverride(utility.font_family, 'theme.utility_slot.font_family') || String(visual.utilityFontFamily || ''),
+      font_size_px:boundedInteger(utility.font_size_px, 'theme.utility_slot.font_size_px', Number(visual.utilityFontSizePx) || 28, 12, 72),
+      font_weight:boundedInteger(utility.font_weight, 'theme.utility_slot.font_weight', Number(visual.utilityFontWeight) || 800, 300, 900),
+      temperature_font_family:fontOverride(utility.temperature_font_family, 'theme.utility_slot.temperature_font_family') || String(weatherPreset.temperature_font_family || ''),
+      temperature_font_size_pt:boundedInteger(utility.temperature_font_size_pt, 'theme.utility_slot.temperature_font_size_pt', Number(weatherPreset.temperature_font_size_pt) || 48, 24, 96),
+      location_font_size_pt:boundedInteger(utility.location_font_size_pt, 'theme.utility_slot.location_font_size_pt', Number(weatherPreset.location_font_size_pt) || 14, 8, 32),
+      icon_scale_percent:boundedInteger(utility.icon_scale_percent, 'theme.utility_slot.icon_scale_percent', Number(weatherPreset.icon_scale_percent) || 100, 80, 200)
     }),
     overrides:Object.freeze(overrides(source.overrides))
   });
