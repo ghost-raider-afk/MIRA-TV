@@ -228,7 +228,7 @@ export function initialiseSceneEditor() {
       else kind.textContent = ownerType ? (ELEMENT_ICONS[ownerType] || '•') : '—';
       kind.dataset.elementType = ownerType || '';
       kind.dataset.tooltip = ownerType ? typeLabel : '';
-      kind.setAttribute('aria-label', 'Индикатор типа элемента');
+      kind.setAttribute('aria-label', ownerType === 'theme' ? 'Выбран тематический слой' : typeLabel);
       kind.title = ownerType ? typeLabel : '';
     }
   }
