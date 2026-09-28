@@ -180,6 +180,7 @@ export function initialiseSceneEditor() {
   const state = createState();
   let renderer = null;
   let screens = [];
+  let userThemeTemplates = [];
   let currentBundle = null;
   let currentScreenId = null;
   let disposed = false;
@@ -454,7 +455,7 @@ export function initialiseSceneEditor() {
     return input;
   }
 
-  function multiScreenApplyGroup(kind, sceneElement = null) {
+  function multiScreenApplyGroup(kind, sceneElement = null, templateIdProvider = null) {
     const group = document.createElement('details');
     group.className = 'scene-editor-inspector-group scene-editor-multi-apply';
     const summary = document.createElement('summary');
@@ -467,9 +468,11 @@ export function initialiseSceneEditor() {
     note.className = 'scene-editor-multi-apply-note';
     note.textContent = kind === 'theme'
       ? 'Пресет, встроенные бренд/погода/часы, legal-блок, фон и ручные overrides будут применены к выбранным ТВ. Можно выбрать сразу всю торговую точку.'
-      : kind === 'background'
-        ? 'Цвет и фоновое изображение будут одинаково применены к выбранным мониторам.'
-        : 'Положение, размер и все настройки этого элемента будут применены к выбранным мониторам.';
+      : kind === 'saved-theme'
+        ? 'Сохранённая тема Конструктора будет целиком применена к выбранным ТВ: фон, оформление и все универсальные элементы.'
+        : kind === 'background'
+          ? 'Цвет и фоновое изображение будут одинаково применены к выбранным мониторам.'
+          : 'Положение, размер и все настройки этого элемента будут применены к выбранным мониторам.';
     panel.append(note);
 
     if (!targets.length) {
@@ -502,7 +505,7 @@ export function initialiseSceneEditor() {
       locationInputs.get(key).inputs.push(checkbox);
     }
 
-    if(kind==='theme' && locationInputs.size){
+    if((kind==='theme' || kind==='saved-theme') && locationInputs.size){
       const points=document.createElement('div');
       points.className='scene-theme-point-selectors';
       for(const group of locationInputs.values()){
@@ -543,7 +546,7 @@ export function initialiseSceneEditor() {
           background_color: state.settings.background_color || '#101828',
           background_image_url: state.settings.background_image_url || ''
         };
-      } else {
+      } else if (kind !== 'saved-theme') {
         const current = state.scene?.elements?.find((item) => item.id === sceneElement?.id);
         if (!current) return;
         const sameType = state.scene.elements.filter((item) => item?.type === current.type);
@@ -553,7 +556,14 @@ export function initialiseSceneEditor() {
 
       setPending(apply, true, 'Применяем…');
       try {
-        const result = await api.put(`${API.screens}/${currentScreenId}/scene/apply`, payload);
+        let result;
+        if(kind==='saved-theme'){
+          const templateId=Number(typeof templateIdProvider==='function' ? templateIdProvider() : templateIdProvider);
+          if(!Number.isSafeInteger(templateId) || templateId<1) throw new Error('Сначала выберите сохранённую тему.');
+          result=await api.post(`${API.screens}/menu-themes/custom/${templateId}/apply`,{target_screen_ids:targetIds});
+        }else{
+          result=await api.put(`${API.screens}/${currentScreenId}/scene/apply`, payload);
+        }
         const count = Array.isArray(result.applied_screen_ids) ? result.applied_screen_ids.length : targetIds.length;
         setMessage('scene-editor-message', `Настройки применены к ${count} ${count === 1 ? 'монитору' : 'мониторам'}.`, 'success');
       } catch (error) {
@@ -832,6 +842,125 @@ export function initialiseSceneEditor() {
       }
       constructor.append(title,note,actions);
       panel.append(constructor,backgroundControls());
+
+      const savedThemes = document.createElement('div');
+      savedThemes.className = 'scene-theme-subsection scene-theme-saved';
+      const savedTitle = document.createElement('strong');
+      savedTitle.className = 'scene-theme-subsection-title';
+      savedTitle.textContent = 'Мои темы';
+      const savedNote = document.createElement('small');
+      savedNote.textContent = 'Сохраните текущую сборку Конструктора под своим названием и повторно применяйте её к другим ТВ и торговым точкам.';
+
+      const savedName = compactInput('text','');
+      savedName.maxLength = 80;
+      savedName.placeholder = 'Например: Бир Фиш — основная';
+      savedName.setAttribute('aria-label','Название пользовательской темы');
+
+      const savedSelect = document.createElement('select');
+      savedSelect.setAttribute('aria-label','Сохранённые темы');
+      savedSelect.add(new Option('Выберите сохранённую тему',''));
+      userThemeTemplates.forEach((item)=>savedSelect.add(new Option(item.name,String(item.id))));
+      savedSelect.addEventListener('change',()=>{
+        const selected=userThemeTemplates.find((item)=>Number(item.id)===Number(savedSelect.value));
+        if(selected) savedName.value=selected.name;
+      });
+
+      const refreshSavedThemes = async (selectedId = null) => {
+        userThemeTemplates = await api.get(`${API.screens}/menu-themes/custom`);
+        if(!active()) return;
+        renderInspector();
+        if(selectedId){
+          const nextSelect=propertiesRoot.querySelector('[aria-label="Сохранённые темы"]');
+          if(nextSelect instanceof HTMLSelectElement) nextSelect.value=String(selectedId);
+        }
+      };
+
+      const saveTheme = document.createElement('button');
+      saveTheme.type='button';
+      saveTheme.className='button button-secondary';
+      saveTheme.textContent='Сохранить как тему';
+      saveTheme.addEventListener('click',async()=>{
+        setPending(saveTheme,true,'Сохраняем…');
+        try{
+          const created=await api.post(`${API.screens}/menu-themes/custom`,{
+            name:savedName.value,
+            settings:structuredClone(state.settings),
+            scene:structuredClone(state.scene)
+          });
+          setMessage('scene-editor-message',`Тема «${created.name}» сохранена.`,'success');
+          await refreshSavedThemes(created.id);
+        }catch(error){ if(active()) setMessage('scene-editor-message',error.message); }
+        finally{ if(active() && saveTheme.isConnected) setPending(saveTheme,false,'Сохраняем…'); }
+      });
+
+      const updateTheme = document.createElement('button');
+      updateTheme.type='button';
+      updateTheme.className='button button-secondary';
+      updateTheme.textContent='Обновить выбранную';
+      updateTheme.disabled=!userThemeTemplates.length;
+      updateTheme.addEventListener('click',async()=>{
+        const templateId=Number(savedSelect.value);
+        if(!Number.isSafeInteger(templateId) || templateId<1) return setMessage('scene-editor-message','Сначала выберите сохранённую тему.');
+        setPending(updateTheme,true,'Обновляем…');
+        try{
+          const updated=await api.put(`${API.screens}/menu-themes/custom/${templateId}`,{
+            name:savedName.value,
+            settings:structuredClone(state.settings),
+            scene:structuredClone(state.scene)
+          });
+          setMessage('scene-editor-message',`Тема «${updated.name}» обновлена.`,'success');
+          await refreshSavedThemes(updated.id);
+        }catch(error){ if(active()) setMessage('scene-editor-message',error.message); }
+        finally{ if(active() && updateTheme.isConnected) setPending(updateTheme,false,'Обновляем…'); }
+      });
+
+      const applyTheme = document.createElement('button');
+      applyTheme.type='button';
+      applyTheme.className='button button-secondary';
+      applyTheme.textContent='Применить к текущему ТВ';
+      applyTheme.disabled=!userThemeTemplates.length;
+      applyTheme.addEventListener('click',async()=>{
+        const templateId=Number(savedSelect.value);
+        if(!Number.isSafeInteger(templateId) || templateId<1) return setMessage('scene-editor-message','Сначала выберите сохранённую тему.');
+        setPending(applyTheme,true,'Применяем…');
+        try{
+          await api.post(`${API.screens}/menu-themes/custom/${templateId}/apply`,{target_screen_ids:[currentScreenId]});
+          await loadScreen(currentScreenId);
+          if(!active()) return;
+          selectedOwner='theme';
+          renderSelectionOwners();
+          setMessage('scene-editor-message','Сохранённая тема применена к текущему ТВ.','success');
+        }catch(error){ if(active()) setMessage('scene-editor-message',error.message); }
+        finally{ if(active() && applyTheme.isConnected) setPending(applyTheme,false,'Применяем…'); }
+      });
+
+      const deleteTheme = document.createElement('button');
+      deleteTheme.type='button';
+      deleteTheme.className='button button-secondary';
+      deleteTheme.textContent='Удалить выбранную';
+      deleteTheme.disabled=!userThemeTemplates.length;
+      deleteTheme.addEventListener('click',async()=>{
+        const templateId=Number(savedSelect.value);
+        const selected=userThemeTemplates.find((item)=>Number(item.id)===templateId);
+        if(!selected) return setMessage('scene-editor-message','Сначала выберите сохранённую тему.');
+        if(!window.confirm(`Удалить тему «${selected.name}»?`)) return;
+        try{
+          await api.delete(`${API.screens}/menu-themes/custom/${templateId}`);
+          setMessage('scene-editor-message',`Тема «${selected.name}» удалена.`,'success');
+          await refreshSavedThemes();
+        }catch(error){ if(active()) setMessage('scene-editor-message',error.message); }
+      });
+
+      const savedGrid=document.createElement('div');
+      savedGrid.className='compact-form-grid';
+      savedGrid.append(
+        makeField('Название',savedName),
+        makeField('Сохранённая тема',savedSelect),
+        saveTheme,updateTheme,applyTheme,deleteTheme
+      );
+      savedThemes.append(savedTitle,savedNote,savedGrid);
+      panel.append(savedThemes);
+      stack.append(multiScreenApplyGroup('saved-theme',null,()=>propertiesRoot.querySelector('[aria-label="Сохранённые темы"]')?.value || ''));
 
       const compatibility = document.createElement('small');
       compatibility.className='scene-theme-description';
@@ -1827,7 +1956,12 @@ export function initialiseSceneEditor() {
   }
 
   async function loadScreens() {
-    screens = await api.get(API.screens);
+    const [screenList,templateList] = await Promise.all([
+      api.get(API.screens),
+      api.get(`${API.screens}/menu-themes/custom`)
+    ]);
+    screens = Array.isArray(screenList) ? screenList : [];
+    userThemeTemplates = Array.isArray(templateList) ? templateList : [];
     if (!active()) return;
     screenSelect.replaceChildren();
     if (!screens.length) {
