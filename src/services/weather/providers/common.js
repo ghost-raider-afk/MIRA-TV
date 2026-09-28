@@ -97,6 +97,7 @@ export function normalisedSnapshot(settings, fields) {
     apparent_temperature: Number(fields.apparent_temperature ?? fields.temperature),
     humidity: Number(fields.humidity || 0),
     wind_speed: Number(fields.wind_speed || 0),
+    wind_direction: Number.isFinite(Number(fields.wind_direction)) ? Number(fields.wind_direction) : null,
     weather_code: Number(fields.weather_code || 0),
     is_day: fields.is_day !== false,
     condition: fields.condition || wmoCondition(fields.weather_code),

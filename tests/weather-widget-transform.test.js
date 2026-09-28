@@ -47,8 +47,12 @@ test('weather renderer is static while data stays live', async () => {
 
   assert.doesNotMatch(elements, /animation_enabled|animation_speed|animation_intensity|widget_motion_enabled|Анимация/);
   assert.doesNotMatch(widget, /createAtmosphere|particleGroup|animation_enabled|animation_speed|widget_motion_enabled/);
-  assert.match(widget, /weather-widget-visual-static/);
-  assert.match(widget, /visual\.innerHTML = svgIcon/);
+  assert.doesNotMatch(widget, /weather-widget-visual-static/);
+  assert.equal((widget.match(/icon\.innerHTML = svgIcon/g) || []).length, 1);
+  assert.match(widget, /weather-widget-facts/);
+  assert.match(widget, /windDirectionLabel/);
+  assert.match(css, /weather-widget-fact-value/);
+  assert.doesNotMatch(css, /weather-widget-facts\{display:none/);
 
   assert.doesNotMatch(css, /@keyframes|animation\s*:|transition\s*:|will-change/);
   assert.doesNotMatch(css, /weather-atmosphere|weather-particle/);
@@ -95,6 +99,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
         relative_humidity_2m:70,
         weather_code:3,
         wind_speed_10m:11,
+        wind_direction_10m:225,
         is_day:0
       },
       hourly:{
@@ -118,6 +123,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
     });
     assert.equal(requestedTimezone, 'Asia/Vladivostok');
     assert.equal(snapshot.timezone, 'Asia/Vladivostok');
+    assert.equal(snapshot.wind_direction, 225);
     assert.deepEqual(snapshot.forecast.slice(0, 3).map((item) => item.time), [
       '2026-09-20T23:00',
       '2026-09-21T00:00',

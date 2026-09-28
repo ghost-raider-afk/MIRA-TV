@@ -30,6 +30,7 @@ export const WEATHER_SAMPLE = Object.freeze({
   apparent_temperature: 17,
   humidity: 64,
   wind_speed: 12,
+  wind_direction: 225,
   weather_code: 61,
   is_day: true,
   condition: 'Дождь',
@@ -135,6 +136,20 @@ function text(tag, className, value) {
   return node;
 }
 
+function windDirectionLabel(value) {
+  const degrees = Number(value);
+  if (!Number.isFinite(degrees)) return '';
+  const labels = ['С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'];
+  return labels[Math.round((((degrees % 360) + 360) % 360) / 45) % labels.length];
+}
+
+function fact(label, value) {
+  const item = document.createElement('span');
+  item.className = 'weather-widget-fact';
+  item.append(text('small','weather-widget-fact-label',label),text('strong','weather-widget-fact-value',value));
+  return item;
+}
+
 export function weatherVisualState(snapshot = WEATHER_SAMPLE) {
   const code = Number(snapshot?.weather_code);
   const isDay = snapshot?.is_day !== false;
@@ -208,19 +223,21 @@ function createContent(config, data, state) {
   if (config.show_condition) primary.append(text('span', 'weather-widget-condition', data.condition || 'Погода'));
   summary.append(icon, primary);
 
-  const visual = document.createElement('div');
-  visual.className = 'weather-widget-visual weather-widget-visual-static';
-  visual.dataset.weatherVisual = state;
-  visual.innerHTML = svgIcon(data.icon || 'cloud');
-
-  top.append(summary, visual);
+  top.append(summary);
   content.append(top);
 
   const facts = document.createElement('div');
   facts.className = 'weather-widget-facts';
-  if (config.show_feels_like) facts.append(text('span', '', `Ощущается ${Math.round(number(data.apparent_temperature, data.temperature))}°`));
-  if (config.show_humidity) facts.append(text('span', '', `Влажность ${Math.round(number(data.humidity))}%`));
-  if (config.show_wind) facts.append(text('span', '', `Ветер ${Math.round(number(data.wind_speed))} км/ч`));
+  if (config.show_feels_like) {
+    facts.append(fact('Ощущается', `${Math.round(number(data.apparent_temperature, data.temperature))}°`));
+  }
+  if (config.show_humidity) {
+    facts.append(fact('Влажность', `${Math.round(number(data.humidity))}%`));
+  }
+  if (config.show_wind) {
+    const direction = windDirectionLabel(data.wind_direction);
+    facts.append(fact('Ветер', `${direction ? direction + ' · ' : ''}${Math.round(number(data.wind_speed))} км/ч`));
+  }
   if (facts.childElementCount) content.append(facts);
 
   if (config.show_forecast) {

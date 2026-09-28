@@ -36,7 +36,7 @@ export async function fetchOpenMeteo(settings, config) {
   url.searchParams.set('latitude', String(latitude));
   url.searchParams.set('longitude', String(longitude));
   url.searchParams.set('timezone', timezone);
-  url.searchParams.set('current', 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day');
+  url.searchParams.set('current', 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day');
   url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability');
   url.searchParams.set('forecast_days', '2');
   url.searchParams.set('wind_speed_unit', 'kmh');
@@ -51,6 +51,7 @@ export async function fetchOpenMeteo(settings, config) {
     apparent_temperature:current.apparent_temperature,
     humidity:current.relative_humidity_2m,
     wind_speed:current.wind_speed_10m,
+    wind_direction:current.wind_direction_10m,
     weather_code:code,
     is_day:isDay,
     condition:wmoCondition(code),
