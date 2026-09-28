@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520">
+<defs><linearGradient id="amber" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffd766"/><stop offset=".5" stop-color="#efad24"/><stop offset="1" stop-color="#a15d0d"/></linearGradient></defs>
+<rect width="420" height="520" fill="#08090a"/>
+<g transform="translate(66 42)">
+  <path d="M70 90h176l-15 274c-2 36-21 55-56 55h-36c-36 0-55-19-57-55L67 90Z" fill="url(#amber)" stroke="#f3bd3d" stroke-width="4"/>
+  <path d="M76 96h165M94 149c34 17 91 17 130 0" fill="none" stroke="#fff8dc" stroke-opacity=".6" stroke-width="4"/>
+  <path d="M244 140h31c45 0 62 30 61 74v64c0 51-25 78-70 78h-27" fill="none" stroke="#e6ad2c" stroke-width="17" stroke-linecap="round"/>
+  <path d="M74 86c5-38 33-55 62-40 18-31 66-26 75 8 26-14 57 7 49 40" fill="#f5ead2" stroke="#fff6df" stroke-width="4"/>
+  <path d="M105 360c31 10 76 10 111 0" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3"/>
+  <path d="M111 227h92M111 244h92" stroke="#4f2e09" stroke-opacity=".38" stroke-width="4"/>
+</g>
+<g fill="none" stroke="#e2aa27" stroke-width="2.5" opacity=".52"><circle cx="47" cy="87" r="18"/><circle cx="365" cy="421" r="26"/><path d="M31 87h32M47 71v32M344 421h42M365 400v42"/></g>
+</svg>
