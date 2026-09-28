@@ -427,42 +427,56 @@
 
 /* Chalk weather: poster composition, rough double frame and hand-drawn type/icons. */
 .player-scene-stage[data-menu-theme="chalk"] .menu-theme-utility[data-utility-mode="weather"]{
-  border:2px solid #E5B62E;
-  border-radius:17px;
-  background:#10110E;
-  box-shadow:inset 0 0 0 3px #10110E,inset 0 0 0 4px rgba(229,182,46,.42)
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none
 }
 .player-scene-stage .theme-weather--chalk{
   --theme-weather-accent:#E5B62E;
   --theme-weather-primary:#F4F1E9;
   --theme-weather-muted:#D5D1C7;
   display:grid;
-  grid-template-rows:auto minmax(0,1fr) 67px;
-  gap:5px;
-  padding:9px 11px 8px;
+  grid-template-columns:176px minmax(0,1fr);
+  grid-template-rows:28px minmax(0,1fr);
+  gap:4px 5px;
+  padding:4px 8px 10px;
   background:
     radial-gradient(circle at 20% 18%,rgba(255,255,255,.025) 0 1px,transparent 1.5px),
     linear-gradient(106deg,rgba(255,255,255,.018),transparent 28%,rgba(255,255,255,.012) 64%,transparent);
   background-size:13px 15px,100% 100%
 }
+.player-scene-stage .theme-weather--chalk::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  right:5px;
+  bottom:2px;
+  height:5px;
+  border-bottom:2px solid rgba(244,241,233,.82);
+  border-radius:48%;
+  transform:rotate(-.25deg)
+}
 .player-scene-stage .theme-weather--chalk .theme-weather-location{
-  padding-bottom:4px;
-  border-bottom:2px solid #E5B62E;
+  grid-column:1 / -1;
+  padding:0;
+  border:0;
   letter-spacing:.035em;
   font-family:"MIRA Montserrat","MIRA Sans",Arial,sans-serif
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-current{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,.82fr);
-  grid-template-rows:minmax(0,1fr) auto;
+  grid-template-columns:76px minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) 24px;
   align-items:center;
-  gap:0 8px
+  gap:0 5px;
+  min-width:0
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-current-icon{
   grid-row:1 / span 2;
   justify-self:center;
-  width:calc(74px * var(--theme-weather-icon-scale));
-  height:calc(74px * var(--theme-weather-icon-scale))
+  width:calc(64px * var(--theme-weather-icon-scale));
+  height:calc(64px * var(--theme-weather-icon-scale))
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-icon-svg{
   stroke-width:3.8
@@ -474,43 +488,46 @@
 .player-scene-stage .theme-weather--chalk .theme-weather-temperature{
   align-self:end;
   color:#F4F1E9;
-  letter-spacing:-.025em;
+  letter-spacing:-.04em;
   text-shadow:none
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-current-copy{
   align-self:start;
-  padding-top:2px
+  padding:0
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-condition{
   color:#F4F1E9;
-  font-size:19px;
+  font-size:18px;
   font-weight:400;
   text-transform:lowercase
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-forecast{
   grid-template-columns:repeat(3,minmax(0,1fr));
-  border-top:2px solid rgba(244,241,233,.82)
+  align-self:stretch;
+  min-width:0;
+  border:0
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-forecast-item{
-  grid-template-rows:16px 28px 19px;
+  grid-template-rows:18px 34px 22px;
+  align-content:center;
   gap:1px;
-  padding:5px 4px 0;
-  border-left:2px solid #E5B62E
+  padding:2px 3px 0;
+  border-left:1px solid rgba(229,182,46,.72)
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-forecast-item:first-child{border-left:0}
 .player-scene-stage .theme-weather--chalk .theme-weather-forecast-time{
   color:#F4F1E9;
-  font-size:14px;
-  font-weight:400
+  font-size:13px;
+  font-weight:700
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-forecast-icon{
-  width:calc(27px * var(--theme-weather-icon-scale));
-  height:calc(27px * var(--theme-weather-icon-scale))
+  width:calc(26px * var(--theme-weather-icon-scale));
+  height:calc(26px * var(--theme-weather-icon-scale))
 }
 .player-scene-stage .theme-weather--chalk .theme-weather-forecast-temperature{
   color:#F4F1E9;
-  font-size:20px;
-  font-weight:400
+  font-size:19px;
+  font-weight:700
 }
 
 /* Brand premium weather: stronger brand typography, hop divider and gold hero temperature. */

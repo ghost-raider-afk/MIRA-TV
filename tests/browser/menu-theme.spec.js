@@ -196,7 +196,9 @@ test('approved weather informers render three distinct preset visual systems', a
     await expect(chalk).toBeVisible();
     await expect(chalk).toHaveAttribute('data-icon-style','chalk-drawn');
     await expect(chalk.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Montserrat/);
-    await expect(chalk.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(chalk.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(chalk.locator('.theme-weather-forecast-item').first()).toHaveCSS('font-family',/MIRA Roboto Condensed/);
     await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('text-transform','lowercase');
     await expect(chalk.locator('.theme-weather-brand-mark')).toHaveCount(0);
 

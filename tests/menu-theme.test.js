@@ -77,7 +77,7 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   );
   assert.deepEqual(
     [chalk.visual.utilityFontFamily,chalk.weather.temperature_font_family,chalk.weather.condition_font_family,chalk.weather.forecast_font_family,chalk.weather.icon_style],
-    ['montserrat','neucha','neucha','neucha','chalk-drawn']
+    ['montserrat','montserrat','neucha','roboto-condensed','chalk-drawn']
   );
   assert.deepEqual(
     [brand.visual.utilityFontFamily,brand.weather.temperature_font_family,brand.weather.condition_font_family,brand.weather.forecast_font_family,brand.weather.icon_style],
@@ -113,7 +113,7 @@ test('theme geometry keeps table, side composition and legal footer in separate 
   };
   const approvedVerticalGeometry={
     premium:{weatherBottom:296,brandY:315,decorY:525,decorBottom:936},
-    chalk:{weatherBottom:250,brandY:258,decorY:512,decorBottom:936},
+    chalk:{weatherBottom:222,brandY:258,decorY:512,decorBottom:936},
     'brand-premium':{weatherBottom:280,brandY:300,decorY:570,decorBottom:936}
   };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
