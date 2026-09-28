@@ -8,7 +8,10 @@ const FONT_STACKS = Object.freeze({
   'dejavu-condensed':"'DejaVu Sans Condensed','DejaVu Sans',sans-serif",
   'liberation-narrow':"'Liberation Sans Narrow','Arial Narrow',Arial,sans-serif",
   'system-sans':"'MIRA Sans',Arial,sans-serif",
-  'mira-serif':"'MIRA Serif',Georgia,serif"
+  'mira-condensed':"'MIRA Sans Condensed','DejaVu Sans Condensed',Arial,sans-serif",
+  'mira-mono':"'MIRA Sans Mono','DejaVu Sans Mono',monospace",
+  'mira-serif':"'MIRA Serif',Georgia,serif",
+  'mira-serif-condensed':"'MIRA Serif Condensed','MIRA Serif',Georgia,serif"
 });
 
 function node(tag,className='') {
