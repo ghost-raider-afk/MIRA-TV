@@ -837,6 +837,32 @@ export function initialiseSceneEditor() {
       const next=themeState(); next.utility_slot.weather_element_id=weatherSelect.value; setThemeState(next);
     });
 
+    const configureWeather=document.createElement('button');
+    configureWeather.type='button';
+    configureWeather.className='button button-secondary';
+    configureWeather.textContent='Настроить погоду';
+    configureWeather.disabled=theme.utility_slot.mode!=='weather';
+    configureWeather.addEventListener('click',()=>{
+      history.checkpoint();
+      let weather=state.scene?.elements?.find((item)=>item?.type==='weather' && item.id===themeState().utility_slot.weather_element_id)
+        || state.scene?.elements?.find((item)=>item?.type==='weather')
+        || null;
+      if(!weather) {
+        weather=appendSceneElement(state,'weather');
+        if(!weather) return;
+        const next=themeState();
+        next.utility_slot.mode='weather';
+        next.utility_slot.weather_element_id=weather.id;
+        setThemeState(next);
+        setDirty();
+        scheduleSceneRender();
+      }
+      state.selectedElementId=weather.id;
+      selectedOwner='element';
+      renderSelectionOwners();
+      if(window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel='properties';
+    });
+
     const utilityText=compactInput('text',theme.utility_slot.text);
     utilityText.maxLength=240;
     utilityText.setAttribute('aria-label','Текст полезного слота');
@@ -910,6 +936,7 @@ export function initialiseSceneEditor() {
     utilityGrid.append(
       makeField('Полезный слот',utility),
       makeField('Погода',weatherSelect),
+      configureWeather,
       makeField('Текст',utilityText),
       makeField('Шрифт текста',utilityFont),
       makeField('Размер текста, px',utilitySize),
