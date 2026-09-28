@@ -3,7 +3,8 @@ import { completeWeatherWidget } from './weather.js';
 import {
   MENU_THEME_PRESET_IDS as REGISTRY_PRESET_IDS,
   MENU_THEME_PRESETS as REGISTRY_PRESETS,
-  menuThemeCatalog
+  menuThemeCatalog,
+  migrateMenuThemePresetSource
 } from '../web/admin-ui/public/js/themes/menu-theme-registry.js';
 
 export const MENU_THEME_SCHEMA_VERSION = 1;
@@ -157,7 +158,7 @@ function weatherSettingsInput(value, presetWeather = {}) {
 }
 
 export function menuThemeInput(value) {
-  const source = record(value);
+  const source = migrateMenuThemePresetSource(record(value));
   const id = presetId(source.preset_id);
   const brand = record(source.brand);
   const utility = record(source.utility_slot);

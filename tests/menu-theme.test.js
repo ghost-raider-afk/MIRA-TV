@@ -30,6 +30,7 @@ test('theme catalog exposes three approved presets plus Theme Constructor', () =
     const item=catalog.find((entry)=>entry.id===id);
     assert.equal(item.kind,'preset');
     assert.equal(item.default_utility_mode,'weather');
+    assert.equal(item.preset_version,id==='chalk' ? 2 : 1);
   }
 });
 
@@ -144,6 +145,49 @@ test('theme geometry keeps table, side composition and legal footer in separate 
     assert.ok(decorBottom <= preset.layout.footer.y, `${preset.id}: decor overlaps legal footer`);
     assert.ok(panelRight <= 1920, `${preset.id}: side panel leaves viewport`);
   }
+});
+
+test('chalk preset v1 defaults migrate to v2 without overwriting explicit custom typography', () => {
+  const migrated=menuThemeInput({
+    preset_id:'chalk',
+    preset_version:1,
+    brand:{
+      name:'БИР ФИШ',
+      caption:'Хорошее пиво рядом!',
+      name_font_family:'underdog',
+      name_font_size_px:70,
+      caption_font_family:'neucha',
+      caption_font_size_px:28
+    },
+    utility_slot:{
+      mode:'weather',
+      font_family:'yanone-kaffeesatz',
+      font_weight:700,
+      temperature_font_family:'yanone-kaffeesatz',
+      location_font_size_pt:14
+    }
+  });
+  assert.equal(migrated.preset_version,2);
+  assert.equal(migrated.brand.name_font_family,'montserrat');
+  assert.equal(migrated.brand.name_font_size_px,108);
+  assert.equal(migrated.brand.caption_font_size_px,34);
+  assert.equal(migrated.utility_slot.font_family,'montserrat');
+  assert.equal(migrated.utility_slot.font_weight,900);
+  assert.equal(migrated.utility_slot.temperature_font_family,'montserrat');
+  assert.equal(migrated.utility_slot.location_font_size_pt,16);
+
+  const custom=menuThemeInput({
+    preset_id:'chalk',
+    preset_version:1,
+    brand:{name_font_family:'russo-one',name_font_size_px:92},
+    utility_slot:{mode:'none',font_family:'pt-sans-narrow',temperature_font_family:'oswald',location_font_size_pt:20}
+  });
+  assert.equal(custom.preset_version,2);
+  assert.equal(custom.brand.name_font_family,'russo-one');
+  assert.equal(custom.brand.name_font_size_px,92);
+  assert.equal(custom.utility_slot.font_family,'pt-sans-narrow');
+  assert.equal(custom.utility_slot.temperature_font_family,'oswald');
+  assert.equal(custom.utility_slot.location_font_size_pt,20);
 });
 
 test('preset theme contract stores embedded weather, replaceable decor and editable legal typography', () => {

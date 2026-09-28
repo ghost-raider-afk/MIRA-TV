@@ -242,8 +242,21 @@ test('chalk preset uses approved brand hierarchy and recovers stale managed deco
         theme:{
           preset_id:'chalk',
           preset_version:1,
-          brand:{name:'БИР ФИШ',caption:'Хорошее пиво рядом!'},
-          utility_slot:{mode:'none'},
+          brand:{
+            name:'БИР ФИШ',
+            caption:'Хорошее пиво рядом!',
+            name_font_family:'underdog',
+            name_font_size_px:70,
+            caption_font_family:'neucha',
+            caption_font_size_px:28
+          },
+          utility_slot:{
+            mode:'none',
+            font_family:'yanone-kaffeesatz',
+            font_weight:700,
+            temperature_font_family:'yanone-kaffeesatz',
+            location_font_size_pt:14
+          },
           decor:{source_url:'/brand/themes/chalk-side.svg'}
         }
       },

@@ -159,7 +159,7 @@ const PRESETS = Object.freeze([
     kind:'preset',
     label:'Меловая',
     description:'Готовый меловой пресет по утверждённому макету: chalkboard, меловые линии, отдельная типографика, рисованная кружка и свой погодный блок.',
-    preset_version:1,
+    preset_version:2,
     default_utility_mode:'weather',
     settings:Object.freeze({
       ...BASE,
@@ -340,6 +340,42 @@ export function menuThemePreset(id) {
 
 export function menuThemeCatalog() {
   return PRESETS.map(({ settings,visual,table,weather,layout,...meta }) => ({ ...meta }));
+}
+
+function migratedDefault(value, previous, next) {
+  if (value === undefined || value === null || value === '') return next;
+  if (typeof previous === 'number') return Number(value) === previous ? next : value;
+  return String(value) === String(previous) ? next : value;
+}
+
+function migrateChalkV1(source) {
+  const brand=source.brand && typeof source.brand === 'object' ? source.brand : {};
+  const utility=source.utility_slot && typeof source.utility_slot === 'object' ? source.utility_slot : {};
+  return {
+    ...source,
+    preset_version:2,
+    brand:{
+      ...brand,
+      name_font_family:migratedDefault(brand.name_font_family,'underdog','montserrat'),
+      name_font_size_px:migratedDefault(brand.name_font_size_px,70,108),
+      caption_font_size_px:migratedDefault(brand.caption_font_size_px,28,34)
+    },
+    utility_slot:{
+      ...utility,
+      font_family:migratedDefault(utility.font_family,'yanone-kaffeesatz','montserrat'),
+      font_weight:migratedDefault(utility.font_weight,700,900),
+      temperature_font_family:migratedDefault(utility.temperature_font_family,'yanone-kaffeesatz','montserrat'),
+      location_font_size_pt:migratedDefault(utility.location_font_size_pt,14,16)
+    }
+  };
+}
+
+export function migrateMenuThemePresetSource(value = {}) {
+  const source=value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const id=String(source.preset_id || 'legacy') === 'constructor' ? 'legacy' : String(source.preset_id || 'legacy');
+  const version=Number(source.preset_version) || 1;
+  if(id === 'chalk' && version < 2) return migrateChalkV1(source);
+  return source;
 }
 
 export function resolveMenuThemeSettings(settings = {}) {
