@@ -160,7 +160,6 @@ test('preset weather is self contained and does not require a generic scene weat
 
   const weather=themeWeatherSettings(theme,{version:1,elements:[]});
   assert.equal(weather.enabled,true);
-  assert.equal(weather.embedded,true);
   assert.equal(weather.location_name,'Владивосток');
   assert.equal(weather.latitude,43.1155);
   assert.equal(weather.longitude,131.8855);

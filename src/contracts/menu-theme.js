@@ -216,7 +216,12 @@ export function themeWeatherSettings(themeValue, scene = { version:1,elements:[]
   if (theme.preset_id === 'legacy' || theme.utility_slot.mode !== 'weather') return null;
 
   let source = theme.utility_slot.weather;
-  const hasCoordinates = Number.isFinite(Number(source.latitude)) && Number.isFinite(Number(source.longitude));
+  const hasCoordinates = source.latitude !== null
+    && source.latitude !== ''
+    && source.longitude !== null
+    && source.longitude !== ''
+    && Number.isFinite(Number(source.latitude))
+    && Number.isFinite(Number(source.longitude));
   if (!hasCoordinates && theme.utility_slot.weather_element_id) {
     const elements = Array.isArray(scene?.elements) ? scene.elements : [];
     const legacy = elements.find((element) =>

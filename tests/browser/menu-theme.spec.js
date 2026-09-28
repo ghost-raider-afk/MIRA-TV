@@ -37,7 +37,7 @@ test('preset themes are self-contained and apply to another TV without creating 
     await expect(stage).toHaveAttribute('data-menu-theme','legacy');
 
     await page.locator('#scene-editor-theme-layer').click();
-    const themeSelect=page.getByLabel('Тема');
+    const themeSelect=page.getByLabel('Тема меню');
     await expect(themeSelect).toBeVisible();
     await expect(themeSelect.locator('option')).toHaveText([
       'Конструктор темы',
@@ -121,12 +121,12 @@ test('Theme Constructor owns generic scene elements and preset selection does no
     await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(1);
 
     await page.locator('#scene-editor-theme-layer').click();
-    await page.getByLabel('Тема').selectOption('chalk');
+    await page.getByLabel('Тема меню').selectOption('chalk');
     await expect(stage).toHaveAttribute('data-menu-theme','chalk');
     await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(1);
 
     await page.locator('#scene-editor-theme-layer').click();
-    await page.getByLabel('Тема').selectOption('legacy');
+    await page.getByLabel('Тема меню').selectOption('legacy');
     await expect(stage).toHaveAttribute('data-menu-theme','legacy');
     await expect(stage.locator('[data-scene-element-type="weather"]')).toHaveCount(1);
   } finally {
