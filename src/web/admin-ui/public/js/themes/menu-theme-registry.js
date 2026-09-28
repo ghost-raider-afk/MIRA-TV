@@ -54,6 +54,8 @@ const PRESETS = Object.freeze([
     default_utility_mode:'none',
     settings:BASE,
     visual:Object.freeze({ kind:'legacy' }),
+    table:null,
+    weather:null,
     layout:null
   }),
   Object.freeze({
@@ -93,7 +95,29 @@ const PRESETS = Object.freeze([
       utilityFontWeight:800,
       clockFontSizePx:78,
       decorAsset:'/brand/themes/premium-side.svg',
-      footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
+      footerText:ALCOHOL_WARNING_TEXT
+    }),
+    table:Object.freeze({
+      variant:'premium',
+      section_font_family:'arial',
+      item_font_family:'arial',
+      meta_font_family:'arial-narrow',
+      price_font_family:'arial',
+      separator:'#4C5053',
+      separator_dashed:false,
+      price_mode:'alternating',
+      show_sequence:true,
+      price_column_borders:true
+    }),
+    weather:Object.freeze({
+      variant:'premium',
+      temperature_font_family:'arial',
+      temperature_font_size_pt:54,
+      location_font_size_pt:15,
+      icon_scale_percent:128,
+      show_condition:true,
+      show_forecast:true,
+      forecast_items:3
     }),
     layout:LAYOUT.premium
   }),
@@ -134,7 +158,29 @@ const PRESETS = Object.freeze([
       utilityFontWeight:700,
       clockFontSizePx:74,
       decorAsset:'/brand/themes/chalk-side.svg',
-      footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
+      footerText:ALCOHOL_WARNING_TEXT
+    }),
+    table:Object.freeze({
+      variant:'chalk',
+      section_font_family:'dejavu-condensed',
+      item_font_family:'dejavu-condensed',
+      meta_font_family:'dejavu-condensed',
+      price_font_family:'dejavu-condensed',
+      separator:'#5C5C56',
+      separator_dashed:true,
+      price_mode:'alternating',
+      show_sequence:false,
+      price_column_borders:false
+    }),
+    weather:Object.freeze({
+      variant:'chalk',
+      temperature_font_family:'dejavu-condensed',
+      temperature_font_size_pt:52,
+      location_font_size_pt:15,
+      icon_scale_percent:122,
+      show_condition:true,
+      show_forecast:true,
+      forecast_items:3
     }),
     layout:LAYOUT.chalk
   }),
@@ -175,7 +221,29 @@ const PRESETS = Object.freeze([
       utilityFontWeight:800,
       clockFontSizePx:80,
       decorAsset:'/brand/themes/brand-premium-side.svg',
-      footerText:'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ'
+      footerText:ALCOHOL_WARNING_TEXT
+    }),
+    table:Object.freeze({
+      variant:'brand-premium',
+      section_font_family:'arial',
+      item_font_family:'arial-narrow',
+      meta_font_family:'arial-narrow',
+      price_font_family:'arial',
+      separator:'#43484B',
+      separator_dashed:false,
+      price_mode:'primary-accent',
+      show_sequence:false,
+      price_column_borders:true
+    }),
+    weather:Object.freeze({
+      variant:'brand-premium',
+      temperature_font_family:'arial',
+      temperature_font_size_pt:56,
+      location_font_size_pt:16,
+      icon_scale_percent:132,
+      show_condition:true,
+      show_forecast:true,
+      forecast_items:3
     }),
     layout:LAYOUT['brand-premium']
   })
@@ -209,7 +277,7 @@ export function menuThemePreset(id) {
 }
 
 export function menuThemeCatalog() {
-  return PRESETS.map(({ settings,visual,layout,...meta }) => ({ ...meta }));
+  return PRESETS.map(({ settings,visual,table,weather,layout,...meta }) => ({ ...meta }));
 }
 
 export function resolveMenuThemeSettings(settings = {}) {
