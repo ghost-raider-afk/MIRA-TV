@@ -35,7 +35,8 @@ test('main menu and context submenu navigate inside one persistent document', as
 
   await page.locator('.app-header-nav-link[data-header-section="catalog"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
-  await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#product-dialog')).not.toBeVisible();
+  await expect(page.locator('[data-products-list]')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
   await expect(page.locator('.ui-context')).toBeHidden();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
@@ -120,7 +121,8 @@ test('browser back and forward keep the same application document', async ({ pag
 
   await page.goBack();
   await expect(page).toHaveURL(/\/catalog$/);
-  await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#product-dialog')).not.toBeVisible();
+  await expect(page.locator('[data-products-list]')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaHistorySentinel)).toBe(sentinel);
 
   await page.goForward();
