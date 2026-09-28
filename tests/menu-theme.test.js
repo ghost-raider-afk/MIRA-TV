@@ -71,16 +71,31 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   assert.notEqual(premium.visual.legalVariant,chalk.visual.legalVariant);
   assert.notEqual(chalk.visual.legalVariant,brand.visual.legalVariant);
   assert.equal(new Set([premium.visual.decorAsset,chalk.visual.decorAsset,brand.visual.decorAsset]).size,3);
+  assert.equal(premium.visual.decorFit,'contain');
   assert.equal(chalk.visual.decorFit,'contain');
+  assert.equal(brand.visual.decorFit,'cover');
 });
 
 test('theme geometry keeps table, side composition and legal footer in separate regions', () => {
+  const approvedHorizontalGeometry={
+    premium:{tableRight:1477,panelX:1495,panelRight:1892},
+    chalk:{tableRight:1455,panelX:1469,panelRight:1873},
+    'brand-premium':{tableRight:1463,panelX:1475,panelRight:1896}
+  };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
     const tableRight=Number(preset.settings.table_x)+Number(preset.settings.table_width_px);
     const tableBottom=Number(preset.settings.table_y)+Number(preset.settings.table_height_px);
     const panelRight=Number(preset.layout.panel.x)+Number(preset.layout.panel.width);
+    const decorRight=Number(preset.layout.decor.x)+Number(preset.layout.decor.width);
     const decorBottom=Number(preset.layout.decor.y)+Number(preset.layout.decor.height);
+    assert.deepEqual(
+      {tableRight,panelX:preset.layout.panel.x,panelRight},
+      approvedHorizontalGeometry[preset.id],
+      `${preset.id}: horizontal composition drifted from the approved prototype`
+    );
     assert.ok(tableRight <= preset.layout.panel.x, `${preset.id}: table overlaps side panel`);
+    assert.ok(preset.layout.decor.x >= preset.layout.panel.x, `${preset.id}: decor starts outside side panel`);
+    assert.ok(decorRight <= panelRight, `${preset.id}: decor leaves side panel`);
     assert.ok(tableBottom <= preset.layout.footer.y, `${preset.id}: table overlaps legal footer`);
     assert.ok(decorBottom <= preset.layout.footer.y, `${preset.id}: decor overlaps legal footer`);
     assert.ok(panelRight <= 1920, `${preset.id}: side panel leaves viewport`);

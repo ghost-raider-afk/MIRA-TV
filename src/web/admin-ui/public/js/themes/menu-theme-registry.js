@@ -32,24 +32,24 @@ const BASE = Object.freeze({
 
 const LAYOUT = Object.freeze({
   premium:Object.freeze({
-    panel:Object.freeze({ x:1484,y:24,width:408,height:912 }),
+    panel:Object.freeze({ x:1495,y:24,width:397,height:912 }),
     weather:Object.freeze({ x:1502,y:42,width:372,height:238 }),
     logo:Object.freeze({ x:1516,y:302,width:344,height:92 }),
     brand:Object.freeze({ x:1500,y:286,width:376,height:192 }),
-    decor:Object.freeze({ x:1488,y:496,width:400,height:440 }),
+    decor:Object.freeze({ x:1501,y:496,width:387,height:440 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   chalk:Object.freeze({
-    panel:Object.freeze({ x:1484,y:24,width:408,height:912 }),
-    weather:Object.freeze({ x:1500,y:42,width:376,height:204 }),
-    logo:Object.freeze({ x:1514,y:264,width:348,height:86 }),
-    brand:Object.freeze({ x:1498,y:252,width:380,height:250 }),
-    decor:Object.freeze({ x:1490,y:500,width:396,height:436 }),
+    panel:Object.freeze({ x:1469,y:24,width:404,height:912 }),
+    weather:Object.freeze({ x:1481,y:42,width:380,height:204 }),
+    logo:Object.freeze({ x:1490,y:264,width:348,height:86 }),
+    brand:Object.freeze({ x:1481,y:252,width:380,height:250 }),
+    decor:Object.freeze({ x:1477,y:500,width:388,height:436 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   'brand-premium':Object.freeze({
-    panel:Object.freeze({ x:1484,y:24,width:408,height:912 }),
-    weather:Object.freeze({ x:1500,y:42,width:376,height:238 }),
+    panel:Object.freeze({ x:1475,y:24,width:421,height:912 }),
+    weather:Object.freeze({ x:1492,y:42,width:387,height:238 }),
     logo:Object.freeze({ x:1514,y:300,width:348,height:92 }),
     brand:Object.freeze({ x:1498,y:286,width:380,height:204 }),
     decor:Object.freeze({ x:1488,y:498,width:400,height:438 }),
@@ -86,9 +86,9 @@ const PRESETS = Object.freeze([
       text_color:'#F8F8F4',
       font_family:'roboto-condensed',
       price_font_size_pt:28,
-      table_x:48,
+      table_x:45,
       table_y:34,
-      table_width_px:1404,
+      table_width_px:1432,
       table_height_px:902
     }),
     visual:Object.freeze({
@@ -110,7 +110,7 @@ const PRESETS = Object.freeze([
       utilityFontWeight:800,
       clockFontSizePx:78,
       decorAsset:'/brand/themes/premium-approved-decor.webp',
-      decorFit:'cover',
+      decorFit:'contain',
       legalVariant:'premium',
       legalFontFamily:'oswald',
       legalFontSizePx:30,
@@ -162,9 +162,9 @@ const PRESETS = Object.freeze([
       text_color:'#F4F1E9',
       font_family:'yanone-kaffeesatz',
       price_font_size_pt:27,
-      table_x:56,
+      table_x:62,
       table_y:34,
-      table_width_px:1390,
+      table_width_px:1393,
       table_height_px:902
     }),
     visual:Object.freeze({
@@ -240,7 +240,7 @@ const PRESETS = Object.freeze([
       price_font_size_pt:28,
       table_x:48,
       table_y:28,
-      table_width_px:1404,
+      table_width_px:1415,
       table_height_px:908
     }),
     visual:Object.freeze({
