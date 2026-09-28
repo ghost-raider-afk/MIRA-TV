@@ -20,11 +20,12 @@ test('main menu and context submenu navigate inside one persistent document', as
   });
 
   await expect(page.locator('.ui-rail-button[aria-label="Плейлист"]')).toHaveCount(0);
-  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await expect(page.locator('[data-screen-hierarchy]')).toBeVisible();
   await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Плейлист' })).toHaveCount(0);
-  await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Сцена' })).toBeVisible();
+  await expect(page.locator('.ui-context-body .app-route-link', { hasText: 'Сцена' })).toHaveCount(0);
+  await expect(page.locator('.app-header-nav-link[data-header-section="scene"]')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   await page.getByRole('link', { name: /Торговые точки/ }).click();
@@ -32,27 +33,19 @@ test('main menu and context submenu navigate inside one persistent document', as
   await expect(page.locator('#location-form')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
-  await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="catalog"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
-  await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#product-dialog')).not.toBeVisible();
+  await expect(page.locator('[data-products-list]')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
-  await expect(page.locator('.ui-context-body .app-route-link')).toHaveCount(1);
-  await expect(page.locator('.ui-context-body .app-route-link')).toHaveText(/Продукция/);
-  await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
-
-  await page.locator('.ui-context-body .app-route-link', { hasText: 'Продукция' }).click();
-  await expect(page).toHaveURL(/\/catalog$/);
-  await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
+  await expect(page.locator('.ui-context')).toBeHidden();
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
-  await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.locator('#site-settings-form')).toBeVisible();
+  await expect(page.locator('.ui-context')).toBeVisible();
   await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
-  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
-
-  await page.locator('.ui-context').dispatchEvent('pointerleave');
-  await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
 
   expect(documentRequests).toEqual([]);
@@ -63,26 +56,27 @@ test('main menu and context submenu navigate inside one persistent document', as
   await expect(page).toHaveURL(/\/scene$/);
 });
 
-test('context submenu auto-collapses consistently and resize never opens it implicitly', async ({ page }) => {
+test('desktop uses top navigation while mobile keeps the bottom rail and collapsible section sheet', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
-  for (const label of ['TV-сеть', 'Каталог', 'Настройки']) {
-    await page.locator(`.ui-rail-button[aria-label="${label}"]`).click();
-    const context = page.locator('.ui-context');
-    await expect(context).not.toHaveClass(/is-collapsed/);
-    await context.dispatchEvent('pointerleave');
-    await expect(context).toHaveClass(/is-collapsed/);
-  }
+  await expect(page.locator('.ui-rail')).toBeHidden();
+  await expect(page.locator('.app-header-nav')).toBeVisible();
+  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
+  await expect(page.locator('.ui-context')).toBeVisible();
+  await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.ui-rail')).toBeVisible();
+  await expect(page.locator('.app-header-nav')).toBeHidden();
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
+
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
+  await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
 });
 
 test('saved application name immediately controls browser tab title on every route', async ({ page }) => {
   await login(page);
-  await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   const original = await page.evaluate(async () => (await fetch('/api/settings/site', { credentials: 'same-origin' })).json());
   const nextName = `MIRA-TV TITLE ${Date.now()}`;
@@ -93,7 +87,7 @@ test('saved application name immediately controls browser tab title on every rou
     await expect(page.locator('#site-settings-message')).toContainText('Настройки сайта сохранены');
     await expect(page).toHaveTitle(`${nextName} — Настройки сайта`);
 
-    await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
+    await page.locator('.app-header-nav-link[data-header-section="catalog"]').click();
     await expect(page).toHaveURL(/\/catalog$/);
     await expect(page).toHaveTitle(`${nextName} — Каталог`);
   } finally {
@@ -120,14 +114,15 @@ test('browser back and forward keep the same application document', async ({ pag
   await page.evaluate(() => { window.__miraTvSpaHistorySentinel = `history-${Math.random()}`; });
   const sentinel = await page.evaluate(() => window.__miraTvSpaHistorySentinel);
 
-  await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="catalog"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
-  await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
   await expect(page).toHaveURL(/\/settings$/);
 
   await page.goBack();
   await expect(page).toHaveURL(/\/catalog$/);
-  await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#product-dialog')).not.toBeVisible();
+  await expect(page.locator('[data-products-list]')).toBeVisible();
   expect(await page.evaluate(() => window.__miraTvSpaHistorySentinel)).toBe(sentinel);
 
   await page.goForward();

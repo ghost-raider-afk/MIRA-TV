@@ -1,6 +1,7 @@
 import express from 'express';
 import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
+import { MENU_THEME_OVERRIDE_KEYS, MENU_THEME_SCHEMA_VERSION, menuThemeCatalog, menuThemeInput, validateMenuThemeBindings } from '../../contracts/menu-theme.js';
 import { sceneInput } from '../../contracts/scene.js';
 import { ValidationError } from '../../shared/errors.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
@@ -116,10 +117,35 @@ function applyElementToScene(scene, sourceElement, typeIndex, targetScreenId, co
   return sceneInput({ version: 1, elements }, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
 }
 
+
+function sceneElementByType(scene, type, index = 0) {
+  return (Array.isArray(scene?.elements) ? scene.elements : []).filter((item) => item?.type === type)[index] || null;
+}
+
+function bulkThemeElement(value, expectedType, config) {
+  if (!value) return null;
+  const element = sceneInput(
+    { version:1, elements:[value] },
+    { maxWidth:config.screenMaxWidth, maxHeight:config.screenMaxHeight }
+  ).elements[0];
+  if (element?.type !== expectedType) throw new ValidationError(`Элемент темы должен иметь тип «${expectedType}».`);
+  return element;
+}
+
+function themeOverridePatch(theme, value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const allowed = new Set(MENU_THEME_OVERRIDE_KEYS);
+  const requested = new Set(Array.isArray(theme?.overrides) ? theme.overrides : []);
+  return Object.fromEntries(
+    Object.entries(source).filter(([key]) => allowed.has(key) && requested.has(key))
+  );
+}
+
 export function createScreensRouter({ store, config, realtime }) {
   const router = express.Router();
 
   router.get('/screens', async (_request, response) => response.json(await store.listScreens()));
+  router.get('/screens/menu-themes', (_request, response) => response.json({ schema_version:MENU_THEME_SCHEMA_VERSION, presets:menuThemeCatalog() }));
   router.get('/screens/:id', async (request, response) => {
     const screen = await store.getScreen(positiveId(request.params.id, 'id'));
     if (!screen) throw notFound();
@@ -167,12 +193,12 @@ export function createScreensRouter({ store, config, realtime }) {
     if (!sourceScreen) throw notFound();
 
     const kind = String(request.body?.kind || '');
-    if (kind !== 'background' && !BULK_SCENE_KINDS.has(kind)) {
-      throw new ValidationError('Комплексное применение поддерживает фон, погоду и картинку.');
+    if (kind !== 'background' && kind !== 'theme' && !BULK_SCENE_KINDS.has(kind)) {
+      throw new ValidationError('Комплексное применение поддерживает тему, фон, погоду и картинку.');
     }
     const targetScreenIds = bulkTargetScreenIds(request.body?.target_screen_ids, sourceScreenId);
-    const typeIndex = kind === 'background' ? 0 : bulkElementTypeIndex(request.body?.type_index ?? 0);
-    const sourceElement = kind === 'background'
+    const typeIndex = kind === 'background' || kind === 'theme' ? 0 : bulkElementTypeIndex(request.body?.type_index ?? 0);
+    const sourceElement = kind === 'background' || kind === 'theme'
       ? null
       : sceneInput(
         { version: 1, elements: [request.body?.element] },
@@ -180,6 +206,17 @@ export function createScreensRouter({ store, config, realtime }) {
       ).elements[0];
     if (sourceElement && sourceElement.type !== kind) {
       throw new ValidationError('Тип применяемого элемента не совпадает с выбранным свойством.');
+    }
+    const sourceTheme = kind === 'theme' ? menuThemeInput(request.body?.theme) : null;
+    const sourceLogo = kind === 'theme' ? bulkThemeElement(request.body?.bound_elements?.logo, 'logo', config) : null;
+    const sourceWeather = kind === 'theme' ? bulkThemeElement(request.body?.bound_elements?.weather, 'weather', config) : null;
+    const overridePatch = kind === 'theme' ? themeOverridePatch(sourceTheme, request.body?.override_settings) : {};
+    if (kind === 'theme') {
+      const bindingScene = {
+        version:1,
+        elements:[sourceLogo,sourceWeather].filter(Boolean)
+      };
+      validateMenuThemeBindings(sourceTheme, bindingScene);
     }
 
     const result = await store.transaction(async (tx) => {
@@ -204,6 +241,27 @@ export function createScreensRouter({ store, config, realtime }) {
             background_image_url: background.background_image_url ?? nextSettings.background_image_url
           }, settingsOptions(config));
           if (previousBackground && previousBackground !== nextSettings.background_image_url) droppedBackgrounds.push(previousBackground);
+        } else if (kind === 'theme') {
+          const previousBackground = String(nextSettings.background_image_url || '');
+          const previousAssets = new Set(sceneAssetUrls(nextScene));
+          if (sourceLogo) nextScene = applyElementToScene(nextScene, sourceLogo, 0, targetId, config);
+          if (sourceWeather) nextScene = applyElementToScene(nextScene, sourceWeather, 0, targetId, config);
+          const mappedLogo = sourceLogo ? sceneElementByType(nextScene, 'logo', 0) : null;
+          const mappedWeather = sourceWeather ? sceneElementByType(nextScene, 'weather', 0) : null;
+          const mappedTheme = menuThemeInput({
+            ...sourceTheme,
+            brand:{ ...sourceTheme.brand, logo_element_id:mappedLogo?.id || '' },
+            utility_slot:{ ...sourceTheme.utility_slot, weather_element_id:mappedWeather?.id || '' }
+          });
+          nextSettings = menuSettingsInput({
+            ...nextSettings,
+            ...overridePatch,
+            theme:mappedTheme
+          }, settingsOptions(config));
+          validateMenuThemeBindings(nextSettings.theme, nextScene);
+          if (previousBackground && previousBackground !== nextSettings.background_image_url) droppedBackgrounds.push(previousBackground);
+          const nextAssets = new Set(sceneAssetUrls(nextScene));
+          droppedSceneAssets.push(...[...previousAssets].filter((url) => !nextAssets.has(url)));
         } else {
           const previousAssets = new Set(sceneAssetUrls(nextScene));
           nextScene = applyElementToScene(nextScene, sourceElement, typeIndex, targetId, config);
@@ -222,7 +280,7 @@ export function createScreensRouter({ store, config, realtime }) {
 
       const revisions = await tx.markScreenRenderChanged(
         appliedScreenIds,
-        [kind === 'background' ? 'menu' : 'scene'],
+        kind === 'theme' ? ['menu','scene'] : [kind === 'background' ? 'menu' : 'scene'],
         'screen.scene_settings.applied',
         request.session.sub
       );
@@ -240,7 +298,7 @@ export function createScreensRouter({ store, config, realtime }) {
       action: 'screen.scene_settings.applied',
       entity_type: 'screen',
       entity_id: result.appliedScreenIds.join(','),
-      message: `${kind === 'background' ? 'Фон' : 'Элемент сцены'} применён к мониторам: ${result.appliedScreenIds.join(', ')}.`
+      message: `${kind === 'theme' ? 'Тема меню' : kind === 'background' ? 'Фон' : 'Элемент сцены'} применена к мониторам: ${result.appliedScreenIds.join(', ')}.`
     });
     notifyRevisions(realtime, result.revisions);
     response.json({
@@ -260,6 +318,7 @@ export function createScreensRouter({ store, config, realtime }) {
       const previousSceneAssets = new Set(sceneAssetUrls(currentDraft?.scene));
       const draft = await menuDraftInput(request.body, tx, config.menuDraftMaxBytes, { maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
       draft.settings = menuSettingsInput(draft.settings, settingsOptions(config));
+      validateMenuThemeBindings(draft.settings.theme, draft.scene);
       let screenData = { location_id: current.location_id, name: current.name, resolution: current.resolution, status: current.status, active: current.active };
       if (request.body?.screen && typeof request.body.screen === 'object' && !Array.isArray(request.body.screen)) {
         const siteSettings = await tx.getSiteSettings();
@@ -283,6 +342,44 @@ export function createScreensRouter({ store, config, realtime }) {
     await activity(store, request, { action: 'screen.state.saved', entity_type: 'screen', entity_id: id, message: `Сохранено состояние монитора «${result.screen.name}».` });
     notifyRevisions(realtime, result.revisions);
     response.json({ screen:result.screen, draft:result.draft });
+  });
+
+  router.put('/screens/:id', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const result = await store.transaction(async (tx) => {
+      if (!await tx.lockScreen(id)) throw notFound();
+      const current = await tx.getScreen(id);
+      if (!current) throw notFound();
+      const siteSettings = await tx.getSiteSettings();
+      const next = screenInput({
+        location_id: current.location_id,
+        name: request.body?.name ?? current.name,
+        resolution: request.body?.resolution ?? current.resolution,
+        status: request.body?.status ?? current.status,
+        active: request.body?.active ?? current.active
+      }, {
+        defaultScreenResolution: siteSettings.default_screen_resolution,
+        maxWidth: config.screenMaxWidth,
+        maxHeight: config.screenMaxHeight
+      });
+      if (sameJson(screenRenderState(current), screenRenderState(next))) {
+        return { screen: current, revisions: [], changed: false };
+      }
+      const screen = await tx.updateScreen(id, next);
+      if (!screen) throw notFound();
+      const revisions = await tx.markScreenRenderChanged([id], ['screen'], 'screen.settings.updated', request.session.sub);
+      return { screen, revisions, changed: true };
+    });
+    if (result.changed) {
+      await activity(store, request, {
+        action: 'screen.settings.updated',
+        entity_type: 'screen',
+        entity_id: id,
+        message: `Обновлены параметры монитора «${result.screen.name}».`
+      });
+      notifyRevisions(realtime, result.revisions);
+    }
+    response.json(result.screen);
   });
 
   router.put('/screens/:id/background', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'], limit: config.screenBackgroundMaxBytes }), async (request, response) => {

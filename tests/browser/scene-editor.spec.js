@@ -46,6 +46,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   const { screen, product } = await fixture(page);
   await page.goto(`/scene?screen=${screen.id}`);
 
+  await expect(page.locator('.app-header')).toBeVisible();
+  await expect(page.locator('.ui-rail')).toBeHidden();
+  await expect(page.locator('.app-header-nav-link[data-header-section="scene"]')).toHaveClass(/active/);
   await expect(page.locator('#scene-editor-agent-setup')).toHaveCount(0);
   await expect(page.locator('#scene-editor-agent-install')).toHaveCount(0);
   await expect(page.locator('#scene-editor-layers')).toBeVisible();
@@ -316,15 +319,11 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(storedPromotion.promotion).toBe(true);
 
   await page.goto(`/screen-editor?id=${screen.id}`);
-  await expect(page.locator('#editor-elements-stack')).toHaveCount(0);
-  await expect(page.locator('#editor-add-element')).toHaveCount(0);
-  await expect(page.locator('#editor-background-file')).toHaveCount(0);
-  await expect(page.locator('#editor-table-x')).toHaveCount(0);
-  await expect(page.locator('#editor-menu-preview [data-editor-preview-row-control]')).toHaveCount(0);
-  await expect(page.locator('#editor-menu-preview [data-scene-elements-layer]')).toHaveCount(1);
-  await expect(page.locator('#editor-menu-preview [data-scene-element-type]')).toHaveCount(3);
-  await expect(page.locator('#editor-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
-  await expect(page.locator('#editor-preview-scene-link')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
+  await expect(page).toHaveURL(new RegExp(`/screens\\?manage=${screen.id}$`));
+  const management = page.locator('.screen-tv-management-dialog');
+  await expect(management).toBeVisible();
+  await expect(page.locator('#editor-elements-stack,#editor-add-element,#editor-background-file,#editor-table-x,#editor-menu-preview')).toHaveCount(0);
+  await expect(management.locator('[data-tv-management-scene]')).toHaveAttribute('href', `/scene?screen=${screen.id}`);
 });
 
 test('background, weather and image settings apply atomically to selected monitors', async ({ page }) => {

@@ -1,4 +1,4 @@
-.scene-editor-content{height:calc(100dvh - 56px);min-height:620px;padding:8px;overflow:hidden}
+.scene-editor-content{height:calc(100dvh - var(--ui-header-height));min-height:620px;padding:8px;overflow:hidden}
 .scene-editor-form{--ui-control-height:32px;display:grid;height:100%;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:8px}
 .scene-editor-commandbar{display:flex;min-width:0;min-height:48px;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px;border:1px solid var(--ui-border);border-radius:10px;background:color-mix(in srgb,var(--ui-panel) 96%,transparent);box-shadow:0 8px 28px color-mix(in srgb,var(--ui-shadow-color) 14%,transparent)}
 .scene-editor-commandbar-main,.scene-editor-command-actions{display:flex;min-width:0;align-items:center;gap:8px}
@@ -330,7 +330,7 @@ body[data-page="scene"] .scene-table-editor-dialog{
   display:grid;
   grid-template-rows:auto auto minmax(0,1fr);
   width:min(1180px,calc(100vw - 48px));
-  height:min(760px,calc(100dvh - 56px));
+  height:min(760px,calc(100dvh - var(--ui-header-height)));
   min-width:0;
   min-height:360px;
   overflow:hidden;
@@ -499,4 +499,25 @@ body[data-page="scene"] .scene-editor-table-content-state{
   body[data-page="scene"] .scene-table-editor-toolbar{overflow-x:auto;white-space:nowrap}
   body[data-page="scene"] .scene-table-editor-toolbar>span{display:none}
   body[data-page="scene"] .scene-table-editor-close{width:32px;height:32px;flex-basis:32px}
+}
+
+@media(min-width:1101px){
+  body[data-page="scene"] .app-shell{display:block;min-height:100dvh}
+  body[data-page="scene"] .app-content{display:block;min-width:0}
+  body[data-page="scene"] .app-header{display:flex}
+  body[data-page="scene"] .scene-editor-content{height:calc(100dvh - var(--ui-header-height));min-height:0;padding:8px;overflow:hidden}
+  body[data-page="scene"] .scene-editor-form{position:static;display:grid;width:auto;height:100%;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:8px}
+  body[data-page="scene"] .scene-editor-workspace{height:auto;min-height:0}
+}
+
+.scene-theme-description{display:block;color:var(--ui-text-muted);font-size:7px;line-height:1.4}
+.scene-theme-overrides{display:grid;gap:5px;padding-top:6px;border-top:1px solid var(--ui-border)}
+.scene-theme-overrides small{color:var(--ui-text-muted);font-size:7px;line-height:1.4}
+.scene-theme-overrides .button{min-height:27px;padding:3px 6px;font-size:8px}
+.scene-theme-point-selectors{display:grid;gap:3px}
+.scene-theme-point-button{min-height:25px;padding:3px 5px;border:1px solid color-mix(in srgb,var(--ui-accent) 25%,var(--ui-border));border-radius:5px;background:color-mix(in srgb,var(--ui-accent) 5%,var(--ui-panel-raised));color:var(--ui-text);font:750 7px/1.2 inherit;text-align:left;cursor:pointer}
+.scene-theme-point-button:hover{border-color:color-mix(in srgb,var(--ui-accent) 55%,var(--ui-border));color:var(--ui-accent)}
+@media(max-width:1100px){
+  .scene-theme-description,.scene-theme-overrides small{font-size:10px}
+  .scene-theme-overrides .button,.scene-theme-point-button{min-height:36px;font-size:10px}
 }

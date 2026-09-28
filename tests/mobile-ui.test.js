@@ -16,7 +16,7 @@ test('mobile UI is one canonical shell layer rather than page-by-page patches', 
 
   assert.match(index, /@import url\('\.\/mobile\.css'\);\s*$/);
   assert.match(mobile, /@media\(max-width:960px\)/);
-  assert.match(mobile, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(mobile, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
   assert.match(mobile, /bottom:calc\(76px \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(mobile, /font-size:16px/);
   assert.match(mobile, /min-height:44px/);
@@ -28,10 +28,13 @@ test('mobile UI is one canonical shell layer rather than page-by-page patches', 
   assert.doesNotMatch(sidebar, /MOBILE_OVERVIEW_ROUTE/);
   assert.match(sidebar, /class="ui-rail-brand" href="\/"/);
   assert.match(header, /data-mobile-context-trigger/);
+  assert.match(header, /DESKTOP_PRIMARY_ROUTES/);
+  assert.match(header, /app-header-nav/);
   assert.match(header, /className = 'app-header-home'/);
   assert.match(header, /Дашборд/);
   assert.match(shell, /ui-context-backdrop/);
   assert.match(shell, /PHONE_BREAKPOINT = 960/);
   assert.match(shell, /document\.body\.classList\.toggle\('ui-context-open'/);
   assert.doesNotMatch(shell, /uiSection === 'monitors'/);
+  assert.doesNotMatch(shell, /pointerenter/);
 });

@@ -6,7 +6,7 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Настройки монитора', prefetch: true }),
-  Object.freeze({ path: '/scene', page: 'scene', section: 'monitors', title: 'Сцена', prefetch: true }),
+  Object.freeze({ path: '/scene', page: 'scene', section: 'scene', title: 'Редактор сцены', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
   Object.freeze({ path: '/events', page: 'events', section: 'settings', title: 'Журнал событий', prefetch: true }),
@@ -37,13 +37,23 @@ export const PREFETCH_ROUTE_PATHS = Object.freeze(ROUTE_DEFINITIONS.filter((rout
 
 const CONTEXT_LINKS = Object.freeze({
   overview: Object.freeze([]),
-  monitors: Object.freeze([['Торговые точки', '/locations'], ['Мониторы', '/screens'], ['Сцена', '/scene'], ['Подключить ТВ', '/connect-tv']]),
-  catalog: Object.freeze([['Продукция', '/catalog']]),
+  monitors: Object.freeze([['Мониторы', '/screens'], ['Торговые точки', '/locations'], ['Подключить ТВ', '/connect-tv']]),
+  scene: Object.freeze([]),
+  catalog: Object.freeze([]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });
 
+export const DESKTOP_PRIMARY_ROUTES = Object.freeze([
+  Object.freeze({ key: 'overview', label: 'Обзор', href: '/' }),
+  Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens' }),
+  Object.freeze({ key: 'scene', label: 'Редактор сцены', href: '/scene' }),
+  Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog' }),
+  Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings' })
+]);
+
 export const PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens', icon: 'monitor' }),
+  Object.freeze({ key: 'scene', label: 'Редактор сцены', mobileLabel: 'Сцена', href: '/scene', icon: 'scene' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
   Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings', icon: 'settings' })
 ]);

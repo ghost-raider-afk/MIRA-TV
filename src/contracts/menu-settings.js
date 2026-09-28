@@ -1,4 +1,5 @@
 import { ValidationError } from '../shared/errors.js';
+import { menuThemeInput } from './menu-theme.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const BACKGROUND_URL = /^(?:\/site-assets\/screens\/background-[0-9a-f-]{36}\.(?:jpg|png|webp)|\/site-assets\/content\/asset-[0-9a-f]{64}\.(?:jpg|png|webp))$/i;
@@ -71,6 +72,7 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
   if (table_x + table_width_px > maxWidth) throw new ValidationError('Таблица выходит за правую границу экрана.');
   if (table_y + table_height_px > maxHeight) throw new ValidationError('Таблица выходит за нижнюю границу экрана.');
   return Object.freeze({
+    theme: menuThemeInput(source.theme),
     background_color: color(source.background_color, 'background_color', '#101828'),
     background_image_url: backgroundUrl(source.background_image_url, { allowBackgroundImage }),
     accent_color: color(source.accent_color, 'accent_color', '#F4C915'),

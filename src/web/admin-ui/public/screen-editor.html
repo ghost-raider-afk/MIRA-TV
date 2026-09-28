@@ -11,55 +11,8 @@
   <body data-page="screen-editor">
     <div class="app-shell">
       <div class="app-content">
-        <main class="main-content editor-content">
-          <form id="screen-editor-form" class="editor-workspace" aria-busy="true">
-            <section class="editor-commandbar" aria-label="Настройки монитора">
-              <div class="editor-commandbar-identity">
-                <a class="editor-back" href="/screens" aria-label="К мониторам">←</a>
-                <div class="editor-commandbar-identity-copy">
-                  <div class="editor-commandbar-title-line"><strong id="editor-toolbar-title">Загрузка настроек…</strong><span id="editor-dirty-state" role="status" aria-live="polite">Загрузка…</span></div>
-                </div>
-              </div>
-              <div class="editor-primary-actions" aria-label="Действия редактора">
-                <a class="button button-secondary" id="editor-scene-link" href="/scene">Редактировать сцену</a>
-                <button class="button button-primary editor-save" id="editor-save" type="submit" disabled>Сохранить</button>
-              </div>
-            </section>
-            <p class="form-message is-hidden editor-message" id="screen-editor-message" role="status" aria-live="polite"></p>
-
-            <div class="editor-workarea">
-              <aside class="settings-card editor-settings-panel" aria-label="Настройки монитора">
-                <div class="editor-settings-heading"><p class="eyebrow">НАСТРОЙКИ</p><h2>Монитор</h2><p>Параметры находятся в потоке страницы и не перекрывают содержимое редактора.</p></div>
-
-                <details class="editor-settings-section editor-tool-menu">
-                  <summary>Монитор</summary>
-                  <div class="editor-settings-body">
-                    <div class="compact-form-grid">
-                      <label class="field"><span>Торговая точка</span><input id="editor-location" disabled /></label>
-                      <label class="field"><span>Название</span><input id="editor-name" maxlength="120" required disabled /></label>
-                      <label class="field"><span>Разрешение</span><input id="editor-resolution" maxlength="32" required disabled /></label>
-                      <label class="field"><span>Статус</span><select id="editor-status" disabled><option value="draft">Черновик</option><option value="ready">Готово</option><option value="published">Опубликовано</option></select></label>
-                    </div>
-                    <label class="toggle-row compact-toggle"><span><strong>Активен</strong><small>Доступен TV Player</small></span><input id="editor-active" type="checkbox" checked disabled /><i aria-hidden="true"></i></label>
-                  </div>
-                </details>
-
-              </aside>
-
-              <div class="editor-main-column">
-                <section class="settings-card editor-preview-card" aria-labelledby="editor-preview-title">
-                  <div class="editor-section-line editor-preview-toolbar">
-                    <div class="editor-section-copy"><p class="eyebrow">TV PREVIEW</p><h2 id="editor-preview-title">Экран монитора</h2><span class="muted-copy">Только просмотр. Фон, таблица и элементы редактируются на странице «Сцена».</span></div>
-                    <a class="button button-primary" id="editor-preview-scene-link" href="/scene">Редактировать сцену</a>
-                  </div>
-                  <div class="editor-menu-preview" id="editor-menu-preview" aria-label="Предпросмотр экрана монитора">
-                    <div class="editor-menu-preview-stage" id="editor-menu-preview-stage"></div>
-                  </div>
-                  <p class="editor-layout-warning is-hidden" id="editor-layout-warning" role="status" aria-live="polite"></p>
-                </section>
-              </div>
-            </div>
-          </form>
+        <main class="main-content">
+          <div class="page-heading"><p class="eyebrow">TV-СЕТЬ</p><h1>Управление ТВ</h1><p>Открываем монитор в TV-сети…</p></div>
         </main>
       </div>
     </div>

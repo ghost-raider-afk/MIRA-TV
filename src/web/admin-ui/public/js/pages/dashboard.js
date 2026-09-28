@@ -103,6 +103,7 @@ function drawChart(card, points, config, selectedTv, telemetry) {
   if (maxNode) maxNode.textContent = numeric.length ? config.format(Math.max(...numeric)) : '—';
 
   host.replaceChildren();
+  card?.classList.toggle('is-empty', !numeric.length);
   if (!numeric.length) {
     const empty = document.createElement('div');
     empty.className = 'dashboard-chart-empty';
@@ -161,8 +162,21 @@ function drawAllCharts(points, selectedTv, telemetry) {
     { id:'memory', key:'memory_mb', format:(value)=>`${numberText(value, 0)} МБ`, minimum:0, zeroBase:true, aria:'JS-память выбранного TV Player' },
     { id:'uptime', key:'uptime_hours', format:uptimeText, minimum:0, zeroBase:true, aria:'Uptime выбранного TV Player' }
   ];
+  const hasTelemetry = configs.some((config) =>
+    points.some((point) => metricNumber(point?.[config.key]) !== null)
+  );
+  const grid = document.querySelector('.dashboard-chart-grid');
+  const sharedEmpty = document.querySelector('[data-dashboard-charts-empty]');
+  const sharedMessage = document.querySelector('[data-dashboard-charts-empty-message]');
+
+  grid?.classList.toggle('is-empty', !hasTelemetry);
+  if (sharedEmpty) sharedEmpty.hidden = hasTelemetry;
+  if (sharedMessage && !hasTelemetry) sharedMessage.textContent = emptyChartMessage(selectedTv, telemetry);
+
   for (const config of configs) {
-    drawChart(document.querySelector(`[data-dashboard-card="${config.id}"]`), points, config, selectedTv, telemetry);
+    const card = document.querySelector(`[data-dashboard-card="${config.id}"]`);
+    if (card) card.hidden = !hasTelemetry;
+    drawChart(card, points, config, selectedTv, telemetry);
   }
 }
 

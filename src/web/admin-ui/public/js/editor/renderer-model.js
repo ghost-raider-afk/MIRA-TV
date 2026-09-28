@@ -223,6 +223,7 @@ export function buildRenderModel(editorState, viewport = {}) {
   return Object.freeze({
     viewport: Object.freeze({ width, height, aspectRatio: width / height }),
     settings: Object.freeze(settings),
+    themeId:String(settings?.theme?.preset_id || 'legacy'),
     rows: Object.freeze(rows.map((row, index) => Object.freeze({ ...cloneRenderValue(row), renderIndex: index })))
   });
 }
@@ -230,6 +231,7 @@ export function buildRenderModel(editorState, viewport = {}) {
 export function buildDisplayLines(model, { products = [], packaging = [], fallbackTitle = 'Меню' } = {}) {
   const lines = [];
   let toneIndex = 0;
+  let itemSequence = 0;
   let firstSectionSeen = false;
   const sourceRows = model.rows.length
     ? model.rows
@@ -258,8 +260,10 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
       const product = recordById(products, row.product_id ?? row.productId);
       const tone = toneIndex % 2 === 0 ? 'light' : 'accent';
       toneIndex += 1;
+      itemSequence += 1;
       lines.push(Object.freeze({
         kind: 'item',
+        sequence:itemSequence,
         sourceRowId: row.id || null,
         tone,
         name: product?.name || row.name || 'Продукция не выбрана',

@@ -53,10 +53,67 @@ test('Dashboard is reached from the logo and switches per-TV reporting periods',
     await expect.poll(() => requestedScreens.includes(String(target.screen_id))).toBe(true);
   }
 
-  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
   await expect(page).toHaveURL(/\/screens$/);
-  await page.locator('.ui-rail-brand').click();
+  await page.locator('.app-header-home').click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('.dashboard-commandbar')).toBeVisible();
   await expect(page.locator('.ui-context')).toBeHidden();
+});
+
+
+test('Dashboard collapses four empty graphs into one telemetry state and restores charts when data arrives', async ({ page }) => {
+  let withTelemetry = false;
+  const tv = {
+    screen_id:77,
+    screen_name:'Тестовый TV',
+    label:'TV 1',
+    location_id:7,
+    location_name:'Тестовая точка',
+    location_number:1,
+    bound:true,
+    device_id:700,
+    online:true,
+    problem_code:'telemetry_missing',
+    problem_label:'Телеметрия ещё не получена',
+    last_seen_at:new Date().toISOString(),
+    last_metric_at:null,
+    latest_metric:null
+  };
+
+  await page.route('**/api/overview**', async (route) => {
+    const now = Date.now();
+    const points = withTelemetry ? [
+      { at:new Date(now - 60000).toISOString(), fps_avg:59.4, player_load_percent:4.2, memory_mb:96, uptime_hours:1.2 },
+      { at:new Date(now).toISOString(), fps_avg:60, player_load_percent:3.8, memory_mb:98, uptime_hours:1.22 }
+    ] : [];
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify({
+        generated_at:new Date(now).toISOString(),
+        range:'1h',
+        summary:{ locations:1, screens:1, published:0, bound:1, online:1, offline:0, unbound:0, problems:withTelemetry ? 0 : 1 },
+        telemetry:{ sample_interval_seconds:60, expected_first_sample_seconds:10, retention_days:31, stale_after_seconds:150 },
+        tvs:[{ ...tv, problem_code:withTelemetry ? null : tv.problem_code, problem_label:withTelemetry ? null : tv.problem_label, last_metric_at:withTelemetry ? new Date(now).toISOString() : null }],
+        problems:withTelemetry ? [] : [tv],
+        selected_tv:{ ...tv, problem_code:withTelemetry ? null : tv.problem_code, problem_label:withTelemetry ? null : tv.problem_label, last_metric_at:withTelemetry ? new Date(now).toISOString() : null },
+        player_metrics:{ screen_id:77, points }
+      })
+    });
+  });
+
+  await login(page);
+  const empty = page.locator('[data-dashboard-charts-empty]');
+  await expect(empty).toBeVisible();
+  await expect(empty).toContainText('Первый замер обычно появляется примерно через 10 секунд');
+  await expect(page.locator('[data-dashboard-card]:visible')).toHaveCount(0);
+  const emptyBox = await empty.boundingBox();
+  expect(emptyBox?.height).toBeLessThanOrEqual(100);
+
+  withTelemetry = true;
+  await page.locator('[data-dashboard-range="24h"]').click();
+  await expect(empty).toBeHidden();
+  await expect(page.locator('[data-dashboard-card]:visible')).toHaveCount(4);
+  await expect(page.locator('.dashboard-sparkline')).toHaveCount(4);
 });

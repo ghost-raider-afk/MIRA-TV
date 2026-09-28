@@ -28,12 +28,13 @@ test.describe('mobile application shell', () => {
 
     const rail = page.locator('.ui-rail');
     await expect(rail).toBeVisible();
-    await expect(rail.locator('.ui-rail-button')).toHaveCount(3);
+    await expect(rail.locator('.ui-rail-button')).toHaveCount(4);
     await expect(rail.getByLabel('Дашборд')).toHaveCount(0);
     await expect(page.locator('.app-header-home')).toBeVisible();
     await expect(page.locator('.app-header-home')).toHaveAttribute('aria-label', /Дашборд/);
     await expect(rail.locator('.ui-rail-brand')).toHaveAttribute('href', '/');
     await expect(rail.getByLabel('TV-сеть')).toBeVisible();
+    await expect(rail.getByLabel('Редактор сцены')).toBeVisible();
     await expect(rail.getByLabel('Каталог')).toBeVisible();
     await expect(rail.getByLabel('Настройки')).toBeVisible();
 
@@ -64,7 +65,7 @@ test.describe('mobile application shell', () => {
     await trigger.click();
     await expect(page.locator('.ui-context')).not.toHaveClass(/is-collapsed/);
     await expect(page.getByRole('link', { name: /^Плейлист/ })).toHaveCount(0);
-    await expect(page.locator('.ui-context').getByRole('link', { name: /^Сцена/ })).toBeVisible();
+    await expect(page.locator('.ui-context').getByRole('link', { name: /^Сцена/ })).toHaveCount(0);
     await page.getByRole('link', { name: /^Торговые точки/ }).click();
     await expect(page).toHaveURL(/\/locations$/);
     await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
@@ -112,7 +113,7 @@ test.describe('mobile application shell', () => {
 test('mobile shell remains usable at 360px width', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
-  await expect(page.locator('.ui-rail-button')).toHaveCount(3);
+  await expect(page.locator('.ui-rail-button')).toHaveCount(4);
   await expectNoPageOverflow(page);
   await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
   await expect(page).toHaveURL(/\/catalog$/);

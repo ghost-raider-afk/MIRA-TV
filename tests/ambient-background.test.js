@@ -18,7 +18,11 @@ test('ambient background stays static and shared across admin surfaces', async (
 });
 
 test('uploaded shell logo is never painted on top of the accent tile', async () => {
-  const shell = await read('css/shell.css');
-  assert.match(shell, /\.ui-rail-brand \.brand-mark:has\(img\)\{background:transparent;box-shadow:none\}/);
-  assert.match(shell, /\.ui-rail-brand \.brand-mark img\{[^}]*padding:0[^}]*object-fit:contain/);
+  const [components, mobile] = await Promise.all([
+    read('css/components.css'), read('css/mobile.css')
+  ]);
+  assert.match(components, /\.app-header-home-mark:has\(img\)\{background:transparent\}/);
+  assert.match(components, /\.app-header-home-mark img\{[^}]*object-fit:contain/);
+  assert.match(mobile, /\.app-header-home-mark:has\(img\)\{background:transparent\}/);
+  assert.match(mobile, /\.app-header-home-mark img\{[^}]*object-fit:contain/);
 });

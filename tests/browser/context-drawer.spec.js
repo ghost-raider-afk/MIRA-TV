@@ -30,53 +30,47 @@ test('Dashboard static first paint never reserves rail or submenu columns before
   expect(Math.abs(geometry.width - geometry.viewport)).toBeLessThanOrEqual(1);
 });
 
-test('context drawer never occupies Dashboard and has deterministic desktop lifecycle', async ({ page }) => {
+test('desktop context navigation uses full width and stays persistent inside its section', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
   const context = page.locator('.ui-context');
-  const shell = page.locator('.app-shell');
 
   await expect(page).toHaveTitle(/ — Дашборд$/);
   await expect(context).toBeHidden();
-  await expect(context).toHaveClass(/is-collapsed/);
   await expect(context).toHaveAttribute('aria-hidden', 'true');
   await expect(context).toHaveAttribute('inert', '');
-  await expect(shell).toHaveClass(/ui-context-collapsed/);
+  await expect(page.locator('.ui-rail')).toBeHidden();
+  await expect(page.locator('.app-header-nav')).toBeVisible();
 
-  await page.reload();
-  await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
-  await expect(context).toBeHidden();
-  await expect(shell).toHaveClass(/ui-context-collapsed/);
-  await expect(shell).toHaveClass(/ui-shell-ready/);
   const hydratedGeometry = await page.evaluate(() => {
-    const rail = document.querySelector('.ui-rail')?.getBoundingClientRect();
     const content = document.querySelector('.app-content')?.getBoundingClientRect();
-    return rail && content ? { railWidth:rail.width, contentX:content.x } : null;
+    return content ? { x:content.x, width:content.width, viewport:window.innerWidth } : null;
   });
   expect(hydratedGeometry).not.toBeNull();
-  expect(Math.abs(hydratedGeometry.contentX - hydratedGeometry.railWidth)).toBeLessThanOrEqual(1);
+  expect(hydratedGeometry.x).toBeLessThanOrEqual(1);
+  expect(Math.abs(hydratedGeometry.width - hydratedGeometry.viewport)).toBeLessThanOrEqual(1);
 
-  await page.locator('.ui-rail-button[aria-label="TV-сеть"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
   await expect(page).toHaveURL(/\/screens$/);
   await expect(context).toBeVisible();
-  await expect(context).not.toHaveClass(/is-collapsed/);
   await expect(context).toHaveAttribute('aria-hidden', 'false');
   await expect(context).not.toHaveAttribute('inert', '');
+  await expect(context.getByRole('link', { name:/^Мониторы/ })).toBeVisible();
+  await expect(context.getByRole('link', { name:/^Торговые точки/ })).toBeVisible();
+  await expect(context.getByRole('link', { name:/^Подключить ТВ/ })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(context).toHaveClass(/is-collapsed/);
-  await expect(context).toHaveAttribute('inert', '');
+  await expect(context).toBeVisible();
+  await expect(context).toHaveAttribute('aria-hidden', 'false');
 
-  await page.locator('.ui-rail-button[aria-label="Настройки"]').click();
+  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(context).toBeVisible();
-  await page.locator('.main-content').dispatchEvent('click');
-  await expect(context).toHaveClass(/is-collapsed/);
+  await expect(context.getByRole('link', { name:/^Журнал событий/ })).toBeVisible();
 
-  await page.locator('.ui-rail-brand').click();
+  await page.locator('.app-header-home').click();
   await expect(page).toHaveURL(/\/$/);
   await expect(context).toBeHidden();
-  await expect(shell).toHaveClass(/ui-context-collapsed/);
   await expect(page.locator('body')).not.toHaveClass(/ui-context-open/);
 });
 

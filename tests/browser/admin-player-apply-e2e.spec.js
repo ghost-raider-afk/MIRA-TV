@@ -154,13 +154,21 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect(tvCard).toBeVisible();
     await expect(tvCard).toContainText('Онлайн · связь есть');
     await expect(tvCard).toContainText('Последняя связь');
-    await expect(tvCard).toContainText('IP-адрес');
-    await expect(tvCard.locator('.screen-tv-meta-row', { hasText:'Ping' }).locator('strong')).toContainText('мс');
+    await expect(tvCard).toContainText('Контент');
+    await expect(tvCard).not.toContainText('IP-адрес');
+
+    await tvCard.getByRole('button', { name:/Управление/ }).click();
+    const managementDialog = adminPage.locator('.screen-tv-management-dialog');
+    await expect(managementDialog).toBeVisible();
+    await expect(managementDialog.locator('[data-tv-management-device]')).toContainText('IP-адрес');
+    await expect(managementDialog.locator('.screen-tv-meta-row', { hasText:'Ping' }).locator('strong')).toContainText('мс');
+    await managementDialog.locator('[data-tv-management-cancel]').click();
+
     await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(0);
     await tvCard.locator('.screen-tv-card').click();
     const previewDialog = adminPage.locator('.screen-tv-preview-dialog');
     await expect(previewDialog).toBeVisible();
-    await expect(previewDialog).toContainText('IP-адрес');
+    await expect(previewDialog).not.toContainText('IP-адрес');
     await expect(previewDialog.locator('.screen-tv-face img')).toHaveCount(1);
     await expect(previewDialog.locator('.screen-tv-face')).toHaveClass(/has-player-frame/, { timeout:5000 });
     await expect.poll(tvNetworkState, { timeout:5000 }).toMatchObject({

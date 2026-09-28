@@ -80,11 +80,13 @@ test('catalog duplicate event identifies the exact conflicting product', async (
   await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
 
   const marker = `Дубликат-${Date.now()}`;
+  await page.locator('#new-product').click();
   await page.locator('#product-name').fill(marker);
   await page.locator('#product-price-primary').fill('240');
   await page.locator('#product-submit').click();
-  await expect(page.locator('#product-name')).toHaveValue('');
+  await expect(page.locator('#product-dialog')).not.toBeVisible();
 
+  await page.locator('#new-product').click();
   await page.locator('#product-name').fill(marker);
   await page.locator('#product-price-primary').fill('240');
   await page.locator('#product-submit').click();

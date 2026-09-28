@@ -14,6 +14,20 @@ function matchesQuery(values, query) {
   return values.some((value) => String(value || '').toLocaleLowerCase('ru-RU').includes(query));
 }
 
+function catalogDialog(id) {
+  const dialog = element(id);
+  return dialog instanceof HTMLDialogElement ? dialog : null;
+}
+
+function openCatalogDialog(id) {
+  const dialog = catalogDialog(id);
+  if (dialog && !dialog.open) dialog.showModal();
+}
+
+function closeCatalogDialog(id) {
+  catalogDialog(id)?.close();
+}
+
 async function loadCatalog() {
   const [products, packaging] = await Promise.all([api.get(API.products), api.get(API.packaging)]);
   state.products = products;
@@ -61,7 +75,6 @@ function resetProductForm() {
   element('product-filtration').value = 'none';
   element('product-form-title').textContent = 'Новая продукция';
   element('product-submit').textContent = 'Добавить продукцию';
-  element('cancel-product-edit')?.classList.add('is-hidden');
   clearMessage('product-message');
 }
 
@@ -78,8 +91,7 @@ function editProduct(product) {
   element('product-active').checked = product.active !== false;
   element('product-form-title').textContent = 'Редактирование продукции';
   element('product-submit').textContent = 'Сохранить продукцию';
-  element('cancel-product-edit')?.classList.remove('is-hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  openCatalogDialog('product-dialog');
 }
 
 async function deleteProduct(product) {
@@ -124,7 +136,6 @@ function resetPackagingForm() {
   element('packaging-active').checked = true;
   element('packaging-form-title').textContent = 'Новая тара';
   element('packaging-submit').textContent = 'Добавить тару';
-  element('cancel-packaging-edit')?.classList.add('is-hidden');
   clearMessage('packaging-message');
 }
 
@@ -135,8 +146,7 @@ function editPackaging(item) {
   element('packaging-active').checked = item.active !== false;
   element('packaging-form-title').textContent = 'Редактирование тары';
   element('packaging-submit').textContent = 'Сохранить тару';
-  element('cancel-packaging-edit')?.classList.remove('is-hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  openCatalogDialog('packaging-dialog');
 }
 
 async function deletePackaging(item) {
@@ -154,6 +164,7 @@ export function initialiseCatalog() {
   initialiseProductImport({
     onApplied: async () => {
       resetProductForm();
+      closeCatalogDialog('product-dialog');
       await Promise.all([loadCatalog(), loadNotifications()]);
     }
   });
@@ -161,8 +172,26 @@ export function initialiseCatalog() {
   element('refresh-catalog')?.addEventListener('click', () => { void loadCatalog(); });
   element('product-filter')?.addEventListener('input', renderCatalogProducts);
   element('packaging-filter')?.addEventListener('input', renderCatalogPackaging);
-  element('cancel-product-edit')?.addEventListener('click', resetProductForm);
-  element('cancel-packaging-edit')?.addEventListener('click', resetPackagingForm);
+  element('new-product')?.addEventListener('click', () => {
+    resetProductForm();
+    openCatalogDialog('product-dialog');
+    requestAnimationFrame(() => element('product-name')?.focus());
+  });
+  element('new-packaging')?.addEventListener('click', () => {
+    resetPackagingForm();
+    openCatalogDialog('packaging-dialog');
+    requestAnimationFrame(() => element('packaging-name')?.focus());
+  });
+  element('cancel-product-edit')?.addEventListener('click', () => { resetProductForm(); closeCatalogDialog('product-dialog'); });
+  element('cancel-packaging-edit')?.addEventListener('click', () => { resetPackagingForm(); closeCatalogDialog('packaging-dialog'); });
+  for (const id of ['product-dialog','packaging-dialog']) {
+    catalogDialog(id)?.addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) {
+        if (id === 'product-dialog') resetProductForm(); else resetPackagingForm();
+        closeCatalogDialog(id);
+      }
+    });
+  }
   element('product-export')?.addEventListener('click', () => { void exportProducts(); });
 
   productForm.addEventListener('submit', async (event) => {
@@ -184,6 +213,7 @@ export function initialiseCatalog() {
       if (state.editingProductId) await api.put(`${API.products}/${state.editingProductId}`, payload);
       else await api.post(API.products, payload);
       resetProductForm();
+      closeCatalogDialog('product-dialog');
       await Promise.all([loadCatalog(), loadNotifications()]);
     } catch (error) {
       setMessage('product-message', error.message);
@@ -201,6 +231,7 @@ export function initialiseCatalog() {
       if (state.editingPackagingId) await api.put(`${API.packaging}/${state.editingPackagingId}`, payload);
       else await api.post(API.packaging, payload);
       resetPackagingForm();
+      closeCatalogDialog('packaging-dialog');
       await Promise.all([loadCatalog(), loadNotifications()]);
     } catch (error) {
       setMessage('packaging-message', error.message);

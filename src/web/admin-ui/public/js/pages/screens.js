@@ -1,8 +1,7 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { navigate } from '../core/router.js';
 import { state } from '../core/state.js';
-import { element, makeButton, setMessage } from '../core/dom.js';
+import { element, makeButton, setMessage, setPending } from '../core/dom.js';
 import { formatDate } from '../core/presentation.js';
 
 const STATUS_REFRESH_MS = 5000;
@@ -10,6 +9,9 @@ const pingByScreen = new Map();
 let statusTimer = null;
 let previewDialog = null;
 let previewDialogScreenId = null;
+let managementDialog = null;
+let managementDialogScreenId = null;
+let requestedManagementHandled = false;
 
 function bindingForScreen(screenId) {
   return state.deviceBindings.find((binding) => Number(binding.screen_id) === Number(screenId)) || null;
@@ -27,6 +29,22 @@ function statusState(binding) {
   if (!binding) return { key:'unbound', title:'TV не подключён' };
   if (binding.online === true) return { key:'online', title:'Онлайн · связь есть' };
   return { key:'offline', title:'Офлайн' };
+}
+
+function contentState(screen) {
+  const value = String(screen?.status || 'draft');
+  if (value === 'published') return 'Опубликовано';
+  if (value === 'ready') return 'Готово';
+  return 'Черновик';
+}
+
+function cardMetaRows(screen, binding) {
+  const status = statusState(binding);
+  return [
+    ['Статус', status.title, status.key],
+    ['Контент', contentState(screen), ''],
+    ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', '']
+  ];
 }
 
 function rememberPing(binding) {
@@ -102,21 +120,19 @@ function diagnosticText(binding) {
 
 function metaRows(screen, binding) {
   const status = statusState(binding);
-  const diagnostic = diagnosticText(binding);
   return [
     ['Статус', status.title, status.key],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', ''],
     ['Производитель', binding?.manufacturer || 'Не определено', ''],
     ['Модель', binding?.model || 'Не определена', ''],
     ['IP-адрес', binding?.remote_address || '—', ''],
-    ['Ping', pingText(screen.id, binding), ''],
-    ...(diagnostic ? [['Диагностика', diagnostic, '']] : [])
+    ['Ping', pingText(screen.id, binding), '']
   ];
 }
 
-function fillMeta(container, screen, binding) {
+function fillRows(container, rows) {
   container.replaceChildren();
-  for (const [label, value, stateKey] of metaRows(screen, binding)) {
+  for (const [label, value, stateKey] of rows) {
     const row = document.createElement('span');
     row.className = 'screen-tv-meta-row';
     const name = document.createElement('small');
@@ -127,6 +143,14 @@ function fillMeta(container, screen, binding) {
     row.append(name, text);
     container.append(row);
   }
+}
+
+function fillMeta(container, screen, binding) {
+  fillRows(container, metaRows(screen, binding));
+}
+
+function fillCardMeta(container, screen, binding) {
+  fillRows(container, cardMetaRows(screen, binding));
 }
 
 function syncTvUnit(unit, screen, binding) {
@@ -141,11 +165,9 @@ function syncTvUnit(unit, screen, binding) {
     }
   }
   const meta = unit.querySelector('[data-tv-meta]');
-  if (meta) fillMeta(meta, screen, binding);
+  if (meta) fillCardMeta(meta, screen, binding);
   const bindAction = unit.querySelector('[data-tv-bind-action]');
-  const unbindAction = unit.querySelector('[data-tv-unbind-action]');
   if (bindAction) bindAction.hidden = Boolean(binding);
-  if (unbindAction) unbindAction.hidden = !binding;
 }
 
 function createTvUnit(screen) {
@@ -179,29 +201,183 @@ function createTvUnit(screen) {
 
   const actions = document.createElement('div');
   actions.className = 'screen-tv-actions';
-  const settings = document.createElement('a');
-  settings.className = 'button button-secondary';
-  settings.href = `/screen-editor?id=${screen.id}`;
-  settings.textContent = 'Настройки';
+  const manage = makeButton('Управление ТВ', 'secondary', () => openManagement(screen));
+  manage.classList.add('screen-tv-manage');
+  manage.setAttribute('aria-label', `Управление ${tvLabel(screen)}`);
   const scene = document.createElement('a');
   scene.className = 'button button-secondary';
   scene.href = `/scene?screen=${screen.id}`;
   scene.textContent = 'Сцена';
   const bind = document.createElement('a');
-  bind.className = 'button button-secondary';
+  bind.className = 'button button-secondary screen-tv-bind';
   bind.href = `/connect-tv?screen=${encodeURIComponent(screen.id)}`;
   bind.textContent = 'Подключить';
   bind.setAttribute('aria-label', `Подключить ${tvLabel(screen)}`);
   bind.dataset.tvBindAction = '';
-  const unbind = makeButton('Отвязать', 'secondary', () => void unbindScreen(screen));
-  unbind.dataset.tvUnbindAction = '';
-  unbind.classList.add('screen-tv-unbind');
-  const remove = makeButton('Удалить', 'danger', () => void deleteScreen(screen));
-  actions.append(settings, scene, bind, unbind, remove);
+  actions.append(manage, scene, bind);
 
   unit.append(open, actions);
   syncTvUnit(unit, screen, binding);
   return unit;
+}
+
+
+function managementScreen() {
+  return state.screens.find((item) => Number(item.id) === Number(managementDialogScreenId)) || null;
+}
+
+function updateManagementRuntime(screen = managementScreen()) {
+  if (!screen || !managementDialog?.open) return;
+  const binding = bindingForScreen(screen.id);
+  const status = statusState(binding);
+  const statusNode = managementDialog.querySelector('[data-tv-management-status]');
+  if (statusNode) {
+    statusNode.textContent = status.title;
+    statusNode.className = `screen-tv-management-status is-${status.key}`;
+  }
+  const meta = managementDialog.querySelector('[data-tv-management-device]');
+  if (meta) fillMeta(meta, screen, binding);
+  const diagnostic = managementDialog.querySelector('[data-tv-management-diagnostic]');
+  if (diagnostic) {
+    const text = diagnosticText(binding);
+    diagnostic.textContent = text || (binding ? 'Ошибок Player не зафиксировано.' : 'Телевизор ещё не подключён.');
+    diagnostic.classList.toggle('is-warning', Boolean(text));
+  }
+  const connect = managementDialog.querySelector('[data-tv-management-connect]');
+  const unbind = managementDialog.querySelector('[data-tv-management-unbind]');
+  if (connect instanceof HTMLAnchorElement) {
+    connect.href = `/connect-tv?screen=${encodeURIComponent(screen.id)}`;
+    connect.hidden = Boolean(binding);
+  }
+  if (unbind instanceof HTMLButtonElement) unbind.hidden = !binding;
+}
+
+function populateManagementForm(screen) {
+  if (!managementDialog) return;
+  managementDialog.querySelector('[data-tv-management-title]').textContent = `${tvLabel(screen)} · ${screen.name}`;
+  managementDialog.querySelector('[data-tv-management-location]').textContent = screen.location_name || 'Торговая точка';
+  managementDialog.querySelector('[data-tv-management-name]').value = screen.name || '';
+  managementDialog.querySelector('[data-tv-management-resolution]').value = screen.resolution || '1920×1080';
+  managementDialog.querySelector('[data-tv-management-content-status]').value = screen.status || 'draft';
+  managementDialog.querySelector('[data-tv-management-active]').checked = screen.active !== false;
+  const scene = managementDialog.querySelector('[data-tv-management-scene]');
+  if (scene instanceof HTMLAnchorElement) scene.href = `/scene?screen=${screen.id}`;
+}
+
+function ensureManagementDialog() {
+  if (managementDialog?.isConnected) return managementDialog;
+  const dialog = document.createElement('dialog');
+  dialog.className = 'screen-tv-management-dialog';
+  dialog.innerHTML = `
+    <form class="screen-tv-management-form" data-tv-management-form>
+      <header class="screen-tv-management-head">
+        <div>
+          <p class="eyebrow">TV-СЕТЬ</p>
+          <h2 data-tv-management-title>Управление ТВ</h2>
+          <span class="screen-tv-management-status" data-tv-management-status></span>
+        </div>
+        <button class="screen-tv-management-close" type="button" aria-label="Закрыть">×</button>
+      </header>
+      <div class="screen-tv-management-grid">
+        <section class="screen-tv-management-section">
+          <div class="screen-tv-management-section-head">
+            <div><p class="eyebrow">МОНИТОР</p><h3>Параметры</h3></div>
+            <span data-tv-management-location></span>
+          </div>
+          <div class="screen-tv-management-fields">
+            <label class="field"><span>Название</span><input data-tv-management-name maxlength="120" required /></label>
+            <label class="field"><span>Разрешение</span><input data-tv-management-resolution maxlength="32" required /></label>
+            <label class="field"><span>Статус контента</span><select data-tv-management-content-status><option value="draft">Черновик</option><option value="ready">Готово</option><option value="published">Опубликовано</option></select></label>
+          </div>
+          <label class="toggle-row screen-tv-management-toggle">
+            <span><strong>Активен</strong><small>Разрешить доступ TV Player к этому монитору</small></span>
+            <input data-tv-management-active type="checkbox" /><i aria-hidden="true"></i>
+          </label>
+        </section>
+        <section class="screen-tv-management-section">
+          <div class="screen-tv-management-section-head"><div><p class="eyebrow">УСТРОЙСТВО</p><h3>Связь и диагностика</h3></div></div>
+          <div class="screen-tv-meta is-management" data-tv-management-device></div>
+          <p class="screen-tv-management-diagnostic" data-tv-management-diagnostic></p>
+          <div class="screen-tv-management-device-actions">
+            <a class="button button-secondary" data-tv-management-connect href="/connect-tv">Подключить ТВ</a>
+            <button class="button button-secondary screen-tv-unbind" data-tv-management-unbind type="button">Отвязать ТВ</button>
+          </div>
+        </section>
+      </div>
+      <div class="screen-tv-management-danger">
+        <div><strong>Удаление монитора</strong><span>Удаляет монитор, его сцену и привязку физического ТВ.</span></div>
+        <button class="button button-danger" data-tv-management-delete type="button">Удалить монитор</button>
+      </div>
+      <footer class="screen-tv-management-actions">
+        <a class="button button-secondary" data-tv-management-scene href="/scene">Редактировать сцену</a>
+        <button class="button button-secondary" data-tv-management-cancel type="button">Закрыть</button>
+        <button class="button button-primary" data-tv-management-save type="submit">Сохранить</button>
+      </footer>
+    </form>`;
+
+  const close = () => dialog.close();
+  dialog.querySelector('.screen-tv-management-close')?.addEventListener('click', close);
+  dialog.querySelector('[data-tv-management-cancel]')?.addEventListener('click', close);
+  dialog.addEventListener('click', (event) => { if (event.target === dialog) close(); });
+  dialog.addEventListener('close', () => { managementDialogScreenId = null; });
+
+  dialog.querySelector('[data-tv-management-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const screen = managementScreen();
+    const save = dialog.querySelector('[data-tv-management-save]');
+    if (!screen || !(save instanceof HTMLButtonElement)) return;
+    setPending(save, true, 'Сохраняем…');
+    try {
+      const saved = await api.put(`${API.screens}/${screen.id}`, {
+        name: dialog.querySelector('[data-tv-management-name]').value.trim(),
+        resolution: dialog.querySelector('[data-tv-management-resolution]').value.trim(),
+        status: dialog.querySelector('[data-tv-management-content-status]').value,
+        active: dialog.querySelector('[data-tv-management-active]').checked
+      });
+      state.screens = state.screens.map((item) => Number(item.id) === Number(saved.id) ? saved : item);
+      renderScreens();
+      setMessage('screens-message', `${tvLabel(saved)} сохранён.`, 'success');
+      dialog.close();
+    } catch (error) {
+      setMessage('screens-message', error.message);
+    } finally {
+      setPending(save, false, 'Сохраняем…');
+    }
+  });
+
+  dialog.querySelector('[data-tv-management-unbind]')?.addEventListener('click', async () => {
+    const screen = managementScreen();
+    if (!screen) return;
+    await unbindScreen(screen);
+    updateManagementRuntime(managementScreen());
+  });
+
+  dialog.querySelector('[data-tv-management-delete]')?.addEventListener('click', async () => {
+    const screen = managementScreen();
+    if (!screen) return;
+    if (await deleteScreen(screen)) dialog.close();
+  });
+
+  document.body.append(dialog);
+  managementDialog = dialog;
+  return dialog;
+}
+
+function openManagement(screen) {
+  managementDialogScreenId = Number(screen.id);
+  const dialog = ensureManagementDialog();
+  populateManagementForm(screen);
+  if (!dialog.open) dialog.showModal();
+  updateManagementRuntime(screen);
+}
+
+function openRequestedManagement() {
+  if (requestedManagementHandled) return;
+  requestedManagementHandled = true;
+  const requested = Number(new URLSearchParams(window.location.search).get('manage'));
+  if (!Number.isInteger(requested) || requested < 1) return;
+  const screen = state.screens.find((item) => Number(item.id) === requested);
+  if (screen) openManagement(screen);
 }
 
 function createSourceSelect() {
@@ -242,7 +418,7 @@ function updatePreviewDialog(screen, { requestFresh = false } = {}) {
   const binding = bindingForScreen(screen.id);
   dialog.querySelector('[data-tv-preview-title]').textContent = tvLabel(screen);
   dialog.querySelector('[data-tv-preview-visual]').replaceChildren(createTvFace(screen, binding, true, { requestFresh }));
-  fillMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
+  fillCardMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
 }
 
 function openPreview(screen) {
@@ -313,6 +489,8 @@ async function loadScreens({ measurePing = true } = {}) {
   state.deviceBindings = bindings;
   renderScreens();
   refreshOpenPreview();
+  openRequestedManagement();
+  updateManagementRuntime(managementScreen());
 }
 
 async function refreshRuntimeStatus() {
@@ -323,30 +501,35 @@ async function refreshRuntimeStatus() {
     if (screen) syncTvUnit(unit, screen, bindingForScreen(screen.id));
   });
   refreshOpenPreview();
+  updateManagementRuntime(managementScreen());
 }
 
 async function unbindScreen(screen) {
-  if (!window.confirm(`Отвязать телевизор от «${tvLabel(screen)}»? На ТВ снова появится экран подключения.`)) return;
+  if (!window.confirm(`Отвязать телевизор от «${tvLabel(screen)}»? На ТВ снова появится экран подключения.`)) return false;
   try {
     await api.delete(`${API.deviceBindings}/${screen.id}`);
     pingByScreen.delete(Number(screen.id));
     setMessage('screens-message', `${tvLabel(screen)} отвязан.`, 'success');
     await loadScreens({ measurePing:false });
+    return true;
   } catch (error) {
     setMessage('screens-message', error.message);
+    return false;
   }
 }
 
 async function deleteScreen(screen) {
   const binding = bindingForScreen(screen.id);
   const warning = binding ? ' Подключённый ТВ также потеряет эту привязку.' : '';
-  if (!window.confirm(`Удалить «${tvLabel(screen)}»?${warning}`)) return;
+  if (!window.confirm(`Удалить «${tvLabel(screen)}»?${warning}`)) return false;
   try {
     await api.delete(`${API.screens}/${screen.id}`);
     pingByScreen.delete(Number(screen.id));
     await loadScreens({ measurePing:false });
+    return true;
   } catch (error) {
     setMessage('screens-message', error.message);
+    return false;
   }
 }
 
@@ -354,7 +537,9 @@ async function createScreenAtLocation(location, sourceId) {
   try {
     const payload = sourceId ? { source_screen_id:Number(sourceId) } : {};
     const screen = await api.post(`${API.locations}/${location.id}/screens`, payload);
-    await navigate(`/screen-editor?id=${screen.id}`);
+    await loadScreens({ measurePing:false });
+    const created = state.screens.find((item) => Number(item.id) === Number(screen.id));
+    if (created) openManagement(created);
   } catch (error) {
     setMessage('screens-message', error.message);
   }
@@ -385,6 +570,11 @@ export function initialiseScreens() {
       previewDialog?.remove();
       previewDialog = null;
       previewDialogScreenId = null;
+      managementDialog?.close();
+      managementDialog?.remove();
+      managementDialog = null;
+      managementDialogScreenId = null;
+      requestedManagementHandled = false;
     }
   };
 }

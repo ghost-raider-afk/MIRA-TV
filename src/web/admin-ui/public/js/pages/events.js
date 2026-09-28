@@ -67,11 +67,51 @@ function eventCard(event) {
   return article;
 }
 
+function eventDay(event) {
+  const date = new Date(event?.created_at || 0);
+  if (!Number.isFinite(date.getTime())) return { key:'unknown', label:'Без даты' };
+  const key = [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+  const label = new Intl.DateTimeFormat('ru-RU',{ day:'2-digit',month:'long',year:'numeric' }).format(date);
+  return { key,label };
+}
+
+function groupedEvents(items) {
+  const groups = [];
+  for (const item of items) {
+    const day = eventDay(item);
+    let group = groups[groups.length - 1];
+    if (!group || group.key !== day.key) {
+      group = { ...day, items:[] };
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+  return groups;
+}
+
+function eventDaySection(group) {
+  const section = document.createElement('section');
+  section.className = 'event-journal-day';
+  section.dataset.eventDay = group.key;
+  const head = document.createElement('div');
+  head.className = 'event-journal-day-head';
+  const title = document.createElement('strong');
+  title.textContent = group.label;
+  const count = document.createElement('span');
+  count.textContent = `${group.items.length} ${group.items.length === 1 ? 'событие' : 'событий'}`;
+  head.append(title,count);
+  const body = document.createElement('div');
+  body.className = 'event-journal-day-list';
+  body.replaceChildren(...group.items.map(eventCard));
+  section.append(head,body);
+  return section;
+}
+
 function render() {
   const list = element('event-list');
   const empty = element('event-empty');
   if (!list || !empty) return;
-  list.replaceChildren(...journal.items.map(eventCard));
+  list.replaceChildren(...groupedEvents(journal.items).map(eventDaySection));
   empty.classList.toggle('is-hidden', journal.items.length !== 0);
   element('event-count').textContent = String(journal.items.length);
   element('event-total').textContent = String(journal.stats?.total || 0);

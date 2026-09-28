@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
 
+const currentAppVersion = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 
 function offlineContext() {
@@ -16,7 +18,7 @@ function offlineContext() {
     packaging: [],
     scene: { version:1, elements:[] },
     content_manifest: { version:1, revision:'7:1', assets:[] },
-    app_version: '1.15.1',
+    app_version: currentAppVersion,
     fallback_poll_interval_ms: 60000,
     log_batch_size: 100,
     log_local_max_entries: 5000,
