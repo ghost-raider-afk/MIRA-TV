@@ -139,8 +139,9 @@ test('the three approved presets have different table grammar through the same t
   assert.match(chalk,/fill="url\(#mira-theme-chalk-gold\)"/);
   assert.doesNotMatch(chalk,/class="item-sequence"/);
   assert.doesNotMatch(chalk,/class="theme-price-columns"/);
-  assert.match(chalk,/MIRA Underdog/);
-  assert.match(chalk,/MIRA Yanone Kaffeesatz/);
+  assert.match(chalk,/MIRA Montserrat/);
+  assert.match(chalk,/MIRA Roboto Condensed/);
+  assert.match(chalk,/MIRA Oswald/);
 
   assert.match(brand,/fill="url\(#mira-theme-brand-gold\)"/);
   assert.doesNotMatch(brand,/class="item-sequence"/);
