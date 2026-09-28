@@ -39,14 +39,18 @@ function hasWeatherCoordinates(settings) {
 }
 
 export class PlayerWeatherRuntime {
-  constructor(stage, { layer = null, endpoint = '/api/device/weather', preview = false, onRender = null } = {}) {
+  constructor(stage, { layer = null, endpoint = '/api/device/weather', preview = false, onRender = null, renderWidget = renderWeatherWidget, autoDiscoverLayer = true } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Weather runtime requires an HTMLElement stage.');
     this.stage = stage;
-    this.layer = layer instanceof HTMLElement ? layer : stage.querySelector('[data-weather-layer]');
+    this.autoDiscoverLayer = autoDiscoverLayer !== false;
+    this.layer = layer instanceof HTMLElement
+      ? layer
+      : (this.autoDiscoverLayer ? stage.querySelector('[data-weather-layer]') : null);
     this.settings = normaliseWeatherWidget();
     this.endpoint = String(endpoint || '/api/device/weather');
     this.preview = preview === true;
     this.onRender = typeof onRender === 'function' ? onRender : null;
+    this.renderWidget = typeof renderWidget === 'function' ? renderWidget : renderWeatherWidget;
     this.snapshot = null;
     this.timer = null;
     this.generation = 0;
@@ -80,6 +84,10 @@ export class PlayerWeatherRuntime {
 
   ensureLayer() {
     if (this.layer?.isConnected) return this.layer;
+    if (!this.autoDiscoverLayer) {
+      this.layer = null;
+      return null;
+    }
     const layer = this.stage.querySelector('[data-weather-layer], [data-scene-weather-mount]');
     if (layer instanceof HTMLElement) {
       this.layer = layer;
@@ -108,7 +116,7 @@ export class PlayerWeatherRuntime {
     this.syncMenuPalette();
     const target = this.ensureLayer();
     if (!target) return;
-    if (this.settings.enabled && this.snapshot) renderWeatherWidget(target, this.settings, this.snapshot);
+    if (this.settings.enabled && this.snapshot) this.renderWidget(target, this.settings, this.snapshot);
     else replaceChildrenCompat(target);
     this.onRender?.(target);
   }
@@ -254,5 +262,6 @@ export class PlayerWeatherRuntime {
     this.layer = null;
     this.snapshot = null;
     this.onRender = null;
+    this.renderWidget = null;
   }
 }

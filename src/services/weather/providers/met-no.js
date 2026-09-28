@@ -58,6 +58,7 @@ export async function fetchMetNo(settings, config) {
     apparent_temperature:currentDetails.air_temperature,
     humidity:currentDetails.relative_humidity,
     wind_speed:Number(currentDetails.wind_speed || 0) * 3.6,
+    wind_direction:Number.isFinite(Number(currentDetails.wind_from_direction)) ? Number(currentDetails.wind_from_direction) : null,
     ...currentState,
     forecast
   });

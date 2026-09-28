@@ -40,6 +40,25 @@ async function fixture(page) {
   return { screen, product, location };
 }
 
+async function openThemeConstructor(page) {
+  const themeLayer = page.locator('#scene-editor-theme-layer');
+  const layersButton = page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Слои/ });
+  if (await layersButton.isVisible()) {
+    const mobilePanel = await page.locator('body').getAttribute('data-scene-mobile-panel');
+    if (mobilePanel !== 'layers') await layersButton.click();
+  }
+  await themeLayer.scrollIntoViewIfNeeded();
+  await themeLayer.click();
+  const constructor = page.locator('#scene-editor-properties .scene-theme-constructor');
+  await expect(constructor).toBeVisible();
+  return constructor;
+}
+
+async function addConstructorElement(page, label) {
+  const constructor = await openThemeConstructor(page);
+  await constructor.getByRole('button', { name:`+ ${label}`, exact:true }).click();
+}
+
 test('Scene editor keeps layers, shared Player preview and contextual properties on one desktop page', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
@@ -215,11 +234,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     });
   });
 
-  await page.locator('#scene-editor-add').click();
-  const addMenu = page.locator('#scene-editor-add-menu');
-  await expect(addMenu).toBeVisible();
-  await expect(addMenu.getByRole('menuitem')).toHaveCount(4);
-  await addMenu.getByRole('menuitem', { name:/Текстовое поле/ }).click();
+  const constructor = await openThemeConstructor(page);
+  await expect(constructor.getByRole('button')).toHaveCount(4);
+  await constructor.getByRole('button', { name:'+ Текстовое поле', exact:true }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(1);
   await expect(page.locator('.scene-editor-layer-select strong')).toHaveText('Текстовое поле');
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
@@ -250,8 +267,7 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(Number(await inspector.getByLabel('Ширина', { exact:true }).inputValue())).toBeGreaterThan(720);
   expect(Number(await inspector.getByLabel('Высота', { exact:true }).inputValue())).toBeGreaterThan(220);
 
-  await page.locator('#scene-editor-add').click();
-  await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
+  await addConstructorElement(page, 'Погода');
   await expect(page.locator('.scene-editor-layer')).toHaveCount(2);
   const weatherElement = page.locator('#scene-editor-stage [data-scene-element-type="weather"]');
   const weatherContent = weatherElement.locator('[data-scene-weather-mount]');
@@ -287,9 +303,9 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
     transform:node.style.transform
   }))).toEqual({ scale:1, width:'100%', height:'100%', transform:'none' });
 
-  await page.locator('#scene-editor-add').click();
-  await expect(addMenu.getByRole('menuitem', { name:/Погода/ })).toBeDisabled();
-  await addMenu.getByRole('menuitem', { name:/Логотип/ }).click();
+  const constructorAfterWeather = await openThemeConstructor(page);
+  await expect(constructorAfterWeather.getByRole('button', { name:'+ Погода', exact:true })).toBeDisabled();
+  await constructorAfterWeather.getByRole('button', { name:'+ Логотип', exact:true }).click();
   await expect(page.locator('.scene-editor-layer')).toHaveCount(3);
   await expect(page.locator('#scene-editor-stage [data-scene-element-type="logo"]')).toHaveCount(1);
 
@@ -360,11 +376,7 @@ test('background, weather and image settings apply atomically to selected monito
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
-  const add = page.locator('#scene-editor-add');
-  const addMenu = page.locator('#scene-editor-add-menu');
-
-  await add.click();
-  await addMenu.getByRole('menuitem', { name:/Погода/ }).click();
+  await addConstructorElement(page, 'Погода');
   await inspector.getByLabel('X', { exact:true }).fill('410');
   await inspector.getByLabel('Y', { exact:true }).fill('180');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
@@ -373,8 +385,7 @@ test('background, weather and image settings apply atomically to selected monito
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
-  await add.click();
-  await addMenu.getByRole('menuitem', { name:/Картинка/ }).click();
+  await addConstructorElement(page, 'Картинка');
   await inspector.getByLabel('X', { exact:true }).fill('520');
   await inspector.getByLabel('Ширина', { exact:true }).fill('360');
   applyGroup = inspector.locator('.scene-editor-multi-apply');
@@ -383,9 +394,8 @@ test('background, weather and image settings apply atomically to selected monito
   await applyGroup.getByRole('button', { name:'Применить к выбранным' }).click();
   await expect(page.locator('#scene-editor-message')).toContainText('Настройки применены');
 
-  await add.click();
-  await expect(addMenu.getByRole('menuitem', { name:/Видео/ })).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  const constructorAfterImage = await openThemeConstructor(page);
+  await expect(constructorAfterImage.getByRole('button', { name:'+ Видео', exact:true })).toHaveCount(0);
 
   const storedTarget = await (await page.request.get(`/api/screens/${target.id}/editor`)).json();
   expect(storedTarget.draft.settings.background_color).toBe('#223344');
@@ -601,9 +611,7 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
 
-  await page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Элемент/ }).click();
-  await expect(page.locator('#scene-editor-add-menu')).toBeVisible();
-  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Текстовое поле/ }).click();
+  await addConstructorElement(page, 'Текстовое поле');
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
   await expect(page.locator('.scene-editor-resize-handle')).toHaveCount(8);
 });
@@ -653,6 +661,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
         apparent_temperature:5,
         humidity:71,
         wind_speed:9,
+        wind_direction:225,
         weather_code:3,
         is_day:true,
         condition:'Облачно',
@@ -668,8 +677,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   });
 
   await page.goto(`/scene?screen=${screen.id}`);
-  await page.locator('#scene-editor-add').click();
-  await page.locator('#scene-editor-add-menu').getByRole('menuitem', { name:/Погода/ }).click();
+  await addConstructorElement(page, 'Погода');
 
   const location = page.locator('#scene-editor-properties').getByLabel('Населённый пункт');
   await location.fill('Комсомольск-на-Амуре');
@@ -712,24 +720,24 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
   const weatherIcon = weatherNode.locator('.weather-widget-icon');
   const weatherTemperature = weatherNode.locator('.weather-widget-temperature');
-  const weatherVisual = weatherNode.locator('.weather-widget-visual');
+  await expect(weatherIcon).toHaveCount(1);
   await expect(weatherIcon).toBeVisible();
+  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCount(0);
   await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(0);
+  await expect(weatherNode.locator('.weather-widget-fact', { hasText:'Ощущается' }).locator('.weather-widget-fact-value')).toHaveText('5°');
+  await expect(weatherNode.locator('.weather-widget-fact', { hasText:'Влажность' }).locator('.weather-widget-fact-value')).toHaveText('71%');
+  await expect(weatherNode.locator('.weather-widget-fact', { hasText:'Ветер' }).locator('.weather-widget-fact-value')).toHaveText('ЮЗ · 9 км/ч');
   const weatherColumns = await weatherNode.evaluate((node) => {
     const icon = node.querySelector('.weather-widget-icon')?.getBoundingClientRect();
     const temperature = node.querySelector('.weather-widget-temperature')?.getBoundingClientRect();
-    const visual = node.querySelector('.weather-widget-visual')?.getBoundingClientRect();
-    if (!icon || !temperature || !visual) return null;
+    if (!icon || !temperature) return null;
     return {
       iconCenter:icon.left + icon.width / 2,
-      temperatureCenter:temperature.left + temperature.width / 2,
-      visualCenter:visual.left + visual.width / 2
+      temperatureCenter:temperature.left + temperature.width / 2
     };
   });
   expect(weatherColumns).not.toBeNull();
   expect(weatherColumns.iconCenter).toBeLessThan(weatherColumns.temperatureCenter);
-  expect(weatherColumns.temperatureCenter).toBeLessThan(weatherColumns.visualCenter);
-
   const stableWeatherWidget = weatherNode.locator('.weather-widget');
   const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
   const weatherMetrics = () => weatherNode.evaluate((node) => {
@@ -813,21 +821,22 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect.poll(async () => weatherNode.evaluate((node) => {
     const outer = node.getBoundingClientRect();
     const widget = node.querySelector('.weather-widget');
-    const visual = node.querySelector('.weather-widget-visual');
-    if (!(widget instanceof HTMLElement) || !(visual instanceof HTMLElement)) return false;
+    const content = node.querySelector('.weather-widget-content');
+    if (!(widget instanceof HTMLElement) || !(content instanceof HTMLElement)) return false;
     const widgetRect = widget.getBoundingClientRect();
-    const visualRect = visual.getBoundingClientRect();
-    const visibleWidgetInside =
+    const contentRect = content.getBoundingClientRect();
+    const widgetInside =
       widgetRect.left >= outer.left - 1 && widgetRect.top >= outer.top - 1
       && widgetRect.right <= outer.right + 1 && widgetRect.bottom <= outer.bottom + 1;
-    const visualInsideWidget =
-      visualRect.left >= widgetRect.left - 1 && visualRect.top >= widgetRect.top - 1
-      && visualRect.right <= widgetRect.right + 1 && visualRect.bottom <= widgetRect.bottom + 1;
-    return visibleWidgetInside && visualInsideWidget && getComputedStyle(visual).overflow === 'hidden';
+    const contentInsideWidget =
+      contentRect.left >= widgetRect.left - 1 && contentRect.top >= widgetRect.top - 1
+      && contentRect.right <= widgetRect.right + 1 && contentRect.bottom <= widgetRect.bottom + 1;
+    return widgetInside && contentInsideWidget && getComputedStyle(widget).overflow === 'hidden';
   })).toBe(true);
 
   await expect(weatherNode).toHaveCSS('overflow', 'hidden');
-  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCSS('overflow', 'hidden');
+  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCount(0);
+  await expect(weatherNode.locator('.weather-widget-facts')).not.toHaveCSS('display', 'none');
   const weatherMount = weatherNode.locator('[data-scene-weather-mount]');
   const effectiveScale = Number(await weatherMount.getAttribute('data-scene-content-scale'));
   expect(effectiveScale).toBe(1);

@@ -16,7 +16,7 @@ test('monitor settings contract stores only canonical renderer and theme fields'
       preset_id: 'legacy',
       preset_version: 1,
       brand: {
-        name:'', caption:'', logo_element_id:'',
+        name:'', caption:'', logo_element_id:'', logo_url:'',
         name_font_family:'', name_font_size_px:64, name_font_weight:900,
         caption_font_family:'', caption_font_size_px:20, caption_font_weight:700
       },
@@ -24,7 +24,16 @@ test('monitor settings contract stores only canonical renderer and theme fields'
         mode:'none', text:'', weather_element_id:'',
         font_family:'', font_size_px:28, font_weight:800,
         temperature_font_family:'', temperature_font_size_pt:48,
-        location_font_size_pt:14, icon_scale_percent:100
+        location_font_size_pt:14, icon_scale_percent:100,
+        weather:{
+          location_name:'', latitude:null, longitude:null, timezone:'auto',
+          refresh_minutes:15, show_condition:true, show_forecast:true, forecast_items:3
+        }
+      },
+      decor:{ source_url:'' },
+      legal:{
+        text:'', age_text:'18+', font_family:'mira-condensed',
+        font_size_px:30, font_weight:600, letter_spacing_px:0
       },
       overrides: []
     },

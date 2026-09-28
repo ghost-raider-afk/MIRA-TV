@@ -180,5 +180,7 @@ test('approved branded theme uses its own table chrome without changing legacy S
   assert.doesNotMatch(svg,/class="item-sequence"/);
   assert.match(svg,/class="theme-price-columns"/);
   assert.match(svg,/fill="url\(#mira-theme-brand-gold\)"/);
-  assert.match(svg,/font-family="Arial Narrow, Liberation Sans Narrow, DejaVu Sans Condensed, Arial, sans-serif"/);
+  assert.match(svg,/MIRA Russo One/);
+  assert.match(svg,/MIRA PT Sans Narrow/);
+  assert.match(svg,/MIRA Montserrat/);
 });

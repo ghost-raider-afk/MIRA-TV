@@ -5,11 +5,28 @@ function normaliseDraft(row, screenId) {
   return { ...record, revision: Number(record.revision || 0) };
 }
 
+function collectAssetUrls(value, prefixes, result = new Set()) {
+  if (typeof value === 'string') {
+    if (prefixes.some((prefix) => value.startsWith(prefix))) result.add(value);
+    return result;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectAssetUrls(item, prefixes, result);
+    return result;
+  }
+  if (!value || typeof value !== 'object') return result;
+  for (const item of Object.values(value)) collectAssetUrls(item, prefixes, result);
+  return result;
+}
+
 function sceneAssetUrls(scene) {
-  if (!Array.isArray(scene?.elements)) return [];
-  return scene.elements
-    .map((element) => String(element?.media?.source_url || ''))
-    .filter((url) => url.startsWith('/site-assets/scene/') || url.startsWith('/site-assets/content/'));
+  return [...collectAssetUrls(scene, ['/site-assets/scene/','/site-assets/content/'])];
+}
+
+function contentAssetUrls(...values) {
+  const result = new Set();
+  for (const value of values) collectAssetUrls(value, ['/site-assets/content/'], result);
+  return [...result];
 }
 
 export function createScreensRepository(pool) {
@@ -102,37 +119,32 @@ export function createScreensRepository(pool) {
     },
     async isScreenBackgroundReferenced(url) {
       if (!url) return false;
-      const { rows } = await pool.query('SELECT settings_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT settings_json FROM screen_drafts UNION ALL SELECT settings_json FROM menu_theme_templates');
       return rows.some((row) => jsonValue(row.settings_json, {}).background_image_url === url);
     },
     async isSceneAssetReferenced(url) {
       if (!url) return false;
-      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts UNION ALL SELECT scene_json FROM menu_theme_templates');
       return rows.some((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] })).includes(url));
     },
     async listSceneAssetReferences() {
-      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts');
+      const { rows } = await pool.query('SELECT scene_json FROM screen_drafts UNION ALL SELECT scene_json FROM menu_theme_templates');
       return [...new Set(rows.flatMap((row) => sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))))];
     },
     async isContentAssetReferenced(url) {
       if (!url || !String(url).startsWith('/site-assets/content/')) return false;
-      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts');
-      return rows.some((row) => {
-        const settings = jsonValue(row.settings_json, {});
-        if (settings.background_image_url === url) return true;
-        return sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] })).includes(url);
-      });
+      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts UNION ALL SELECT settings_json, scene_json FROM menu_theme_templates');
+      return rows.some((row) => contentAssetUrls(
+        jsonValue(row.settings_json, {}),
+        jsonValue(row.scene_json, { version: 1, elements: [] })
+      ).includes(url));
     },
     async listContentAssetReferences() {
-      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts');
-      const values = [];
-      for (const row of rows) {
-        const background = String(jsonValue(row.settings_json, {}).background_image_url || '');
-        if (background.startsWith('/site-assets/content/')) values.push(background);
-        values.push(...sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))
-          .filter((url) => url.startsWith('/site-assets/content/')));
-      }
-      return [...new Set(values)];
+      const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts UNION ALL SELECT settings_json, scene_json FROM menu_theme_templates');
+      return [...new Set(rows.flatMap((row) => contentAssetUrls(
+        jsonValue(row.settings_json, {}),
+        jsonValue(row.scene_json, { version: 1, elements: [] })
+      )))];
     },
     async screensUsingCatalog(kind, catalogId) {
       const column = kind === 'product' ? 'product_id' : 'packaging_id';

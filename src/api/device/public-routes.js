@@ -20,6 +20,7 @@ import {
 } from '../../services/player-context-service.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
+import { themeWeatherSettings } from '../../contracts/menu-theme.js';
 
 const PLAYER_COMPONENTS = new Set(['screen', 'menu', 'scene', 'content_manifest', 'runtime']);
 const LOG_LEVELS = new Set(['info', 'warn', 'error']);
@@ -374,7 +375,9 @@ export function createDevicePublicRouter({ store, config, realtime, weatherServi
     const session = await resolveDeviceSession(store, config, request, response);
     if (!session) return response.status(401).json({ error: 'Телевизор не авторизован.' });
     const draft = await store.getScreenDraft(session.screen_id);
-    const settings = sceneWeatherSettings(draft?.scene, session.screen_id);
+    const settings = request.query.source === 'theme'
+      ? themeWeatherSettings(draft?.settings?.theme, draft?.scene)
+      : sceneWeatherSettings(draft?.scene, session.screen_id);
     if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
     const snapshot = await weatherService.getSnapshot(settings);
     response.setHeader('Cache-Control', 'private, no-store');

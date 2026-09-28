@@ -6,6 +6,7 @@ import {
   MENU_THEME_PRESETS,
   menuThemeCatalog,
   menuThemeInput,
+  themeWeatherSettings,
   validateMenuThemeBindings
 } from '../src/contracts/menu-theme.js';
 import {
@@ -14,128 +15,229 @@ import {
   ALCOHOL_WARNING_TEXT
 } from '../src/web/admin-ui/public/js/themes/menu-theme-registry.js';
 
-test('theme catalog keeps legacy plus the three approved MIRA-TV presets', () => {
+test('theme catalog exposes three approved presets plus Theme Constructor', () => {
   assert.deepEqual(MENU_THEME_PRESET_IDS, ['legacy','premium','chalk','brand-premium']);
-  assert.deepEqual(menuThemeCatalog().map((item) => item.label), [
-    'Текущая',
-    'Премиальная классическая',
+  const catalog=menuThemeCatalog();
+  assert.deepEqual(catalog.map((item) => item.label), [
+    'Конструктор темы',
+    'Премиальная',
     'Меловая',
     'Брендовая премиальная'
   ]);
-  assert.equal(menuThemeCatalog().find((item) => item.id === 'premium').default_utility_mode, 'weather');
-  assert.equal(menuThemeCatalog().find((item) => item.id === 'chalk').default_utility_mode, 'weather');
-  assert.equal(menuThemeCatalog().find((item) => item.id === 'brand-premium').default_utility_mode, 'weather');
+  assert.equal(catalog.find((item)=>item.id==='legacy').kind,'constructor');
+  for(const id of ['premium','chalk','brand-premium']){
+    const item=catalog.find((entry)=>entry.id===id);
+    assert.equal(item.kind,'preset');
+    assert.equal(item.default_utility_mode,'weather');
+  }
 });
 
-test('every approved theme owns its table, weather, typography and default background design', () => {
+test('approved presets own genuinely distinct table, weather, typography and legal systems', () => {
   const premium=MENU_THEME_PRESETS.find((item)=>item.id==='premium');
   const chalk=MENU_THEME_PRESETS.find((item)=>item.id==='chalk');
   const brand=MENU_THEME_PRESETS.find((item)=>item.id==='brand-premium');
 
-  for (const preset of [premium,chalk,brand]) {
+  for(const preset of [premium,chalk,brand]) {
     assert.ok(preset.table?.variant);
     assert.ok(preset.weather?.variant);
     assert.match(preset.settings.background_image_url,/^\/brand\/themes\/.+-background\.svg$/);
-    assert.ok(preset.table.section_font_family);
-    assert.ok(preset.table.item_font_family);
-    assert.ok(preset.table.price_font_family);
-    assert.ok(preset.weather.temperature_font_family);
-    assert.ok(Number(preset.weather.temperature_font_size_pt) > 0);
-    assert.ok(Number(preset.weather.icon_scale_percent) >= 100);
+    assert.ok(preset.visual?.legalVariant);
+    assert.ok(preset.visual?.brandDivider);
+    assert.match(preset.visual?.decorAsset,/^\/brand\/themes\/.+-approved-decor\.webp$/);
   }
 
+  assert.deepEqual(
+    [premium.table.section_font_family,premium.table.item_font_family,premium.table.price_font_family],
+    ['montserrat','roboto-condensed','oswald']
+  );
+  assert.deepEqual(
+    [chalk.table.section_font_family,chalk.table.item_font_family,chalk.visual.brandCaptionFontFamily],
+    ['underdog','yanone-kaffeesatz','neucha']
+  );
+  assert.deepEqual(
+    [brand.table.section_font_family,brand.table.item_font_family,brand.table.price_font_family],
+    ['russo-one','pt-sans-narrow','montserrat']
+  );
+
   assert.equal(premium.table.show_sequence,true);
+  assert.equal(premium.table.price_mode,'white-primary');
   assert.equal(chalk.table.show_sequence,false);
   assert.equal(chalk.table.separator_dashed,true);
+  assert.equal(chalk.table.price_mode,'promotion-accent');
   assert.equal(brand.table.price_mode,'primary-accent');
-  assert.notEqual(premium.table.variant,chalk.table.variant);
-  assert.notEqual(chalk.table.variant,brand.table.variant);
+  for (const preset of [premium,chalk,brand]) {
+    assert.equal(preset.table.item_tone_mode,'fixed');
+    assert.equal(preset.table.promotion_style,'price-only');
+  }
+
+  assert.notEqual(premium.weather.current_layout,chalk.weather.current_layout);
+  assert.notEqual(chalk.weather.current_layout,brand.weather.current_layout);
+  assert.notEqual(premium.visual.legalVariant,chalk.visual.legalVariant);
+  assert.notEqual(chalk.visual.legalVariant,brand.visual.legalVariant);
+  assert.equal(premium.visual.brandDivider,'hop');
+  assert.equal(chalk.visual.brandDivider,'none');
+  assert.equal(brand.visual.brandDivider,'wave');
+  assert.equal(new Set([premium.visual.decorAsset,chalk.visual.decorAsset,brand.visual.decorAsset]).size,3);
+  assert.equal(premium.visual.decorFit,'contain');
+  assert.equal(chalk.visual.decorFit,'contain');
+  assert.equal(brand.visual.decorFit,'cover');
 });
 
-test('theme geometry keeps menu, side composition and legal footer in separate regions', () => {
+test('theme geometry keeps table, side composition and legal footer in separate regions', () => {
+  const approvedHorizontalGeometry={
+    premium:{tableRight:1477,panelX:1495,panelRight:1892},
+    chalk:{tableRight:1455,panelX:1469,panelRight:1873},
+    'brand-premium':{tableRight:1463,panelX:1475,panelRight:1896}
+  };
+  const approvedVerticalGeometry={
+    premium:{weatherBottom:296,brandY:315,decorY:525,decorBottom:936},
+    chalk:{weatherBottom:222,brandY:260,decorY:620,decorBottom:936},
+    'brand-premium':{weatherBottom:280,brandY:300,decorY:570,decorBottom:936}
+  };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
     const tableRight=Number(preset.settings.table_x)+Number(preset.settings.table_width_px);
     const tableBottom=Number(preset.settings.table_y)+Number(preset.settings.table_height_px);
     const panelRight=Number(preset.layout.panel.x)+Number(preset.layout.panel.width);
+    const decorRight=Number(preset.layout.decor.x)+Number(preset.layout.decor.width);
     const decorBottom=Number(preset.layout.decor.y)+Number(preset.layout.decor.height);
+    assert.deepEqual(
+      {tableRight,panelX:preset.layout.panel.x,panelRight},
+      approvedHorizontalGeometry[preset.id],
+      `${preset.id}: horizontal composition drifted from the approved prototype`
+    );
+    assert.deepEqual(
+      {
+        weatherBottom:preset.layout.weather.y+preset.layout.weather.height,
+        brandY:preset.layout.brand.y,
+        decorY:preset.layout.decor.y,
+        decorBottom
+      },
+      approvedVerticalGeometry[preset.id],
+      `${preset.id}: vertical side composition drifted from the approved prototype`
+    );
     assert.ok(tableRight <= preset.layout.panel.x, `${preset.id}: table overlaps side panel`);
+    assert.ok(preset.layout.decor.x >= preset.layout.panel.x, `${preset.id}: decor starts outside side panel`);
+    assert.ok(decorRight <= panelRight, `${preset.id}: decor leaves side panel`);
     assert.ok(tableBottom <= preset.layout.footer.y, `${preset.id}: table overlaps legal footer`);
     assert.ok(decorBottom <= preset.layout.footer.y, `${preset.id}: decor overlaps legal footer`);
     assert.ok(panelRight <= 1920, `${preset.id}: side panel leaves viewport`);
   }
 });
 
-test('theme contract stores editable brand typography, utility slot and weather typography', () => {
-  const theme = menuThemeInput({
+test('preset theme contract stores embedded weather, replaceable decor and editable legal typography', () => {
+  const theme=menuThemeInput({
     preset_id:'brand-premium',
-    preset_version:1,
     brand:{
       name:'БИР ФИШ',
-      caption:'Надпись над кружкой',
-      logo_element_id:'logo-main',
-      name_font_family:'arial-narrow',
-      name_font_size_px:78,
-      name_font_weight:800,
-      caption_font_family:'tahoma-bold',
-      caption_font_size_px:24,
+      caption:'ПИВО · ЗАКУСКИ · ХОРОШАЯ КОМПАНИЯ',
+      logo_url:'/site-assets/scene/logo.webp',
+      name_font_family:'russo-one',
+      name_font_size_px:82,
+      name_font_weight:900,
+      caption_font_family:'pt-sans-narrow',
+      caption_font_size_px:19,
       caption_font_weight:700
     },
     utility_slot:{
-      mode:'text',
-      text:'Сегодня свежее поступление',
-      weather_element_id:'weather-main',
-      font_family:'system-sans',
-      font_size_px:34,
-      font_weight:700,
-      temperature_font_family:'mira-serif',
-      temperature_font_size_pt:62,
+      mode:'weather',
+      temperature_font_family:'montserrat',
+      temperature_font_size_pt:64,
       location_font_size_pt:18,
-      icon_scale_percent:150
+      icon_scale_percent:145,
+      weather:{
+        location_name:'Комсомольск-на-Амуре',
+        latitude:50.55,
+        longitude:137.01,
+        timezone:'Asia/Vladivostok',
+        refresh_minutes:20,
+        show_condition:true,
+        show_forecast:true,
+        forecast_items:4
+      }
+    },
+    decor:{ source_url:'/site-assets/scene/custom-mug.webp' },
+    legal:{
+      text:'ПРЕДУПРЕЖДЕНИЕ',
+      age_text:'18+',
+      font_family:'pt-sans-narrow',
+      font_size_px:31,
+      font_weight:700,
+      letter_spacing_px:4
     },
     overrides:['font_family','background_image_url','font_family','table_x']
   });
-  assert.equal(theme.preset_id, 'brand-premium');
-  assert.equal(theme.brand.name, 'БИР ФИШ');
-  assert.equal(theme.brand.caption, 'Надпись над кружкой');
-  assert.equal(theme.brand.name_font_size_px,78);
-  assert.equal(theme.brand.name_font_weight,800);
-  assert.equal(theme.brand.caption_font_size_px,24);
-  assert.equal(theme.utility_slot.mode, 'text');
-  assert.equal(theme.utility_slot.font_size_px,34);
-  assert.equal(theme.utility_slot.temperature_font_family,'mira-serif');
-  assert.equal(theme.utility_slot.temperature_font_size_pt,62);
-  assert.equal(theme.utility_slot.location_font_size_pt,18);
-  assert.equal(theme.utility_slot.icon_scale_percent,150);
+
+  assert.equal(theme.brand.logo_url,'/site-assets/scene/logo.webp');
+  assert.equal(theme.utility_slot.weather.location_name,'Комсомольск-на-Амуре');
+  assert.equal(theme.utility_slot.weather.latitude,50.55);
+  assert.equal(theme.utility_slot.weather.longitude,137.01);
+  assert.equal(theme.utility_slot.weather.forecast_items,4);
+  assert.equal(theme.decor.source_url,'/site-assets/scene/custom-mug.webp');
+  assert.equal(theme.legal.text,'ПРЕДУПРЕЖДЕНИЕ');
+  assert.equal(theme.legal.font_size_px,31);
   assert.deepEqual(theme.overrides, MENU_THEME_OVERRIDE_KEYS.filter((key) =>
     ['font_family','background_image_url','table_x'].includes(key)
   ));
 });
 
-test('weather and logo slots bind to canonical generic scene elements', () => {
-  const theme = menuThemeInput({
+test('preset weather is self contained and does not require a generic scene weather element', () => {
+  const theme=menuThemeInput({
     preset_id:'premium',
-    brand:{ logo_element_id:'logo-main' },
-    utility_slot:{ mode:'weather', weather_element_id:'weather-main' }
+    utility_slot:{
+      mode:'weather',
+      weather:{
+        location_name:'Владивосток',
+        latitude:43.1155,
+        longitude:131.8855,
+        timezone:'Asia/Vladivostok'
+      }
+    }
   });
-  const scene = {
+
+  const validated=validateMenuThemeBindings(theme,{version:1,elements:[]});
+  assert.equal(validated.preset_id,'premium');
+
+  const weather=themeWeatherSettings(theme,{version:1,elements:[]});
+  assert.equal(weather.enabled,true);
+  assert.equal(weather.location_name,'Владивосток');
+  assert.equal(weather.latitude,43.1155);
+  assert.equal(weather.longitude,131.8855);
+  assert.equal(weather.show_humidity,false);
+  assert.equal(weather.show_wind,false);
+});
+
+test('legacy v1.17.1 weather binding is accepted only as migration input, not a required preset binding', () => {
+  const theme=menuThemeInput({
+    preset_id:'premium',
+    utility_slot:{ mode:'weather',weather_element_id:'weather-old' }
+  });
+  const scene={
     version:1,
-    elements:[
-      { id:'logo-main', type:'logo' },
-      { id:'weather-main', type:'weather' }
-    ]
+    elements:[{
+      id:'weather-old',
+      type:'weather',
+      weather:{
+        location_name:'Хабаровск',
+        latitude:48.48,
+        longitude:135.07,
+        timezone:'Asia/Vladivostok'
+      }
+    }]
   };
-  assert.equal(validateMenuThemeBindings(theme, scene).preset_id, 'premium');
+  const weather=themeWeatherSettings(theme,scene);
+  assert.equal(weather.location_name,'Хабаровск');
+  assert.equal(weather.latitude,48.48);
+  assert.equal(validateMenuThemeBindings(theme,scene).preset_id,'premium');
   assert.throws(
-    () => validateMenuThemeBindings(theme, { version:1, elements:[{ id:'logo-main', type:'image' }, { id:'weather-main', type:'weather' }] }),
-    /типа «Логотип»/
-  );
-  assert.throws(
-    () => validateMenuThemeBindings(menuThemeInput({ preset_id:'premium', utility_slot:{ mode:'weather' } }), scene),
-    /режима «Погода»/
+    ()=>validateMenuThemeBindings(
+      menuThemeInput({preset_id:'premium',utility_slot:{mode:'weather',weather_element_id:'weather-old'}}),
+      {version:1,elements:[{id:'weather-old',type:'image'}]}
+    ),
+    /элемент типа «Погода»/
   );
 });
 
-test('alcohol warning keeps the mandated wording and at least ten percent of the reference frame', () => {
+test('alcohol warning keeps the warning area at least ten percent of the reference frame', () => {
   assert.equal(ALCOHOL_WARNING_TEXT,'ЧРЕЗМЕРНОЕ УПОТРЕБЛЕНИЕ АЛКОГОЛЯ ВРЕДИТ ВАШЕМУ ЗДОРОВЬЮ');
   assert.equal(ALCOHOL_WARNING_MIN_AREA_RATIO,0.10);
   assert.ok(ALCOHOL_WARNING_REFERENCE_AREA_RATIO.ratio >= ALCOHOL_WARNING_MIN_AREA_RATIO);
@@ -145,13 +247,13 @@ test('alcohol warning keeps the mandated wording and at least ten percent of the
   );
 });
 
-test('legacy scenes receive a no-op theme identity and invalid theme data is rejected', () => {
-  const legacy = menuThemeInput();
-  assert.equal(legacy.preset_id, 'legacy');
-  assert.equal(legacy.utility_slot.mode, 'none');
-  assert.deepEqual(legacy.overrides, []);
-  assert.throws(() => menuThemeInput({ preset_id:'unknown-theme' }), /неподдерживаемая тема/);
-  assert.throws(() => menuThemeInput({ preset_id:'premium', preset_version:2 }), /Версия темы/);
-  assert.throws(() => menuThemeInput({ overrides:['unknown_setting'] }), /нельзя переопределять/);
-  assert.throws(() => menuThemeInput({ utility_slot:{ mode:'video' } }), /не поддерживается/);
+test('legacy scenes remain Theme Constructor without changing their scene contract', () => {
+  const legacy=menuThemeInput();
+  assert.equal(legacy.preset_id,'legacy');
+  assert.equal(legacy.utility_slot.mode,'none');
+  assert.deepEqual(legacy.overrides,[]);
+  assert.throws(()=>menuThemeInput({preset_id:'unknown-theme'}),/неподдерживаемая тема/);
+  assert.throws(()=>menuThemeInput({preset_id:'premium',preset_version:2}),/Версия темы/);
+  assert.throws(()=>menuThemeInput({overrides:['unknown_setting']}),/нельзя переопределять/);
+  assert.throws(()=>menuThemeInput({utility_slot:{mode:'video'}}),/не поддерживается/);
 });

@@ -3,6 +3,7 @@ import { menuDraftInput, positiveId, screenInput } from '../../contracts/input.j
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
 import { MENU_THEME_OVERRIDE_KEYS, MENU_THEME_SCHEMA_VERSION, menuThemeCatalog, menuThemeInput, validateMenuThemeBindings } from '../../contracts/menu-theme.js';
 import { sceneInput } from '../../contracts/scene.js';
+import { constructorThemeTemplateInput } from '../../contracts/theme-template.js';
 import { ValidationError } from '../../shared/errors.js';
 import { createScreenBackground, deleteScreenBackground } from '../../services/screen-background-service.js';
 import { createSceneAssetStream, deleteSceneAsset } from '../../services/scene-assets-service.js';
@@ -39,7 +40,7 @@ function sceneAssetUrls(scene) {
   if (!Array.isArray(scene?.elements)) return [];
   return scene.elements
     .map((element) => String(element?.media?.source_url || ''))
-    .filter((url) => url.startsWith('/site-assets/scene/'));
+    .filter((url) => url.startsWith('/site-assets/scene/') || url.startsWith('/site-assets/content/'));
 }
 
 function sameJson(left, right) {
@@ -146,6 +147,90 @@ export function createScreensRouter({ store, config, realtime }) {
 
   router.get('/screens', async (_request, response) => response.json(await store.listScreens()));
   router.get('/screens/menu-themes', (_request, response) => response.json({ schema_version:MENU_THEME_SCHEMA_VERSION, presets:menuThemeCatalog() }));
+
+  router.get('/screens/menu-themes/custom', async (_request,response) => {
+    const templates=await store.listMenuThemeTemplates();
+    response.json(templates.map(({id,name,created_by,updated_by,created_at,updated_at})=>({id,name,created_by,updated_by,created_at,updated_at})));
+  });
+
+  router.get('/screens/menu-themes/custom/:templateId', async (request,response) => {
+    const template=await store.getMenuThemeTemplate(positiveId(request.params.templateId,'templateId'));
+    if(!template) throw notFound();
+    response.json(template);
+  });
+
+  router.post('/screens/menu-themes/custom', async (request,response) => {
+    const input=constructorThemeTemplateInput(request.body,{maxWidth:config.screenMaxWidth,maxHeight:config.screenMaxHeight,maxBytes:config.menuDraftMaxBytes});
+    let saved;
+    try { saved=await store.createMenuThemeTemplate({...input,username:request.session.sub}); }
+    catch(error) {
+      if(error?.code==='23505') throw new ValidationError('Пользовательская тема с таким названием уже существует.');
+      throw error;
+    }
+    await activity(store,request,{action:'menu_theme_template.created',entity_type:'menu_theme_template',entity_id:saved.id,message:`Сохранена пользовательская тема «${saved.name}».`});
+    response.status(201).json(saved);
+  });
+
+  router.put('/screens/menu-themes/custom/:templateId', async (request,response) => {
+    const id=positiveId(request.params.templateId,'templateId');
+    const previous=await store.getMenuThemeTemplate(id);
+    if(!previous) throw notFound();
+    const input=constructorThemeTemplateInput(request.body,{maxWidth:config.screenMaxWidth,maxHeight:config.screenMaxHeight,maxBytes:config.menuDraftMaxBytes});
+    let saved;
+    try { saved=await store.updateMenuThemeTemplate(id,{...input,username:request.session.sub}); }
+    catch(error) {
+      if(error?.code==='23505') throw new ValidationError('Пользовательская тема с таким названием уже существует.');
+      throw error;
+    }
+    const previousBackground=String(previous.settings?.background_image_url || '');
+    if(previousBackground && previousBackground!==saved.settings?.background_image_url) await deleteScreenBackground(previousBackground,{store,config});
+    const nextAssets=new Set(sceneAssetUrls(saved.scene));
+    await Promise.all(sceneAssetUrls(previous.scene).filter((url)=>!nextAssets.has(url)).map((url)=>deleteSceneAsset(url,{store,config})));
+    await activity(store,request,{action:'menu_theme_template.updated',entity_type:'menu_theme_template',entity_id:saved.id,message:`Обновлена пользовательская тема «${saved.name}».`});
+    response.json(saved);
+  });
+
+  router.delete('/screens/menu-themes/custom/:templateId', async (request,response) => {
+    const id=positiveId(request.params.templateId,'templateId');
+    const removed=await store.deleteMenuThemeTemplate(id);
+    if(!removed) throw notFound();
+    const background=String(removed.settings?.background_image_url || '');
+    if(background) await deleteScreenBackground(background,{store,config});
+    await Promise.all(sceneAssetUrls(removed.scene).map((url)=>deleteSceneAsset(url,{store,config})));
+    await activity(store,request,{action:'menu_theme_template.deleted',entity_type:'menu_theme_template',entity_id:id,message:`Удалена пользовательская тема «${removed.name}».`});
+    response.status(204).end();
+  });
+
+  router.post('/screens/menu-themes/custom/:templateId/apply', async (request,response) => {
+    const template=await store.getMenuThemeTemplate(positiveId(request.params.templateId,'templateId'));
+    if(!template) throw notFound();
+    const input=constructorThemeTemplateInput({name:template.name,settings:template.settings,scene:template.scene},{maxWidth:config.screenMaxWidth,maxHeight:config.screenMaxHeight,maxBytes:config.menuDraftMaxBytes});
+    const values=Array.isArray(request.body?.target_screen_ids) ? request.body.target_screen_ids : [];
+    if(values.length<1 || values.length>100) throw new ValidationError('Выберите от 1 до 100 мониторов.');
+    const targetIds=[...new Set(values.map((value)=>positiveId(value,'target_screen_ids')))].sort((a,b)=>a-b);
+    const result=await store.transaction(async (tx)=>{
+      const applied=[],droppedBackgrounds=[],droppedAssets=[];
+      for(const screenId of targetIds) {
+        if(!await tx.lockScreen(screenId)) throw notFound();
+        const draft=await tx.getScreenDraft(screenId);
+        const previousBackground=String(draft.settings?.background_image_url || '');
+        const previousAssets=new Set(sceneAssetUrls(draft.scene));
+        const saved=await tx.saveScreenDraft(screenId,{rows:draft.rows || [],settings:structuredClone(input.settings),scene:structuredClone(input.scene)},Number(draft.revision || 0));
+        if(!saved) throw conflict('Один из выбранных мониторов был изменён параллельно. Повторите применение.');
+        if(previousBackground && previousBackground!==saved.settings?.background_image_url) droppedBackgrounds.push(previousBackground);
+        const nextAssets=new Set(sceneAssetUrls(saved.scene));
+        droppedAssets.push(...[...previousAssets].filter((url)=>!nextAssets.has(url)));
+        applied.push(screenId);
+      }
+      const revisions=await tx.markScreenRenderChanged(applied,['menu','scene'],'menu_theme_template.applied',request.session.sub);
+      return {applied,revisions,droppedBackgrounds,droppedAssets};
+    });
+    await Promise.all([...new Set(result.droppedBackgrounds)].map((url)=>deleteScreenBackground(url,{store,config})));
+    await Promise.all([...new Set(result.droppedAssets)].map((url)=>deleteSceneAsset(url,{store,config})));
+    await activity(store,request,{action:'menu_theme_template.applied',entity_type:'menu_theme_template',entity_id:template.id,message:`Пользовательская тема «${template.name}» применена к мониторам: ${result.applied.join(', ')}.`});
+    notifyRevisions(realtime,result.revisions);
+    response.json({applied_screen_ids:result.applied,applied_screens:result.revisions.map((item)=>({screen_id:item.screen_id,revision:item.revision}))});
+  });
   router.get('/screens/:id', async (request, response) => {
     const screen = await store.getScreen(positiveId(request.params.id, 'id'));
     if (!screen) throw notFound();

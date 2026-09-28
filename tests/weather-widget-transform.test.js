@@ -47,14 +47,20 @@ test('weather renderer is static while data stays live', async () => {
 
   assert.doesNotMatch(elements, /animation_enabled|animation_speed|animation_intensity|widget_motion_enabled|Анимация/);
   assert.doesNotMatch(widget, /createAtmosphere|particleGroup|animation_enabled|animation_speed|widget_motion_enabled/);
-  assert.match(widget, /weather-widget-visual-static/);
-  assert.match(widget, /visual\.innerHTML = svgIcon/);
+  assert.doesNotMatch(widget, /weather-widget-visual-static/);
+  assert.equal((widget.match(/icon\.innerHTML = svgIcon/g) || []).length, 1);
+  assert.match(widget, /weather-widget-facts/);
+  assert.match(widget, /windDirectionLabel/);
+  assert.match(css, /weather-widget-fact-value/);
+  assert.doesNotMatch(css, /weather-widget-facts\{display:none/);
 
   assert.doesNotMatch(css, /@keyframes|animation\s*:|transition\s*:|will-change/);
   assert.doesNotMatch(css, /weather-atmosphere|weather-particle/);
 
   assert.match(runtime, /weatherSourceKey/);
   assert.match(runtime, /PREVIEW_RETRY_MS/);
+  assert.match(runtime, /autoDiscoverLayer = true/);
+  assert.match(runtime, /if \(!this\.autoDiscoverLayer\)/);
   assert.doesNotMatch(runtime, /navigator\.onLine/);
 });
 
@@ -95,6 +101,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
         relative_humidity_2m:70,
         weather_code:3,
         wind_speed_10m:11,
+        wind_direction_10m:225,
         is_day:0
       },
       hourly:{
@@ -118,6 +125,7 @@ test('weather forecast filtering follows provider city wall clock instead of ser
     });
     assert.equal(requestedTimezone, 'Asia/Vladivostok');
     assert.equal(snapshot.timezone, 'Asia/Vladivostok');
+    assert.equal(snapshot.wind_direction, 225);
     assert.deepEqual(snapshot.forecast.slice(0, 3).map((item) => item.time), [
       '2026-09-20T23:00',
       '2026-09-21T00:00',
@@ -150,8 +158,8 @@ test('offline Player shell keeps static weather and Local-first state without mo
   assert.match(weatherRuntime, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
   assert.match(weatherRuntime, /legacyScreenId === this\.screenId/);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v55'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v54'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v56'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v55'/);
   assert.match(worker, /\/js\/player\/weather-widget\.js/);
   assert.doesNotMatch(worker, /['"]\/js\/motion\//);
   assert.doesNotMatch(worker, /['"]\/js\/player\/scene-video-runtime\.js['"]/);
