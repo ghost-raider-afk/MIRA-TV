@@ -134,3 +134,55 @@ test('Theme Constructor owns generic scene elements and preset selection does no
     if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
   }
 });
+
+
+test('Theme Constructor saves a named theme and reuses it on another TV', async ({ page }) => {
+  await page.setViewportSize({width:1280,height:800});
+  await login(page);
+  const stamp=Date.now();
+  const themeName=`Saved constructor ${stamp}`;
+  let locationId=null;
+  let templateId=null;
+  const screenIds=[];
+  try {
+    const location=await (await page.request.post('/api/locations',{
+      data:{name:`Saved constructor CI ${stamp}`,address:'Theme regression',active:true}
+    })).json();
+    locationId=location.id;
+    for(let index=0;index<2;index+=1){
+      const screen=await (await page.request.post(`/api/locations/${location.id}/screens`,{data:{}})).json();
+      screenIds.push(screen.id);
+    }
+
+    await page.goto(`/scene?screen=${screenIds[0]}`);
+    await page.locator('#scene-editor-theme-layer').click();
+    await page.getByRole('button',{name:'+ Текстовое поле'}).click();
+    await page.locator('#scene-editor-theme-layer').click();
+
+    await page.getByLabel('Название пользовательской темы').fill(themeName);
+    await page.getByRole('button',{name:'Сохранить как тему'}).click();
+    await expect(page.locator('#scene-editor-message')).toContainText('сохранена');
+
+    const catalog=await (await page.request.get('/api/screens/menu-themes/custom')).json();
+    const saved=catalog.find((item)=>item.name===themeName);
+    expect(saved).toBeTruthy();
+    templateId=saved.id;
+
+    const template=await (await page.request.get(`/api/screens/menu-themes/custom/${templateId}`)).json();
+    expect(template.settings.theme.preset_id).toBe('legacy');
+    expect(template.scene.elements.some((item)=>item.type==='text')).toBe(true);
+
+    const apply=await page.request.post(`/api/screens/menu-themes/custom/${templateId}/apply`,{
+      data:{target_screen_ids:[screenIds[1]]}
+    });
+    expect(apply.ok()).toBeTruthy();
+
+    const target=await (await page.request.get(`/api/screens/${screenIds[1]}/editor`)).json();
+    expect(target.draft.settings.theme.preset_id).toBe('legacy');
+    expect(target.draft.scene.elements.some((item)=>item.type==='text')).toBe(true);
+  } finally {
+    if(templateId) await page.request.delete(`/api/screens/menu-themes/custom/${templateId}`).catch(()=>undefined);
+    for(const id of screenIds) await page.request.delete(`/api/screens/${id}`).catch(()=>undefined);
+    if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
+  }
+});
