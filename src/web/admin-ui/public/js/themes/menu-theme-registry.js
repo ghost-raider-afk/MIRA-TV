@@ -127,6 +127,8 @@ const PRESETS = Object.freeze([
       price_font_family:'oswald',
       separator:'#3F4346',
       separator_dashed:false,
+      item_tone_mode:'fixed',
+      promotion_style:'price-only',
       price_mode:'white-primary',
       show_sequence:true,
       price_column_borders:true
@@ -203,7 +205,9 @@ const PRESETS = Object.freeze([
       price_font_family:'yanone-kaffeesatz',
       separator:'#66645D',
       separator_dashed:true,
-      price_mode:'chalk-accent',
+      item_tone_mode:'fixed',
+      promotion_style:'price-only',
+      price_mode:'promotion-accent',
       show_sequence:false,
       price_column_borders:false
     }),
@@ -279,6 +283,8 @@ const PRESETS = Object.freeze([
       price_font_family:'montserrat',
       separator:'#404448',
       separator_dashed:false,
+      item_tone_mode:'fixed',
+      promotion_style:'price-only',
       price_mode:'primary-accent',
       show_sequence:false,
       price_column_borders:true

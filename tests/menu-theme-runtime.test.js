@@ -100,13 +100,13 @@ test('legacy logo binding is consumed only as a migration fallback without mutat
   assert.equal(source.elements[0].x,20);
 });
 
-function themedTableSvg(presetId) {
+function themedTableSvg(presetId,{promotion=false}={}) {
   const runtime=resolveMenuThemeRuntime({theme:theme(presetId)},{version:1,elements:[]});
   const model=buildRenderModel({
     settings:runtime.settings,
     rows:[
       {id:'section-1',kind:'section',name:'ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ',enabled:true},
-      {id:'item-1',kind:'item',product_id:1,enabled:true}
+      {id:'item-1',kind:'item',product_id:1,enabled:true,promotion,promotion_text:promotion?'АКЦИЯ':''}
     ]
   });
   const lines=buildDisplayLines(model,{
@@ -154,8 +154,21 @@ test('the three approved presets have different table grammar through the same t
   assert.notEqual(premium,brand);
 });
 
-test('premium price treatment keeps whole price light and cents in the gold accent', () => {
+test('approved preset rows keep fixed text tone and use semantic promotion price accents', () => {
   const premium=themedTableSvg('premium');
+  const premiumPromotion=themedTableSvg('premium',{promotion:true});
+  const chalk=themedTableSvg('chalk');
+  const chalkPromotion=themedTableSvg('chalk',{promotion:true});
+
+  assert.match(premium,/class="item-name"[^>]*fill="#F8F8F4"/);
   assert.match(premium,/class="price"[^>]*fill="#F8F8F4"/);
   assert.match(premium,/class="cents"[^>]*fill="#F2B72A"/);
+  assert.doesNotMatch(premiumPromotion,/class="promotion-badge"/);
+  assert.match(premiumPromotion,/class="price"[^>]*fill="#F2B72A"/);
+  assert.match(premiumPromotion,/class="cents"[^>]*fill="#F2B72A"/);
+
+  assert.match(chalk,/class="item-name"[^>]*fill="#F4F1E9"/);
+  assert.match(chalk,/class="price"[^>]*fill="#F4F1E9"/);
+  assert.doesNotMatch(chalkPromotion,/class="promotion-badge"/);
+  assert.match(chalkPromotion,/class="price"[^>]*fill="#E5B62E"/);
 });

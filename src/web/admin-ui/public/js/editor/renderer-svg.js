@@ -130,8 +130,12 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
 function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const toneColor = line.tone === 'accent' ? palette.accentText : palette.primaryText;
-  const metaColor = line.tone === 'accent' ? palette.accentSecondaryText : palette.secondaryText;
+  const legacyMetaColor = line.tone === 'accent' ? palette.accentSecondaryText : palette.secondaryText;
   const themed = themeId !== 'legacy';
+  const fixedTone = themed && themeStyle.item_tone_mode === 'fixed';
+  const itemColor = fixedTone ? palette.primaryText : toneColor;
+  const metaColor = fixedTone ? palette.secondaryText : legacyMetaColor;
+  const priceOnlyPromotion = themed && themeStyle.promotion_style === 'price-only' && line.promotion === true;
   const showSequence = themed && themeStyle.show_sequence !== false;
   const numberX = horizontal.left + 16 * horizontal.scaleX;
   const nameX = horizontal.left + (showSequence ? 55 : 22) * horizontal.scaleX;
@@ -144,31 +148,35 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
   const itemFont = themeTypography.item || typography;
   const metaFont = themeTypography.meta || typography;
   const priceFont = themeTypography.price || typography;
-  const promotion = promotionMarkup(line, nameX, box, scale, itemFont, nameBaseline, settings);
+  const promotion = priceOnlyPromotion
+    ? { markup:'', width:0 }
+    : promotionMarkup(line, nameX, box, scale, itemFont, nameBaseline, settings);
   const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
   const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
   const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
   const priceMode = String(themeStyle.price_mode || 'alternating');
-  const primaryPriceColor = priceMode === 'primary-accent'
+  let primaryPriceColor = priceMode === 'primary-accent'
     ? palette.accentText
-    : priceMode === 'white-primary'
+    : priceMode === 'white-primary' || priceMode === 'promotion-accent'
       ? palette.primaryText
-      : priceMode === 'chalk-accent'
-        ? palette.accentText
-        : toneColor;
-  const secondaryPriceColor = priceMode === 'primary-accent' || priceMode === 'white-primary'
-    ? palette.primaryText
-    : priceMode === 'chalk-accent'
-      ? palette.accentText
       : toneColor;
-  const primaryCentsColor = priceMode === 'white-primary' ? palette.accentText : primaryPriceColor;
-  const secondaryCentsColor = priceMode === 'white-primary' ? palette.accentText : secondaryPriceColor;
+  let secondaryPriceColor = priceMode === 'primary-accent' || priceMode === 'white-primary' || priceMode === 'promotion-accent'
+    ? palette.primaryText
+    : toneColor;
+  let primaryCentsColor = priceMode === 'white-primary' ? palette.accentText : primaryPriceColor;
+  let secondaryCentsColor = priceMode === 'white-primary' ? palette.accentText : secondaryPriceColor;
+  if (priceOnlyPromotion && priceMode !== 'primary-accent') {
+    primaryPriceColor = palette.accentText;
+    secondaryPriceColor = palette.accentText;
+    primaryCentsColor = palette.accentText;
+    secondaryCentsColor = palette.accentText;
+  }
   const numberMarkup = showSequence ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle', fontFamily:itemFont?.family }, itemFont)}>${escapeXml(line.sequence || '')}</text>` : '';
   return `<g class="table-item theme-${themeId} tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}
     ${numberMarkup}
     ${promotion.markup}
-    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor, fontFamily:metaFont?.family }, metaFont)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
+    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: itemColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor, fontFamily:metaFont?.family }, metaFont)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
     <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}</g>
   </g>`;
 }

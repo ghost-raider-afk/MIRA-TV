@@ -63,8 +63,12 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   assert.equal(premium.table.price_mode,'white-primary');
   assert.equal(chalk.table.show_sequence,false);
   assert.equal(chalk.table.separator_dashed,true);
-  assert.equal(chalk.table.price_mode,'chalk-accent');
+  assert.equal(chalk.table.price_mode,'promotion-accent');
   assert.equal(brand.table.price_mode,'primary-accent');
+  for (const preset of [premium,chalk,brand]) {
+    assert.equal(preset.table.item_tone_mode,'fixed');
+    assert.equal(preset.table.promotion_style,'price-only');
+  }
 
   assert.notEqual(premium.weather.current_layout,chalk.weather.current_layout);
   assert.notEqual(chalk.weather.current_layout,brand.weather.current_layout);
