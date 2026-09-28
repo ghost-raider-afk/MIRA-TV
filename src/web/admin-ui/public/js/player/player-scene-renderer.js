@@ -156,6 +156,7 @@ export class PlayerSceneRenderer {
     this.weatherRuntime = new PlayerWeatherRuntime(stage, {
       endpoint: this.weatherPreview ? weatherPreviewEndpoint : weatherEndpoint,
       preview: this.weatherPreview,
+      autoDiscoverLayer:false,
       onRender: (layer) => {
         const elementId = layer?.parentElement?.dataset?.sceneElementId || this.weatherElementId;
         if (elementId) this.sceneElementRenderer.refreshContentGeometry(elementId);
@@ -164,6 +165,7 @@ export class PlayerSceneRenderer {
     this.themeWeatherRuntime = new PlayerWeatherRuntime(stage, {
       endpoint:this.weatherPreview ? weatherPreviewEndpoint : themeWeatherEndpoint(weatherEndpoint),
       preview:this.weatherPreview,
+      autoDiscoverLayer:false,
       renderWidget:(layer, settings, snapshot) => this.themeRenderer.renderWeather(layer, settings, snapshot)
     });
     this.destroyed = false;

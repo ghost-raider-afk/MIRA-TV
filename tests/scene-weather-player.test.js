@@ -15,6 +15,7 @@ test('TV and Manager weather use the saved static scene with no baked/video owne
   assert.match(player, /const staticScene =/);
   assert.match(player, /sceneWeatherElement\(staticScene\)/);
   assert.match(player, /sceneElementRenderer\.contentFor\(weatherElement\.id\)/);
+  assert.equal((player.match(/autoDiscoverLayer:false/g) || []).length, 2);
   assert.doesNotMatch(player, /scene_video|baked|SceneVideoRuntime|SceneMotionRuntime/);
 
   assert.match(device, /sceneWeatherSettings\(draft\?\.scene, session\.screen_id\)/);

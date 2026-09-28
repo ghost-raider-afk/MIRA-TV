@@ -42,10 +42,12 @@ async function fixture(page) {
 
 async function openThemeConstructor(page) {
   const themeLayer = page.locator('#scene-editor-theme-layer');
-  if (!(await themeLayer.isVisible())) {
-    const layersButton = page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Слои/ });
-    if (await layersButton.isVisible()) await layersButton.click();
+  const layersButton = page.locator('.scene-editor-mobile-toolbar').getByRole('button', { name:/Слои/ });
+  if (await layersButton.isVisible()) {
+    const mobilePanel = await page.locator('body').getAttribute('data-scene-mobile-panel');
+    if (mobilePanel !== 'layers') await layersButton.click();
   }
+  await themeLayer.scrollIntoViewIfNeeded();
   await themeLayer.click();
   const constructor = page.locator('#scene-editor-properties .scene-theme-constructor');
   await expect(constructor).toBeVisible();
@@ -659,6 +661,7 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
         apparent_temperature:5,
         humidity:71,
         wind_speed:9,
+        wind_direction:225,
         weather_code:3,
         is_day:true,
         condition:'Облачно',
@@ -717,24 +720,24 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect(weatherNode.locator('.weather-widget-temperature')).toHaveText('7°');
   const weatherIcon = weatherNode.locator('.weather-widget-icon');
   const weatherTemperature = weatherNode.locator('.weather-widget-temperature');
-  const weatherVisual = weatherNode.locator('.weather-widget-visual');
+  await expect(weatherIcon).toHaveCount(1);
   await expect(weatherIcon).toBeVisible();
+  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCount(0);
   await expect(weatherNode.locator('.weather-atmosphere')).toHaveCount(0);
+  await expect(weatherNode.locator('.weather-widget-fact', { hasText:'Ощущается' }).locator('.weather-widget-fact-value')).toHaveText('5°');
+  await expect(weatherNode.locator('.weather-widget-fact', { hasText:'Влажность' }).locator('.weather-widget-fact-value')).toHaveText('71%');
+  await expect(weatherNode.locator('.weather-widget-fact', { hasText:'Ветер' }).locator('.weather-widget-fact-value')).toHaveText('ЮЗ · 9 км/ч');
   const weatherColumns = await weatherNode.evaluate((node) => {
     const icon = node.querySelector('.weather-widget-icon')?.getBoundingClientRect();
     const temperature = node.querySelector('.weather-widget-temperature')?.getBoundingClientRect();
-    const visual = node.querySelector('.weather-widget-visual')?.getBoundingClientRect();
-    if (!icon || !temperature || !visual) return null;
+    if (!icon || !temperature) return null;
     return {
       iconCenter:icon.left + icon.width / 2,
-      temperatureCenter:temperature.left + temperature.width / 2,
-      visualCenter:visual.left + visual.width / 2
+      temperatureCenter:temperature.left + temperature.width / 2
     };
   });
   expect(weatherColumns).not.toBeNull();
   expect(weatherColumns.iconCenter).toBeLessThan(weatherColumns.temperatureCenter);
-  expect(weatherColumns.temperatureCenter).toBeLessThan(weatherColumns.visualCenter);
-
   const stableWeatherWidget = weatherNode.locator('.weather-widget');
   const stableWeatherContent = weatherNode.locator('[data-scene-weather-mount]');
   const weatherMetrics = () => weatherNode.evaluate((node) => {
@@ -818,21 +821,22 @@ test('Scene weather preview resolves selected city and intrinsic autoscale keeps
   await expect.poll(async () => weatherNode.evaluate((node) => {
     const outer = node.getBoundingClientRect();
     const widget = node.querySelector('.weather-widget');
-    const visual = node.querySelector('.weather-widget-visual');
-    if (!(widget instanceof HTMLElement) || !(visual instanceof HTMLElement)) return false;
+    const content = node.querySelector('.weather-widget-content');
+    if (!(widget instanceof HTMLElement) || !(content instanceof HTMLElement)) return false;
     const widgetRect = widget.getBoundingClientRect();
-    const visualRect = visual.getBoundingClientRect();
-    const visibleWidgetInside =
+    const contentRect = content.getBoundingClientRect();
+    const widgetInside =
       widgetRect.left >= outer.left - 1 && widgetRect.top >= outer.top - 1
       && widgetRect.right <= outer.right + 1 && widgetRect.bottom <= outer.bottom + 1;
-    const visualInsideWidget =
-      visualRect.left >= widgetRect.left - 1 && visualRect.top >= widgetRect.top - 1
-      && visualRect.right <= widgetRect.right + 1 && visualRect.bottom <= widgetRect.bottom + 1;
-    return visibleWidgetInside && visualInsideWidget && getComputedStyle(visual).overflow === 'hidden';
+    const contentInsideWidget =
+      contentRect.left >= widgetRect.left - 1 && contentRect.top >= widgetRect.top - 1
+      && contentRect.right <= widgetRect.right + 1 && contentRect.bottom <= widgetRect.bottom + 1;
+    return widgetInside && contentInsideWidget && getComputedStyle(widget).overflow === 'hidden';
   })).toBe(true);
 
   await expect(weatherNode).toHaveCSS('overflow', 'hidden');
-  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCSS('overflow', 'hidden');
+  await expect(weatherNode.locator('.weather-widget-visual')).toHaveCount(0);
+  await expect(weatherNode.locator('.weather-widget-facts')).not.toHaveCSS('display', 'none');
   const weatherMount = weatherNode.locator('[data-scene-weather-mount]');
   const effectiveScale = Number(await weatherMount.getAttribute('data-scene-content-scale'));
   expect(effectiveScale).toBe(1);

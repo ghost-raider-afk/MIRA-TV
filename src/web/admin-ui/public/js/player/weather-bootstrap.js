@@ -39,10 +39,13 @@ function hasWeatherCoordinates(settings) {
 }
 
 export class PlayerWeatherRuntime {
-  constructor(stage, { layer = null, endpoint = '/api/device/weather', preview = false, onRender = null, renderWidget = renderWeatherWidget } = {}) {
+  constructor(stage, { layer = null, endpoint = '/api/device/weather', preview = false, onRender = null, renderWidget = renderWeatherWidget, autoDiscoverLayer = true } = {}) {
     if (!(stage instanceof HTMLElement)) throw new TypeError('Weather runtime requires an HTMLElement stage.');
     this.stage = stage;
-    this.layer = layer instanceof HTMLElement ? layer : stage.querySelector('[data-weather-layer]');
+    this.autoDiscoverLayer = autoDiscoverLayer !== false;
+    this.layer = layer instanceof HTMLElement
+      ? layer
+      : (this.autoDiscoverLayer ? stage.querySelector('[data-weather-layer]') : null);
     this.settings = normaliseWeatherWidget();
     this.endpoint = String(endpoint || '/api/device/weather');
     this.preview = preview === true;
@@ -81,6 +84,10 @@ export class PlayerWeatherRuntime {
 
   ensureLayer() {
     if (this.layer?.isConnected) return this.layer;
+    if (!this.autoDiscoverLayer) {
+      this.layer = null;
+      return null;
+    }
     const layer = this.stage.querySelector('[data-weather-layer], [data-scene-weather-mount]');
     if (layer instanceof HTMLElement) {
       this.layer = layer;

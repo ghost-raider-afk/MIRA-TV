@@ -59,6 +59,8 @@ test('weather renderer is static while data stays live', async () => {
 
   assert.match(runtime, /weatherSourceKey/);
   assert.match(runtime, /PREVIEW_RETRY_MS/);
+  assert.match(runtime, /autoDiscoverLayer = true/);
+  assert.match(runtime, /if \(!this\.autoDiscoverLayer\)/);
   assert.doesNotMatch(runtime, /navigator\.onLine/);
 });
 

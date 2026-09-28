@@ -1166,8 +1166,13 @@ export function initialiseSceneEditor() {
 
       const weatherStatus=document.createElement('small');
       weatherStatus.className='scene-theme-weather-status';
-      weatherStatus.textContent=Number.isFinite(Number(weather.latitude)) && Number.isFinite(Number(weather.longitude))
-        ? `${weather.latitude.toFixed?.(4) ?? weather.latitude}, ${weather.longitude.toFixed?.(4) ?? weather.longitude} · ${weather.timezone || 'auto'}`
+      const weatherLatitude=Number(weather.latitude);
+      const weatherLongitude=Number(weather.longitude);
+      const hasWeatherCoordinates=weather.latitude !== null && weather.latitude !== undefined && weather.latitude !== ''
+        && weather.longitude !== null && weather.longitude !== undefined && weather.longitude !== ''
+        && Number.isFinite(weatherLatitude) && Number.isFinite(weatherLongitude);
+      weatherStatus.textContent=hasWeatherCoordinates
+        ? `${weatherLatitude.toFixed(4)}, ${weatherLongitude.toFixed(4)} · ${weather.timezone || 'auto'}`
         : 'Выберите город из подсказок — координаты и часовой пояс сохранятся в пресете.';
 
       const weatherFont=themeFontSelect(theme.utility_slot.temperature_font_family,'Шрифт температуры темы');
