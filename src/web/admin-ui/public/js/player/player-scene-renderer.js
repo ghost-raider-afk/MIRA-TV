@@ -148,7 +148,7 @@ export class PlayerSceneRenderer {
     this.stage.dataset.menuTheme = themeRuntime.theme.preset_id;
     themeLayer.dataset.menuTheme = themeRuntime.theme.preset_id;
 
-    const menuDirty = dirty.has('menu') || dirty.has('screen') || dirty.has('scene');
+    const menuDirty = dirty.has('menu') || dirty.has('screen');
     if (menuDirty) {
       const themedDraft = { ...(context.draft || {}), settings:themeRuntime.settings };
       const model = buildRenderModel(themedDraft, canonicalViewport);

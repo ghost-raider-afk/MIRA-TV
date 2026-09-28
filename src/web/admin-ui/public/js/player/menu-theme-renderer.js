@@ -1,3 +1,5 @@
+import { replaceChildrenCompat } from '../core/dom-compat.js';
+
 const FONT_STACKS = Object.freeze({
   'arial-narrow':"'Arial Narrow','Liberation Sans Narrow',Arial,sans-serif",
   'tahoma-bold':"Tahoma,Arial,sans-serif",
@@ -45,7 +47,7 @@ export class MenuThemeRenderer {
     const now=new Date();
     const time=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(now);
     const date=new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'long'}).format(now);
-    this.clockNode.replaceChildren();
+    replaceChildrenCompat(this.clockNode);
     const strong=node('strong'); strong.textContent=time;
     const small=node('span'); small.textContent=date;
     this.clockNode.append(strong,small);
@@ -53,7 +55,7 @@ export class MenuThemeRenderer {
 
   render(runtime,screen) {
     this.clearClock();
-    this.layer.replaceChildren();
+    replaceChildrenCompat(this.layer);
     const { theme,preset,layout }=runtime || {};
     this.layer.dataset.menuTheme=theme?.preset_id || 'legacy';
     if(!theme || theme.preset_id==='legacy' || !layout) return;
@@ -107,7 +109,7 @@ export class MenuThemeRenderer {
 
   destroy() {
     this.clearClock();
-    this.layer?.replaceChildren();
+    if (this.layer) replaceChildrenCompat(this.layer);
     this.layer=null;
   }
 }

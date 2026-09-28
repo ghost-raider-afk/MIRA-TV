@@ -4,7 +4,11 @@ const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 
 function clone(value) {
-  return value === undefined ? undefined : structuredClone(value);
+  if (Array.isArray(value)) return value.map((item) => clone(item));
+  if (!value || typeof value !== 'object') return value;
+  const next = {};
+  for (const key of Object.keys(value)) next[key] = clone(value[key]);
+  return next;
 }
 
 function themeRecord(settings) {

@@ -7,10 +7,13 @@ const read = (p) => readFile(new URL(p, root), 'utf8');
 
 test('offline Player shell contains only static runtime dependencies', async () => {
   const [worker, html] = await Promise.all([read('player-sw.js'), read('player.html')]);
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v53'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v52'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v54'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v53'/);
   assert.match(worker, /\/css\/player-scene\.css/);
   assert.match(worker, /\/js\/player\/weather-widget\.js/);
+  assert.match(worker, /\/js\/player\/menu-theme-runtime\.js/);
+  assert.match(worker, /\/js\/player\/menu-theme-renderer\.js/);
+  assert.match(worker, /\/js\/themes\/menu-theme-registry\.js/);
   assert.match(worker, /\/js\/player\/player-background-services\.js/);
   assert.doesNotMatch(worker, /\/js\/motion\/|scene-video-runtime|videoRequest/);
   assert.doesNotMatch(worker, /\.(?:mp4|webm)(?:['"\/?]|$)/);
