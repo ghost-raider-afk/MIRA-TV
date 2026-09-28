@@ -25,7 +25,7 @@ const LAYOUT = Object.freeze({
     logo:Object.freeze({ x:1522,y:300,width:336,height:112 }),
     brand:Object.freeze({ x:1510,y:288,width:360,height:190 }),
     decor:Object.freeze({ x:1492,y:490,width:398,height:446 }),
-    footer:Object.freeze({ x:24,y:960,width:1872,height:112 })
+    footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   chalk:Object.freeze({
     panel:Object.freeze({ x:1490,y:24,width:402,height:912 }),
@@ -33,7 +33,7 @@ const LAYOUT = Object.freeze({
     logo:Object.freeze({ x:1522,y:300,width:336,height:112 }),
     brand:Object.freeze({ x:1510,y:286,width:360,height:194 }),
     decor:Object.freeze({ x:1492,y:492,width:398,height:444 }),
-    footer:Object.freeze({ x:24,y:960,width:1872,height:112 })
+    footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   'brand-premium':Object.freeze({
     panel:Object.freeze({ x:1490,y:24,width:402,height:912 }),
@@ -41,7 +41,7 @@ const LAYOUT = Object.freeze({
     logo:Object.freeze({ x:1518,y:296,width:344,height:116 }),
     brand:Object.freeze({ x:1508,y:282,width:364,height:204 }),
     decor:Object.freeze({ x:1492,y:500,width:398,height:436 }),
-    footer:Object.freeze({ x:24,y:960,width:1872,height:112 })
+    footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   })
 });
 
@@ -254,11 +254,11 @@ export const ALCOHOL_WARNING_MIN_AREA_RATIO = 0.10;
 export const ALCOHOL_WARNING_REFERENCE_AREA_RATIO = Object.freeze({
   width:1920,
   height:1080,
-  x:24,
-  y:960,
-  warning_width:1872,
+  x:0,
+  y:968,
+  warning_width:1920,
   warning_height:112,
-  ratio:(1872 * 112) / (1920 * 1080)
+  ratio:(1920 * 112) / (1920 * 1080)
 });
 
 export const MENU_THEME_OVERRIDE_KEYS = Object.freeze([
