@@ -19,11 +19,14 @@ function textAttributes({ size, weight = 400, fill, letterSpacing = 0, anchor = 
   ].filter(Boolean).join(' ');
 }
 
-function separatorMarkup(box, horizontal, scale, themeId = 'legacy') {
+function separatorMarkup(box, horizontal, scale, themeId = 'legacy', themeStyle = {}) {
   const y = box.bottom - 2 * scale;
-  const dashed = themeId === 'legacy' || themeId === 'chalk';
-  const stroke = themeId === 'chalk' ? '#5B5B56' : MENU_TABLE_STYLE.separator;
-  return `<line x1="${horizontal.left + MENU_REFERENCE.separatorInset * horizontal.scaleX}" y1="${y}" x2="${horizontal.right}" y2="${y}" class="separator" stroke="${stroke}" stroke-width="${Math.max(1, scale)}"${dashed ? ` stroke-dasharray="${6 * scale} ${7 * scale}"` : ''} opacity="${themeId === 'legacy' ? '.65' : '.42'}"/>`;
+  const dashed = typeof themeStyle.separator_dashed === 'boolean'
+    ? themeStyle.separator_dashed
+    : themeId === 'legacy' || themeId === 'chalk';
+  const stroke = themeStyle.separator || (themeId === 'chalk' ? '#5B5B56' : MENU_TABLE_STYLE.separator);
+  const opacity = themeId === 'legacy' ? '.65' : themeId === 'chalk' ? '.50' : '.42';
+  return `<line x1="${horizontal.left + MENU_REFERENCE.separatorInset * horizontal.scaleX}" y1="${y}" x2="${horizontal.right}" y2="${y}" class="separator" stroke="${stroke}" stroke-width="${Math.max(1, scale)}"${dashed ? ` stroke-dasharray="${6 * scale} ${7 * scale}"` : ''} opacity="${opacity}"/>`;
 }
 
 function priceMarkup(value, x, baseline, scale, toneColor, typography, priceFontSizePt, className = 'price') {
@@ -112,71 +115,94 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
     ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: 22 * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle' }, typography)}>1 л</text>
       <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: 22 * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle' }, typography)}>1,5 л</text>` : '';
   const rectHeight = Math.max(1, box.height - MENU_REFERENCE.sectionInset * scale);
-  const fill = themeId === 'legacy' ? palette.accent : 'url(#mira-theme-gold)';
-  return `<g class="table-section"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${themeId === 'legacy' ? 5 : 7}" ry="${themeId === 'legacy' ? 5 : 7}" fill="${fill}"/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: 28 * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3 }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
+  const fill = themeId === 'premium'
+    ? 'url(#mira-theme-premium-gold)'
+    : themeId === 'chalk'
+      ? 'url(#mira-theme-chalk-gold)'
+      : themeId === 'brand-premium'
+        ? 'url(#mira-theme-brand-gold)'
+        : palette.accent;
+  const radius = themeId === 'chalk' ? 3 : themeId === 'legacy' ? 5 : 7;
+  const stroke = themeId === 'chalk' ? ' stroke="#F4E7B0" stroke-opacity=".20" stroke-width="1"' : '';
+  return `<g class="table-section theme-${themeId}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: 28 * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3 }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
 }
 
-function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy') {
+function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const toneColor = line.tone === 'accent' ? palette.accentText : palette.primaryText;
   const metaColor = line.tone === 'accent' ? palette.accentSecondaryText : palette.secondaryText;
   const themed = themeId !== 'legacy';
+  const showSequence = themed && themeStyle.show_sequence !== false;
   const numberX = horizontal.left + 16 * horizontal.scaleX;
-  const nameX = horizontal.left + (themed ? 55 : 22) * horizontal.scaleX;
+  const nameX = horizontal.left + (showSequence ? 55 : 22) * horizontal.scaleX;
   const priceBaseline = box.top + 35 * fontScale;
   const hasMetadata = Boolean(line.metadata);
   const nameBaseline = hasMetadata ? box.top + 21 * fontScale : priceBaseline;
   const metaBaseline = box.top + 44.5 * fontScale;
   const nameSize = (hasMetadata ? 24 : 25) * fontScale;
   const metaSize = 13.5 * fontScale;
-  const promotion = promotionMarkup(line, nameX, box, scale, typography, nameBaseline, settings);
+  const itemFont = themeTypography.item || typography;
+  const metaFont = themeTypography.meta || typography;
+  const priceFont = themeTypography.price || typography;
+  const promotion = promotionMarkup(line, nameX, box, scale, itemFont, nameBaseline, settings);
   const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
   const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
   const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
-  const primaryPriceColor = themeId === 'brand-premium' ? palette.accentText : toneColor;
-  const secondaryPriceColor = themeId === 'brand-premium' ? palette.primaryText : toneColor;
-  const numberMarkup = themed ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle' }, typography)}>${escapeXml(line.sequence || '')}</text>` : '';
-  return `<g class="table-item tone-${line.tone === 'accent' ? 'accent' : 'light'}">
-    ${separatorMarkup(box, horizontal, scale, themeId)}
+  const primaryPriceColor = themeStyle.price_mode === 'primary-accent' ? palette.accentText : toneColor;
+  const secondaryPriceColor = themeStyle.price_mode === 'primary-accent' ? palette.primaryText : toneColor;
+  const numberMarkup = showSequence ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle' }, itemFont)}>${escapeXml(line.sequence || '')}</text>` : '';
+  return `<g class="table-item theme-${themeId} tone-${line.tone === 'accent' ? 'accent' : 'light'}">
+    ${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}
     ${numberMarkup}
     ${promotion.markup}
-    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor }, typography)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
-    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, typography, priceFontSizePt)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, typography, priceFontSizePt)}</g>
+    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: toneColor }, itemFont)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor }, metaFont)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
+    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt)}</g>
   </g>`;
 }
 
-function packagingMarkup(line, box, horizontal, palette, scale, typography, priceFontSizePt, themeId = 'legacy') {
+function packagingMarkup(line, box, horizontal, palette, scale, typography, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const gap = 34 * horizontal.scaleX;
   const cellWidth = (horizontal.tableWidth - gap) / 2;
   const baseline = box.top + 35 * fontScale;
+  const itemFont = themeTypography.item || typography;
+  const priceFont = themeTypography.price || typography;
   const cells = line.items.map((item, index) => {
     const x = horizontal.left + index * (cellWidth + gap);
     const right = x + cellWidth;
     const toneColor = item.tone === 'accent' ? palette.accentText : palette.primaryText;
     const maximumCharacters = Math.max(8, Math.floor((cellWidth - 175 * horizontal.scaleX) / (13 * fontScale)));
-    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, typography)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, typography, priceFontSizePt, 'packaging-price')}</g></g>`;
+    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor }, itemFont)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, priceFont, priceFontSizePt, 'packaging-price')}</g></g>`;
   }).join('\n');
-  return `<g class="table-packaging">${separatorMarkup(box, horizontal, scale, themeId)}${cells}</g>`;
+  return `<g class="table-packaging">${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}${cells}</g>`;
 }
 
 export function buildTableSvg(model, lines, layout = buildRenderLayout(model, lines)) {
   const { palette, horizontal, vertical, typography } = layout;
   const themeId = model.themeId || 'legacy';
+  const themeStyle = layout.themeTableStyle || {};
+  const themeTypography = layout.themeTypography || {};
   const scale = vertical.scale;
   const content = lines.map((line, index) => {
     const box = vertical.boxes[index];
-    if (line.kind === 'section') return sectionMarkup(line, box, horizontal, palette, scale, typography, themeId);
-    if (line.kind === 'packaging') return packagingMarkup(line, box, horizontal, palette, scale, typography, layout.priceFontSizePt, themeId);
-    return itemMarkup(line, box, horizontal, palette, scale, typography, model.settings, layout.priceFontSizePt, themeId);
+    if (line.kind === 'section') return sectionMarkup(line, box, horizontal, palette, scale, themeTypography.section || typography, themeId);
+    if (line.kind === 'packaging') return packagingMarkup(line, box, horizontal, palette, scale, typography, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
+    return itemMarkup(line, box, horizontal, palette, scale, typography, model.settings, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
   }).join('\n');
+  const lastBottom = vertical.boxes.length ? vertical.boxes[vertical.boxes.length - 1].bottom : model.viewport.height;
+  const firstTop = vertical.boxes.length ? vertical.boxes[0].top : 0;
+  const priceColumns = themeId !== 'legacy' && themeStyle.price_column_borders !== false
+    ? `<g class="theme-price-columns" opacity=".38"><line x1="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/><line x1="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/></g>`
+    : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" class="menu-table-svg" width="${model.viewport.width}" height="${model.viewport.height}" viewBox="0 0 ${model.viewport.width} ${model.viewport.height}" preserveAspectRatio="xMinYMin meet" aria-label="Предпросмотр таблицы меню" font-family="${escapeXml(typography.family)}">
     <defs>
-      <linearGradient id="mira-theme-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE071"/><stop offset=".34" stop-color="#F6C23D"/><stop offset=".72" stop-color="#E5A512"/><stop offset="1" stop-color="#FFD85E"/></linearGradient>
+      <linearGradient id="mira-theme-premium-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F9D760"/><stop offset=".42" stop-color="#E9B638"/><stop offset="1" stop-color="#C98C16"/></linearGradient>
+      <linearGradient id="mira-theme-chalk-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F2C438"/><stop offset=".55" stop-color="#E7B52D"/><stop offset="1" stop-color="#D49B18"/></linearGradient>
+      <linearGradient id="mira-theme-brand-gold" x1="0" y1="0" x2="1" y2=".25"><stop offset="0" stop-color="#FFD968"/><stop offset=".5" stop-color="#F2B526"/><stop offset="1" stop-color="#D99611"/></linearGradient>
       <linearGradient id="mira-promo-badge-depth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7b86"/><stop offset="0.22" stop-color="#f85361"/><stop offset="0.56" stop-color="${MENU_TABLE_STYLE.promotion}"/><stop offset="0.82" stop-color="#b71928"/><stop offset="1" stop-color="#760813"/></linearGradient>
       <linearGradient id="mira-promo-badge-bevel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".30"/><stop offset=".52" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
     </defs>
-    ${themeId !== 'legacy' ? `<g class="theme-price-columns" opacity=".38"><line x1="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y1="${vertical.boxes[0]?.top || 0}" x2="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y2="${vertical.boxes.length ? vertical.boxes[vertical.boxes.length - 1].bottom : model.viewport.height}" stroke="#74736F" stroke-width="1"/><line x1="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y1="${vertical.boxes[0]?.top || 0}" x2="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y2="${vertical.boxes.at(-1)?.bottom || model.viewport.height}" stroke="#74736F" stroke-width="1"/></g>` : ''}
+    ${priceColumns}
     ${content}
   </svg>`;
 }
