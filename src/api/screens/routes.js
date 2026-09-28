@@ -40,7 +40,7 @@ function sceneAssetUrls(scene) {
   if (!Array.isArray(scene?.elements)) return [];
   return scene.elements
     .map((element) => String(element?.media?.source_url || ''))
-    .filter((url) => url.startsWith('/site-assets/scene/'));
+    .filter((url) => url.startsWith('/site-assets/scene/') || url.startsWith('/site-assets/content/'));
 }
 
 function sameJson(left, right) {

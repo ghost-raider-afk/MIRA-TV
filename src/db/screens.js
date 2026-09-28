@@ -134,22 +134,17 @@ export function createScreensRepository(pool) {
     async isContentAssetReferenced(url) {
       if (!url || !String(url).startsWith('/site-assets/content/')) return false;
       const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts UNION ALL SELECT settings_json, scene_json FROM menu_theme_templates');
-      return rows.some((row) => {
-        const settings = jsonValue(row.settings_json, {});
-        if (settings.background_image_url === url) return true;
-        return sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] })).includes(url);
-      });
+      return rows.some((row) => contentAssetUrls(
+        jsonValue(row.settings_json, {}),
+        jsonValue(row.scene_json, { version: 1, elements: [] })
+      ).includes(url));
     },
     async listContentAssetReferences() {
       const { rows } = await pool.query('SELECT settings_json, scene_json FROM screen_drafts UNION ALL SELECT settings_json, scene_json FROM menu_theme_templates');
-      const values = [];
-      for (const row of rows) {
-        const background = String(jsonValue(row.settings_json, {}).background_image_url || '');
-        if (background.startsWith('/site-assets/content/')) values.push(background);
-        values.push(...sceneAssetUrls(jsonValue(row.scene_json, { version: 1, elements: [] }))
-          .filter((url) => url.startsWith('/site-assets/content/')));
-      }
-      return [...new Set(values)];
+      return [...new Set(rows.flatMap((row) => contentAssetUrls(
+        jsonValue(row.settings_json, {}),
+        jsonValue(row.scene_json, { version: 1, elements: [] })
+      )))];
     },
     async screensUsingCatalog(kind, catalogId) {
       const column = kind === 'product' ? 'product_id' : 'packaging_id';
