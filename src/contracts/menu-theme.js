@@ -1,10 +1,10 @@
 import { ValidationError } from '../shared/errors.js';
-import { MENU_THEME_PRESET_IDS, MENU_THEME_PRESETS, menuThemeCatalog } from '../web/admin-ui/public/js/themes/menu-theme-registry.js';
+import { MENU_THEME_PRESET_IDS as REGISTRY_PRESET_IDS, MENU_THEME_PRESETS as REGISTRY_PRESETS, menuThemeCatalog } from '../web/admin-ui/public/js/themes/menu-theme-registry.js';
 
 export const MENU_THEME_SCHEMA_VERSION = 1;
 
-const THEME_PRESETS = MENU_THEME_PRESETS;
-const PRESET_IDS = new Set(MENU_THEME_PRESET_IDS);
+const THEME_PRESETS = REGISTRY_PRESETS;
+const PRESET_IDS = new Set(REGISTRY_PRESET_IDS);
 const UTILITY_MODES = new Set(['none','weather','clock','text']);
 const FONT_FAMILIES = new Set([
   'arial-narrow',
