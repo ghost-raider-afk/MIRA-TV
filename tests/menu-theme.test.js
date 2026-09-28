@@ -70,6 +70,18 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     assert.equal(preset.table.promotion_style,'price-only');
   }
 
+  assert.deepEqual(
+    [premium.visual.utilityFontFamily,premium.weather.temperature_font_family,premium.weather.condition_font_family,premium.weather.forecast_font_family,premium.weather.icon_style],
+    ['montserrat','oswald','roboto-condensed','roboto-condensed','premium-line']
+  );
+  assert.deepEqual(
+    [chalk.visual.utilityFontFamily,chalk.weather.temperature_font_family,chalk.weather.condition_font_family,chalk.weather.forecast_font_family,chalk.weather.icon_style],
+    ['underdog','neucha','neucha','neucha','chalk-drawn']
+  );
+  assert.deepEqual(
+    [brand.visual.utilityFontFamily,brand.weather.temperature_font_family,brand.weather.condition_font_family,brand.weather.forecast_font_family,brand.weather.icon_style],
+    ['russo-one','montserrat','russo-one','pt-sans-narrow','brand-gold']
+  );
   assert.notEqual(premium.weather.current_layout,chalk.weather.current_layout);
   assert.notEqual(chalk.weather.current_layout,brand.weather.current_layout);
   assert.notEqual(premium.visual.legalVariant,chalk.visual.legalVariant);
@@ -91,7 +103,7 @@ test('theme geometry keeps table, side composition and legal footer in separate 
   };
   const approvedVerticalGeometry={
     premium:{weatherBottom:296,brandY:315,decorY:525,decorBottom:936},
-    chalk:{weatherBottom:222,brandY:260,decorY:620,decorBottom:936},
+    chalk:{weatherBottom:250,brandY:260,decorY:620,decorBottom:936},
     'brand-premium':{weatherBottom:280,brandY:300,decorY:570,decorBottom:936}
   };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
