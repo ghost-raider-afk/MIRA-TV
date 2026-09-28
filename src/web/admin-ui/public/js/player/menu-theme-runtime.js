@@ -21,6 +21,12 @@ function boundedNumber(value, fallback, minimum, maximum) {
   return Number.isFinite(number) ? Math.max(minimum, Math.min(maximum, number)) : fallback;
 }
 
+function nullableNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function normalizedTheme(settings) {
   const source = themeRecord(settings);
   const preset = menuThemePreset(source.preset_id);
@@ -28,6 +34,10 @@ function normalizedTheme(settings) {
   const weatherPreset = preset.weather || {};
   const brand = source.brand && typeof source.brand === 'object' ? source.brand : {};
   const utility = source.utility_slot && typeof source.utility_slot === 'object' ? source.utility_slot : {};
+  const weather = utility.weather && typeof utility.weather === 'object' ? utility.weather : {};
+  const decor = source.decor && typeof source.decor === 'object' ? source.decor : {};
+  const legal = source.legal && typeof source.legal === 'object' ? source.legal : {};
+
   return Object.freeze({
     schema_version:Number(source.schema_version) || 1,
     preset_id:preset.id,
@@ -36,6 +46,7 @@ function normalizedTheme(settings) {
       name:String(brand.name || visual.brandText || '').trim(),
       caption:String(brand.caption || visual.brandCaption || '').trim(),
       logo_element_id:String(brand.logo_element_id || ''),
+      logo_url:String(brand.logo_url || '').trim(),
       name_font_family:String(brand.name_font_family || visual.brandNameFontFamily || ''),
       name_font_size_px:boundedNumber(brand.name_font_size_px, Number(visual.brandNameFontSizePx) || 64, 24, 128),
       name_font_weight:boundedNumber(brand.name_font_weight, Number(visual.brandNameFontWeight) || 900, 300, 900),
@@ -53,7 +64,28 @@ function normalizedTheme(settings) {
       temperature_font_family:String(utility.temperature_font_family || weatherPreset.temperature_font_family || ''),
       temperature_font_size_pt:boundedNumber(utility.temperature_font_size_pt, Number(weatherPreset.temperature_font_size_pt) || 48, 24, 96),
       location_font_size_pt:boundedNumber(utility.location_font_size_pt, Number(weatherPreset.location_font_size_pt) || 14, 8, 32),
-      icon_scale_percent:boundedNumber(utility.icon_scale_percent, Number(weatherPreset.icon_scale_percent) || 100, 80, 200)
+      icon_scale_percent:boundedNumber(utility.icon_scale_percent, Number(weatherPreset.icon_scale_percent) || 100, 80, 200),
+      weather:Object.freeze({
+        location_name:String(weather.location_name || '').trim(),
+        latitude:nullableNumber(weather.latitude),
+        longitude:nullableNumber(weather.longitude),
+        timezone:String(weather.timezone || 'auto'),
+        refresh_minutes:boundedNumber(weather.refresh_minutes, 15, 5, 120),
+        show_condition:weather.show_condition !== false,
+        show_forecast:weather.show_forecast !== false,
+        forecast_items:boundedNumber(weather.forecast_items, Number(weatherPreset.forecast_items) || 3, 1, 6)
+      })
+    }),
+    decor:Object.freeze({
+      source_url:String(decor.source_url || '').trim()
+    }),
+    legal:Object.freeze({
+      text:String(legal.text || visual.footerText || '').trim(),
+      age_text:String(legal.age_text || visual.ageText || '18+').trim(),
+      font_family:String(legal.font_family || visual.legalFontFamily || 'mira-condensed'),
+      font_size_px:boundedNumber(legal.font_size_px, Number(visual.legalFontSizePx) || 30, 16, 52),
+      font_weight:boundedNumber(legal.font_weight, Number(visual.legalFontWeight) || 600, 300, 900),
+      letter_spacing_px:boundedNumber(legal.letter_spacing_px, Number(visual.legalLetterSpacingPx) || 0, 0, 14)
     }),
     overrides:Object.freeze(Array.isArray(source.overrides) ? [...source.overrides] : [])
   });
@@ -71,64 +103,35 @@ function scaleGeometry(rect, viewport) {
   });
 }
 
-function applySlot(element, rect, zIndex) {
-  if (!element || !rect) return element;
-  return {
-    ...element,
-    x:rect.x,
-    y:rect.y,
-    width:rect.width,
-    height:rect.height,
-    rotation_deg:0,
-    z_index:zIndex,
-    opacity:1,
-    enabled:true,
-    content_auto_scale:true,
-    content_scale_percent:100
-  };
-}
-
-function applyThemeWeather(element, theme, preset) {
-  const weatherPreset = preset.weather || {};
-  const utility = theme.utility_slot;
-  return {
-    ...element,
-    weather:{
-      ...(element.weather || {}),
-      temperature_font_family:utility.temperature_font_family || weatherPreset.temperature_font_family || element.weather?.temperature_font_family,
-      temperature_font_size_pt:utility.temperature_font_size_pt,
-      location_font_size_pt:utility.location_font_size_pt,
-      icon_scale_percent:utility.icon_scale_percent,
-      show_condition:weatherPreset.show_condition !== false,
-      show_forecast:weatherPreset.show_forecast !== false,
-      forecast_items:Number(weatherPreset.forecast_items) || element.weather?.forecast_items || 3
-    }
-  };
+function logoSource(element) {
+  if (!element || element.type !== 'logo') return '';
+  return String(element.media?.source_url || '').trim();
 }
 
 export function resolveMenuThemeRuntime(settings = {}, scene = { version:1,elements:[] }, viewport = { width:1920,height:1080 }) {
-  const theme = normalizedTheme(settings);
-  const preset = menuThemePreset(theme.preset_id);
-  const resolvedSettings = resolveMenuThemeSettings({ ...settings, theme });
+  const baseTheme = normalizedTheme(settings);
+  const preset = menuThemePreset(baseTheme.preset_id);
   const source = scene && typeof scene === 'object' ? scene : { version:1,elements:[] };
   const elements = clone(Array.isArray(source.elements) ? source.elements : []);
+
+  let legacyLogoUrl = '';
+  if (preset.id !== 'legacy' && baseTheme.brand.logo_element_id) {
+    const boundLogo = elements.find((element) => element?.id === baseTheme.brand.logo_element_id);
+    legacyLogoUrl = logoSource(boundLogo);
+    if (boundLogo) boundLogo.enabled = false;
+  }
+
+  const theme = Object.freeze({
+    ...baseTheme,
+    brand:Object.freeze({
+      ...baseTheme.brand,
+      logo_url:baseTheme.brand.logo_url || legacyLogoUrl
+    })
+  });
+  const resolvedSettings = resolveMenuThemeSettings({ ...settings, theme });
   const layout = preset.layout ? Object.fromEntries(
     Object.entries(preset.layout).map(([key,value]) => [key,scaleGeometry(value,viewport)])
   ) : null;
-
-  for (let index=0; index<elements.length; index+=1) {
-    const element = elements[index];
-    if (!element?.id) continue;
-    if (theme.brand.logo_element_id && element.id === theme.brand.logo_element_id && layout?.logo) {
-      elements[index] = applySlot(element, layout.logo, 40);
-      continue;
-    }
-    if (theme.utility_slot.weather_element_id && element.id === theme.utility_slot.weather_element_id) {
-      elements[index] = theme.utility_slot.mode === 'weather' && layout?.weather
-        ? applyThemeWeather(applySlot(element, layout.weather, 35), theme, preset)
-        : { ...element, enabled:false };
-    }
-  }
 
   return Object.freeze({
     theme,
