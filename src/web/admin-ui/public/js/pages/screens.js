@@ -5,9 +5,7 @@ import { element, makeButton, setMessage, setPending } from '../core/dom.js';
 import { formatDate } from '../core/presentation.js';
 
 const STATUS_REFRESH_MS = 5000;
-const PREVIEW_REQUEST_RETRY_MS = 15000;
 const pingByScreen = new Map();
-const previewRequestAtByScreen = new Map();
 let statusTimer = null;
 let previewDialog = null;
 let previewDialogScreenId = null;
@@ -155,33 +153,15 @@ function fillCardMeta(container, screen, binding) {
   fillRows(container, cardMetaRows(screen, binding));
 }
 
-function shouldRequestCardPreview(screen, binding) {
-  const screenId = Number(screen?.id);
-  if (!Number.isSafeInteger(screenId) || binding?.online !== true || binding?.preview_available === true) {
-    if (Number.isSafeInteger(screenId) && (binding?.preview_available === true || binding?.online !== true)) {
-      previewRequestAtByScreen.delete(screenId);
-    }
-    return false;
-  }
-  const now = Date.now();
-  const previous = Number(previewRequestAtByScreen.get(screenId) || 0);
-  if (now - previous < PREVIEW_REQUEST_RETRY_MS) return false;
-  previewRequestAtByScreen.set(screenId, now);
-  return true;
-}
-
 function syncTvUnit(unit, screen, binding) {
   const status = statusState(binding);
   unit.dataset.tvState = status.key;
   const host = unit.querySelector('[data-tv-face-host]');
   if (host) {
-    const requestFresh = shouldRequestCardPreview(screen, binding);
-    const faceKey = binding?.preview_available
-      ? `${status.key}:${binding.preview_updated_at || ''}`
-      : `${status.key}:pending`;
-    if (requestFresh || host.dataset.tvFaceKey !== faceKey) {
+    const faceKey = `${status.key}:${binding?.preview_updated_at || ''}`;
+    if (host.dataset.tvFaceKey !== faceKey) {
       host.dataset.tvFaceKey = faceKey;
-      host.replaceChildren(createTvFace(screen, binding, false, { requestFresh }));
+      host.replaceChildren(createTvFace(screen, binding));
     }
   }
   const meta = unit.querySelector('[data-tv-meta]');
@@ -595,7 +575,6 @@ export function initialiseScreens() {
       managementDialog = null;
       managementDialogScreenId = null;
       requestedManagementHandled = false;
-      previewRequestAtByScreen.clear();
     }
   };
 }
