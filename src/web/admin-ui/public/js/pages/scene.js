@@ -677,12 +677,11 @@ export function initialiseSceneEditor() {
     tableEditLayer.hidden = true;
     tableEditLayer.replaceChildren();
     propertiesRoot.replaceChildren();
+
     const stack = document.createElement('div');
     stack.className = 'scene-editor-inspector-stack';
     const theme = themeState();
     const preset = menuThemePreset(theme.preset_id);
-    const logos = (state.scene?.elements || []).filter((item) => item?.type === 'logo');
-    const weatherElements = (state.scene?.elements || []).filter((item) => item?.type === 'weather');
 
     const main = document.createElement('details');
     main.className = 'scene-editor-inspector-group';
@@ -697,15 +696,11 @@ export function initialiseSceneEditor() {
     presetSelect.value = theme.preset_id;
     presetSelect.addEventListener('change', () => {
       history.checkpoint();
-      const nextPreset = menuThemePreset(presetSelect.value);
       const current = themeState();
-      let weather = weatherElements.find((item) => item.id === current.utility_slot.weather_element_id) || weatherElements[0] || null;
-      const logo = logos.find((item) => item.id === current.brand.logo_element_id) || logos[0] || null;
-      if (nextPreset.id !== 'legacy' && nextPreset.default_utility_mode === 'weather' && !weather) {
-        weather = appendSceneElement(state,'weather');
-      }
+      const nextPreset = menuThemePreset(presetSelect.value);
       const visual = nextPreset.visual || {};
       const weatherPreset = nextPreset.weather || {};
+      const switchingToConstructor = nextPreset.id === 'legacy';
       const next = {
         ...current,
         preset_id:nextPreset.id,
@@ -713,26 +708,41 @@ export function initialiseSceneEditor() {
         brand:{
           ...current.brand,
           name:current.brand.name || visual.brandText || '',
-          caption:current.brand.caption || visual.brandCaption || '',
-          logo_element_id:logo?.id || '',
+          caption:visual.brandCaption ?? current.brand.caption,
+          logo_element_id:'',
           name_font_family:visual.brandNameFontFamily || current.brand.name_font_family,
-          name_font_size_px:Number(visual.brandNameFontSizePx) || 64,
-          name_font_weight:Number(visual.brandNameFontWeight) || 900,
+          name_font_size_px:Number(visual.brandNameFontSizePx) || current.brand.name_font_size_px,
+          name_font_weight:Number(visual.brandNameFontWeight) || current.brand.name_font_weight,
           caption_font_family:visual.brandCaptionFontFamily || current.brand.caption_font_family,
-          caption_font_size_px:Number(visual.brandCaptionFontSizePx) || 20,
-          caption_font_weight:Number(visual.brandCaptionFontWeight) || 700
+          caption_font_size_px:Number(visual.brandCaptionFontSizePx) || current.brand.caption_font_size_px,
+          caption_font_weight:Number(visual.brandCaptionFontWeight) || current.brand.caption_font_weight
         },
         utility_slot:{
           ...current.utility_slot,
-          mode:nextPreset.id === 'legacy' ? 'none' : weather ? 'weather' : 'clock',
-          weather_element_id:weather?.id || '',
+          mode:switchingToConstructor ? 'none' : nextPreset.default_utility_mode || 'weather',
+          weather_element_id:'',
           font_family:visual.utilityFontFamily || current.utility_slot.font_family,
-          font_size_px:Number(visual.utilityFontSizePx) || 28,
-          font_weight:Number(visual.utilityFontWeight) || 800,
+          font_size_px:Number(visual.utilityFontSizePx) || current.utility_slot.font_size_px,
+          font_weight:Number(visual.utilityFontWeight) || current.utility_slot.font_weight,
           temperature_font_family:weatherPreset.temperature_font_family || current.utility_slot.temperature_font_family,
-          temperature_font_size_pt:Number(weatherPreset.temperature_font_size_pt) || 48,
-          location_font_size_pt:Number(weatherPreset.location_font_size_pt) || 14,
-          icon_scale_percent:Number(weatherPreset.icon_scale_percent) || 100
+          temperature_font_size_pt:Number(weatherPreset.temperature_font_size_pt) || current.utility_slot.temperature_font_size_pt,
+          location_font_size_pt:Number(weatherPreset.location_font_size_pt) || current.utility_slot.location_font_size_pt,
+          icon_scale_percent:Number(weatherPreset.icon_scale_percent) || current.utility_slot.icon_scale_percent,
+          weather:{
+            ...current.utility_slot.weather,
+            show_condition:weatherPreset.show_condition !== false,
+            show_forecast:weatherPreset.show_forecast !== false,
+            forecast_items:Number(weatherPreset.forecast_items) || current.utility_slot.weather.forecast_items || 3
+          }
+        },
+        decor:{ source_url:'' },
+        legal:{
+          text:visual.footerText || current.legal.text,
+          age_text:visual.ageText || '18+',
+          font_family:visual.legalFontFamily || current.legal.font_family,
+          font_size_px:Number(visual.legalFontSizePx) || current.legal.font_size_px,
+          font_weight:Number(visual.legalFontWeight) || current.legal.font_weight,
+          letter_spacing_px:Number(visual.legalLetterSpacingPx) || 0
         },
         overrides:[]
       };
@@ -743,259 +753,397 @@ export function initialiseSceneEditor() {
     const description = document.createElement('small');
     description.className = 'scene-theme-description';
     description.textContent = preset.description || '';
-    panel.append(makeField('Пресет',presetSelect),description);
+    panel.append(makeField('Тема',presetSelect),description);
 
-    const brandName = compactInput('text',theme.brand.name);
-    brandName.maxLength = 120;
-    brandName.setAttribute('aria-label','Название бренда');
-    checkpointControl(brandName);
-    brandName.addEventListener('input', () => {
-      const next=themeState(); next.brand.name=brandName.value; setThemeState(next);
-    });
+    const backgroundControls = () => {
+      const section = document.createElement('div');
+      section.className = 'scene-theme-subsection';
+      const title = document.createElement('strong');
+      title.className = 'scene-theme-subsection-title';
+      title.textContent = 'Фон';
 
-    const caption = compactInput('text',theme.brand.caption);
-    caption.maxLength = 160;
-    caption.setAttribute('aria-label','Подпись бренда');
-    checkpointControl(caption);
-    caption.addEventListener('input', () => {
-      const next=themeState(); next.brand.caption=caption.value; setThemeState(next);
-    });
+      const color = compactInput('color',state.settings.background_color || '#101828');
+      color.setAttribute('aria-label','Цвет фона темы');
+      checkpointControl(color);
+      color.addEventListener('input',()=>{
+        patchMenuSettings({ background_color:color.value });
+      });
 
-    const logo = document.createElement('select');
-    logo.setAttribute('aria-label','Логотип темы');
-    logo.add(new Option('Без логотипа',''));
-    logos.forEach((item,index)=>logo.add(new Option(`Логотип ${index+1}`,item.id)));
-    logo.value=theme.brand.logo_element_id;
-    logo.addEventListener('change', () => {
-      history.checkpoint();
-      const next=themeState(); next.brand.logo_element_id=logo.value; setThemeState(next);
-    });
+      const file = compactInput('file',null);
+      file.accept='image/png,image/jpeg,image/webp';
+      file.setAttribute('aria-label','Фоновое изображение темы');
+      const upload = document.createElement('button');
+      upload.type='button';
+      upload.className='button button-secondary';
+      upload.dataset.sceneBackgroundUpload='true';
+      upload.textContent='Загрузить фон';
+      upload.addEventListener('click',()=>{
+        const selected=file.files?.[0];
+        if(selected) void applyBackgroundUpload(selected);
+      });
 
-    const themeFontSelect=(value,label)=>{
+      const remove = document.createElement('button');
+      remove.type='button';
+      remove.className='button button-secondary';
+      remove.textContent='Убрать фон';
+      remove.disabled=!state.settings.background_image_url;
+      remove.addEventListener('click',()=>void removeBackground());
+
+      const grid=document.createElement('div');
+      grid.className='compact-form-grid';
+      grid.append(makeField('Цвет',color),makeField('Изображение',file),upload,remove);
+      section.append(title,grid);
+      return section;
+    };
+
+    if (preset.id === 'legacy') {
+      const constructor = document.createElement('div');
+      constructor.className = 'scene-theme-subsection scene-theme-constructor';
+      const title = document.createElement('strong');
+      title.className = 'scene-theme-subsection-title';
+      title.textContent = 'Конструктор темы';
+      const note = document.createElement('small');
+      note.textContent = 'Добавляйте универсальные элементы и свободно размещайте их на сцене. Готовые пресеты эти элементы не создают и не используют.';
+      const actions = document.createElement('div');
+      actions.className = 'scene-theme-constructor-actions';
+
+      const existingWeather = (state.scene?.elements || []).some((item)=>item?.type==='weather');
+      for(const [type,label] of [['text','Текстовое поле'],['logo','Логотип'],['image','Картинка'],['weather','Погода']]){
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='button button-secondary';
+        button.textContent=`+ ${label}`;
+        if(type==='weather' && existingWeather) {
+          button.disabled=true;
+          button.title='На сцене уже есть элемент «Погода»';
+        }
+        button.addEventListener('click',()=>{
+          history.checkpoint();
+          const created=appendSceneElement(state,type);
+          if(!created) return;
+          selectedOwner='element';
+          state.selectedElementId=created.id;
+          setDirty();
+          scheduleSceneRender();
+          renderSelectionOwners();
+          if(window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel='properties';
+        });
+        actions.append(button);
+      }
+      constructor.append(title,note,actions);
+      panel.append(constructor,backgroundControls());
+
+      const compatibility = document.createElement('small');
+      compatibility.className='scene-theme-description';
+      compatibility.textContent='Существующие свободные сцены автоматически считаются «Конструктором темы» и сохраняют прежние координаты и настройки.';
+      panel.append(compatibility);
+
+      main.append(panel);
+      stack.append(main);
+      propertiesRoot.append(stack);
+      return;
+    }
+
+    const themeFontSelect=(value,labelText)=>{
       const select=document.createElement('select');
-      select.setAttribute('aria-label',label);
-      select.add(new Option('Шрифт темы',''));
+      select.setAttribute('aria-label',labelText);
       for(const [key,name] of THEME_FONTS) select.add(new Option(name,key));
-      select.value=value || '';
+      select.value=value || 'system-sans';
       return select;
     };
+    const weightSelect=(value,labelText)=>{
+      const select=document.createElement('select');
+      select.setAttribute('aria-label',labelText);
+      for(const weight of [300,400,500,600,700,800,900]) select.add(new Option(String(weight),String(weight)));
+      select.value=String(value || 700);
+      return select;
+    };
+    const subsection=(titleText)=>{
+      const section=document.createElement('div');
+      section.className='scene-theme-subsection';
+      const title=document.createElement('strong');
+      title.className='scene-theme-subsection-title';
+      title.textContent=titleText;
+      section.append(title);
+      return section;
+    };
+
+    const brandSection=subsection('Бренд');
+    const brandName=compactInput('text',theme.brand.name);
+    brandName.maxLength=120;
+    brandName.setAttribute('aria-label','Название бренда');
+    checkpointControl(brandName);
+    brandName.addEventListener('input',()=>{ const next=themeState(); next.brand.name=brandName.value; setThemeState(next); });
     const brandFont=themeFontSelect(theme.brand.name_font_family,'Шрифт названия бренда');
-    brandFont.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.brand.name_font_family=brandFont.value; setThemeState(next);
-    });
-    const captionFont=themeFontSelect(theme.brand.caption_font_family,'Шрифт подписи бренда');
-    captionFont.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.brand.caption_font_family=captionFont.value; setThemeState(next);
-    });
-    const brandSize=compactInput('number',theme.brand.name_font_size_px,{ min:24,max:128,step:1 });
+    brandFont.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.brand.name_font_family=brandFont.value; setThemeState(next); });
+    const brandSize=compactInput('number',theme.brand.name_font_size_px,{min:24,max:128,step:1});
     brandSize.setAttribute('aria-label','Размер названия бренда');
     checkpointControl(brandSize);
-    brandSize.addEventListener('input',()=>{
-      const value=Number(brandSize.value);
-      if(!Number.isFinite(value)) return;
-      const next=themeState(); next.brand.name_font_size_px=clamp(Math.round(value),24,128); setThemeState(next);
-    });
-    const brandWeight=document.createElement('select');
-    brandWeight.setAttribute('aria-label','Жирность названия бренда');
-    for(const value of [300,400,500,600,700,800,900]) brandWeight.add(new Option(String(value),String(value)));
-    brandWeight.value=String(theme.brand.name_font_weight || 900);
-    brandWeight.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.brand.name_font_weight=Number(brandWeight.value); setThemeState(next);
-    });
-    const captionSize=compactInput('number',theme.brand.caption_font_size_px,{ min:10,max:64,step:1 });
+    brandSize.addEventListener('input',()=>{ const next=themeState(); next.brand.name_font_size_px=clamp(Number(brandSize.value)||64,24,128); setThemeState(next); });
+    const brandWeight=weightSelect(theme.brand.name_font_weight,'Жирность названия бренда');
+    brandWeight.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.brand.name_font_weight=Number(brandWeight.value); setThemeState(next); });
+
+    const caption=compactInput('text',theme.brand.caption);
+    caption.maxLength=160;
+    caption.setAttribute('aria-label','Подпись бренда');
+    checkpointControl(caption);
+    caption.addEventListener('input',()=>{ const next=themeState(); next.brand.caption=caption.value; setThemeState(next); });
+    const captionFont=themeFontSelect(theme.brand.caption_font_family,'Шрифт подписи бренда');
+    captionFont.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.brand.caption_font_family=captionFont.value; setThemeState(next); });
+    const captionSize=compactInput('number',theme.brand.caption_font_size_px,{min:10,max:64,step:1});
     captionSize.setAttribute('aria-label','Размер подписи бренда');
     checkpointControl(captionSize);
-    captionSize.addEventListener('input',()=>{
-      const value=Number(captionSize.value);
-      if(!Number.isFinite(value)) return;
-      const next=themeState(); next.brand.caption_font_size_px=clamp(Math.round(value),10,64); setThemeState(next);
+    captionSize.addEventListener('input',()=>{ const next=themeState(); next.brand.caption_font_size_px=clamp(Number(captionSize.value)||20,10,64); setThemeState(next); });
+    const captionWeight=weightSelect(theme.brand.caption_font_weight,'Жирность подписи бренда');
+    captionWeight.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.brand.caption_font_weight=Number(captionWeight.value); setThemeState(next); });
+
+    const logoFile=compactInput('file',null);
+    logoFile.accept='image/png,image/jpeg,image/webp';
+    logoFile.setAttribute('aria-label','Логотип пресета');
+    const logoUpload=document.createElement('button');
+    logoUpload.type='button';
+    logoUpload.className='button button-secondary';
+    logoUpload.textContent=theme.brand.logo_url ? 'Заменить логотип' : 'Загрузить логотип';
+    logoUpload.addEventListener('click',async()=>{
+      const file=logoFile.files?.[0];
+      if(!file) return;
+      setPending(logoUpload,true,'Загружаем…');
+      try{
+        const asset=await uploadSceneAsset(file);
+        const next=themeState();
+        next.brand.logo_url=asset.source_url || '';
+        next.brand.logo_element_id='';
+        setThemeState(next,{rerenderInspector:true});
+      }catch(error){ if(active()) setMessage('scene-editor-message',error.message); }
+      finally{ if(active()) setPending(logoUpload,false,'Загружаем…'); }
     });
-    const captionWeight=document.createElement('select');
-    captionWeight.setAttribute('aria-label','Жирность подписи бренда');
-    for(const value of [300,400,500,600,700,800,900]) captionWeight.add(new Option(String(value),String(value)));
-    captionWeight.value=String(theme.brand.caption_font_weight || 700);
-    captionWeight.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.brand.caption_font_weight=Number(captionWeight.value); setThemeState(next);
-    });
+    const logoRemove=document.createElement('button');
+    logoRemove.type='button';
+    logoRemove.className='button button-secondary';
+    logoRemove.textContent='Убрать логотип';
+    logoRemove.disabled=!theme.brand.logo_url;
+    logoRemove.addEventListener('click',()=>{ history.checkpoint(); const next=themeState(); next.brand.logo_url=''; next.brand.logo_element_id=''; setThemeState(next,{rerenderInspector:true}); });
 
     const brandGrid=document.createElement('div');
     brandGrid.className='compact-form-grid';
     brandGrid.append(
-      makeField('Название бренда',brandName),
-      makeField('Подпись / слоган',caption),
-      makeField('Логотип',logo),
-      makeField('Шрифт бренда',brandFont),
-      makeField('Размер бренда, px',brandSize),
-      makeField('Жирность бренда',brandWeight),
-      makeField('Шрифт подписи',captionFont),
-      makeField('Размер подписи, px',captionSize),
-      makeField('Жирность подписи',captionWeight)
+      makeField('Название',brandName),makeField('Шрифт названия',brandFont),
+      makeField('Размер названия, px',brandSize),makeField('Насыщенность названия',brandWeight),
+      makeField('Подпись / слоган',caption),makeField('Шрифт подписи',captionFont),
+      makeField('Размер подписи, px',captionSize),makeField('Насыщенность подписи',captionWeight),
+      makeField('Логотип',logoFile),logoUpload,logoRemove
     );
-    panel.append(brandGrid);
+    brandSection.append(brandGrid);
 
+    const decorSection=subsection('Тематическое изображение');
+    const decorNote=document.createElement('small');
+    decorNote.textContent='По умолчанию используется изображение утверждённого пресета. При необходимости его можно заменить.';
+    const decorFile=compactInput('file',null);
+    decorFile.accept='image/png,image/jpeg,image/webp';
+    decorFile.setAttribute('aria-label','Изображение пресета');
+    const decorUpload=document.createElement('button');
+    decorUpload.type='button';
+    decorUpload.className='button button-secondary';
+    decorUpload.textContent=theme.decor.source_url ? 'Заменить изображение' : 'Загрузить своё изображение';
+    decorUpload.addEventListener('click',async()=>{
+      const file=decorFile.files?.[0];
+      if(!file) return;
+      setPending(decorUpload,true,'Загружаем…');
+      try{
+        const asset=await uploadSceneAsset(file);
+        const next=themeState(); next.decor.source_url=asset.source_url || ''; setThemeState(next,{rerenderInspector:true});
+      }catch(error){ if(active()) setMessage('scene-editor-message',error.message); }
+      finally{ if(active()) setPending(decorUpload,false,'Загружаем…'); }
+    });
+    const decorReset=document.createElement('button');
+    decorReset.type='button';
+    decorReset.className='button button-secondary';
+    decorReset.textContent='Вернуть изображение пресета';
+    decorReset.disabled=!theme.decor.source_url;
+    decorReset.addEventListener('click',()=>{ history.checkpoint(); const next=themeState(); next.decor.source_url=''; setThemeState(next,{rerenderInspector:true}); });
+    decorSection.append(decorNote,makeField('Файл',decorFile),decorUpload,decorReset);
+
+    const utilitySection=subsection('Информационный блок');
     const utility=document.createElement('select');
-    for(const [value,label] of [['none','Не использовать'],['weather','Погода'],['clock','Часы'],['text','Текстовый блок']]){
-      utility.add(new Option(label,value));
+    for(const [value,labelText] of [['weather','Погода'],['clock','Часы'],['text','Текстовый блок'],['none','Не использовать']]){
+      utility.add(new Option(labelText,value));
     }
     utility.value=theme.utility_slot.mode;
     utility.setAttribute('aria-label','Содержимое полезного слота');
-    utility.addEventListener('change', () => {
-      history.checkpoint();
-      const next=themeState();
-      next.utility_slot.mode=utility.value;
-      if(utility.value==='weather' && !next.utility_slot.weather_element_id) {
-        const weather = weatherElements[0] || appendSceneElement(state,'weather');
-        next.utility_slot.weather_element_id=weather?.id || '';
-        renderLayers();
-      }
-      setThemeState(next,{ rerenderInspector:true });
-    });
+    utility.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.utility_slot.mode=utility.value; next.utility_slot.weather_element_id=''; setThemeState(next,{rerenderInspector:true}); });
+    utilitySection.append(makeField('Содержимое',utility));
 
-    const weatherSelect=document.createElement('select');
-    weatherSelect.setAttribute('aria-label','Погодный элемент темы');
-    weatherSelect.add(new Option('Не выбран',''));
-    weatherElements.forEach((item,index)=>weatherSelect.add(new Option(`Погода ${index+1}`,item.id)));
-    weatherSelect.value=theme.utility_slot.weather_element_id;
-    weatherSelect.disabled=theme.utility_slot.mode!=='weather';
-    weatherSelect.addEventListener('change', () => {
-      history.checkpoint();
-      const next=themeState(); next.utility_slot.weather_element_id=weatherSelect.value; setThemeState(next);
-    });
+    if(theme.utility_slot.mode==='weather'){
+      const weather=theme.utility_slot.weather;
+      const location=compactInput('text',weather.location_name);
+      location.autocomplete='off';
+      location.setAttribute('aria-label','Город встроенной погоды');
+      const results=document.createElement('div');
+      results.className='weather-location-results scene-weather-location-results';
+      results.hidden=true;
+      let searchTimer=null;
+      let searchGeneration=0;
 
-    const configureWeather=document.createElement('button');
-    configureWeather.type='button';
-    configureWeather.className='button button-secondary';
-    configureWeather.textContent='Настроить погоду';
-    configureWeather.disabled=theme.utility_slot.mode!=='weather';
-    configureWeather.addEventListener('click',()=>{
-      history.checkpoint();
-      let weather=state.scene?.elements?.find((item)=>item?.type==='weather' && item.id===themeState().utility_slot.weather_element_id)
-        || state.scene?.elements?.find((item)=>item?.type==='weather')
-        || null;
-      if(!weather) {
-        weather=appendSceneElement(state,'weather');
-        if(!weather) return;
+      const closeResults=()=>{ results.hidden=true; results.replaceChildren(); };
+      const applyLocation=(item)=>{
+        if(!item || !Number.isFinite(Number(item.latitude)) || !Number.isFinite(Number(item.longitude))) return;
+        history.checkpoint();
         const next=themeState();
-        next.utility_slot.mode='weather';
-        next.utility_slot.weather_element_id=weather.id;
+        next.utility_slot.weather={
+          ...next.utility_slot.weather,
+          location_name:String(item.name || ''),
+          latitude:Number(item.latitude),
+          longitude:Number(item.longitude),
+          timezone:String(item.timezone || 'auto')
+        };
+        setThemeState(next,{rerenderInspector:true});
+      };
+      const searchLocations=(query)=>{
+        if(searchTimer) clearTimeout(searchTimer);
+        const current=String(query || '').trim();
+        const generation=++searchGeneration;
+        if(current.length<2){ closeResults(); return; }
+        searchTimer=setTimeout(async()=>{
+          try{
+            const items=await api.get('/api/weather/locations?q='+encodeURIComponent(current));
+            if(generation!==searchGeneration || !location.isConnected || location.value.trim()!==current) return;
+            results.replaceChildren();
+            for(const item of (Array.isArray(items)?items.slice(0,8):[])){
+              const button=document.createElement('button');
+              button.type='button';
+              button.className='weather-location-option';
+              const name=document.createElement('span'); name.textContent=item.name || '';
+              const detail=document.createElement('small'); detail.textContent=[item.admin1,item.country].filter(Boolean).join(', ');
+              button.append(name,detail);
+              button.addEventListener('pointerdown',(event)=>event.preventDefault());
+              button.addEventListener('click',()=>applyLocation(item));
+              results.append(button);
+            }
+            results.hidden=!results.childElementCount;
+          }catch{ if(generation===searchGeneration) closeResults(); }
+        },220);
+      };
+      checkpointControl(location);
+      location.addEventListener('input',()=>{
+        const next=themeState();
+        next.utility_slot.weather={...next.utility_slot.weather,location_name:location.value,latitude:null,longitude:null,timezone:'auto'};
         setThemeState(next);
-        setDirty();
-        scheduleSceneRender();
-      }
-      state.selectedElementId=weather.id;
-      selectedOwner='element';
-      renderSelectionOwners();
-      if(window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel='properties';
-    });
+        searchLocations(location.value);
+      });
+      location.addEventListener('blur',()=>setTimeout(closeResults,120));
+      const locationWrap=document.createElement('div');
+      locationWrap.className='scene-weather-location-search';
+      locationWrap.append(makeField('Город',location),results);
 
-    const utilityText=compactInput('text',theme.utility_slot.text);
-    utilityText.maxLength=240;
-    utilityText.setAttribute('aria-label','Текст полезного слота');
-    utilityText.disabled=theme.utility_slot.mode!=='text';
-    checkpointControl(utilityText);
-    utilityText.addEventListener('input', () => {
-      const next=themeState(); next.utility_slot.text=utilityText.value; setThemeState(next);
-    });
+      const weatherStatus=document.createElement('small');
+      weatherStatus.className='scene-theme-weather-status';
+      weatherStatus.textContent=Number.isFinite(Number(weather.latitude)) && Number.isFinite(Number(weather.longitude))
+        ? `${weather.latitude.toFixed?.(4) ?? weather.latitude}, ${weather.longitude.toFixed?.(4) ?? weather.longitude} · ${weather.timezone || 'auto'}`
+        : 'Выберите город из подсказок — координаты и часовой пояс сохранятся в пресете.';
 
-    const utilityFont=themeFontSelect(theme.utility_slot.font_family,'Шрифт текстового слота');
-    utilityFont.disabled=theme.utility_slot.mode!=='text';
-    utilityFont.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.utility_slot.font_family=utilityFont.value; setThemeState(next);
-    });
-    const utilitySize=compactInput('number',theme.utility_slot.font_size_px,{ min:12,max:72,step:1 });
-    utilitySize.setAttribute('aria-label','Размер текста полезного слота');
-    utilitySize.disabled=theme.utility_slot.mode!=='text';
-    checkpointControl(utilitySize);
-    utilitySize.addEventListener('input',()=>{
-      const value=Number(utilitySize.value);
-      if(!Number.isFinite(value)) return;
-      const next=themeState(); next.utility_slot.font_size_px=clamp(Math.round(value),12,72); setThemeState(next);
-    });
-    const utilityWeight=document.createElement('select');
-    utilityWeight.setAttribute('aria-label','Жирность текста полезного слота');
-    for(const value of [300,400,500,600,700,800,900]) utilityWeight.add(new Option(String(value),String(value)));
-    utilityWeight.value=String(theme.utility_slot.font_weight || 800);
-    utilityWeight.disabled=theme.utility_slot.mode!=='text';
-    utilityWeight.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.utility_slot.font_weight=Number(utilityWeight.value); setThemeState(next);
-    });
+      const weatherFont=themeFontSelect(theme.utility_slot.temperature_font_family,'Шрифт температуры темы');
+      weatherFont.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.utility_slot.temperature_font_family=weatherFont.value; setThemeState(next); });
+      const temperatureSize=compactInput('number',theme.utility_slot.temperature_font_size_pt,{min:24,max:96,step:1});
+      temperatureSize.setAttribute('aria-label','Кегль температуры темы');
+      checkpointControl(temperatureSize);
+      temperatureSize.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.temperature_font_size_pt=clamp(Number(temperatureSize.value)||48,24,96); setThemeState(next); });
+      const locationSize=compactInput('number',theme.utility_slot.location_font_size_pt,{min:8,max:32,step:1});
+      locationSize.setAttribute('aria-label','Кегль города темы');
+      checkpointControl(locationSize);
+      locationSize.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.location_font_size_pt=clamp(Number(locationSize.value)||14,8,32); setThemeState(next); });
+      const iconScale=compactInput('number',theme.utility_slot.icon_scale_percent,{min:80,max:200,step:1});
+      iconScale.setAttribute('aria-label','Масштаб иконки погоды темы');
+      checkpointControl(iconScale);
+      iconScale.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.icon_scale_percent=clamp(Number(iconScale.value)||100,80,200); setThemeState(next); });
+      const refresh=compactInput('number',weather.refresh_minutes,{min:5,max:120,step:1});
+      refresh.setAttribute('aria-label','Обновление погоды темы');
+      checkpointControl(refresh);
+      refresh.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.weather.refresh_minutes=clamp(Number(refresh.value)||15,5,120); setThemeState(next); });
+      const forecastItems=compactInput('number',weather.forecast_items,{min:1,max:6,step:1});
+      forecastItems.setAttribute('aria-label','Количество прогнозов темы');
+      checkpointControl(forecastItems);
+      forecastItems.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.weather.forecast_items=clamp(Number(forecastItems.value)||3,1,6); setThemeState(next); });
 
-    const weatherFont=themeFontSelect(theme.utility_slot.temperature_font_family,'Шрифт температуры темы');
-    weatherFont.disabled=theme.utility_slot.mode!=='weather';
-    weatherFont.addEventListener('change',()=>{
-      history.checkpoint();
-      const next=themeState(); next.utility_slot.temperature_font_family=weatherFont.value; setThemeState(next);
-    });
-    const temperatureSize=compactInput('number',theme.utility_slot.temperature_font_size_pt,{ min:24,max:96,step:1 });
-    temperatureSize.setAttribute('aria-label','Кегль температуры темы');
-    temperatureSize.disabled=theme.utility_slot.mode!=='weather';
-    checkpointControl(temperatureSize);
-    temperatureSize.addEventListener('input',()=>{
-      const value=Number(temperatureSize.value);
-      if(!Number.isFinite(value)) return;
-      const next=themeState(); next.utility_slot.temperature_font_size_pt=clamp(Math.round(value),24,96); setThemeState(next);
-    });
-    const locationSize=compactInput('number',theme.utility_slot.location_font_size_pt,{ min:8,max:32,step:1 });
-    locationSize.setAttribute('aria-label','Кегль города темы');
-    locationSize.disabled=theme.utility_slot.mode!=='weather';
-    checkpointControl(locationSize);
-    locationSize.addEventListener('input',()=>{
-      const value=Number(locationSize.value);
-      if(!Number.isFinite(value)) return;
-      const next=themeState(); next.utility_slot.location_font_size_pt=clamp(Math.round(value),8,32); setThemeState(next);
-    });
-    const weatherIconScale=compactInput('number',theme.utility_slot.icon_scale_percent,{ min:80,max:200,step:1 });
-    weatherIconScale.setAttribute('aria-label','Масштаб иконки погоды темы');
-    weatherIconScale.disabled=theme.utility_slot.mode!=='weather';
-    checkpointControl(weatherIconScale);
-    weatherIconScale.addEventListener('input',()=>{
-      const value=Number(weatherIconScale.value);
-      if(!Number.isFinite(value)) return;
-      const next=themeState(); next.utility_slot.icon_scale_percent=clamp(Math.round(value),80,200); setThemeState(next);
-    });
+      const weatherGrid=document.createElement('div');
+      weatherGrid.className='compact-form-grid';
+      weatherGrid.append(
+        locationWrap,
+        makeField('Шрифт температуры',weatherFont),
+        makeField('Температура, pt',temperatureSize),
+        makeField('Город, pt',locationSize),
+        makeField('Иконка, %',iconScale),
+        makeField('Обновление, мин',refresh),
+        makeField('Прогнозов',forecastItems)
+      );
+      utilitySection.append(weatherStatus,weatherGrid);
+    }else if(theme.utility_slot.mode==='text'){
+      const utilityText=compactInput('text',theme.utility_slot.text);
+      utilityText.maxLength=240;
+      utilityText.setAttribute('aria-label','Текст полезного слота');
+      checkpointControl(utilityText);
+      utilityText.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.text=utilityText.value; setThemeState(next); });
+      const utilityFont=themeFontSelect(theme.utility_slot.font_family,'Шрифт текстового слота');
+      utilityFont.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.utility_slot.font_family=utilityFont.value; setThemeState(next); });
+      const utilitySize=compactInput('number',theme.utility_slot.font_size_px,{min:12,max:72,step:1});
+      utilitySize.setAttribute('aria-label','Размер текста полезного слота');
+      checkpointControl(utilitySize);
+      utilitySize.addEventListener('input',()=>{ const next=themeState(); next.utility_slot.font_size_px=clamp(Number(utilitySize.value)||28,12,72); setThemeState(next); });
+      utilitySection.append(makeField('Текст',utilityText),makeField('Шрифт',utilityFont),makeField('Размер, px',utilitySize));
+    }else if(theme.utility_slot.mode==='clock'){
+      const clockNote=document.createElement('small');
+      clockNote.textContent='Часы используют отдельный дизайн выбранного пресета и часовой пояс телевизора.';
+      utilitySection.append(clockNote);
+    }
 
-    const utilityGrid=document.createElement('div');
-    utilityGrid.className='compact-form-grid';
-    utilityGrid.append(
-      makeField('Полезный слот',utility),
-      makeField('Погода',weatherSelect),
-      configureWeather,
-      makeField('Текст',utilityText),
-      makeField('Шрифт текста',utilityFont),
-      makeField('Размер текста, px',utilitySize),
-      makeField('Жирность текста',utilityWeight),
-      makeField('Шрифт температуры',weatherFont),
-      makeField('Температура, pt',temperatureSize),
-      makeField('Город, pt',locationSize),
-      makeField('Иконка, %',weatherIconScale)
+    const legalSection=subsection('Предупреждение 18+');
+    const legalText=document.createElement('textarea');
+    legalText.rows=2;
+    legalText.maxLength=220;
+    legalText.value=theme.legal.text;
+    legalText.setAttribute('aria-label','Текст предупреждения');
+    checkpointControl(legalText);
+    legalText.addEventListener('input',()=>{ const next=themeState(); next.legal.text=legalText.value; setThemeState(next); });
+    const ageText=compactInput('text',theme.legal.age_text);
+    ageText.maxLength=12;
+    ageText.setAttribute('aria-label','Текст возрастного знака');
+    checkpointControl(ageText);
+    ageText.addEventListener('input',()=>{ const next=themeState(); next.legal.age_text=ageText.value; setThemeState(next); });
+    const legalFont=themeFontSelect(theme.legal.font_family,'Шрифт предупреждения');
+    legalFont.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.legal.font_family=legalFont.value; setThemeState(next); });
+    const legalSize=compactInput('number',theme.legal.font_size_px,{min:16,max:52,step:1});
+    legalSize.setAttribute('aria-label','Размер предупреждения');
+    checkpointControl(legalSize);
+    legalSize.addEventListener('input',()=>{ const next=themeState(); next.legal.font_size_px=clamp(Number(legalSize.value)||30,16,52); setThemeState(next); });
+    const legalWeight=weightSelect(theme.legal.font_weight,'Насыщенность предупреждения');
+    legalWeight.addEventListener('change',()=>{ history.checkpoint(); const next=themeState(); next.legal.font_weight=Number(legalWeight.value); setThemeState(next); });
+    const legalSpacing=compactInput('number',theme.legal.letter_spacing_px,{min:0,max:14,step:1});
+    legalSpacing.setAttribute('aria-label','Межбуквенный интервал предупреждения');
+    checkpointControl(legalSpacing);
+    legalSpacing.addEventListener('input',()=>{ const next=themeState(); next.legal.letter_spacing_px=clamp(Number(legalSpacing.value)||0,0,14); setThemeState(next); });
+    const legalGrid=document.createElement('div');
+    legalGrid.className='compact-form-grid';
+    legalGrid.append(
+      makeField('Текст',legalText),makeField('Возрастной знак',ageText),
+      makeField('Шрифт',legalFont),makeField('Размер, px',legalSize),
+      makeField('Насыщенность',legalWeight),makeField('Трекинг, px',legalSpacing)
     );
-    panel.append(utilityGrid);
+    legalSection.append(legalGrid);
 
     const overrideState=document.createElement('div');
     overrideState.className='scene-theme-overrides';
     const overrideCopy=document.createElement('small');
-    overrideCopy.textContent=theme.preset_id==='legacy'
-      ? 'Текущая тема использует обычные настройки сцены.'
-      : theme.overrides.length
-        ? `Ручных переопределений: ${theme.overrides.length}. Они сохраняются поверх пресета.`
-        : 'Используются настройки пресета без ручных переопределений.';
+    overrideCopy.textContent=theme.overrides.length
+      ? `Ручных переопределений: ${theme.overrides.length}. Они сохраняются поверх пресета.`
+      : 'Используются настройки пресета без ручных переопределений.';
     const reset=document.createElement('button');
     reset.type='button';
     reset.className='button button-secondary';
     reset.textContent='Сбросить ручные настройки темы';
-    reset.disabled=theme.preset_id==='legacy' || !theme.overrides.length;
-    reset.addEventListener('click', () => {
-      history.checkpoint();
-      const next=themeState(); next.overrides=[]; setThemeState(next,{ rerenderInspector:true });
-    });
+    reset.disabled=!theme.overrides.length;
+    reset.addEventListener('click',()=>{ history.checkpoint(); const next=themeState(); next.overrides=[]; setThemeState(next,{rerenderInspector:true}); });
     overrideState.append(overrideCopy,reset);
-    panel.append(overrideState);
+
+    panel.append(brandSection,utilitySection,decorSection,legalSection,backgroundControls(),overrideState);
     main.append(panel);
     stack.append(main,multiScreenApplyGroup('theme'));
     propertiesRoot.append(stack);
@@ -1508,6 +1656,7 @@ export function initialiseSceneEditor() {
   function syncAddMenuAvailability() {
     const elements = Array.isArray(state.scene?.elements) ? state.scene.elements : [];
     const hasWeather = elements.some((item) => item?.type === 'weather');
+    addButton.hidden = true;
     addMenu.querySelectorAll('[data-scene-element-type]').forEach((button) => {
       const type = button.dataset.sceneElementType;
       const unavailable = type === 'weather' && hasWeather;
