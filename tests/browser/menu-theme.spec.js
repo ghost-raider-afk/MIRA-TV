@@ -47,9 +47,9 @@ test('preset themes are self-contained and apply to another TV without creating 
     ]);
 
     const approvedPresets=[
-      ['premium','/brand/themes/premium-approved-decor.webp','premium'],
-      ['chalk','/brand/themes/chalk-approved-decor.webp','chalk'],
-      ['brand-premium','/brand/themes/brand-premium-approved-decor.webp','brand-premium']
+      ['premium','/brand/themes/premium-side.svg','premium'],
+      ['chalk','/brand/themes/chalk-side.svg','chalk'],
+      ['brand-premium','/brand/themes/brand-premium-side.svg','brand-premium']
     ];
     for(const [presetId,decorSource,weatherVariant] of approvedPresets){
       await themeSelect.selectOption(presetId);
@@ -114,9 +114,9 @@ test('preset themes are self-contained and apply to another TV without creating 
 test('approved preset decor assets decode in Chromium', async ({ page }) => {
   await page.goto('/login');
   const assets=[
-    '/brand/themes/premium-approved-decor.webp',
-    '/brand/themes/chalk-approved-decor.webp',
-    '/brand/themes/brand-premium-approved-decor.webp'
+    '/brand/themes/premium-side.svg',
+    '/brand/themes/chalk-side.svg',
+    '/brand/themes/brand-premium-side.svg'
   ];
   const decoded=await page.evaluate(async (urls) => Promise.all(urls.map((url) => new Promise((resolve) => {
     const image=new Image();
@@ -302,7 +302,7 @@ test('chalk preset uses approved brand hierarchy and recovers stale managed deco
     await expect(caption).toHaveCSS('font-family',/MIRA Neucha/);
     await expect(caption).toHaveCSS('top','280px');
     await expect(stage.locator('.menu-theme-brand')).toHaveCSS('z-index','2');
-    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/chalk-approved-decor.webp');
+    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/chalk-side.svg');
   } finally {
     if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
     if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);

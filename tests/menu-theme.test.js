@@ -45,7 +45,7 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     assert.match(preset.settings.background_image_url,/^\/brand\/themes\/.+-background\.svg$/);
     assert.ok(preset.visual?.legalVariant);
     assert.ok(preset.visual?.brandDivider);
-    assert.match(preset.visual?.decorAsset,/^\/brand\/themes\/.+-approved-decor\.webp$/);
+    assert.match(preset.visual?.decorAsset,/^\/brand\/themes\/.+-side\.svg$/);
   }
 
   assert.deepEqual(
@@ -97,12 +97,13 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   assert.equal(brand.visual.decorFit,'cover');
 });
 
-test('approved preset decor assets are valid WebP files', () => {
+test('approved preset decor assets are self-contained SVG files', () => {
   for (const preset of MENU_THEME_PRESETS.filter((item) => item.id !== 'legacy')) {
     const relative=String(preset.visual.decorAsset || '').replace(/^\//,'');
-    const bytes=readFileSync(new URL(`../src/web/admin-ui/public/${relative}`,import.meta.url));
-    assert.equal(bytes.subarray(0,4).toString('ascii'),'RIFF',`${preset.id}: decor is not a RIFF container`);
-    assert.equal(bytes.subarray(8,12).toString('ascii'),'WEBP',`${preset.id}: decor is not a WebP asset`);
+    const source=readFileSync(new URL(`../src/web/admin-ui/public/${relative}`,import.meta.url),'utf8');
+    assert.match(source,/^<svg\b|<svg\b/,`${preset.id}: decor is not SVG`);
+    assert.doesNotMatch(source,/(?:href|xlink:href)\s*=\s*["']https?:\/\//i,`${preset.id}: decor must not load remote assets`);
+    assert.doesNotMatch(source,/url\(\s*["']?https?:\/\//i,`${preset.id}: decor must not load remote CSS assets`);
   }
 });
 
