@@ -112,12 +112,17 @@ test('preset themes are self-contained and apply to another TV without creating 
 });
 
 test('approved preset decor assets decode in Chromium', async ({ page }) => {
-  await page.goto('/login');
+  await page.goto('/signin');
   const assets=[
     '/brand/themes/premium-side.svg',
     '/brand/themes/chalk-side.svg',
     '/brand/themes/brand-premium-side.svg'
   ];
+  for(const url of assets){
+    const response=await page.request.get(url);
+    expect(response.status(),url+' is not served').toBe(200);
+    expect(response.headers()['content-type'] || '',url+' has the wrong content type').toContain('image/svg+xml');
+  }
   const decoded=await page.evaluate(async (urls) => Promise.all(urls.map((url) => new Promise((resolve) => {
     const image=new Image();
     image.onload=()=>resolve({url,width:image.naturalWidth,height:image.naturalHeight});
