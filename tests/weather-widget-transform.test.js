@@ -158,8 +158,8 @@ test('offline Player shell keeps static weather and Local-first state without mo
   assert.match(weatherRuntime, /const CACHE_PREFIX = 'mira-tv\.weather\.last\.v2\.'/);
   assert.match(weatherRuntime, /legacyScreenId === this\.screenId/);
 
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v57'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v56'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v58'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v57'/);
   assert.match(worker, /\/js\/player\/weather-widget\.js/);
   assert.doesNotMatch(worker, /['"]\/js\/motion\//);
   assert.doesNotMatch(worker, /['"]\/js\/player\/scene-video-runtime\.js['"]/);
