@@ -130,7 +130,7 @@ test('approved preset decor assets decode in Chromium', async ({ page }) => {
   }
 });
 
-test('approved weather informers render three distinct preset visual systems', async ({ page }) => {
+test('approved weather informers render three distinct preset visual systems', async ({ page }, testInfo) => {
   await page.setViewportSize({width:1440,height:900});
 
   const snapshot={
@@ -210,6 +210,7 @@ test('approved weather informers render three distinct preset visual systems', a
     await expect(premium.locator('.theme-weather-brand-mark')).toHaveCount(0);
     await expect(stage.locator('.menu-theme-utility[data-weather-variant="premium"]')).toHaveCSS('border-top-width','0px');
     await expect(premium.locator('.theme-weather-forecast')).toHaveCSS('border-bottom-width','2px');
+    await testInfo.attach('premium-theme-audit',{body:await stage.screenshot({type:'png'}),contentType:'image/png'});
 
     await page.locator('#scene-editor-theme-layer').click();
     await page.getByLabel('Тема меню').selectOption('chalk');
@@ -222,6 +223,7 @@ test('approved weather informers render three distinct preset visual systems', a
     await expect(chalk.locator('.theme-weather-forecast-item').first()).toHaveCSS('font-family',/MIRA Roboto Condensed/);
     await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('text-transform','lowercase');
     await expect(chalk.locator('.theme-weather-brand-mark')).toHaveCount(0);
+    await testInfo.attach('chalk-theme-audit',{body:await stage.screenshot({type:'png'}),contentType:'image/png'});
 
     await page.locator('#scene-editor-theme-layer').click();
     await page.getByLabel('Тема меню').selectOption('brand-premium');
@@ -233,6 +235,7 @@ test('approved weather informers render three distinct preset visual systems', a
     await expect(brand.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(244, 182, 31)');
     await expect(brand.locator('.theme-weather-brand-mark')).toHaveCount(1);
     await expect(brand.locator('.theme-weather-forecast-item')).toHaveCount(3);
+    await testInfo.attach('brand-premium-theme-audit',{body:await stage.screenshot({type:'png'}),contentType:'image/png'});
   } finally {
     if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
     if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
