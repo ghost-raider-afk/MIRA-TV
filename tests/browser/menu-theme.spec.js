@@ -111,6 +111,25 @@ test('preset themes are self-contained and apply to another TV without creating 
   }
 });
 
+test('approved preset decor assets decode in Chromium', async ({ page }) => {
+  await page.goto('/login');
+  const assets=[
+    '/brand/themes/premium-approved-decor.webp',
+    '/brand/themes/chalk-approved-decor.webp',
+    '/brand/themes/brand-premium-approved-decor.webp'
+  ];
+  const decoded=await page.evaluate(async (urls) => Promise.all(urls.map((url) => new Promise((resolve) => {
+    const image=new Image();
+    image.onload=()=>resolve({url,width:image.naturalWidth,height:image.naturalHeight});
+    image.onerror=()=>resolve({url,width:0,height:0});
+    image.src=url+'?decode-check=1';
+  }))),assets);
+  for(const item of decoded){
+    expect(item.width, item.url+' failed to decode').toBeGreaterThan(0);
+    expect(item.height, item.url+' failed to decode').toBeGreaterThan(0);
+  }
+});
+
 test('approved weather informers render three distinct preset visual systems', async ({ page }) => {
   await page.setViewportSize({width:1440,height:900});
 

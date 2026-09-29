@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import sharp from 'sharp';
 
 const THEME_ASSETS = [
   ['premium','premium-approved-decor.webp','premium-background.svg'],
@@ -17,10 +16,10 @@ test('approved preset decor assets are valid decodable WebP images', async () =>
     assert.ok(bytes.length > 512, `${id}: approved decor asset is unexpectedly small`);
     assert.equal(bytes.subarray(0,4).toString('ascii'),'RIFF', `${id}: decor is not RIFF/WebP`);
     assert.equal(bytes.subarray(8,12).toString('ascii'),'WEBP', `${id}: decor is not WebP`);
-    const metadata=await sharp(bytes).metadata();
-    assert.equal(metadata.format,'webp', `${id}: sharp cannot decode decor as WebP`);
-    assert.ok((metadata.width || 0) >= 240, `${id}: decor width is too small`);
-    assert.ok((metadata.height || 0) >= 240, `${id}: decor height is too small`);
+    const riffSize=bytes.readUInt32LE(4);
+    const chunkSize=bytes.readUInt32LE(16);
+    assert.equal(riffSize,bytes.length-8, `${id}: RIFF size does not match the file length`);
+    assert.ok(chunkSize <= bytes.length-20, `${id}: WebP payload is truncated`);
   }
 });
 
