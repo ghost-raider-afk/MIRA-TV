@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   MENU_THEME_OVERRIDE_KEYS,
@@ -29,6 +30,7 @@ test('theme catalog exposes three approved presets plus Theme Constructor', () =
     const item=catalog.find((entry)=>entry.id===id);
     assert.equal(item.kind,'preset');
     assert.equal(item.default_utility_mode,'weather');
+    assert.equal(item.preset_version,id==='chalk' ? 2 : 1);
   }
 });
 
@@ -43,7 +45,7 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     assert.match(preset.settings.background_image_url,/^\/brand\/themes\/.+-background\.svg$/);
     assert.ok(preset.visual?.legalVariant);
     assert.ok(preset.visual?.brandDivider);
-    assert.match(preset.visual?.decorAsset,/^\/brand\/themes\/.+-approved-decor\.webp$/);
+    assert.match(preset.visual?.decorAsset,/^\/brand\/themes\/.+-side\.svg$/);
   }
 
   assert.deepEqual(
@@ -51,8 +53,8 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     ['montserrat','roboto-condensed','oswald']
   );
   assert.deepEqual(
-    [chalk.table.section_font_family,chalk.table.item_font_family,chalk.visual.brandCaptionFontFamily],
-    ['underdog','yanone-kaffeesatz','neucha']
+    [chalk.table.section_font_family,chalk.table.item_font_family,chalk.table.meta_font_family,chalk.table.price_font_family,chalk.visual.brandNameFontFamily,chalk.visual.brandCaptionFontFamily],
+    ['montserrat','montserrat','roboto-condensed','oswald','montserrat','neucha']
   );
   assert.deepEqual(
     [brand.table.section_font_family,brand.table.item_font_family,brand.table.price_font_family],
@@ -70,6 +72,18 @@ test('approved presets own genuinely distinct table, weather, typography and leg
     assert.equal(preset.table.promotion_style,'price-only');
   }
 
+  assert.deepEqual(
+    [premium.visual.utilityFontFamily,premium.weather.temperature_font_family,premium.weather.condition_font_family,premium.weather.forecast_font_family,premium.weather.icon_style],
+    ['montserrat','oswald','roboto-condensed','roboto-condensed','premium-line']
+  );
+  assert.deepEqual(
+    [chalk.visual.utilityFontFamily,chalk.weather.temperature_font_family,chalk.weather.condition_font_family,chalk.weather.forecast_font_family,chalk.weather.icon_style],
+    ['montserrat','montserrat','neucha','roboto-condensed','chalk-drawn']
+  );
+  assert.deepEqual(
+    [brand.visual.utilityFontFamily,brand.weather.temperature_font_family,brand.weather.condition_font_family,brand.weather.forecast_font_family,brand.weather.icon_style],
+    ['russo-one','montserrat','russo-one','pt-sans-narrow','brand-gold']
+  );
   assert.notEqual(premium.weather.current_layout,chalk.weather.current_layout);
   assert.notEqual(chalk.weather.current_layout,brand.weather.current_layout);
   assert.notEqual(premium.visual.legalVariant,chalk.visual.legalVariant);
@@ -83,6 +97,16 @@ test('approved presets own genuinely distinct table, weather, typography and leg
   assert.equal(brand.visual.decorFit,'cover');
 });
 
+test('approved preset decor assets are self-contained SVG files', () => {
+  for (const preset of MENU_THEME_PRESETS.filter((item) => item.id !== 'legacy')) {
+    const relative=String(preset.visual.decorAsset || '').replace(/^\//,'');
+    const source=readFileSync(new URL(`../src/web/admin-ui/public/${relative}`,import.meta.url),'utf8');
+    assert.match(source,/^<svg\b|<svg\b/,`${preset.id}: decor is not SVG`);
+    assert.doesNotMatch(source,/(?:href|xlink:href)\s*=\s*["']https?:\/\//i,`${preset.id}: decor must not load remote assets`);
+    assert.doesNotMatch(source,/url\(\s*["']?https?:\/\//i,`${preset.id}: decor must not load remote CSS assets`);
+  }
+});
+
 test('theme geometry keeps table, side composition and legal footer in separate regions', () => {
   const approvedHorizontalGeometry={
     premium:{tableRight:1477,panelX:1495,panelRight:1892},
@@ -91,7 +115,7 @@ test('theme geometry keeps table, side composition and legal footer in separate 
   };
   const approvedVerticalGeometry={
     premium:{weatherBottom:296,brandY:315,decorY:525,decorBottom:936},
-    chalk:{weatherBottom:222,brandY:260,decorY:620,decorBottom:936},
+    chalk:{weatherBottom:222,brandY:258,decorY:512,decorBottom:936},
     'brand-premium':{weatherBottom:280,brandY:300,decorY:570,decorBottom:936}
   };
   for (const preset of MENU_THEME_PRESETS.filter((item)=>item.id !== 'legacy')) {
@@ -122,6 +146,49 @@ test('theme geometry keeps table, side composition and legal footer in separate 
     assert.ok(decorBottom <= preset.layout.footer.y, `${preset.id}: decor overlaps legal footer`);
     assert.ok(panelRight <= 1920, `${preset.id}: side panel leaves viewport`);
   }
+});
+
+test('chalk preset v1 defaults migrate to v2 without overwriting explicit custom typography', () => {
+  const migrated=menuThemeInput({
+    preset_id:'chalk',
+    preset_version:1,
+    brand:{
+      name:'БИР ФИШ',
+      caption:'Хорошее пиво рядом!',
+      name_font_family:'underdog',
+      name_font_size_px:70,
+      caption_font_family:'neucha',
+      caption_font_size_px:28
+    },
+    utility_slot:{
+      mode:'weather',
+      font_family:'yanone-kaffeesatz',
+      font_weight:700,
+      temperature_font_family:'yanone-kaffeesatz',
+      location_font_size_pt:14
+    }
+  });
+  assert.equal(migrated.preset_version,2);
+  assert.equal(migrated.brand.name_font_family,'montserrat');
+  assert.equal(migrated.brand.name_font_size_px,108);
+  assert.equal(migrated.brand.caption_font_size_px,34);
+  assert.equal(migrated.utility_slot.font_family,'montserrat');
+  assert.equal(migrated.utility_slot.font_weight,900);
+  assert.equal(migrated.utility_slot.temperature_font_family,'montserrat');
+  assert.equal(migrated.utility_slot.location_font_size_pt,16);
+
+  const custom=menuThemeInput({
+    preset_id:'chalk',
+    preset_version:1,
+    brand:{name_font_family:'russo-one',name_font_size_px:92},
+    utility_slot:{mode:'none',font_family:'pt-sans-narrow',temperature_font_family:'oswald',location_font_size_pt:20}
+  });
+  assert.equal(custom.preset_version,2);
+  assert.equal(custom.brand.name_font_family,'russo-one');
+  assert.equal(custom.brand.name_font_size_px,92);
+  assert.equal(custom.utility_slot.font_family,'pt-sans-narrow');
+  assert.equal(custom.utility_slot.temperature_font_family,'oswald');
+  assert.equal(custom.utility_slot.location_font_size_pt,20);
 });
 
 test('preset theme contract stores embedded weather, replaceable decor and editable legal typography', () => {

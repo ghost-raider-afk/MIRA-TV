@@ -47,9 +47,9 @@ test('preset themes are self-contained and apply to another TV without creating 
     ]);
 
     const approvedPresets=[
-      ['premium','/brand/themes/premium-approved-decor.webp','premium'],
-      ['chalk','/brand/themes/chalk-approved-decor.webp','chalk'],
-      ['brand-premium','/brand/themes/brand-premium-approved-decor.webp','brand-premium']
+      ['premium','/brand/themes/premium-side.svg','premium'],
+      ['chalk','/brand/themes/chalk-side.svg','chalk'],
+      ['brand-premium','/brand/themes/brand-premium-side.svg','brand-premium']
     ];
     for(const [presetId,decorSource,weatherVariant] of approvedPresets){
       await themeSelect.selectOption(presetId);
@@ -107,6 +107,212 @@ test('preset themes are self-contained and apply to another TV without creating 
     expect(target.draft.scene.elements.some((item)=>item.type==='weather')).toBe(false);
   } finally {
     for(const id of screenIds) await page.request.delete(`/api/screens/${id}`).catch(()=>undefined);
+    if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
+  }
+});
+
+test('approved preset decor assets decode in Chromium', async ({ page }) => {
+  await page.goto('/signin');
+  const assets=[
+    '/brand/themes/premium-side.svg',
+    '/brand/themes/chalk-side.svg',
+    '/brand/themes/brand-premium-side.svg'
+  ];
+  for(const url of assets){
+    const response=await page.request.get(url);
+    expect(response.status(),url+' is not served').toBe(200);
+    expect(response.headers()['content-type'] || '',url+' has the wrong content type').toContain('image/svg+xml');
+  }
+  const decoded=await page.evaluate(async (urls) => Promise.all(urls.map((url) => new Promise((resolve) => {
+    const image=new Image();
+    image.onload=()=>resolve({url,width:image.naturalWidth,height:image.naturalHeight});
+    image.onerror=()=>resolve({url,width:0,height:0});
+    image.src=url+'?decode-check=1';
+  }))),assets);
+  for(const item of decoded){
+    expect(item.width, item.url+' failed to decode').toBeGreaterThan(0);
+    expect(item.height, item.url+' failed to decode').toBeGreaterThan(0);
+  }
+});
+
+test('approved weather informers render three distinct preset visual systems', async ({ page }, testInfo) => {
+  await page.setViewportSize({width:1440,height:900});
+
+  const snapshot={
+    location_name:'Комсомольск-на-Амуре',
+    latitude:50.55,
+    longitude:137.01,
+    timezone:'Asia/Vladivostok',
+    updated_at:'2026-09-29T07:00',
+    temperature:9,
+    apparent_temperature:8,
+    humidity:70,
+    wind_speed:8,
+    wind_direction:90,
+    weather_code:2,
+    is_day:true,
+    condition:'Облачно',
+    icon:'partly-cloudy',
+    forecast:[
+      {time:'2026-09-29T23:00',temperature:8,icon:'partly-cloudy'},
+      {time:'2026-09-30T00:00',temperature:7,icon:'partly-cloudy'},
+      {time:'2026-09-30T01:00',temperature:6,icon:'moon'}
+    ]
+  };
+  await page.route('**/api/weather/locations**', async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify([{
+        name:'Комсомольск-на-Амуре',
+        admin1:'Хабаровский край',
+        country:'Россия',
+        latitude:50.55,
+        longitude:137.01,
+        timezone:'Asia/Vladivostok'
+      }])
+    });
+  });
+  await page.route('**/api/weather/preview**', async (route) => {
+    await route.fulfill({
+      status:200,
+      contentType:'application/json',
+      body:JSON.stringify(snapshot)
+    });
+  });
+
+  await login(page);
+  const stamp=Date.now();
+  let locationId=null;
+  let screenId=null;
+  try {
+    const location=await (await page.request.post('/api/locations',{
+      data:{name:`Weather informer CI ${stamp}`,address:'Weather visual regression',active:true}
+    })).json();
+    locationId=location.id;
+    const screen=await (await page.request.post(`/api/locations/${location.id}/screens`,{data:{}})).json();
+    screenId=screen.id;
+
+    await page.goto(`/scene?screen=${screenId}`);
+    const stage=page.locator('#scene-editor-stage');
+    await page.locator('#scene-editor-theme-layer').click();
+    const themeSelect=page.getByLabel('Тема меню');
+    await themeSelect.selectOption('premium');
+
+    const city=page.getByLabel('Город встроенной погоды');
+    await city.fill('Комсомольск');
+    const cityOption=page.locator('.weather-location-option').filter({hasText:'Комсомольск-на-Амуре'}).first();
+    await expect(cityOption).toBeVisible();
+    await cityOption.click();
+
+    const premium=stage.locator('.theme-weather--premium');
+    await expect(premium).toBeVisible();
+    await expect(premium).toHaveAttribute('data-icon-style','premium-line');
+    await expect(premium.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(premium.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Oswald/);
+    await expect(premium.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(248, 248, 245)');
+    await expect(premium.locator('.theme-weather-current-icon svg')).toHaveAttribute('data-icon','partly-cloudy');
+    await expect(premium.locator('.theme-weather-brand-mark')).toHaveCount(0);
+    await expect(stage.locator('.menu-theme-utility[data-weather-variant="premium"]')).toHaveCSS('border-top-width','0px');
+    await expect(premium.locator('.theme-weather-forecast')).toHaveCSS('border-bottom-width','2px');
+    await testInfo.attach('premium-theme-audit',{body:await stage.screenshot({type:'png'}),contentType:'image/png'});
+
+    await page.locator('#scene-editor-theme-layer').click();
+    await page.getByLabel('Тема меню').selectOption('chalk');
+    const chalk=stage.locator('.theme-weather--chalk');
+    await expect(chalk).toBeVisible();
+    await expect(chalk).toHaveAttribute('data-icon-style','chalk-drawn');
+    await expect(chalk.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(chalk.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(chalk.locator('.theme-weather-forecast-item').first()).toHaveCSS('font-family',/MIRA Roboto Condensed/);
+    await expect(chalk.locator('.theme-weather-condition')).toHaveCSS('text-transform','lowercase');
+    await expect(chalk.locator('.theme-weather-brand-mark')).toHaveCount(0);
+    await testInfo.attach('chalk-theme-audit',{body:await stage.screenshot({type:'png'}),contentType:'image/png'});
+
+    await page.locator('#scene-editor-theme-layer').click();
+    await page.getByLabel('Тема меню').selectOption('brand-premium');
+    const brand=stage.locator('.theme-weather--brand-premium');
+    await expect(brand).toBeVisible();
+    await expect(brand).toHaveAttribute('data-icon-style','brand-gold');
+    await expect(brand.locator('.theme-weather-location')).toHaveCSS('font-family',/MIRA Russo One/);
+    await expect(brand.locator('.theme-weather-temperature')).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(brand.locator('.theme-weather-temperature')).toHaveCSS('color','rgb(244, 182, 31)');
+    await expect(brand.locator('.theme-weather-brand-mark')).toHaveCount(1);
+    await expect(brand.locator('.theme-weather-forecast-item')).toHaveCount(3);
+    await testInfo.attach('brand-premium-theme-audit',{body:await stage.screenshot({type:'png'}),contentType:'image/png'});
+  } finally {
+    if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
+    if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
+  }
+});
+
+test('chalk preset uses approved brand hierarchy and recovers stale managed decor assets', async ({ page }) => {
+  await page.setViewportSize({width:1440,height:900});
+  await login(page);
+
+  const stamp=Date.now();
+  let locationId=null;
+  let screenId=null;
+  try {
+    const location=await (await page.request.post('/api/locations',{
+      data:{name:`Chalk visual CI ${stamp}`,address:'Chalk preset regression',active:true}
+    })).json();
+    locationId=location.id;
+    const screen=await (await page.request.post(`/api/locations/${location.id}/screens`,{data:{}})).json();
+    screenId=screen.id;
+    const editor=await (await page.request.get(`/api/screens/${screenId}/editor`)).json();
+
+    const saved=await page.request.put(`/api/screens/${screenId}/draft`,{data:{
+      revision:editor.draft.revision,
+      rows:editor.draft.rows,
+      settings:{
+        ...editor.draft.settings,
+        theme:{
+          preset_id:'chalk',
+          preset_version:1,
+          brand:{
+            name:'БИР ФИШ',
+            caption:'Хорошее пиво рядом!',
+            name_font_family:'underdog',
+            name_font_size_px:70,
+            caption_font_family:'neucha',
+            caption_font_size_px:28
+          },
+          utility_slot:{
+            mode:'none',
+            font_family:'yanone-kaffeesatz',
+            font_weight:700,
+            temperature_font_family:'yanone-kaffeesatz',
+            location_font_size_pt:14
+          },
+          decor:{source_url:'/brand/themes/chalk-side.svg'}
+        }
+      },
+      scene:editor.draft.scene,
+      screen:{
+        location_id:screen.location_id,
+        name:screen.name,
+        resolution:screen.resolution || '1920×1080',
+        status:'draft',
+        active:true
+      }
+    }});
+    expect(saved.ok()).toBeTruthy();
+
+    await page.goto(`/scene?screen=${screenId}`);
+    const stage=page.locator('#scene-editor-stage');
+    await expect(stage).toHaveAttribute('data-menu-theme','chalk');
+    const brand=stage.locator('.menu-theme-brand-name');
+    await expect(brand).toHaveCSS('font-family',/MIRA Montserrat/);
+    await expect(brand).toHaveCSS('font-size','108px');
+    const caption=stage.locator('.menu-theme-brand-caption');
+    await expect(caption).toHaveCSS('font-family',/MIRA Neucha/);
+    await expect(caption).toHaveCSS('top','280px');
+    await expect(stage.locator('.menu-theme-brand')).toHaveCSS('z-index','2');
+    await expect(stage.locator('.menu-theme-decor-image')).toHaveAttribute('src','/brand/themes/chalk-side.svg');
+  } finally {
+    if(screenId) await page.request.delete(`/api/screens/${screenId}`).catch(()=>undefined);
     if(locationId) await page.request.delete(`/api/locations/${locationId}`).catch(()=>undefined);
   }
 });

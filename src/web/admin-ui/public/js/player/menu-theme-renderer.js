@@ -56,25 +56,36 @@ function timeLabel(value, timezone='auto') {
   catch { return new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(date); }
 }
 
-function iconSvg(name) {
-  const common='viewBox="0 0 64 64" aria-hidden="true" focusable="false"';
-  if(name==='sun') return `<svg ${common}><circle cx="32" cy="32" r="13"/><path d="M32 6v9M32 49v9M6 32h9M49 32h9M13.6 13.6l6.4 6.4M44 44l6.4 6.4M50.4 13.6 44 20M20 44l-6.4 6.4"/></svg>`;
-  if(name==='moon') return `<svg ${common}><path d="M46 43A22 22 0 1 1 29 8a18 18 0 0 0 17 35Z"/></svg>`;
-  if(name==='rain') return `<svg ${common}><path d="M17 39h31a11 11 0 0 0-2-22 16 16 0 0 0-29 6A8 8 0 0 0 17 39Z"/><path d="m22 47-3 8M34 47l-3 8M46 47l-3 8"/></svg>`;
-  if(name==='snow') return `<svg ${common}><path d="M17 38h31a11 11 0 0 0-2-22 16 16 0 0 0-29 6A8 8 0 0 0 17 38Z"/><path d="M20 50h8M24 46v8M36 50h8M40 46v8"/></svg>`;
-  if(name==='storm') return `<svg ${common}><path d="M17 39h31a11 11 0 0 0-2-22 16 16 0 0 0-29 6A8 8 0 0 0 17 39Z"/><path d="m34 42-8 11h8l-4 7 13-14h-8l4-4Z"/></svg>`;
-  if(name==='fog') return `<svg ${common}><path d="M17 34h31a10 10 0 0 0-2-20 15 15 0 0 0-28 6A8 8 0 0 0 17 34Z"/><path d="M13 43h38M18 51h30"/></svg>`;
-  if(name==='cloud') return `<svg ${common}><path d="M16 43h33a12 12 0 0 0-3-23 17 17 0 0 0-31 7A9 9 0 0 0 16 43Z"/></svg>`;
-  if(name==='cloudy-night') return `<svg ${common}><path d="M43 23A15 15 0 0 1 31 6a17 17 0 0 0 18 24"/><path d="M14 48h34a10 10 0 0 0-2-19 15 15 0 0 0-28 6A8 8 0 0 0 14 48Z"/></svg>`;
-  return `<svg ${common}><circle cx="22" cy="20" r="9"/><path d="M16 47h34a11 11 0 0 0-3-21 16 16 0 0 0-29 7A8 8 0 0 0 16 47Z"/></svg>`;
+function iconSvg(name, variant='premium') {
+  const allowed=new Set(['sun','moon','rain','snow','storm','fog','cloud','cloudy-night','partly-cloudy']);
+  const key=allowed.has(String(name || '')) ? String(name) : 'partly-cloudy';
+  const common=`viewBox="0 0 64 64" class="theme-weather-icon-svg" data-icon="${key}" aria-hidden="true" focusable="false"`;
+  const sun=`<g class="theme-weather-icon-accent"><circle class="theme-weather-icon-sun-disc" cx="22" cy="20" r="9"/><path d="M22 5v6M22 29v6M7 20h6M31 20h6M11.5 9.5l4.2 4.2M28.3 26.3l4.2 4.2M32.5 9.5l-4.2 4.2"/></g>`;
+  const cloud=`<path class="theme-weather-icon-primary theme-weather-icon-cloud" d="M16 47h34a11 11 0 0 0-3-21 16 16 0 0 0-29 7A8 8 0 0 0 16 47Z"/>`;
+  if(key==='sun') return `<svg ${common}><g class="theme-weather-icon-accent"><circle class="theme-weather-icon-sun-disc" cx="32" cy="32" r="13"/><path d="M32 6v9M32 49v9M6 32h9M49 32h9M13.6 13.6l6.4 6.4M44 44l6.4 6.4M50.4 13.6 44 20M20 44l-6.4 6.4"/></g></svg>`;
+  if(key==='moon'){
+    const stars=variant==='premium' ? '' : '<path class="theme-weather-icon-accent theme-weather-icon-stars" d="m49 16 1.8 4 4.2 1.8-4.2 1.8-1.8 4-1.8-4-4.2-1.8 4.2-1.8 1.8-4Zm-6 15 1.2 2.7 2.8 1.2-2.8 1.2-1.2 2.7-1.2-2.7-2.8-1.2 2.8-1.2L43 31Z"/>';
+    return `<svg ${common}><path class="theme-weather-icon-primary" d="M46 43A22 22 0 1 1 29 8a18 18 0 0 0 17 35Z"/>${stars}</svg>`;
+  }
+  if(key==='rain') return `<svg ${common}>${cloud}<path class="theme-weather-icon-accent" d="m22 51-3 7M34 51l-3 7M46 51l-3 7"/></svg>`;
+  if(key==='snow') return `<svg ${common}>${cloud}<path class="theme-weather-icon-accent" d="M19 54h10M24 49v10M36 54h10M41 49v10"/></svg>`;
+  if(key==='storm') return `<svg ${common}>${cloud}<path class="theme-weather-icon-accent theme-weather-icon-bolt" d="m34 43-8 11h8l-4 7 13-14h-8l4-4Z"/></svg>`;
+  if(key==='fog') return `<svg ${common}><path class="theme-weather-icon-primary" d="M17 36h31a10 10 0 0 0-2-20 15 15 0 0 0-28 6A8 8 0 0 0 17 36Z"/><path class="theme-weather-icon-accent" d="M13 46h38M18 54h30"/></svg>`;
+  if(key==='cloud') return `<svg ${common}>${cloud}</svg>`;
+  if(key==='cloudy-night') return `<svg ${common}><path class="theme-weather-icon-accent" d="M43 23A15 15 0 0 1 31 6a17 17 0 0 0 18 24"/>${cloud}</svg>`;
+  return `<svg ${common}>${sun}${cloud}</svg>`;
 }
 
-function forecastItem(item, timezone) {
+function brandWeatherMarkSvg() {
+  return '<svg viewBox="0 0 34 26" aria-hidden="true" focusable="false"><path d="M17 2c-3 4-5 7-5 10-3-2-5-2-7-1 1 5 4 8 8 10-1 1-1 2-1 3h10c0-1 0-2-1-3 4-2 7-5 8-10-2-1-4-1-7 1 0-3-2-6-5-10Zm0 4c2 3 3 5 3 8l-3 4-3-4c0-3 1-5 3-8Z"/></svg>';
+}
+
+function forecastItem(item, timezone, variant) {
   const entry=node('div','theme-weather-forecast-item');
   const time=node('span','theme-weather-forecast-time');
   time.textContent=timeLabel(item?.time,timezone);
   const icon=node('i','theme-weather-forecast-icon');
-  icon.innerHTML=iconSvg(item?.icon || 'cloud');
+  icon.innerHTML=iconSvg(item?.icon || 'cloud',variant);
   const temperature=node('strong','theme-weather-forecast-temperature');
   temperature.textContent=`${Math.round(number(item?.temperature))}°`;
   entry.append(time,icon,temperature);
@@ -91,18 +102,25 @@ export function renderThemeWeatherWidget(layer, settings, snapshot, runtime) {
   const variant=preset.weather?.variant || preset.id;
   const root=node('section',`theme-weather theme-weather--${variant}`);
   root.dataset.weatherVariant=variant;
+  root.dataset.iconStyle=preset.weather?.icon_style || variant;
+  root.style.setProperty('--theme-weather-icon-scale',String(Math.max(.8,Math.min(2,number(theme.utility_slot.icon_scale_percent,100)/100))));
+  root.style.setProperty('--theme-weather-condition-font',fontFamily(preset.weather?.condition_font_family,'Arial,sans-serif'));
+  root.style.setProperty('--theme-weather-forecast-font',fontFamily(preset.weather?.forecast_font_family,'Arial,sans-serif'));
 
   const location=node('strong','theme-weather-location');
   location.textContent=snapshot.location_name || settings.location_name || 'Погода';
   location.style.fontFamily=fontFamily(theme.utility_slot.font_family,'Arial,sans-serif');
+  location.style.fontSize=`${Math.round(number(theme.utility_slot.location_font_size_pt,14) * 4 / 3)}px`;
+  location.style.fontWeight=String(number(preset.weather?.location_font_weight,900));
 
   const current=node('div','theme-weather-current');
   const currentIcon=node('i','theme-weather-current-icon');
-  currentIcon.innerHTML=iconSvg(snapshot.icon || 'cloud');
+  currentIcon.innerHTML=iconSvg(snapshot.icon || 'cloud',variant);
   const temperature=node('strong','theme-weather-temperature');
   temperature.textContent=`${Math.round(number(snapshot.temperature))}°`;
   temperature.style.fontFamily=fontFamily(theme.utility_slot.temperature_font_family,'Arial,sans-serif');
   temperature.style.fontSize=`${Math.round(number(theme.utility_slot.temperature_font_size_pt,48) * 4 / 3)}px`;
+  temperature.style.fontWeight=String(number(preset.weather?.temperature_font_weight,900));
   const currentCopy=node('div','theme-weather-current-copy');
   if(preset.weather?.show_now_label){
     const now=node('small','theme-weather-now');
@@ -111,7 +129,7 @@ export function renderThemeWeatherWidget(layer, settings, snapshot, runtime) {
   }
   if(theme.utility_slot.weather?.show_condition !== false){
     const condition=node('span','theme-weather-condition');
-    condition.textContent=String(snapshot.condition || 'Погода').toUpperCase();
+    condition.textContent=String(snapshot.condition || 'Погода');
     currentCopy.append(condition);
   }
   current.append(currentIcon,temperature,currentCopy);
@@ -120,11 +138,17 @@ export function renderThemeWeatherWidget(layer, settings, snapshot, runtime) {
   if(theme.utility_slot.weather?.show_forecast !== false){
     const items=Array.isArray(snapshot.forecast) ? snapshot.forecast : [];
     for(const item of items.slice(0,Number(theme.utility_slot.weather?.forecast_items) || 3)){
-      forecast.append(forecastItem(item,snapshot.timezone || settings.timezone));
+      forecast.append(forecastItem(item,snapshot.timezone || settings.timezone,variant));
     }
   }
 
-  root.append(location,current);
+  root.append(location);
+  if(variant==='brand-premium'){
+    const brandMark=node('span','theme-weather-brand-mark');
+    brandMark.innerHTML=brandWeatherMarkSvg();
+    root.append(brandMark);
+  }
+  root.append(current);
   if(forecast.childElementCount) root.append(forecast);
   layer.append(root);
 }
@@ -225,7 +249,10 @@ export class MenuThemeRenderer {
     }
 
     const decor=node('div','menu-theme-decor');
-    const decorSource=theme.decor?.source_url || preset.visual?.decorAsset || '';
+    const presetDecor=String(preset.visual?.decorAsset || '');
+    const configuredDecor=String(theme.decor?.source_url || '').trim();
+    const managedThemeAsset=configuredDecor.startsWith('/brand/themes/');
+    const decorSource=(managedThemeAsset ? presetDecor : configuredDecor) || presetDecor;
     if(decorSource){
       decor.classList.add('has-asset');
       const image=node('img','menu-theme-decor-image');
@@ -234,6 +261,18 @@ export class MenuThemeRenderer {
       image.decoding='async';
       image.loading='eager';
       image.style.objectFit=preset.visual?.decorFit || 'cover';
+      const handleDecorError=()=>{
+        if(presetDecor && image.dataset.presetFallback!=='true' && image.getAttribute('src')!==presetDecor){
+          image.dataset.presetFallback='true';
+          image.src=presetDecor;
+          return;
+        }
+        image.removeEventListener('error',handleDecorError);
+        image.remove();
+        decor.classList.remove('has-asset');
+        decor.classList.add('is-missing');
+      };
+      image.addEventListener('error',handleDecorError);
       decor.append(image);
     }
 

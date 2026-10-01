@@ -1,14 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
 <defs>
-  <linearGradient id="board" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#151511"/><stop offset=".48" stop-color="#0f100d"/><stop offset="1" stop-color="#171711"/></linearGradient>
-  <pattern id="chalk" width="54" height="54" patternUnits="userSpaceOnUse">
-    <path d="M7 12l19-4M30 31l16-3M9 46l11-2" stroke="#f4efe1" stroke-opacity=".024" stroke-linecap="round"/>
-    <circle cx="42" cy="11" r="1" fill="#f4efe1" fill-opacity=".03"/>
+  <linearGradient id="board" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#13130f"/>
+    <stop offset=".48" stop-color="#0b0c0a"/>
+    <stop offset="1" stop-color="#141410"/>
+  </linearGradient>
+  <pattern id="chalk" width="58" height="58" patternUnits="userSpaceOnUse">
+    <path d="M5 13l22-4M31 34l18-3M8 49l14-2" stroke="#f4efe1" stroke-opacity=".025" stroke-linecap="round"/>
+    <circle cx="44" cy="12" r="1" fill="#f4efe1" fill-opacity=".034"/>
+    <circle cx="18" cy="30" r=".8" fill="#f4efe1" fill-opacity=".022"/>
   </pattern>
 </defs>
+
 <rect width="1920" height="1080" fill="url(#board)"/>
 <rect width="1920" height="1080" fill="url(#chalk)"/>
-<path d="M1470 0H1920V1080H1470Z" fill="#0c0d0a" fill-opacity=".46"/>
-<path d="M1490 34V1046" stroke="#e4b82f" stroke-width="2" stroke-opacity=".46" stroke-dasharray="10 8"/>
-<path d="M1510 48c92 18 184 17 276-2M1510 1018c99-13 196-13 294 1" fill="none" stroke="#f5f0e5" stroke-opacity=".11" stroke-linecap="round"/>
+
+<!-- Approved chalk composition: one framed canvas, not a separate black rectangle on the right. -->
+<rect x="50" y="28" width="1818" height="930" rx="24" fill="none" stroke="#e2b62d" stroke-width="2.5"/>
+<path d="M1469 28V958" fill="none" stroke="#e2b62d" stroke-width="2"/>
+<path d="M1483 226H1854" fill="none" stroke="#f3efe4" stroke-width="2" stroke-opacity=".72" stroke-linecap="round"/>
+
+<!-- Lightweight chalk botanical corner marks from the approved moodboard. -->
+<g fill="none" stroke="#d9d4c8" stroke-width="2" stroke-opacity=".17" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M18 2c18 34 31 66 39 101M25 26c18-6 32-2 43 12-19 4-34 0-43-12ZM35 51c20-7 36-3 48 12-21 5-37 1-48-12ZM44 77c19-5 34 0 44 14-20 3-34-2-44-14Z"/>
+  <path d="M1900 8c-18 35-30 69-36 103M1891 34c-18-7-33-3-45 10 19 6 34 2 45-10ZM1881 60c-20-6-36-1-47 14 21 4 36-1 47-14ZM1871 87c-19-4-34 1-44 16 20 2 34-3 44-16Z"/>
+  <path d="M16 1069c32-18 63-30 95-37M41 1060c-6-18-2-32 11-43 5 19 1 33-11 43ZM69 1050c-6-18-1-33 13-44 4 20-1 34-13 44Z"/>
+  <path d="M1907 1066c-32-18-63-30-96-36M1882 1058c6-18 2-33-12-44-4 19 0 34 12 44ZM1854 1048c6-19 1-34-13-45-4 20 1 35 13 45Z"/>
+</g>
+
+<!-- Fine chalk scratches are intentionally sparse to keep weak Android TV repaint cost near zero. -->
+<g stroke="#f4efe1" stroke-width="1.2" stroke-opacity=".07" stroke-linecap="round">
+  <path d="M92 117l142-5M278 101l71-3M1027 132l116-4M1178 116l83-2"/>
+  <path d="M84 814l104-4M354 830l126-5M899 802l96-3M1114 818l123-4"/>
+</g>
 </svg>

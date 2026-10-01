@@ -43,8 +43,8 @@ const LAYOUT = Object.freeze({
     panel:Object.freeze({ x:1469,y:24,width:404,height:912 }),
     weather:Object.freeze({ x:1481,y:42,width:380,height:180 }),
     logo:Object.freeze({ x:1490,y:250,width:348,height:86 }),
-    brand:Object.freeze({ x:1481,y:260,width:380,height:430 }),
-    decor:Object.freeze({ x:1477,y:620,width:388,height:316 }),
+    brand:Object.freeze({ x:1481,y:258,width:380,height:332 }),
+    decor:Object.freeze({ x:1477,y:512,width:388,height:424 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   'brand-premium':Object.freeze({
@@ -109,7 +109,7 @@ const PRESETS = Object.freeze([
       utilityFontSizePx:28,
       utilityFontWeight:800,
       clockFontSizePx:78,
-      decorAsset:'/brand/themes/premium-approved-decor.webp',
+      decorAsset:'/brand/themes/premium-side.svg',
       decorFit:'contain',
       legalVariant:'premium',
       legalFontFamily:'oswald',
@@ -135,10 +135,15 @@ const PRESETS = Object.freeze([
     }),
     weather:Object.freeze({
       variant:'premium',
+      icon_style:'premium-line',
       temperature_font_family:'oswald',
+      temperature_font_weight:700,
+      condition_font_family:'roboto-condensed',
+      forecast_font_family:'roboto-condensed',
       temperature_font_size_pt:58,
       location_font_size_pt:14,
-      icon_scale_percent:122,
+      location_font_weight:900,
+      icon_scale_percent:116,
       show_condition:true,
       show_forecast:true,
       forecast_items:3,
@@ -154,7 +159,7 @@ const PRESETS = Object.freeze([
     kind:'preset',
     label:'Меловая',
     description:'Готовый меловой пресет по утверждённому макету: chalkboard, меловые линии, отдельная типографика, рисованная кружка и свой погодный блок.',
-    preset_version:1,
+    preset_version:2,
     default_utility_mode:'weather',
     settings:Object.freeze({
       ...BASE,
@@ -162,8 +167,8 @@ const PRESETS = Object.freeze([
       background_image_url:'/brand/themes/chalk-background.svg',
       accent_color:'#E5B62E',
       text_color:'#F4F1E9',
-      font_family:'yanone-kaffeesatz',
-      price_font_size_pt:27,
+      font_family:'montserrat',
+      price_font_size_pt:28,
       table_x:62,
       table_y:34,
       table_width_px:1393,
@@ -177,17 +182,17 @@ const PRESETS = Object.freeze([
       brandText:'БИР ФИШ',
       brandCaption:'Хорошее пиво рядом!',
       brandDivider:'none',
-      brandNameFontFamily:'underdog',
-      brandNameFontSizePx:70,
+      brandNameFontFamily:'montserrat',
+      brandNameFontSizePx:108,
       brandNameFontWeight:900,
       brandCaptionFontFamily:'neucha',
-      brandCaptionFontSizePx:28,
+      brandCaptionFontSizePx:34,
       brandCaptionFontWeight:400,
-      utilityFontFamily:'yanone-kaffeesatz',
+      utilityFontFamily:'montserrat',
       utilityFontSizePx:27,
-      utilityFontWeight:700,
+      utilityFontWeight:900,
       clockFontSizePx:72,
-      decorAsset:'/brand/themes/chalk-approved-decor.webp',
+      decorAsset:'/brand/themes/chalk-side.svg',
       decorFit:'contain',
       legalVariant:'chalk',
       legalFontFamily:'neucha',
@@ -199,10 +204,10 @@ const PRESETS = Object.freeze([
     }),
     table:Object.freeze({
       variant:'chalk',
-      section_font_family:'underdog',
-      item_font_family:'yanone-kaffeesatz',
-      meta_font_family:'yanone-kaffeesatz',
-      price_font_family:'yanone-kaffeesatz',
+      section_font_family:'montserrat',
+      item_font_family:'montserrat',
+      meta_font_family:'roboto-condensed',
+      price_font_family:'oswald',
       separator:'#66645D',
       separator_dashed:true,
       item_tone_mode:'fixed',
@@ -213,15 +218,20 @@ const PRESETS = Object.freeze([
     }),
     weather:Object.freeze({
       variant:'chalk',
-      temperature_font_family:'yanone-kaffeesatz',
+      icon_style:'chalk-drawn',
+      temperature_font_family:'montserrat',
+      temperature_font_weight:900,
+      condition_font_family:'neucha',
+      forecast_font_family:'roboto-condensed',
       temperature_font_size_pt:54,
-      location_font_size_pt:14,
+      location_font_size_pt:16,
+      location_font_weight:900,
       icon_scale_percent:118,
       show_condition:true,
       show_forecast:true,
       forecast_items:3,
-      current_layout:'compact-row',
-      forecast_layout:'inline',
+      current_layout:'poster',
+      forecast_layout:'three-column',
       divider_style:'chalk',
       show_now_label:false
     }),
@@ -261,11 +271,11 @@ const PRESETS = Object.freeze([
       brandCaptionFontFamily:'pt-sans-narrow',
       brandCaptionFontSizePx:17,
       brandCaptionFontWeight:700,
-      utilityFontFamily:'pt-sans-narrow',
+      utilityFontFamily:'russo-one',
       utilityFontSizePx:30,
       utilityFontWeight:800,
       clockFontSizePx:82,
-      decorAsset:'/brand/themes/brand-premium-approved-decor.webp',
+      decorAsset:'/brand/themes/brand-premium-side.svg',
       decorFit:'cover',
       legalVariant:'brand-premium',
       legalFontFamily:'pt-sans-narrow',
@@ -291,10 +301,15 @@ const PRESETS = Object.freeze([
     }),
     weather:Object.freeze({
       variant:'brand-premium',
+      icon_style:'brand-gold',
       temperature_font_family:'montserrat',
+      temperature_font_weight:900,
+      condition_font_family:'russo-one',
+      forecast_font_family:'pt-sans-narrow',
       temperature_font_size_pt:60,
       location_font_size_pt:15,
-      icon_scale_percent:126,
+      location_font_weight:400,
+      icon_scale_percent:122,
       show_condition:true,
       show_forecast:true,
       forecast_items:3,
@@ -325,6 +340,42 @@ export function menuThemePreset(id) {
 
 export function menuThemeCatalog() {
   return PRESETS.map(({ settings,visual,table,weather,layout,...meta }) => ({ ...meta }));
+}
+
+function migratedDefault(value, previous, next) {
+  if (value === undefined || value === null || value === '') return next;
+  if (typeof previous === 'number') return Number(value) === previous ? next : value;
+  return String(value) === String(previous) ? next : value;
+}
+
+function migrateChalkV1(source) {
+  const brand=source.brand && typeof source.brand === 'object' ? source.brand : {};
+  const utility=source.utility_slot && typeof source.utility_slot === 'object' ? source.utility_slot : {};
+  return {
+    ...source,
+    preset_version:2,
+    brand:{
+      ...brand,
+      name_font_family:migratedDefault(brand.name_font_family,'underdog','montserrat'),
+      name_font_size_px:migratedDefault(brand.name_font_size_px,70,108),
+      caption_font_size_px:migratedDefault(brand.caption_font_size_px,28,34)
+    },
+    utility_slot:{
+      ...utility,
+      font_family:migratedDefault(utility.font_family,'yanone-kaffeesatz','montserrat'),
+      font_weight:migratedDefault(utility.font_weight,700,900),
+      temperature_font_family:migratedDefault(utility.temperature_font_family,'yanone-kaffeesatz','montserrat'),
+      location_font_size_pt:migratedDefault(utility.location_font_size_pt,14,16)
+    }
+  };
+}
+
+export function migrateMenuThemePresetSource(value = {}) {
+  const source=value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const id=String(source.preset_id || 'legacy') === 'constructor' ? 'legacy' : String(source.preset_id || 'legacy');
+  const version=Number(source.preset_version) || 1;
+  if(id === 'chalk' && version < 2) return migrateChalkV1(source);
+  return source;
 }
 
 export function resolveMenuThemeSettings(settings = {}) {

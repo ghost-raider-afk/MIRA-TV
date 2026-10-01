@@ -1,4 +1,4 @@
-import { menuThemePreset, resolveMenuThemeSettings } from '../themes/menu-theme-registry.js';
+import { menuThemePreset, migrateMenuThemePresetSource, resolveMenuThemeSettings } from '../themes/menu-theme-registry.js';
 
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
@@ -28,7 +28,7 @@ function nullableNumber(value) {
 }
 
 function normalizedTheme(settings) {
-  const source = themeRecord(settings);
+  const source = migrateMenuThemePresetSource(themeRecord(settings));
   const preset = menuThemePreset(source.preset_id);
   const visual = preset.visual || {};
   const weatherPreset = preset.weather || {};

@@ -139,8 +139,9 @@ test('the three approved presets have different table grammar through the same t
   assert.match(chalk,/fill="url\(#mira-theme-chalk-gold\)"/);
   assert.doesNotMatch(chalk,/class="item-sequence"/);
   assert.doesNotMatch(chalk,/class="theme-price-columns"/);
-  assert.match(chalk,/MIRA Underdog/);
-  assert.match(chalk,/MIRA Yanone Kaffeesatz/);
+  assert.match(chalk,/MIRA Montserrat/);
+  assert.match(chalk,/MIRA Roboto Condensed/);
+  assert.match(chalk,/MIRA Oswald/);
 
   assert.match(brand,/fill="url\(#mira-theme-brand-gold\)"/);
   assert.doesNotMatch(brand,/class="item-sequence"/);
@@ -152,6 +153,30 @@ test('the three approved presets have different table grammar through the same t
   assert.notEqual(premium,chalk);
   assert.notEqual(chalk,brand);
   assert.notEqual(premium,brand);
+});
+
+test('saved chalk v1 defaults are upgraded before the shared runtime resolves typography', () => {
+  const settings={
+    theme:{
+      preset_id:'chalk',
+      preset_version:1,
+      brand:{name_font_family:'underdog',name_font_size_px:70,caption_font_size_px:28},
+      utility_slot:{
+        mode:'weather',
+        font_family:'yanone-kaffeesatz',
+        font_weight:700,
+        temperature_font_family:'yanone-kaffeesatz',
+        location_font_size_pt:14
+      }
+    }
+  };
+  const resolved=resolveMenuThemeRuntime(settings,{version:1,elements:[]});
+  assert.equal(resolved.theme.preset_version,2);
+  assert.equal(resolved.theme.brand.name_font_family,'montserrat');
+  assert.equal(resolved.theme.brand.name_font_size_px,108);
+  assert.equal(resolved.theme.utility_slot.font_family,'montserrat');
+  assert.equal(resolved.theme.utility_slot.temperature_font_family,'montserrat');
+  assert.equal(resolved.theme.utility_slot.location_font_size_pt,16);
 });
 
 test('approved preset rows keep fixed text tone and use semantic promotion price accents', () => {

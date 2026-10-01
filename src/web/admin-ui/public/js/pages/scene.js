@@ -12,7 +12,7 @@ import {
   renderSceneLayerList
 } from '../editor/elements.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
-import { MENU_THEME_OVERRIDE_KEYS, MENU_THEME_PRESETS, menuThemePreset } from '../themes/menu-theme-registry.js';
+import { MENU_THEME_OVERRIDE_KEYS, MENU_THEME_PRESETS, menuThemePreset, migrateMenuThemePresetSource } from '../themes/menu-theme-registry.js';
 const SCENE_WIDTH = 1920;
 const SCENE_HEIGHT = 1080;
 const ELEMENT_LABELS = Object.freeze({
@@ -335,7 +335,8 @@ export function initialiseSceneEditor() {
   }
 
   function themeState() {
-    const source = state.settings?.theme && typeof state.settings.theme === 'object' ? state.settings.theme : {};
+    const rawTheme = state.settings?.theme && typeof state.settings.theme === 'object' ? state.settings.theme : {};
+    const source = migrateMenuThemePresetSource(rawTheme);
     const preset = menuThemePreset(source.preset_id);
     const visual = preset.visual || {};
     const weatherPreset = preset.weather || {};
