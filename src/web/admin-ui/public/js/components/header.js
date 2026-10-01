@@ -140,6 +140,91 @@ function syncHeaderBrand(root = document) {
   });
 }
 
+function headerSearchRoutes() {
+  const seen = new Set();
+  const routes = [];
+  for (const route of DESKTOP_PRIMARY_ROUTES) {
+    for (const [label, href] of [[route.label, route.href], ...contextLinksForSection(route.key)]) {
+      const path = canonicalRoutePath(href);
+      if (seen.has(path)) continue;
+      seen.add(path);
+      routes.push({ label, href, search: String(label).toLocaleLowerCase('ru-RU') });
+    }
+  }
+  return routes;
+}
+
+function searchControl() {
+  const wrap = document.createElement('div');
+  wrap.className = 'header-search';
+  wrap.innerHTML = '<button class="header-search-trigger" type="button" aria-label="Поиск" aria-expanded="false" aria-controls="header-search-input"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg></button><form class="header-search-form" role="search"><input class="header-search-input" id="header-search-input" type="search" autocomplete="off" spellcheck="false" aria-label="Поиск раздела" placeholder="Поиск раздела…"></form>';
+  return wrap;
+}
+
+function setHeaderSearchOpen(search, open) {
+  if (!search) return;
+  const trigger = search.querySelector('.header-search-trigger');
+  const input = search.querySelector('.header-search-input');
+  search.classList.toggle('is-open', open);
+  trigger?.setAttribute('aria-expanded', String(open));
+  if (!open && input) {
+    input.value = '';
+    input.removeAttribute('aria-invalid');
+  }
+  if (open) requestAnimationFrame(() => input?.focus({ preventScroll:true }));
+}
+
+function navigateFromHeaderSearch(search) {
+  const input = search?.querySelector('.header-search-input');
+  const value = String(input?.value || '').trim().toLocaleLowerCase('ru-RU');
+  if (!value) return false;
+  const routes = headerSearchRoutes();
+  const match = routes.find((route) => route.search === value)
+    || routes.find((route) => route.search.startsWith(value))
+    || routes.find((route) => route.search.includes(value));
+  if (!match) {
+    input?.setAttribute('aria-invalid', 'true');
+    return false;
+  }
+  input?.removeAttribute('aria-invalid');
+  const targetPath = canonicalRoutePath(match.href);
+  const link = [...document.querySelectorAll('.app-header a[href]')].find((node) =>
+    canonicalRoutePath(new URL(node.href, window.location.origin).pathname) === targetPath
+  );
+  setHeaderSearchOpen(search, false);
+  if (link instanceof HTMLElement) link.click();
+  else window.location.assign(match.href);
+  return true;
+}
+
+function initialiseHeaderSearch(header) {
+  const search = header?.querySelector('.header-search');
+  if (!search || search.dataset.bound === '1') return;
+  search.dataset.bound = '1';
+  const trigger = search.querySelector('.header-search-trigger');
+  const form = search.querySelector('.header-search-form');
+  const input = search.querySelector('.header-search-input');
+
+  trigger?.addEventListener('click', () => {
+    const open = !search.classList.contains('is-open');
+    setHeaderSearchOpen(search, open);
+  });
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    navigateFromHeaderSearch(search);
+  });
+  input?.addEventListener('input', () => input.removeAttribute('aria-invalid'));
+  input?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    setHeaderSearchOpen(search, false);
+    trigger?.focus({ preventScroll:true });
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (search.classList.contains('is-open') && !search.contains(event.target)) setHeaderSearchOpen(search, false);
+  });
+}
+
 function accountControl() {
   const wrap = document.createElement('div');
   wrap.className = 'header-account';
@@ -173,12 +258,12 @@ export function createHeader() {
   header.querySelector('[data-app-name]').textContent = appName();
   header.querySelector('.app-header-title span').textContent = title;
   const actions = header.querySelector('.app-header-actions');
-  actions.append(accountControl(), createNotificationsControl());
+  actions.append(searchControl(), createNotificationsControl());
   const theme = document.createElement('button');
   theme.className = 'icon-button';
   theme.id = 'theme-toggle';
   theme.type = 'button';
-  actions.append(theme);
+  actions.append(theme, accountControl());
   updateHeaderAccount(state.user, header);
   syncThemeButton(theme);
   return header;
@@ -219,6 +304,7 @@ export function initialiseHeader() {
   refreshHeaderRoute();
   const header = document.querySelector('.app-header');
   initialiseNavigationMotion(header);
+  initialiseHeaderSearch(header);
   const account = document.querySelector('.header-account');
   const trigger = account?.querySelector('.header-account-trigger');
   const menu = account?.querySelector('.header-account-menu');
