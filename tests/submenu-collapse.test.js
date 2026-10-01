@@ -5,7 +5,7 @@ import test from 'node:test';
 const publicRoot = new URL('../src/web/admin-ui/public/', import.meta.url);
 const read = (path) => readFile(new URL(path, publicRoot), 'utf8');
 
-test('context navigation is persistent on desktop and inaccessible while the mobile sheet is closed', async () => {
+test('context navigation is integrated into the desktop header and inaccessible while the mobile sheet is closed', async () => {
   const [shell, navigation, contextPanel, header] = await Promise.all([
     read('js/components/shell.js'),
     read('js/core/navigation.js'),
@@ -22,8 +22,8 @@ test('context navigation is persistent on desktop and inaccessible while the mob
 
   assert.match(shell, /const PHONE_BREAKPOINT = 960/);
   assert.match(shell, /contextAvailable\(context\)/);
-  assert.match(shell, /const open = available && \(!mobile \|\| !collapsed\)/);
-  assert.match(shell, /context\.hidden = !available/);
+  assert.match(shell, /const open = available && mobile && !collapsed/);
+  assert.match(shell, /context\.hidden = !available \|\| !mobile/);
   assert.match(shell, /toggleAttribute\('inert', !open\)/);
   assert.match(shell, /trigger\.hidden = !available \|\| !mobile/);
   assert.match(shell, /event\.key !== 'Escape'/);
@@ -35,5 +35,7 @@ test('context navigation is persistent on desktop and inaccessible while the mob
 
   assert.match(header, /aria-controls="app-context-panel"/);
   assert.match(header, /DESKTOP_PRIMARY_ROUTES/);
+  assert.match(header, /contextLinksForSection/);
+  assert.match(header, /app-header-dropdown/);
   assert.match(header, /className = 'app-header-home'/);
 });
