@@ -79,6 +79,22 @@ test('desktop uses one floating top bar while mobile keeps the bottom rail and c
   await page.locator('.app-header-nav-link[data-header-section="catalog"]').hover();
   await expect.poll(async () => (await indicator.boundingBox())?.x || 0).not.toBe(initialBox?.x || 0);
 
+  const search = page.locator('.header-search');
+  const searchTrigger = search.locator('.header-search-trigger');
+  const searchInput = search.locator('.header-search-input');
+  await searchTrigger.click();
+  await expect(search).toHaveClass(/is-open/);
+  await expect(searchTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(searchInput).toBeFocused();
+  await searchInput.fill('Каталог');
+  await searchInput.press('Enter');
+  await expect(page).toHaveURL(/\/catalog$/);
+  await expect(search).not.toHaveClass(/is-open/);
+  await searchTrigger.click();
+  await expect(searchInput).toBeFocused();
+  await searchInput.press('Escape');
+  await expect(searchTrigger).toHaveAttribute('aria-expanded', 'false');
+
   const monitors = page.locator('.app-header-nav-item[data-header-nav-group="monitors"]');
   await monitors.locator('.app-header-nav-link').click();
   await expect(page.locator('.ui-context')).toBeHidden();
@@ -88,6 +104,7 @@ test('desktop uses one floating top bar while mobile keeps the bottom rail and c
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.ui-rail')).toBeVisible();
   await expect(nav).toBeHidden();
+  await expect(search).toBeHidden();
   await expect(page.locator('.ui-context')).toHaveClass(/is-collapsed/);
 
   await page.setViewportSize({ width: 1440, height: 900 });
