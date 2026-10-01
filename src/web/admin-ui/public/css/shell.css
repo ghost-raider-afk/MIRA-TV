@@ -18,3 +18,5 @@ body{overflow-x:hidden;background:var(--ui-bg)}
 .page-heading h1{margin:1px 0 2px;color:var(--ui-text);font-size:clamp(calc(22px * var(--ui-scale-factor)),1.8vw,calc(30px * var(--ui-scale-factor)));letter-spacing:-.035em}
 .page-heading>p:last-child{max-width:900px;margin:0;color:var(--ui-text-muted);font-size:calc(11px * var(--ui-scale-factor))}
 #products,#packaging,#activity{scroll-margin-top:110px}
+
+@media(min-width:961px){.ui-context{display:none!important}#products,#packaging,#activity{scroll-margin-top:88px}}
