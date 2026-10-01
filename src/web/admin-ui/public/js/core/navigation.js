@@ -43,6 +43,10 @@ const CONTEXT_LINKS = Object.freeze({
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });
 
+export function contextLinksForSection(section) {
+  return CONTEXT_LINKS[section] || CONTEXT_LINKS.overview;
+}
+
 export const DESKTOP_PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key: 'overview', label: 'Обзор', href: '/' }),
   Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens' }),
