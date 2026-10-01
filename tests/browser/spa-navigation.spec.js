@@ -62,7 +62,7 @@ test('main menu and integrated desktop dropdowns navigate inside one persistent 
   await expect(page).toHaveURL(/\/scene$/);
 });
 
-test('desktop uses one floating top bar while mobile keeps the bottom rail and collapsible section sheet', async ({ page }) => {
+test('desktop uses one floating top bar while mobile keeps the bottom rail and collapsible section sheet', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
   const header = page.locator('.app-header');
@@ -74,6 +74,7 @@ test('desktop uses one floating top bar while mobile keeps the bottom rail and c
   await expect(nav).toBeVisible();
   await expect(nav).toHaveClass(/has-indicator/);
   await expect(indicator).toBeVisible();
+  await testInfo.attach('floating-navbar-closed', { body:await header.screenshot({ type:'png' }), contentType:'image/png' });
 
   const initialBox = await indicator.boundingBox();
   await page.locator('.app-header-nav-link[data-header-section="catalog"]').hover();
@@ -86,6 +87,7 @@ test('desktop uses one floating top bar while mobile keeps the bottom rail and c
   await expect(search).toHaveClass(/is-open/);
   await expect(searchTrigger).toHaveAttribute('aria-expanded', 'true');
   await expect(searchInput).toBeFocused();
+  await testInfo.attach('floating-navbar-search', { body:await header.screenshot({ type:'png' }), contentType:'image/png' });
   await searchInput.fill('Каталог');
   await searchInput.press('Enter');
   await expect(page).toHaveURL(/\/catalog$/);
@@ -100,6 +102,7 @@ test('desktop uses one floating top bar while mobile keeps the bottom rail and c
   await expect(page.locator('.ui-context')).toBeHidden();
   await monitors.hover();
   await expect(monitors.locator('.app-header-dropdown')).toBeVisible();
+  await testInfo.attach('floating-navbar-dropdown', { body:await header.screenshot({ type:'png' }), contentType:'image/png' });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.ui-rail')).toBeVisible();
