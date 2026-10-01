@@ -5,7 +5,7 @@
   .app-header-home{display:flex;width:auto;height:var(--ui-header-action-size);min-width:var(--ui-header-action-size);flex:0 0 auto;align-items:center;gap:8px;padding:0 9px 0 3px;border-radius:11px;color:var(--ui-text);text-decoration:none;transition:background .16s ease,color .16s ease}
   .app-header-home:hover,.app-header-home:focus-visible{background:var(--ui-panel-hover);color:var(--ui-text);outline:none}
   .app-header-home-mark{display:grid;width:calc(var(--ui-header-action-size) - 6px);height:calc(var(--ui-header-action-size) - 6px);place-items:center;overflow:hidden;border-radius:9px;background:var(--ui-accent);color:var(--ui-accent-contrast);font-size:10px;font-weight:900;letter-spacing:.04em;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-accent-hover) 35%,transparent)}
-  .app-header-home-mark:has(img){background:transparent;box-shadow:none}
+  .app-header-home-mark:has(img){background:transparent}.app-header-home-mark:has(img){box-shadow:none}
   .app-header-home-mark img{display:block;width:100%;height:100%;object-fit:contain}
   .app-header-home-name{display:block;max-width:150px;overflow:hidden;color:var(--ui-text);font-size:calc(10px * var(--ui-scale-factor));font-weight:900;letter-spacing:-.015em;text-overflow:ellipsis;white-space:nowrap}
   .app-header-nav{--header-nav-indicator-x:0px;--header-nav-indicator-width:24px;position:relative;display:flex;min-width:0;flex:1 1 auto;align-self:stretch;align-items:center;justify-content:center;gap:0;overflow:visible}
