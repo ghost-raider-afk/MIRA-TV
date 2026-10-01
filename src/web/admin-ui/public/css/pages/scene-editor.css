@@ -315,6 +315,7 @@
 
 /* Glass table editor modal — independent from canonical TV geometry */
 body.scene-table-editor-open{overflow:hidden}
+body.scene-table-editor-open .app-header{z-index:0;pointer-events:none}
 body[data-page="scene"] .scene-editor-table-edit-layer{
   position:fixed!important;
   z-index:180!important;
