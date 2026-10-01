@@ -1,6 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { DESKTOP_PRIMARY_ROUTES, navigationState } from '../core/navigation.js';
+import { canonicalRoutePath, contextLinksForSection, DESKTOP_PRIMARY_ROUTES, navigationState } from '../core/navigation.js';
 import { state } from '../core/state.js';
 import { applyTheme, currentTheme } from '../core/presentation.js';
 import { setIcon } from './icons.js';
@@ -24,7 +24,7 @@ function homeControl() {
   const link = document.createElement('a');
   link.className = 'app-header-home';
   link.href = '/';
-  link.innerHTML = '<span class="app-header-home-mark" data-header-brand>ТВ</span>';
+  link.innerHTML = '<span class="app-header-home-mark" data-header-brand>ТВ</span><span class="app-header-home-name" data-header-home-name></span>';
   syncHeaderBrand(link);
   return link;
 }
@@ -33,21 +33,87 @@ function primaryNavigation(activeSection) {
   const nav = document.createElement('nav');
   nav.className = 'app-header-nav';
   nav.setAttribute('aria-label', 'Основные разделы');
-  nav.innerHTML = DESKTOP_PRIMARY_ROUTES.map((route) => {
+  nav.innerHTML = `<span class="app-header-nav-indicator" aria-hidden="true"></span>${DESKTOP_PRIMARY_ROUTES.map((route) => {
     const active = route.key === activeSection;
-    return `<a class="app-header-nav-link${active ? ' active' : ''}" data-header-section="${route.key}" href="${route.href}"${active ? ' aria-current="page"' : ''}>${route.label}</a>`;
-  }).join('');
+    const children = contextLinksForSection(route.key);
+    const link = `<a class="app-header-nav-link${active ? ' active' : ''}" data-header-section="${route.key}" href="${route.href}"><span>${route.label}</span>${children.length ? '<svg class="app-header-nav-caret" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"/></svg>' : ''}</a>`;
+    if (!children.length) return link;
+    const menu = children.map(([label, href]) => `<a class="app-header-dropdown-link" data-header-path="${href}" href="${href}" role="menuitem">${label}</a>`).join('');
+    return `<div class="app-header-nav-item has-menu" data-header-nav-group="${route.key}">${link}<div class="app-header-dropdown" role="menu" aria-label="${route.label}">${menu}</div></div>`;
+  }).join('')}`;
   return nav;
+}
+
+function navGroupLink(target) {
+  if (!(target instanceof Element)) return null;
+  const direct = target.closest('.app-header-nav-link');
+  if (direct) return direct;
+  return target.closest('.app-header-nav-item')?.querySelector('.app-header-nav-link') || null;
+}
+
+function positionNavigationIndicator(nav, link) {
+  const indicator = nav?.querySelector('.app-header-nav-indicator');
+  if (!nav || !indicator || !link) return;
+  const navRect = nav.getBoundingClientRect();
+  const linkRect = link.getBoundingClientRect();
+  if (!navRect.width || !linkRect.width) return;
+  const inset = Math.min(13, Math.max(7, linkRect.width * 0.16));
+  nav.style.setProperty('--header-nav-indicator-x', `${linkRect.left - navRect.left + inset}px`);
+  nav.style.setProperty('--header-nav-indicator-width', `${Math.max(20, linkRect.width - (inset * 2))}px`);
+  nav.classList.add('has-indicator');
+}
+
+function syncNavigationIndicator(root = document) {
+  const nav = root.querySelector?.('.app-header-nav') || (root.matches?.('.app-header-nav') ? root : null);
+  if (!nav) return;
+  positionNavigationIndicator(nav, nav.querySelector('.app-header-nav-link.active'));
+}
+
+function initialiseNavigationMotion(header) {
+  const nav = header?.querySelector('.app-header-nav');
+  if (!nav || nav.dataset.motionBound === '1') {
+    syncNavigationIndicator(header || document);
+    return;
+  }
+  nav.dataset.motionBound = '1';
+  nav.addEventListener('pointerover', (event) => {
+    const link = navGroupLink(event.target);
+    if (link && nav.contains(link)) positionNavigationIndicator(nav, link);
+  });
+  nav.addEventListener('pointerleave', () => syncNavigationIndicator(nav));
+  nav.addEventListener('focusin', (event) => {
+    const link = navGroupLink(event.target);
+    if (link && nav.contains(link)) positionNavigationIndicator(nav, link);
+  });
+  nav.addEventListener('focusout', (event) => {
+    if (!nav.contains(event.relatedTarget)) syncNavigationIndicator(nav);
+  });
+  if ('ResizeObserver' in window) {
+    const observer = new ResizeObserver(() => syncNavigationIndicator(nav));
+    observer.observe(nav);
+  } else {
+    window.addEventListener('resize', () => syncNavigationIndicator(nav), { passive: true });
+  }
+  requestAnimationFrame(() => syncNavigationIndicator(nav));
 }
 
 function syncHeaderNavigation(root = document) {
   const { section } = navigationState();
+  const currentPath = canonicalRoutePath(window.location.pathname);
   root.querySelectorAll('.app-header-nav-link[data-header-section]').forEach((link) => {
     const active = link.dataset.headerSection === section;
+    const exact = canonicalRoutePath(new URL(link.href, window.location.origin).pathname) === currentPath;
+    link.classList.toggle('active', active);
+    if (exact) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  root.querySelectorAll('.app-header-dropdown-link[data-header-path]').forEach((link) => {
+    const active = canonicalRoutePath(link.dataset.headerPath) === currentPath;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
+  syncNavigationIndicator(root);
 }
 
 function syncHeaderBrand(root = document) {
@@ -59,6 +125,8 @@ function syncHeaderBrand(root = document) {
   links.forEach((link) => {
     link.setAttribute('aria-label', `${name} — Дашборд`);
     link.setAttribute('title', `${name} — Дашборд`);
+    const homeName = link.querySelector('[data-header-home-name]');
+    if (homeName) homeName.textContent = name;
     const mark = link.querySelector('[data-header-brand]');
     if (!mark) return;
     if (logo) {
@@ -149,6 +217,8 @@ async function logout() {
 export function initialiseHeader() {
   updateHeaderAccount(state.user);
   refreshHeaderRoute();
+  const header = document.querySelector('.app-header');
+  initialiseNavigationMotion(header);
   const account = document.querySelector('.header-account');
   const trigger = account?.querySelector('.header-account-trigger');
   const menu = account?.querySelector('.header-account-menu');
