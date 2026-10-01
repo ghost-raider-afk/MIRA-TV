@@ -30,15 +30,13 @@ test('Dashboard static first paint never reserves rail or submenu columns before
   expect(Math.abs(geometry.width - geometry.viewport)).toBeLessThanOrEqual(1);
 });
 
-test('desktop context navigation uses full width and stays persistent inside its section', async ({ page }) => {
+test('desktop context navigation is integrated into the floating top bar', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
   const context = page.locator('.ui-context');
 
   await expect(page).toHaveTitle(/ — Дашборд$/);
   await expect(context).toBeHidden();
-  await expect(context).toHaveAttribute('aria-hidden', 'true');
-  await expect(context).toHaveAttribute('inert', '');
   await expect(page.locator('.ui-rail')).toBeHidden();
   await expect(page.locator('.app-header-nav')).toBeVisible();
 
@@ -50,23 +48,28 @@ test('desktop context navigation uses full width and stays persistent inside its
   expect(hydratedGeometry.x).toBeLessThanOrEqual(1);
   expect(Math.abs(hydratedGeometry.width - hydratedGeometry.viewport)).toBeLessThanOrEqual(1);
 
-  await page.locator('.app-header-nav-link[data-header-section="monitors"]').click();
+  const monitors = page.locator('.app-header-nav-item[data-header-nav-group="monitors"]');
+  await monitors.locator('.app-header-nav-link').click();
   await expect(page).toHaveURL(/\/screens$/);
-  await expect(context).toBeVisible();
-  await expect(context).toHaveAttribute('aria-hidden', 'false');
-  await expect(context).not.toHaveAttribute('inert', '');
-  await expect(context.getByRole('link', { name:/^Мониторы/ })).toBeVisible();
-  await expect(context.getByRole('link', { name:/^Торговые точки/ })).toBeVisible();
-  await expect(context.getByRole('link', { name:/^Подключить ТВ/ })).toBeVisible();
+  await expect(context).toBeHidden();
+  await monitors.hover();
+  await expect(monitors.locator('.app-header-dropdown')).toBeVisible();
+  await expect(monitors.getByRole('menuitem', { name:'Мониторы' })).toBeVisible();
+  await expect(monitors.getByRole('menuitem', { name:'Торговые точки' })).toBeVisible();
+  await expect(monitors.getByRole('menuitem', { name:'Подключить ТВ' })).toBeVisible();
 
-  await page.keyboard.press('Escape');
-  await expect(context).toBeVisible();
-  await expect(context).toHaveAttribute('aria-hidden', 'false');
+  await monitors.getByRole('menuitem', { name:'Торговые точки' }).click();
+  await expect(page).toHaveURL(/\/locations$/);
+  await expect(context).toBeHidden();
 
-  await page.locator('.app-header-nav-link[data-header-section="settings"]').click();
+  const settings = page.locator('.app-header-nav-item[data-header-nav-group="settings"]');
+  await settings.locator('.app-header-nav-link').click();
   await expect(page).toHaveURL(/\/settings$/);
-  await expect(context).toBeVisible();
-  await expect(context.getByRole('link', { name:/^Журнал событий/ })).toBeVisible();
+  await expect(context).toBeHidden();
+  await settings.hover();
+  await expect(settings.locator('.app-header-dropdown')).toBeVisible();
+  await expect(settings.getByRole('menuitem', { name:'Журнал событий' })).toBeVisible();
+  await expect(settings.getByRole('menuitem', { name:'Профиль' })).toBeVisible();
 
   await page.locator('.app-header-home').click();
   await expect(page).toHaveURL(/\/$/);
