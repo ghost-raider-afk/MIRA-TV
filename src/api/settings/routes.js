@@ -2,7 +2,7 @@ import express from 'express';
 import { siteSettingsInput, userPreferencesInput } from '../../contracts/input.js';
 import { activity, notFound } from '../helpers.js';
 import { hashPassword, passwordChangeInput, verifyPassword } from '../../services/password-service.js';
-import { issueSession, sessionCookie, themeCookie } from '../../services/session-service.js';
+import { createSessionCredentials, sessionCookie, themeCookie } from '../../services/session-service.js';
 import { replaceSiteImage, siteSettingsResponse } from '../../services/site-assets-service.js';
 
 export function createSettingsRouter({ store, config }) {
@@ -17,9 +17,17 @@ export function createSettingsRouter({ store, config }) {
     const { currentPassword, newPassword } = passwordChangeInput(request.body, config);
     if (!await verifyPassword(currentPassword, request.session.user.password_hash)) return response.status(400).json({ error: 'Текущий пароль введён неверно.' });
     const user = await store.updateUserPassword(request.session.sub, await hashPassword(newPassword)); if (!user) throw notFound();
+    await store.revokeWebSessionsForUser(user.username);
+    const credentials = createSessionCredentials(user, config);
+    await store.createWebSession({
+      tokenHash: credentials.tokenHash,
+      username: user.username,
+      sessionVersion: user.session_version,
+      expiresAt: credentials.expiresAt
+    });
     const preferences = await store.getUserPreferences(user.username);
     await activity(store, request, { action: 'settings.user.password_updated', entity_type: 'user', entity_id: user.username, message: 'Изменён пароль пользователя.' });
-    response.setHeader('Set-Cookie', [sessionCookie(issueSession(user, config), config), themeCookie(preferences.theme, config)]); response.status(204).end();
+    response.setHeader('Set-Cookie', [sessionCookie(credentials.token, config), themeCookie(preferences.theme, config)]); response.status(204).end();
   });
   router.get('/site', async (_request, response) => { response.json(siteSettingsResponse(await store.getSiteSettings(), config)); });
   router.put('/site', async (request, response) => {
