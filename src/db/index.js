@@ -23,6 +23,7 @@ import { migrateSiteUiScale } from './migrations/site-ui-scale.js';
 import { migrateBakedScenes } from './migrations/baked-scenes.js';
 import { migrateMenuThemeTemplates } from './migrations/menu-theme-templates.js';
 import { migrateWebSessions } from './migrations/web-sessions.js';
+import { migrateDeviceSessionRotation } from './migrations/device-session-rotation.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -41,6 +42,7 @@ import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createDevicesRepository } from './devices.js';
+import { createDeviceSessionRotationRepository } from './device-session-rotation.js';
 import { createPlayerTelemetryRepository } from './player-telemetry.js';
 import { createPlayerMetricsRepository } from './player-metrics.js';
 import { createScreenRenderJournalRepository } from './screen-render-journal.js';
@@ -78,7 +80,8 @@ const MIGRATIONS = Object.freeze([
   { name: '028-site-ui-scale', run: migrateSiteUiScale },
   { name: '029-baked-scenes', run: migrateBakedScenes },
   { name: '030-menu-theme-templates', run: migrateMenuThemeTemplates },
-  { name: '031-web-sessions', run: migrateWebSessions }
+  { name: '031-web-sessions', run: migrateWebSessions },
+  { name: '032-device-session-rotation', run: migrateDeviceSessionRotation }
 ]);
 
 function createRepositories(queryable) {
@@ -94,6 +97,7 @@ function createRepositories(queryable) {
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
     createDevicesRepository(queryable),
+    createDeviceSessionRotationRepository(queryable),
     createPlayerTelemetryRepository(queryable),
     createPlayerMetricsRepository(queryable),
     createScreenRenderJournalRepository(queryable),

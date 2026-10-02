@@ -4,8 +4,12 @@ import {
   createActivationCredentials,
   deterministicDeviceSessionToken,
   deviceSessionCookie,
+  deviceSessionExpiresAt,
+  deviceSessionRotationDue,
+  effectiveDeviceSessionTtlDays,
   parseReserveCode,
   parseScanPayload,
+  rotatedDeviceSessionToken,
   tokenHash
 } from '../src/services/device-session-service.js';
 import { activationQrPayload, createActivationQrSvg } from '../src/services/qr-code-service.js';
@@ -56,11 +60,35 @@ test('device session token is deterministic for activation recovery but opaque t
   assert.equal(first.includes(credentials.pollSecret), false);
 });
 
+test('rotated device session token is deterministic per server-side session id', () => {
+  const sessionId = '6f1456cf-8e41-4ea8-b1a0-87b41786245a';
+  const first = rotatedDeviceSessionToken(sessionId, config);
+  const second = rotatedDeviceSessionToken(sessionId, config);
+  assert.equal(first, second);
+  assert.match(first, /^dvs_[A-Za-z0-9_-]{43}$/);
+  assert.equal(first.includes(sessionId), false);
+});
+
+test('legacy 365-day device setting is hardened to 30 days without requiring env migration', () => {
+  assert.equal(effectiveDeviceSessionTtlDays(config), 30);
+  const now = Date.parse('2026-10-03T00:00:00.000Z');
+  assert.equal(deviceSessionExpiresAt(config, now), '2026-11-02T00:00:00.000Z');
+  const cookie = deviceSessionCookie('dvs_test', config);
+  assert.match(cookie, /Max-Age=2592000/);
+});
+
+test('device session rotation starts near expiry and immediately replaces legacy long sessions', () => {
+  const now = Date.parse('2026-10-03T00:00:00.000Z');
+  assert.equal(deviceSessionRotationDue({ expires_at: '2026-10-09T00:00:00.000Z' }, config, now), true);
+  assert.equal(deviceSessionRotationDue({ expires_at: '2026-10-23T00:00:00.000Z' }, config, now), false);
+  assert.equal(deviceSessionRotationDue({ expires_at: '2027-10-03T00:00:00.000Z' }, config, now), true);
+});
+
 test('device cookie is HttpOnly, strict and secure independently from admin session', () => {
   const cookie = deviceSessionCookie('dvs_test', config);
   assert.match(cookie, /^mira_tv_device_session=/);
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /SameSite=Strict/);
   assert.match(cookie, /Secure/);
-  assert.match(cookie, /Max-Age=31536000/);
+  assert.match(cookie, /Max-Age=2592000/);
 });

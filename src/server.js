@@ -8,6 +8,7 @@ import { logger } from './logger/index.js';
 import { errorHandler } from './middleware/errors.js';
 import { protectStateChangingRequest } from './middleware/request-origin.js';
 import { createSessionMiddleware } from './middleware/session.js';
+import { createDeviceSessionRotationMiddleware } from './middleware/device-session-rotation.js';
 import { hashPassword } from './services/password-service.js';
 import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
@@ -158,6 +159,8 @@ function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
     const site = siteSettingsResponse(await store.getSiteSettings(), config);
     response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
   });
+  const rotateDeviceSession = createDeviceSessionRotationMiddleware({ store, config });
+  app.use(['/api/device/session', '/api/device/metrics'], rotateDeviceSession);
   app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService }));
 }
 
