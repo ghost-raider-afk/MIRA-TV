@@ -17,7 +17,7 @@ function contextAvailable(context) {
 function syncContextChrome(shell, context, collapsed = context.classList.contains('is-collapsed')) {
   const available = contextAvailable(context);
   const mobile = phoneLayout();
-  const open = available && (!mobile || !collapsed);
+  const open = available && mobile && !collapsed;
   const backdrop = shell.querySelector('.ui-context-backdrop');
   const trigger = shell.querySelector('[data-mobile-context-trigger]');
 
@@ -33,7 +33,7 @@ function syncContextChrome(shell, context, collapsed = context.classList.contain
     trigger.setAttribute('aria-expanded', String(mobile && open));
   }
 
-  context.hidden = !available;
+  context.hidden = !available || !mobile;
   context.classList.toggle('is-collapsed', mobile && collapsed);
   context.setAttribute('aria-hidden', String(!open));
   context.toggleAttribute('inert', !open);
