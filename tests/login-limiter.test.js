@@ -13,25 +13,56 @@ function responseMock() {
   };
 }
 
-test('login limiter blocks after configured number of failures and resets on success', () => {
-  const limiter = createLoginLimiter({ maxAttempts: 2, windowMinutes: 15, maxEntries: 100 });
+function persistentStoreMock() {
+  const entries = new Map();
+  const key = (scope, hash) => `${scope}:${hash}`;
+  return {
+    async getActiveLoginRateLimits(identityKeyHash, ipKeyHash) {
+      const now = Date.now();
+      return [entries.get(key('identity', identityKeyHash)), entries.get(key('ip', ipKeyHash))]
+        .filter((entry) => entry && Date.parse(entry.expires_at) > now);
+    },
+    async recordLoginFailure({ identityKeyHash, ipKeyHash, expiresAt, now }) {
+      for (const [scope, hash] of [['identity', identityKeyHash], ['ip', ipKeyHash]]) {
+        const id = key(scope, hash);
+        const current = entries.get(id);
+        entries.set(id, current && Date.parse(current.expires_at) > Date.parse(now)
+          ? { ...current, attempts: current.attempts + 1, updated_at: now }
+          : { scope, key_hash: hash, attempts: 1, expires_at: expiresAt, updated_at: now });
+      }
+    },
+    async clearLoginRateLimits(identityKeyHash, ipKeyHash) {
+      entries.delete(key('identity', identityKeyHash));
+      entries.delete(key('ip', ipKeyHash));
+    }
+  };
+}
+
+test('login limiter blocks after configured number of failures and resets on success', async () => {
+  const limiter = createLoginLimiter({
+    store: persistentStoreMock(),
+    keySecret: 'login-limiter-test-secret'.repeat(2),
+    maxAttempts: 2,
+    ipMaxAttempts: 8,
+    windowMinutes: 15
+  });
   const request = { ip: '127.0.0.1', body: { username: 'admin' } };
 
   let nextCalls = 0;
-  limiter.middleware(request, responseMock(), () => { nextCalls += 1; });
-  limiter.recordFailure(request);
-  limiter.middleware(request, responseMock(), () => { nextCalls += 1; });
-  limiter.recordFailure(request);
+  await limiter.middleware(request, responseMock(), () => { nextCalls += 1; });
+  await limiter.recordFailure(request);
+  await limiter.middleware(request, responseMock(), () => { nextCalls += 1; });
+  await limiter.recordFailure(request);
   assert.equal(nextCalls, 2);
 
   const blocked = responseMock();
-  limiter.middleware(request, blocked, () => { nextCalls += 1; });
+  await limiter.middleware(request, blocked, () => { nextCalls += 1; });
   assert.equal(blocked.statusCode, 429);
   assert.match(blocked.body.error, /Слишком много/);
   assert.ok(Number(blocked.headers['Retry-After']) >= 1);
 
-  limiter.recordSuccess(request);
+  await limiter.recordSuccess(request);
   const allowed = responseMock();
-  limiter.middleware(request, allowed, () => { nextCalls += 1; });
+  await limiter.middleware(request, allowed, () => { nextCalls += 1; });
   assert.equal(nextCalls, 3);
 });
