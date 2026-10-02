@@ -74,7 +74,7 @@ services:
       - sh
       - -ec
       - |
-        printf 'http:\n  routers:\n    mira-tv:\n      rule: "Host(\140%s\140)"\n      entryPoints: [websecure]\n      service: mira-tv\n      tls:\n        certResolver: letsencrypt\n  services:\n    mira-tv:\n      loadBalancer:\n        servers:\n          - url: "http://app:8080"\n' "$$MIRA_TV_DOMAIN" > /dynamic/dynamic.yml
+        printf 'http:\n  routers:\n    mira-tv-login:\n      rule: "Host(\140%s\140) && Path(\140/api/auth/login\140) && Method(\140POST\140)"\n      priority: 100\n      entryPoints: [websecure]\n      middlewares: [mira-tv-login-rate-limit]\n      service: mira-tv\n      tls:\n        certResolver: letsencrypt\n    mira-tv-device-activation:\n      rule: "Host(\140%s\140) && Path(\140/api/device/activations\140) && Method(\140POST\140)"\n      priority: 90\n      entryPoints: [websecure]\n      middlewares: [mira-tv-device-activation-rate-limit]\n      service: mira-tv\n      tls:\n        certResolver: letsencrypt\n    mira-tv:\n      rule: "Host(\140%s\140)"\n      entryPoints: [websecure]\n      service: mira-tv\n      tls:\n        certResolver: letsencrypt\n  middlewares:\n    mira-tv-login-rate-limit:\n      rateLimit:\n        average: 30\n        period: 1m\n        burst: 10\n    mira-tv-device-activation-rate-limit:\n      rateLimit:\n        average: 120\n        period: 1m\n        burst: 40\n  services:\n    mira-tv:\n      loadBalancer:\n        servers:\n          - url: "http://app:8080"\n' "$$MIRA_TV_DOMAIN" "$$MIRA_TV_DOMAIN" "$$MIRA_TV_DOMAIN" > /dynamic/dynamic.yml
     volumes:
       - mira-tv-proxy-config:/dynamic
     network_mode: none
