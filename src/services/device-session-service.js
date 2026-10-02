@@ -3,6 +3,9 @@ import { parseCookies } from './session-service.js';
 
 export const DEVICE_SESSION_COOKIE = 'mira_tv_device_session';
 export const DEVICE_SCAN_PREFIX = 'MIRA:';
+const LEGACY_DEVICE_SESSION_TTL_DAYS = 365;
+const HARDENED_DEVICE_SESSION_TTL_DAYS = 30;
+const DAY_MS = 86_400_000;
 
 export function tokenHash(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -37,7 +40,37 @@ export function deterministicDeviceSessionToken(activationId, pollSecret, config
   return `dvs_${digest}`;
 }
 
-export function deviceSessionCookie(token, config, maxAge = config.deviceSessionTtlDays * 86400) {
+export function rotatedDeviceSessionToken(sessionId, config) {
+  const id = String(sessionId || '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new TypeError('Rotated TV session id is invalid.');
+  const digest = crypto
+    .createHmac('sha256', config.sessionSecret)
+    .update(`tv-device-session:${id}`)
+    .digest('base64url');
+  return `dvs_${digest}`;
+}
+
+export function effectiveDeviceSessionTtlDays(config) {
+  const configured = Number(config?.deviceSessionTtlDays);
+  if (!Number.isSafeInteger(configured) || configured < 1) return HARDENED_DEVICE_SESSION_TTL_DAYS;
+  return configured === LEGACY_DEVICE_SESSION_TTL_DAYS ? HARDENED_DEVICE_SESSION_TTL_DAYS : configured;
+}
+
+export function deviceSessionExpiresAt(config, now = Date.now()) {
+  return new Date(now + effectiveDeviceSessionTtlDays(config) * DAY_MS).toISOString();
+}
+
+export function deviceSessionRotationDue(session, config, now = Date.now()) {
+  const expiresAt = Date.parse(session?.expires_at || '');
+  if (!Number.isFinite(expiresAt)) return true;
+  const ttlDays = effectiveDeviceSessionTtlDays(config);
+  const ttlMs = ttlDays * DAY_MS;
+  const rotationWindowDays = Math.min(7, Math.max(1, Math.floor(ttlDays / 4)));
+  const remainingMs = expiresAt - now;
+  return remainingMs <= rotationWindowDays * DAY_MS || remainingMs > ttlMs + 5 * 60_000;
+}
+
+export function deviceSessionCookie(token, config, maxAge = effectiveDeviceSessionTtlDays(config) * 86400) {
   return `${DEVICE_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Strict${config.secureCookies ? '; Secure' : ''}`;
 }
 
