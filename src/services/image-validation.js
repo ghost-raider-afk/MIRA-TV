@@ -1,6 +1,17 @@
 import sharp from 'sharp';
 import { ValidationError } from '../shared/errors.js';
 
+const ALLOWED_SHARP_BUFFER_LOADERS = Object.freeze([
+  'VipsForeignLoadJpegBuffer',
+  'VipsForeignLoadPngBuffer',
+  'VipsForeignLoadWebpBuffer'
+]);
+
+// Treat every decoder as untrusted by default and reopen only the three
+// buffer loaders accepted by MIRA-TV's structural validator.
+sharp.block({ operation: ['VipsForeignLoad'] });
+sharp.unblock({ operation: ALLOWED_SHARP_BUFFER_LOADERS });
+
 const JPEG_SOF = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
 
 function jpegInfo(bytes) {
