@@ -12,7 +12,7 @@ test('Player keeps deterministic local fonts cached for TV rendering', () => {
     assert.ok(fonts.includes(asset), asset);
     assert.ok(sw.includes("'" + asset + "'"), asset);
   }
-  assert.match(sw, /mira-tv-player-shell-v58/);
+  assert.match(sw, /mira-tv-player-shell-v60/);
   assert.match(sw, /mira-tv-player-data-v18/);
 });
 
