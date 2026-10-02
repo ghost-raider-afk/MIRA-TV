@@ -15,6 +15,12 @@ async function pngFor(width, height) {
   }).png().toBuffer();
 }
 
+async function webpFor(width, height) {
+  return sharp({
+    create: { width, height, channels: 4, background: { r: 16, g: 24, b: 40, alpha: 1 } }
+  }).webp({ quality: 80 }).toBuffer();
+}
+
 function pngHeader(width, height) {
   const bytes = Buffer.alloc(24);
   Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes, 0);
@@ -25,9 +31,15 @@ function pngHeader(width, height) {
   return bytes;
 }
 
-test('image inspector reads dimensions from real JPEG and PNG files', async () => {
+test('image inspector reads dimensions from real JPEG, PNG and WebP files', async () => {
   assert.deepEqual(inspectImage(await jpegFor(1920, 1080)), { type: 'jpeg', width: 1920, height: 1080 });
   assert.deepEqual(inspectImage(await pngFor(640, 360)), { type: 'png', width: 640, height: 360 });
+  assert.deepEqual(inspectImage(await webpFor(320, 180)), { type: 'webp', width: 320, height: 180 });
+});
+
+test('sharp runtime decoder allowlist blocks formats outside JPEG, PNG and WebP', async () => {
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>');
+  await assert.rejects(() => sharp(svg).metadata());
 });
 
 test('screen JPEG is fully decoded and must exactly match monitor resolution', async () => {
