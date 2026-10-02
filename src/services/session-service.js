@@ -2,11 +2,25 @@ import crypto from 'node:crypto';
 
 export const SESSION_COOKIE = 'mira_tv_session';
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
+const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 function constantTimeEqual(left, right) {
   const leftBuffer = Buffer.from(String(left));
   const rightBuffer = Buffer.from(String(right));
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function sessionExpirySeconds(config) {
+  return Math.floor(Date.now() / 1000) + config.sessionTtlHours * 3600;
+}
+
+function createSessionId() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+export function sessionIdHash(sessionId) {
+  if (!SESSION_ID_PATTERN.test(String(sessionId || ''))) return '';
+  return crypto.createHash('sha256').update(sessionId).digest('hex');
 }
 
 export function parseCookies(request) {
@@ -16,25 +30,48 @@ export function parseCookies(request) {
   }));
 }
 
-export function issueSession(user, config) {
+export function issueSession(user, config, sessionId) {
+  if (!SESSION_ID_PATTERN.test(String(sessionId || ''))) throw new TypeError('Web session id is required.');
   const payload = Buffer.from(JSON.stringify({
     sub: user.username,
     version: user.session_version,
-    exp: Math.floor(Date.now() / 1000) + config.sessionTtlHours * 3600
+    sid: sessionId,
+    exp: sessionExpirySeconds(config)
   })).toString('base64url');
   const signature = crypto.createHmac('sha256', config.sessionSecret).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 }
 
+export function createSessionCredentials(user, config) {
+  const sessionId = createSessionId();
+  const token = issueSession(user, config, sessionId);
+  const session = verifySession(token, config);
+  if (!session) throw new Error('Could not create a valid web session token.');
+  return Object.freeze({
+    token,
+    tokenHash: sessionIdHash(sessionId),
+    expiresAt: new Date(session.exp * 1000).toISOString()
+  });
+}
+
 export function verifySession(token, config) {
   if (typeof token !== 'string') return null;
-  const [payload, signature] = token.split('.');
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payload, signature] = parts;
   if (!payload || !signature) return null;
   const expected = crypto.createHmac('sha256', config.sessionSecret).update(payload).digest('base64url');
   if (!constantTimeEqual(signature, expected)) return null;
   try {
     const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    return typeof session.sub === 'string' && Number.isInteger(session.version) && session.version > 0 && Number.isInteger(session.exp) && session.exp > Math.floor(Date.now() / 1000) ? session : null;
+    return typeof session.sub === 'string'
+      && Number.isInteger(session.version)
+      && session.version > 0
+      && SESSION_ID_PATTERN.test(String(session.sid || ''))
+      && Number.isInteger(session.exp)
+      && session.exp > Math.floor(Date.now() / 1000)
+      ? session
+      : null;
   } catch {
     return null;
   }
@@ -53,6 +90,9 @@ export function createSessionResolver(store, config) {
   return async function resolveSession(request) {
     const session = verifySession(parseCookies(request)[SESSION_COOKIE], config);
     if (!session) return null;
+    const tokenHash = sessionIdHash(session.sid);
+    const persisted = tokenHash ? await store.getActiveWebSessionByHash(tokenHash) : null;
+    if (!persisted || persisted.username !== session.sub || persisted.session_version !== session.version) return null;
     const user = await store.getActiveUser(session.sub);
     if (!user || user.session_version !== session.version) return null;
     return { ...session, user };

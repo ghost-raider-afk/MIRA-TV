@@ -22,6 +22,7 @@ import { migrateWeatherSnapshots } from './migrations/weather-snapshots.js';
 import { migrateSiteUiScale } from './migrations/site-ui-scale.js';
 import { migrateBakedScenes } from './migrations/baked-scenes.js';
 import { migrateMenuThemeTemplates } from './migrations/menu-theme-templates.js';
+import { migrateWebSessions } from './migrations/web-sessions.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -76,7 +77,8 @@ const MIGRATIONS = Object.freeze([
   { name: '027-weather-snapshots', run: migrateWeatherSnapshots },
   { name: '028-site-ui-scale', run: migrateSiteUiScale },
   { name: '029-baked-scenes', run: migrateBakedScenes },
-  { name: '030-menu-theme-templates', run: migrateMenuThemeTemplates }
+  { name: '030-menu-theme-templates', run: migrateMenuThemeTemplates },
+  { name: '031-web-sessions', run: migrateWebSessions }
 ]);
 
 function createRepositories(queryable) {

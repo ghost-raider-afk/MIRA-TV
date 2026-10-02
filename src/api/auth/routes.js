@@ -1,7 +1,7 @@
 import express from 'express';
 import { createLoginLimiter } from '../../middleware/login-limiter.js';
 import { hashPassword, verifyPassword } from '../../services/password-service.js';
-import { issueSession, parseCookies, SESSION_COOKIE, sessionCookie, themeCookie, verifySession } from '../../services/session-service.js';
+import { createSessionCredentials, parseCookies, SESSION_COOKIE, sessionCookie, sessionIdHash, themeCookie, verifySession } from '../../services/session-service.js';
 
 const DUMMY_LOGIN_PASSWORD = 'MiraTv2!TimingDummy#2026';
 
@@ -26,15 +26,26 @@ export function createAuthRouter({ store, config }) {
       return response.status(401).json({ error: 'Неверный логин или пароль.' });
     }
     loginLimiter.recordSuccess(request);
+    const credentials = createSessionCredentials(user, config);
+    await store.createWebSession({
+      tokenHash: credentials.tokenHash,
+      username: user.username,
+      sessionVersion: user.session_version,
+      expiresAt: credentials.expiresAt
+    });
+    await store.deleteExpiredWebSessions(new Date().toISOString()).catch(() => undefined);
     await store.recordActivity({ actor_username: user.username, action: 'auth.login', entity_type: 'session', message: 'Выполнен вход в панель управления.' }).catch(() => undefined);
     const preferences = await store.getUserPreferences(user.username);
-    response.setHeader('Set-Cookie', [sessionCookie(issueSession(user, config), config), themeCookie(preferences.theme, config)]);
+    response.setHeader('Set-Cookie', [sessionCookie(credentials.token, config), themeCookie(preferences.theme, config)]);
     return response.status(204).end();
   });
 
   router.post('/logout', async (request, response) => {
     const session = verifySession(parseCookies(request)[SESSION_COOKIE], config);
-    if (session) await store.recordActivity({ actor_username: session.sub, action: 'auth.logout', entity_type: 'session', message: 'Выполнен выход из панели управления.' }).catch(() => undefined);
+    if (session) {
+      await store.revokeWebSessionByHash(sessionIdHash(session.sid));
+      await store.recordActivity({ actor_username: session.sub, action: 'auth.logout', entity_type: 'session', message: 'Выполнен выход из панели управления.' }).catch(() => undefined);
+    }
     response.setHeader('Set-Cookie', [sessionCookie('', config, 0), themeCookie('system', config, 0)]);
     response.status(204).end();
   });

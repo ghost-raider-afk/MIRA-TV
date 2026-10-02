@@ -35,6 +35,48 @@ export function createUsersRepository(pool) {
       return normaliseRow(rows[0]);
     },
 
+    async createWebSession({ tokenHash, username, sessionVersion, expiresAt }) {
+      const { rows } = await pool.query(
+        `INSERT INTO web_sessions (token_hash, username, session_version, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING token_hash, username, session_version, expires_at, created_at, revoked_at`,
+        [tokenHash, username, sessionVersion, expiresAt, isoNow()]
+      );
+      return normaliseRow(rows[0]);
+    },
+
+    async getActiveWebSessionByHash(tokenHash) {
+      const { rows } = await pool.query(
+        `SELECT token_hash, username, session_version, expires_at, created_at, revoked_at
+         FROM web_sessions
+         WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > NOW()
+         LIMIT 1`,
+        [tokenHash]
+      );
+      return normaliseRow(rows[0]);
+    },
+
+    async revokeWebSessionByHash(tokenHash) {
+      const { rowCount } = await pool.query(
+        'UPDATE web_sessions SET revoked_at = $1 WHERE token_hash = $2 AND revoked_at IS NULL',
+        [isoNow(), tokenHash]
+      );
+      return rowCount > 0;
+    },
+
+    async revokeWebSessionsForUser(username) {
+      const { rowCount } = await pool.query(
+        'UPDATE web_sessions SET revoked_at = $1 WHERE username = $2 AND revoked_at IS NULL',
+        [isoNow(), username]
+      );
+      return rowCount;
+    },
+
+    async deleteExpiredWebSessions(before) {
+      const { rowCount } = await pool.query('DELETE FROM web_sessions WHERE expires_at <= $1', [before]);
+      return rowCount;
+    },
+
     async listActiveAdministrators() {
       const { rows } = await pool.query(
         `SELECT username, role, active, session_version, password_changed_at, created_at, updated_at
