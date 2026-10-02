@@ -9,10 +9,11 @@ export function createAuthRouter({ store, config }) {
   const router = express.Router();
   const dummyHash = hashPassword(DUMMY_LOGIN_PASSWORD);
   const loginLimiter = createLoginLimiter({
+    store,
+    keySecret: config.sessionSecret,
     maxAttempts: config.loginMaxAttempts,
     ipMaxAttempts: config.loginIpMaxAttempts,
-    windowMinutes: config.loginWindowMinutes,
-    maxEntries: config.loginLimiterMaxEntries
+    windowMinutes: config.loginWindowMinutes
   });
 
   router.post('/login', loginLimiter.middleware, async (request, response) => {
@@ -22,10 +23,10 @@ export function createAuthRouter({ store, config }) {
     const passwordHash = user?.password_hash || await dummyHash;
     const passwordMatches = await verifyPassword(password, passwordHash);
     if (!user || !passwordMatches) {
-      loginLimiter.recordFailure(request);
+      await loginLimiter.recordFailure(request);
       return response.status(401).json({ error: 'Неверный логин или пароль.' });
     }
-    loginLimiter.recordSuccess(request);
+    await loginLimiter.recordSuccess(request);
     const credentials = createSessionCredentials(user, config);
     await store.createWebSession({
       tokenHash: credentials.tokenHash,
