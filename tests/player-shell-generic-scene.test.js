@@ -7,8 +7,8 @@ const read = (p) => readFile(new URL(p, root), 'utf8');
 
 test('offline Player shell contains only static runtime dependencies', async () => {
   const [worker, html] = await Promise.all([read('player-sw.js'), read('player.html')]);
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v60'/);
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v59'/);
+  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v61'/);
+  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v60'/);
   assert.match(worker, /\/css\/player-scene\.css/);
   assert.match(worker, /\/brand\/themes\/premium-background\.svg/);
   assert.match(worker, /\/brand\/themes\/premium-side\.svg/);
