@@ -19,4 +19,4 @@ body{overflow-x:hidden;background:var(--ui-bg)}
 .page-heading>p:last-child{max-width:900px;margin:0;color:var(--ui-text-muted);font-size:calc(11px * var(--ui-scale-factor))}
 #products,#packaging,#activity{scroll-margin-top:110px}
 
-@media(min-width:961px){.ui-context{display:none!important}#products,#packaging,#activity{scroll-margin-top:88px}}
+@media(min-width:961px){.ui-context{display:none!important}.app-header-nav-item.has-menu>.app-header-dropdown::before{content:"";position:absolute;top:-8px;right:0;left:0;height:8px}#products,#packaging,#activity{scroll-margin-top:88px}}
