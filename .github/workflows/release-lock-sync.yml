@@ -1,0 +1,40 @@
+name: release-lock-sync
+
+on:
+  push:
+    branches:
+      - release/1.18.1
+
+permissions:
+  contents: write
+
+jobs:
+  sync-lockfile-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/1.18.1
+      - name: Sync lockfile application version only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          lock_path = Path('package-lock.json')
+          lock = json.loads(lock_path.read_text(encoding='utf-8'))
+          expected = package['version']
+          lock['version'] = expected
+          lock['packages']['']['version'] = expected
+          lock_path.write_text(json.dumps(lock, indent=2) + '\n', encoding='utf-8')
+          PY
+          git diff -- package-lock.json
+          git diff --quiet -- package-lock.json && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'release: sync lockfile metadata to 1.18.1'
+          git push origin HEAD:release/1.18.1
