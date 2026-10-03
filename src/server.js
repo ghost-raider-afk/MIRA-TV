@@ -128,7 +128,7 @@ function configureSecurity(app, config) {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'"],
         fontSrc: ["'self'", 'data:'],
-        scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
+        scriptSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'blob:']
       }
     }

@@ -32,7 +32,6 @@ RUN apt-get update \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
-COPY scripts ./scripts
 RUN chown -R mira-tv:mira-tv-assets /app
 USER mira-tv
 EXPOSE 8080
