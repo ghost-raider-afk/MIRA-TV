@@ -26,6 +26,35 @@ function disconnectIndexed(index, key, reason) {
   return count;
 }
 
+function firstForwardedValue(value) {
+  const text = Array.isArray(value) ? value[0] : value;
+  return String(text || '').split(',')[0].trim();
+}
+
+function requestWebOrigin(request) {
+  const host = firstForwardedValue(request?.headers?.['x-forwarded-host'])
+    || firstForwardedValue(request?.headers?.host);
+  const protocol = firstForwardedValue(request?.headers?.['x-forwarded-proto'])
+    || (request?.socket?.encrypted ? 'https' : 'http');
+  if (!host || !['http', 'https'].includes(protocol)) return '';
+  try {
+    return new URL(`${protocol}://${host}`).origin;
+  } catch {
+    return '';
+  }
+}
+
+export function isAllowedDeviceWebSocketOrigin(request) {
+  const origin = firstForwardedValue(request?.headers?.origin);
+  const expectedOrigin = requestWebOrigin(request);
+  if (!origin || !expectedOrigin) return false;
+  try {
+    return new URL(origin).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
+
 export function createPlayerRealtime({ store }) {
   const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 4096 });
   const byScreen = new Map();
@@ -202,6 +231,11 @@ export function createPlayerRealtime({ store }) {
       try {
         const url = new URL(request.url || '/', 'http://localhost');
         if (url.pathname !== '/ws/device') return;
+        if (!isAllowedDeviceWebSocketOrigin(request)) {
+          socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+          socket.destroy();
+          return;
+        }
         const session = await authenticate(request);
         if (!session) {
           socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
