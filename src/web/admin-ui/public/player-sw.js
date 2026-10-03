@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v59';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v60';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v60';
+const SHELL_CACHE = 'mira-tv-player-shell-v61';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 // Source revision: navigation-based Device Session handoff for TV browsers.
 const SHELL_ASSETS = [
