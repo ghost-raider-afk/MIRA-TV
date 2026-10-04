@@ -1,67 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
   <defs>
-    <linearGradient id="board" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="board" x1="0" y1="0" x2="1" y2="1">
       <stop stop-color="#171815"/>
-      <stop offset=".5" stop-color="#10110f"/>
+      <stop offset=".52" stop-color="#0f100e"/>
       <stop offset="1" stop-color="#151612"/>
     </linearGradient>
-    <pattern id="dust" width="128" height="128" patternUnits="userSpaceOnUse">
+    <pattern id="dust" width="94" height="94" patternUnits="userSpaceOnUse">
       <g fill="#f3efe4">
-        <circle cx="13" cy="21" r="1.1" opacity=".032"/>
-        <circle cx="76" cy="17" r=".8" opacity=".024"/>
-        <circle cx="111" cy="63" r="1" opacity=".028"/>
-        <circle cx="41" cy="93" r=".7" opacity=".022"/>
-        <circle cx="92" cy="118" r=".9" opacity=".025"/>
+        <circle cx="12" cy="17" r="1" opacity=".04"/><circle cx="58" cy="21" r=".8" opacity=".025"/>
+        <circle cx="83" cy="57" r="1.1" opacity=".035"/><circle cx="31" cy="76" r=".7" opacity=".03"/>
       </g>
-      <g fill="none" stroke="#f3efe4" stroke-linecap="round">
-        <path d="M19 43l31-5M69 52l17-3M95 31l21-4" opacity=".025"/>
-        <path d="M8 111l24-4M55 119l28-5" opacity=".02"/>
+      <g stroke="#f3efe4" stroke-linecap="round" opacity=".035">
+        <path d="M8 44l28-5M49 37l22-4M16 88l17-3"/>
       </g>
     </pattern>
   </defs>
-
-  <!-- Single chalkboard canvas. No filled side panel: the right utility zone belongs to the same board. -->
   <rect width="1920" height="1080" fill="url(#board)"/>
   <rect width="1920" height="1080" fill="url(#dust)"/>
 
-  <!-- Quiet chalk smudges: static geometry only, no SVG filters. -->
-  <g fill="none" stroke="#f3efe4" stroke-linecap="round">
-    <path d="M118 171c222-27 427-22 612 7M232 736c225 18 454 12 683-8" stroke-width="13" opacity=".018"/>
-    <path d="M873 103c133 9 258 8 375-4M966 858c127-11 253-8 378 8" stroke-width="9" opacity=".016"/>
-    <path d="M1518 369c91-12 189-10 287 5M1532 746c88 9 175 8 260-4" stroke-width="10" opacity=".02"/>
+  <!-- deliberately hand-drawn outer frame: paired imperfect strokes -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M52 31C430 24 1034 31 1468 28c159-1 291-3 398 4M1867 32c5 245 2 612-1 925M1865 957c-475 4-1222 1-1813 1M52 957c-3-276-3-615 0-926" stroke="#e2b62d" stroke-width="3"/>
+    <path d="M60 40c433-4 1052-2 1392-3M60 947c472 2 1070 2 1395 0M61 40c-2 265-1 618 1 906M1857 40c3 278 1 625-1 906" stroke="#f4f1e9" stroke-width="1.3" opacity=".18"/>
+    <path d="M1468 31c2 270 0 647 1 925" stroke="#e2b62d" stroke-width="2.4"/>
+    <path d="M1483 226c124-4 247-2 370 1" stroke="#f4f1e9" stroke-width="2" opacity=".72"/>
   </g>
 
-  <!-- Approved structural composition: outer gold contour + integrated right utility zone. -->
-  <rect x="50" y="28" width="1818" height="930" rx="22" fill="none" stroke="#ddb12f" stroke-width="3"/>
-  <rect x="60" y="38" width="1798" height="910" rx="17" fill="none" stroke="#f3efe4" stroke-width="1.25" stroke-opacity=".12"/>
-  <path d="M1469 29V957" fill="none" stroke="#ddb12f" stroke-width="2.5"/>
-  <path d="M1484 226H1853" fill="none" stroke="#f3efe4" stroke-width="2" stroke-opacity=".7" stroke-linecap="round"/>
-
-  <!-- Hand-drawn botanical chalk marks. Kept outside the menu text field. -->
-  <g fill="none" stroke="#e7e1d4" stroke-linecap="round" stroke-linejoin="round">
-    <g stroke-width="2.2" opacity=".22">
-      <path d="M25 8c19 31 31 64 37 100"/>
-      <path d="M34 31c18-7 33-3 45 11-19 5-34 1-45-11Z"/>
-      <path d="M43 56c20-7 36-2 47 13-21 4-36 0-47-13Z"/>
-      <path d="M50 82c18-4 32 1 41 15-18 2-32-3-41-15Z"/>
-      <path d="M1895 11c-18 31-29 64-34 99"/>
-      <path d="M1886 35c-18-7-33-3-44 11 19 5 33 1 44-11Z"/>
-      <path d="M1877 61c-19-6-35-1-45 14 20 3 35-2 45-14Z"/>
-    </g>
-    <g stroke-width="2" opacity=".17">
-      <path d="M20 1068c33-19 65-31 98-36"/>
-      <path d="M44 1058c-5-17-1-31 12-42 4 18 0 32-12 42Z"/>
-      <path d="M73 1049c-5-18 0-32 14-43 3 19-2 33-14 43Z"/>
-      <path d="M1901 1067c-32-18-64-30-97-35"/>
-      <path d="M1877 1058c5-17 1-31-12-42-4 18 0 32 12 42Z"/>
-      <path d="M1849 1048c5-18 0-32-14-43-3 19 2 33 14 43Z"/>
-    </g>
+  <!-- lively hop vines kept out of menu text area -->
+  <g fill="none" stroke="#f4f1e9" stroke-linecap="round" stroke-linejoin="round" opacity=".24">
+    <path d="M18 88c34 22 61 55 79 99M35 104c22-10 43-6 60 13-24 7-44 3-60-13ZM51 133c24-8 45-2 61 18-25 5-45-1-61-18ZM67 163c22-5 40 2 53 21-23 2-41-5-53-21Z" stroke-width="2.2"/>
+    <path d="M1903 112c-33 18-59 47-78 86M1887 126c-22-9-42-4-58 14 23 6 43 1 58-14ZM1870 154c-23-6-43 0-57 19 24 3 43-3 57-19Z" stroke-width="2.2"/>
+  </g>
+  <g fill="none" stroke="#e5b62e" stroke-linecap="round" opacity=".36">
+    <path d="M26 853c32-20 63-32 94-36M42 843c-5-18 0-32 14-43 3 19-2 33-14 43ZM72 833c-4-17 1-30 15-40 2 18-3 31-15 40Z" stroke-width="2.2"/>
+    <path d="M1895 847c-31-18-61-29-91-33M1879 838c5-17 0-31-13-41-3 18 1 31 13 41ZM1850 829c4-16-1-29-14-39-2 17 2 30 14 39Z" stroke-width="2.2"/>
   </g>
 
-  <!-- Sparse hand-drawn ticks add chalk character without competing with content. -->
-  <g fill="none" stroke="#f3efe4" stroke-linecap="round" opacity=".095">
-    <path d="M91 118l103-4M225 109l62-3M1093 121l91-4M1215 111l57-2"/>
-    <path d="M83 837l84-3M344 848l105-5M1008 823l77-3M1164 840l98-4"/>
-    <path d="M1519 278l42-4M1789 326l38-3M1551 886l54-4M1768 847l48-4"/>
+  <!-- broad erased strokes and chalk ticks -->
+  <g fill="none" stroke="#f4f1e9" stroke-linecap="round">
+    <path d="M116 178c178-22 398-21 618 6M837 786c151 13 311 10 480-7M1517 486c88-10 180-8 274 4" stroke-width="12" opacity=".018"/>
+    <path d="M92 117l110-7M236 105l63-2M1033 127l104-5M1181 112l82-4M83 840l97-4M344 849l119-6M991 824l87-2M1151 842l108-5" stroke-width="1.4" opacity=".11"/>
   </g>
 </svg>
