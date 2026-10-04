@@ -56,10 +56,25 @@ function timeLabel(value, timezone='auto') {
   catch { return new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(date); }
 }
 
+function chalkIconSvg(key, common) {
+  const cloud='<path class="theme-weather-icon-primary theme-weather-icon-cloud" d="M14 46c-2-8 3-14 11-14 2-9 9-14 18-13 9 1 14 7 15 15 7 1 11 6 10 12-1 6-5 10-12 10H24c-6 0-9-4-10-10Z"/><path class="theme-weather-icon-primary" d="M17 49c9 2 29 2 43 0" opacity=".38"/>';
+  const sun='<g class="theme-weather-icon-accent"><path d="M21 8l1 7M9 15l6 4M6 29l8-1M12 41l5-5M29 7l-2 7M39 13l-5 5"/><path class="theme-weather-icon-sun-disc" d="M16 25c0-7 5-12 12-12 8 0 13 5 13 12 0 8-5 13-13 13-7 0-12-5-12-13Z"/></g>';
+  if(key==='sun') return `<svg ${common}><g class="theme-weather-icon-accent"><path d="M31 5l1 10M14 11l7 8M6 29l11 1M11 48l8-7M31 48v11M48 43l7 7M48 22l9-5"/><path class="theme-weather-icon-sun-disc" d="M18 31c0-9 6-15 15-15 10 0 16 6 16 15 0 10-7 17-16 17-9 0-15-7-15-17Z"/><path d="M20 33c7 2 18 2 27-1" opacity=".35"/></g></svg>`;
+  if(key==='moon') return `<svg ${common}><path class="theme-weather-icon-primary" d="M44 45c-15 4-28-6-28-21 0-8 4-15 10-19-1 13 8 24 21 25 5 0 9-1 12-4-2 9-7 16-15 19Z"/><path class="theme-weather-icon-primary" d="M20 22c1 11 8 18 18 21" opacity=".35"/><path class="theme-weather-icon-accent theme-weather-icon-stars" d="m50 9 2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4Z"/></svg>`;
+  if(key==='rain') return `<svg ${common}>${cloud}<path class="theme-weather-icon-accent" d="M22 57l-3 6M35 56l-3 7M49 57l-3 6"/><path class="theme-weather-icon-accent" d="M24 56l-2 4M51 56l-2 4" opacity=".38"/></svg>`;
+  if(key==='snow') return `<svg ${common}>${cloud}<g class="theme-weather-icon-accent"><path d="M21 57h10M26 52v10M37 57h10M42 52v10"/><path d="m22 53 8 8M30 53l-8 8M38 53l8 8M46 53l-8 8" opacity=".55"/></g></svg>`;
+  if(key==='storm') return `<svg ${common}>${cloud}<path class="theme-weather-icon-accent theme-weather-icon-bolt" d="m35 45-8 12h8l-3 7 14-15h-8l4-4Z"/><path class="theme-weather-icon-accent" d="M21 58l-2 5M51 57l-3 6" opacity=".45"/></svg>`;
+  if(key==='fog') return `<svg ${common}>${cloud}<g class="theme-weather-icon-accent"><path d="M13 58c11-2 27-2 39 0M18 63c9-1 21-1 31 0"/><path d="M15 60c9 1 23 1 35 0" opacity=".35"/></g></svg>`;
+  if(key==='cloud') return `<svg ${common}>${cloud}</svg>`;
+  if(key==='cloudy-night') return `<svg ${common}><path class="theme-weather-icon-accent" d="M42 26c-9 1-16-5-16-14 0-4 1-7 4-10-1 8 5 15 13 16 4 0 7-1 9-3-1 6-5 10-10 11Z"/>${cloud}</svg>`;
+  return `<svg ${common}>${sun}${cloud}</svg>`;
+}
+
 function iconSvg(name, variant='premium') {
   const allowed=new Set(['sun','moon','rain','snow','storm','fog','cloud','cloudy-night','partly-cloudy']);
   const key=allowed.has(String(name || '')) ? String(name) : 'partly-cloudy';
   const common=`viewBox="0 0 64 64" class="theme-weather-icon-svg" data-icon="${key}" aria-hidden="true" focusable="false"`;
+  if(variant==='chalk') return chalkIconSvg(key,common);
   const sun=`<g class="theme-weather-icon-accent"><circle class="theme-weather-icon-sun-disc" cx="22" cy="20" r="9"/><path d="M22 5v6M22 29v6M7 20h6M31 20h6M11.5 9.5l4.2 4.2M28.3 26.3l4.2 4.2M32.5 9.5l-4.2 4.2"/></g>`;
   const cloud=`<path class="theme-weather-icon-primary theme-weather-icon-cloud" d="M16 47h34a11 11 0 0 0-3-21 16 16 0 0 0-29 7A8 8 0 0 0 16 47Z"/>`;
   if(key==='sun') return `<svg ${common}><g class="theme-weather-icon-accent"><circle class="theme-weather-icon-sun-disc" cx="32" cy="32" r="13"/><path d="M32 6v9M32 49v9M6 32h9M49 32h9M13.6 13.6l6.4 6.4M44 44l6.4 6.4M50.4 13.6 44 20M20 44l-6.4 6.4"/></g></svg>`;
