@@ -42,9 +42,9 @@ const LAYOUT = Object.freeze({
   chalk:Object.freeze({
     panel:Object.freeze({ x:1469,y:24,width:404,height:912 }),
     weather:Object.freeze({ x:1481,y:42,width:380,height:180 }),
-    logo:Object.freeze({ x:1490,y:250,width:348,height:86 }),
-    brand:Object.freeze({ x:1481,y:258,width:380,height:332 }),
-    decor:Object.freeze({ x:1477,y:512,width:388,height:424 }),
+    logo:Object.freeze({ x:1490,y:238,width:348,height:78 }),
+    brand:Object.freeze({ x:1481,y:244,width:380,height:340 }),
+    decor:Object.freeze({ x:1477,y:596,width:388,height:340 }),
     footer:Object.freeze({ x:0,y:968,width:1920,height:112 })
   }),
   'brand-premium':Object.freeze({
@@ -167,7 +167,7 @@ const PRESETS = Object.freeze([
       background_image_url:'/brand/themes/chalk-background.svg',
       accent_color:'#E5B62E',
       text_color:'#F4F1E9',
-      font_family:'montserrat',
+      font_family:'neucha',
       price_font_size_pt:28,
       table_x:62,
       table_y:34,
@@ -183,32 +183,32 @@ const PRESETS = Object.freeze([
       brandCaption:'Хорошее пиво рядом!',
       brandDivider:'chalk-line',
       brandNameFontFamily:'underdog',
-      brandNameFontSizePx:94,
+      brandNameFontSizePx:92,
       brandNameFontWeight:400,
       brandCaptionFontFamily:'neucha',
-      brandCaptionFontSizePx:32,
+      brandCaptionFontSizePx:30,
       brandCaptionFontWeight:400,
-      utilityFontFamily:'montserrat',
+      utilityFontFamily:'neucha',
       utilityFontSizePx:27,
-      utilityFontWeight:900,
+      utilityFontWeight:400,
       clockFontSizePx:72,
       decorAsset:'/brand/themes/chalk-side.svg',
       decorFit:'contain',
       legalVariant:'chalk',
       legalFontFamily:'neucha',
-      legalFontSizePx:32,
-      legalFontWeight:700,
-      legalLetterSpacingPx:3,
+      legalFontSizePx:30,
+      legalFontWeight:400,
+      legalLetterSpacingPx:2,
       footerText:ALCOHOL_WARNING_TEXT,
       ageText:'18+'
     }),
     table:Object.freeze({
       variant:'chalk',
-      section_font_family:'montserrat',
-      item_font_family:'montserrat',
-      meta_font_family:'roboto-condensed',
-      price_font_family:'oswald',
-      separator:'#66645D',
+      section_font_family:'underdog',
+      item_font_family:'neucha',
+      meta_font_family:'neucha',
+      price_font_family:'underdog',
+      separator:'#6B6860',
       separator_dashed:true,
       item_tone_mode:'fixed',
       promotion_style:'price-only',
@@ -218,15 +218,15 @@ const PRESETS = Object.freeze([
     }),
     weather:Object.freeze({
       variant:'chalk',
-      icon_style:'chalk-drawn',
-      temperature_font_family:'montserrat',
-      temperature_font_weight:900,
+      icon_style:'chalk-sketch',
+      temperature_font_family:'underdog',
+      temperature_font_weight:400,
       condition_font_family:'neucha',
-      forecast_font_family:'roboto-condensed',
+      forecast_font_family:'neucha',
       temperature_font_size_pt:54,
       location_font_size_pt:16,
-      location_font_weight:900,
-      icon_scale_percent:118,
+      location_font_weight:400,
+      icon_scale_percent:112,
       show_condition:true,
       show_forecast:true,
       forecast_items:3,
@@ -372,15 +372,22 @@ function migrateChalkV1(source) {
 
 function migrateChalkV2(source) {
   const brand=source.brand && typeof source.brand === 'object' ? source.brand : {};
+  const utility=source.utility_slot && typeof source.utility_slot === 'object' ? source.utility_slot : {};
   return {
     ...source,
     preset_version:3,
     brand:{
       ...brand,
       name_font_family:migratedDefault(brand.name_font_family,'montserrat','underdog'),
-      name_font_size_px:migratedDefault(brand.name_font_size_px,108,94),
+      name_font_size_px:migratedDefault(brand.name_font_size_px,108,92),
       name_font_weight:migratedDefault(brand.name_font_weight,900,400),
-      caption_font_size_px:migratedDefault(brand.caption_font_size_px,34,32)
+      caption_font_size_px:migratedDefault(brand.caption_font_size_px,34,30)
+    },
+    utility_slot:{
+      ...utility,
+      font_family:migratedDefault(utility.font_family,'montserrat','neucha'),
+      font_weight:migratedDefault(utility.font_weight,900,400),
+      temperature_font_family:migratedDefault(utility.temperature_font_family,'montserrat','underdog')
     }
   };
 }
