@@ -12,6 +12,9 @@ GITHUB_API_URL="https://api.github.com/repos/${GITHUB_REPO}"
 LAUNCHER_PATH="/usr/local/bin/mira-tv"
 TEMP_BACKUP_DIR=""
 KEEP_TEMP_BACKUP=false
+FULL_BACKUP_WORKDIR=""
+FULL_BACKUP_FORMAT_VERSION="1"
+BACKUP_DIR="/var/backups/mira-tv"
 
 log() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
@@ -20,6 +23,7 @@ die() { printf 'ОШИБКА: %s\n' "$*" >&2; exit 1; }
 
 cleanup_temporary_backup() {
   if [[ -n "$TEMP_BACKUP_DIR" && -d "$TEMP_BACKUP_DIR" && "$KEEP_TEMP_BACKUP" != true ]]; then rm -rf -- "$TEMP_BACKUP_DIR"; fi
+  if [[ -n "$FULL_BACKUP_WORKDIR" && -d "$FULL_BACKUP_WORKDIR" ]]; then rm -rf -- "$FULL_BACKUP_WORKDIR"; fi
 }
 trap cleanup_temporary_backup EXIT
 
@@ -27,11 +31,12 @@ confirm_action() { local prompt="$1" answer; read -r -p "${prompt} [YES/NO]: " a
 
 require_root() {
   local action="${1:-menu}" source tmp status
+  shift || true
   [[ ${EUID:-$(id -u)} -eq 0 ]] && return 0
   command -v sudo >/dev/null 2>&1 || die 'Для этой операции нужны права root. Установите sudo или войдите как root.'
   source="${BASH_SOURCE[0]}"; [[ -r "$source" ]] || die 'Не удалось прочитать текущий установщик для запуска через sudo.'
   tmp="$(mktemp -t 'mira-tv.bootstrap.XXXXXX.sh')"; cat -- "$source" > "$tmp"; chmod 700 "$tmp"
-  if sudo bash "$tmp" "$action"; then status=0; else status=$?; fi
+  if sudo bash "$tmp" "$action" "$@"; then status=0; else status=$?; fi
   rm -f -- "$tmp"; exit "$status"
 }
 
@@ -135,6 +140,194 @@ restore_site_assets() {
   compose run --rm --no-deps -T site-assets-init sh -ec \
     'mkdir -p "$SITE_ASSETS_ROOT"; find "$SITE_ASSETS_ROOT" -mindepth 1 -delete; tar -C "$SITE_ASSETS_ROOT" -xzf -' \
     < "$TEMP_BACKUP_DIR/site-assets.tar.gz" || return 1
+}
+
+backup_persistent_volume_to() {
+  local kind="$1" output="$2" target
+  case "$kind" in
+    site-assets) target='/backup/site-assets' ;;
+    letsencrypt) target='/backup/letsencrypt' ;;
+    *) die "Неизвестное постоянное хранилище backup: $kind" ;;
+  esac
+  compose run --rm --no-deps -T -e BACKUP_TARGET="$target" backup-helper sh -ec 'tar -C "$BACKUP_TARGET" -czf - .' > "$output"
+  [[ -s "$output" ]] || die "Резервная копия хранилища $kind пуста."
+}
+
+restore_persistent_volume_from() {
+  local kind="$1" input="$2" target
+  [[ -s "$input" ]] || die "Не найден архив данных для хранилища $kind."
+  case "$kind" in
+    site-assets) target='/backup/site-assets' ;;
+    letsencrypt) target='/backup/letsencrypt' ;;
+    *) die "Неизвестное постоянное хранилище restore: $kind" ;;
+  esac
+  compose run --rm --no-deps -T -e BACKUP_TARGET="$target" backup-helper sh -ec \
+    'find "$BACKUP_TARGET" -mindepth 1 -delete; tar -C "$BACKUP_TARGET" -xzf -' < "$input"
+}
+
+manifest_value() {
+  local manifest="$1" key="$2"
+  sed -nE "s/^${key}=([^[:cntrl:]]*)$/\\1/p" "$manifest" | head -n 1
+}
+
+extract_and_verify_full_backup() {
+  local archive="$1" target="$2" actual_members expected_members actual_checksums expected_checksums format version domain
+  [[ -f "$archive" ]] || die "Файл резервной копии не найден: $archive"
+  [[ -s "$archive" ]] || die 'Файл резервной копии пуст.'
+
+  expected_members="$(printf '%s\n' '.env' 'checksums.sha256' 'database.dump' 'letsencrypt.tar.gz' 'manifest.env' 'site-assets.tar.gz' | sort)"
+  actual_members="$(tar -tzf "$archive" 2>/dev/null | sort)" || die 'Не удалось прочитать резервную копию.'
+  [[ "$actual_members" == "$expected_members" ]] || die 'Структура резервной копии не соответствует формату MIRA-TV.'
+
+  mkdir -p "$target"
+  tar --no-same-owner --no-same-permissions -xzf "$archive" -C "$target" -- \
+    manifest.env .env database.dump site-assets.tar.gz letsencrypt.tar.gz checksums.sha256
+  for file in manifest.env .env database.dump site-assets.tar.gz letsencrypt.tar.gz checksums.sha256; do
+    [[ -f "$target/$file" && ! -L "$target/$file" ]] || die "Некорректный элемент резервной копии: $file"
+  done
+
+  expected_checksums="$(printf '%s\n' '.env' 'database.dump' 'letsencrypt.tar.gz' 'manifest.env' 'site-assets.tar.gz' | sort)"
+  actual_checksums="$(awk '{print $2}' "$target/checksums.sha256" | sort)"
+  [[ "$actual_checksums" == "$expected_checksums" ]] || die 'Список контрольных сумм резервной копии некорректен.'
+  (cd "$target" && sha256sum -c checksums.sha256 >/dev/null) || die 'Контрольные суммы резервной копии не совпадают.'
+
+  format="$(manifest_value "$target/manifest.env" format_version)"
+  version="$(manifest_value "$target/manifest.env" mira_tv_version)"
+  domain="$(manifest_value "$target/manifest.env" domain)"
+  [[ "$format" == "$FULL_BACKUP_FORMAT_VERSION" ]] || die "Неподдерживаемая версия формата backup: ${format:-не указана}."
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die 'В backup указана некорректная версия MIRA-TV.'
+  validate_domain "$domain"
+}
+
+create_full_backup() {
+  local destination="${1:-}" timestamp filename version revision domain verify_dir
+  require_root backup "$destination"
+  [[ -d "$INSTALL_DIR/.git" ]] || die 'MIRA-TV не установлен.'
+  [[ -f "$INSTALL_DIR/.env" ]] || die 'Не найден /opt/MIRA-TV/.env.'
+  version="$(installed_version)" || die 'Не удалось определить установленную версию MIRA-TV.'
+  revision="$(git -C "$INSTALL_DIR" rev-parse HEAD)" || die 'Не удалось определить Git revision.'
+  local release_revision
+  release_revision="$(git -C "$INSTALL_DIR" rev-parse "v${version}^{commit}" 2>/dev/null)" || die "Не найден локальный стабильный тег v$version. Полный backup остановлен."
+  [[ "$revision" == "$release_revision" ]] || die "Текущий код не совпадает со стабильным релизом v$version. Сначала завершите штатное обновление или восстановите релиз."
+  git -C "$INSTALL_DIR" diff --quiet && git -C "$INSTALL_DIR" diff --cached --quiet || die 'В исходном коде MIRA-TV есть локальные изменения. Полный backup остановлен.'
+  domain="$(sed -nE 's/^MIRA_TV_DOMAIN=(.+)$/\1/p' "$INSTALL_DIR/.env" | head -n 1)"
+  validate_domain "$domain"
+  timestamp="$(date -u +'%Y%m%dT%H%M%SZ')"
+  filename="mira-tv-${version}-${timestamp}.mirabackup"
+
+  if [[ -z "$destination" ]]; then
+    install -d -m 0700 "$BACKUP_DIR"
+    destination="$BACKUP_DIR/$filename"
+  elif [[ -d "$destination" ]]; then
+    destination="${destination%/}/$filename"
+  else
+    install -d -m 0700 "$(dirname "$destination")"
+  fi
+  [[ ! -e "$destination" ]] || die "Файл уже существует: $destination"
+
+  FULL_BACKUP_WORKDIR="$(mktemp -d -t 'mira-tv.backup.XXXXXX')"
+  chmod 700 "$FULL_BACKUP_WORKDIR"
+  cp "$INSTALL_DIR/.env" "$FULL_BACKUP_WORKDIR/.env"
+  chmod 600 "$FULL_BACKUP_WORKDIR/.env"
+
+  compose up -d --wait db
+  compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$FULL_BACKUP_WORKDIR/database.dump"
+  [[ -s "$FULL_BACKUP_WORKDIR/database.dump" ]] || die 'Резервная копия PostgreSQL пуста.'
+  backup_persistent_volume_to 'site-assets' "$FULL_BACKUP_WORKDIR/site-assets.tar.gz"
+  backup_persistent_volume_to 'letsencrypt' "$FULL_BACKUP_WORKDIR/letsencrypt.tar.gz"
+
+  {
+    printf 'format_version=%s\n' "$FULL_BACKUP_FORMAT_VERSION"
+    printf 'mira_tv_version=%s\n' "$version"
+    printf 'created_at_utc=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    printf 'domain=%s\n' "$domain"
+    printf 'git_revision=%s\n' "$revision"
+  } > "$FULL_BACKUP_WORKDIR/manifest.env"
+
+  (cd "$FULL_BACKUP_WORKDIR" && sha256sum manifest.env .env database.dump site-assets.tar.gz letsencrypt.tar.gz > checksums.sha256)
+  tar -C "$FULL_BACKUP_WORKDIR" -czf "$destination" manifest.env .env database.dump site-assets.tar.gz letsencrypt.tar.gz checksums.sha256
+  chmod 600 "$destination"
+
+  verify_dir="$(mktemp -d -t 'mira-tv.verify.XXXXXX')"
+  extract_and_verify_full_backup "$destination" "$verify_dir"
+  rm -rf -- "$verify_dir"
+  rm -rf -- "$FULL_BACKUP_WORKDIR"
+  FULL_BACKUP_WORKDIR=""
+
+  info "Полная резервная копия создана: $destination"
+  info "Версия MIRA-TV: $version"
+  info "Домен: $domain"
+  info "Размер: $(du -h "$destination" | awk '{print $1}')"
+  warn 'Файл содержит базу данных, секреты приложения и TLS-ключи. Храните его как конфиденциальный.'
+}
+
+verify_full_backup() {
+  local archive="${1:-}" version domain created
+  if [[ -z "$archive" ]]; then read -r -p 'Путь к файлу .mirabackup: ' archive; fi
+  FULL_BACKUP_WORKDIR="$(mktemp -d -t 'mira-tv.verify.XXXXXX')"
+  extract_and_verify_full_backup "$archive" "$FULL_BACKUP_WORKDIR"
+  version="$(manifest_value "$FULL_BACKUP_WORKDIR/manifest.env" mira_tv_version)"
+  domain="$(manifest_value "$FULL_BACKUP_WORKDIR/manifest.env" domain)"
+  created="$(manifest_value "$FULL_BACKUP_WORKDIR/manifest.env" created_at_utc)"
+  rm -rf -- "$FULL_BACKUP_WORKDIR"
+  FULL_BACKUP_WORKDIR=""
+  info 'Резервная копия исправна и пригодна для восстановления.'
+  info "Версия MIRA-TV: $version"
+  info "Домен: $domain"
+  info "Создана: $created"
+}
+
+restore_full_backup() {
+  local archive="${1:-}" version domain revision tag restored_revision env_domain
+  if [[ -z "$archive" ]]; then read -r -p 'Путь к файлу .mirabackup: ' archive; fi
+  require_root restore-backup "$archive"
+  require_ubuntu
+
+  FULL_BACKUP_WORKDIR="$(mktemp -d -t 'mira-tv.restore.XXXXXX')"
+  chmod 700 "$FULL_BACKUP_WORKDIR"
+  extract_and_verify_full_backup "$archive" "$FULL_BACKUP_WORKDIR"
+  version="$(manifest_value "$FULL_BACKUP_WORKDIR/manifest.env" mira_tv_version)"
+  domain="$(manifest_value "$FULL_BACKUP_WORKDIR/manifest.env" domain)"
+  revision="$(manifest_value "$FULL_BACKUP_WORKDIR/manifest.env" git_revision)"
+  [[ "$revision" =~ ^[0-9a-fA-F]{40}$ ]] || die 'В backup отсутствует корректный Git revision.'
+  env_domain="$(sed -nE 's/^MIRA_TV_DOMAIN=(.+)$/\1/p' "$FULL_BACKUP_WORKDIR/.env" | head -n 1)"
+  [[ "$env_domain" == "$domain" ]] || die 'Домен в manifest и .env резервной копии не совпадает.'
+
+  [[ ! -e "$INSTALL_DIR" ]] || die "$INSTALL_DIR уже существует. Восстановление полного сервера разрешено только на чистую установку."
+
+  install_prerequisites
+  install_docker
+  for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      die "Обнаружены существующие данные MIRA-TV ($volume). Очистите старую установку перед полным восстановлением."
+    fi
+  done
+
+  tag="v$version"
+  log "Восстановление MIRA-TV $version из полной резервной копии"
+  git clone --depth 1 --branch "$tag" "$REPO_URL" "$FULL_BACKUP_WORKDIR/source" || die "Не удалось получить релиз $tag."
+  restored_revision="$(git -C "$FULL_BACKUP_WORKDIR/source" rev-parse HEAD)"
+  [[ "$restored_revision" == "$revision" ]] || die 'Git revision релиза не совпадает с revision в backup; восстановление остановлено.'
+  mv "$FULL_BACKUP_WORKDIR/source" "$INSTALL_DIR"
+
+  cp "$FULL_BACKUP_WORKDIR/.env" "$INSTALL_DIR/.env"
+  chmod 600 "$INSTALL_DIR/.env"
+  persist_env
+  validate_compose
+
+  compose up -d --wait db
+  restore_database_exact "$FULL_BACKUP_WORKDIR/database.dump" || die 'Не удалось восстановить PostgreSQL.'
+  restore_persistent_volume_from 'site-assets' "$FULL_BACKUP_WORKDIR/site-assets.tar.gz"
+  restore_persistent_volume_from 'letsencrypt' "$FULL_BACKUP_WORKDIR/letsencrypt.tar.gz"
+  start_stack
+  install -m 0755 "$INSTALL_DIR/mira-tv.sh" "$LAUNCHER_PATH"
+  persist_env
+
+  rm -rf -- "$FULL_BACKUP_WORKDIR"
+  FULL_BACKUP_WORKDIR=""
+  printf '\nMIRA-TV полностью восстановлен.\nURL: https://%s\nВерсия: %s\n\n' "$domain" "$version"
+  info 'База данных, привязки телевизоров, пользовательские файлы, секреты и TLS-состояние восстановлены.'
+  info 'После переключения DNS телевизоры продолжат работу с прежними идентификаторами и привязками.'
 }
 
 create_temporary_backup() {
@@ -278,13 +471,19 @@ purge_app() {
 
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Создать полную резервную копию\n10) Проверить резервную копию\n11) Восстановить сервер из резервной копии\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
-  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
+  case "$choice" in
+    1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;;
+    7) remove_app ;; 8) purge_app ;; 9) create_full_backup ;; 10) verify_full_backup ;; 11) restore_full_backup ;;
+    0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;;
+  esac
 }
 
 case "${1:-menu}" in
   install) install_app ;; update) update_app ;; status) status_app ;; restart) restart_app ;; logs) logs_app ;;
-  reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
-  *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
+  reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;;
+  backup) create_full_backup "${2:-}" ;; verify-backup) verify_full_backup "${2:-}" ;; restore-backup) restore_full_backup "${2:-}" ;;
+  menu) show_menu ;;
+  *) die 'Команды: install | update | status | restart | logs | reset-admin-password | backup | verify-backup | restore-backup | remove | purge | menu' ;;
 esac
