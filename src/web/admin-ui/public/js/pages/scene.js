@@ -1630,15 +1630,13 @@ export function initialiseSceneEditor() {
         applyTableGeometry();
         scheduleDocumentRender();
       };
-      const end = (endEvent) => {
-        const shouldOpenEditor = endEvent.type === 'pointerup' && !moved;
+      const end = () => {
         interactionActive = false;
         tableBox.removeEventListener('pointermove', move);
         tableBox.removeEventListener('pointerup', end);
         tableBox.removeEventListener('pointercancel', end);
         renderSelectionOwners();
         scheduleDocumentRender();
-        if (shouldOpenEditor) openTableEditor();
       };
       tableBox.addEventListener('pointermove', move);
       tableBox.addEventListener('pointerup', end);
@@ -2055,10 +2053,7 @@ export function initialiseSceneEditor() {
   themeLayer.addEventListener('click', () => selectOwner('theme'));
   backgroundLayer.addEventListener('click', () => selectOwner('background'));
   promotionLayer.addEventListener('click', () => selectOwner('promotion'));
-  tableLayer.addEventListener('click', () => {
-    selectOwner('table');
-    openTableEditor();
-  });
+  tableLayer.addEventListener('click', () => selectOwner('table'));
 
   mobileToolbar?.querySelectorAll('[data-scene-mobile-panel]').forEach((button) => {
     button.addEventListener('click', () => {
