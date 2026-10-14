@@ -19,7 +19,7 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
   }
 
   function scheduleReconnect() {
-    if (stopped || retryTimer || !navigator.onLine) return;
+    if (stopped || retryTimer) return;
     retryTimer = setTimeout(() => {
       retryTimer = null;
       connect();
@@ -27,7 +27,7 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
   }
 
   function connect() {
-    if (stopped || socket || !navigator.onLine) return;
+    if (stopped || socket) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     let next;
     try {
@@ -70,14 +70,9 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
   function handleOnline() { connect(); }
 
   function handleOffline() {
-    clearRetry();
-    const current = socket;
-    socket = null;
-    if (current) {
-      try { current.close(1001, 'network offline'); } catch {}
-    } else {
-      onDisconnected?.();
-    }
+    // navigator.onLine is only a hint on TV browsers. Keep a working socket alive
+    // and let the transport close/error path decide whether realtime is unavailable.
+    if (!socket) scheduleReconnect();
   }
 
   function start() {
