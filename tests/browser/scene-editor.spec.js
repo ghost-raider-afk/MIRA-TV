@@ -101,6 +101,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
 
   await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
   const tableEditorPanel = page.locator('#scene-editor-table-edit-layer .scene-table-editor-dialog');
   await expect(tableEditorPanel).toBeVisible();
@@ -183,6 +185,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
 
   await page.locator('#scene-editor-table-layer').click();
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Таблица меню');
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
 
   const geometry = await page.evaluate(() => ({
@@ -441,6 +445,8 @@ test('Scene table editor stays readable and scrollable with a dense menu', async
 
   await page.goto(`/scene?screen=${screen.id}`);
   await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
 
   const panel = page.locator('.scene-table-editor-dialog');
   const scroll = page.locator('.scene-table-editor-scroll');
@@ -520,6 +526,8 @@ test('Glass table modal updates canonical Preview live and never changes table g
 
   await page.locator('.scene-editor-table-selection-box').click();
   const modal = page.locator('#scene-editor-table-edit-layer');
+  await expect(modal).toBeHidden();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   await expect(modal).toBeVisible();
   const dialog = page.locator('.scene-table-editor-dialog');
   await expect(dialog).toBeVisible();
@@ -605,6 +613,8 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await page.getByRole('button', { name:/Слои/ }).click();
   await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
   await page.locator('#scene-editor-table-layer').click();
+  await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeVisible();
   await expect(page.locator('.scene-table-editor-dialog')).toBeVisible();
   await page.locator('.scene-table-editor-close').click();
