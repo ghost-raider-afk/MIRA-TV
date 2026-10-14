@@ -22,6 +22,15 @@ test('device WebSocket trusts Traefik forwarded scheme and host for the public M
   })), true);
 });
 
+test('device WebSocket keeps the canonical Host valid when forwarded host metadata differs', () => {
+  assert.equal(isAllowedDeviceWebSocketOrigin(request({
+    host: 'mira.example.test',
+    'x-forwarded-host': 'app:8080',
+    'x-forwarded-proto': 'https',
+    origin: 'https://mira.example.test'
+  })), true);
+});
+
 test('device WebSocket rejects cross-origin, missing and scheme-mismatched upgrades', () => {
   assert.equal(isAllowedDeviceWebSocketOrigin(request({
     host: 'mira.example.test',
