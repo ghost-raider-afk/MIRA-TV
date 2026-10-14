@@ -31,25 +31,27 @@ function firstForwardedValue(value) {
   return String(text || '').split(',')[0].trim();
 }
 
-function requestWebOrigin(request) {
-  const host = firstForwardedValue(request?.headers?.['x-forwarded-host'])
-    || firstForwardedValue(request?.headers?.host);
+function requestWebOrigins(request) {
   const protocol = firstForwardedValue(request?.headers?.['x-forwarded-proto'])
     || (request?.socket?.encrypted ? 'https' : 'http');
-  if (!host || !['http', 'https'].includes(protocol)) return '';
-  try {
-    return new URL(`${protocol}://${host}`).origin;
-  } catch {
-    return '';
+  if (!['http', 'https'].includes(protocol)) return [];
+  const hosts = new Set([
+    firstForwardedValue(request?.headers?.host),
+    firstForwardedValue(request?.headers?.['x-forwarded-host'])
+  ].filter(Boolean));
+  const origins = [];
+  for (const host of hosts) {
+    try { origins.push(new URL(`${protocol}://${host}`).origin); } catch {}
   }
+  return origins;
 }
 
 export function isAllowedDeviceWebSocketOrigin(request) {
   const origin = firstForwardedValue(request?.headers?.origin);
-  const expectedOrigin = requestWebOrigin(request);
-  if (!origin || !expectedOrigin) return false;
+  if (!origin) return false;
   try {
-    return new URL(origin).origin === expectedOrigin;
+    const actualOrigin = new URL(origin).origin;
+    return requestWebOrigins(request).includes(actualOrigin);
   } catch {
     return false;
   }

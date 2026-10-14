@@ -78,6 +78,8 @@ test('first section is a real editable row and never inherits the monitor name',
 
   const preview = page.locator('#scene-editor-stage');
   const editLayer = page.locator('#scene-editor-table-edit-layer');
+  await expect(editLayer).toBeHidden();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   const firstRow = editLayer.locator('.scene-table-editor-row.is-section').first();
   await expect(firstRow).toBeVisible();
   await expect(firstRow).toHaveAttribute('data-source-row-ids', /section-primary/);

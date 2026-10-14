@@ -808,7 +808,7 @@ async function initialisePlayer() {
 
   showActivationButton.addEventListener('click', () => void createActivation());
   installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
-  if (!playerInstallSupportedPlatform() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player — только Android TV';
+  if (!playerInstallSupportedPlatform() && installPlayerButton) setHidden(installPlayerButton, true);
   if (playerRunsStandalone() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {

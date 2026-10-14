@@ -31,24 +31,29 @@ export function createLocationsRouter({ store, config, realtime }) {
       const sourceScreens = await tx.listScreensByLocation(sourceId);
       const clonedIds = [];
       for (const sourceScreen of sourceScreens) {
-        const [sourceDraft, sourceAnimation, sourceWeather] = await Promise.all([
-          tx.getScreenDraft(sourceScreen.id),
-          tx.getScreenAnimationSettings(sourceScreen.id),
-          tx.getScreenWeatherSettings(sourceScreen.id)
-        ]);
-        const cloned = await tx.createScreen({ location_id: created.id, name: sourceScreen.name, resolution: sourceScreen.resolution, status: 'draft', active: sourceScreen.active !== false });
-        const settings = menuSettingsInput(sourceDraft.settings || {}, { allowBackgroundImage: true, maxWidth: config.screenMaxWidth, maxHeight: config.screenMaxHeight });
-        const saved = await tx.saveScreenDraft(cloned.id, { rows: structuredClone(sourceDraft.rows || []), settings }, 1);
+        const sourceDraft = await tx.getScreenDraft(sourceScreen.id);
+        const cloned = await tx.createScreen({
+          location_id: created.id,
+          name: sourceScreen.name,
+          resolution: sourceScreen.resolution,
+          status: 'draft',
+          active: sourceScreen.active !== false
+        });
+        const settings = menuSettingsInput(sourceDraft.settings || {}, {
+          allowBackgroundImage: true,
+          maxWidth: config.screenMaxWidth,
+          maxHeight: config.screenMaxHeight
+        });
+        const saved = await tx.saveScreenDraft(cloned.id, {
+          rows: structuredClone(sourceDraft.rows || []),
+          settings,
+          scene: structuredClone(sourceDraft.scene || { version: 1, elements: [] })
+        }, 1);
         if (!saved) throw conflict('Не удалось создать независимую копию мониторов торговой точки.');
-        if (sourceAnimation) {
-          const applied = await tx.applyAnimationSettingsToScreens([cloned.id], sourceAnimation, request.session.sub);
-          if (applied.length !== 1) throw conflict('Не удалось скопировать плейлист монитора торговой точки.');
-        }
-        if (sourceWeather) await tx.applyWeatherSettingsToScreens([cloned.id], sourceWeather, request.session.sub);
         clonedIds.push(cloned.id);
       }
       const revisions = clonedIds.length
-        ? await tx.markScreenRenderChanged(clonedIds, ['screen', 'menu', 'animation', 'environment', 'scene_playlist', 'entity', 'brand', 'announcement', 'weather'], 'location.cloned', request.session.sub)
+        ? await tx.markScreenRenderChanged(clonedIds, ['screen', 'menu', 'scene'], 'location.cloned', request.session.sub)
         : [];
       return { location: await tx.getLocation(created.id), revisions };
     });
