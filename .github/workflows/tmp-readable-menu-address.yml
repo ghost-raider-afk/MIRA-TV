@@ -1,10 +1,35 @@
 name: Stage readable menu fixes
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - fix/readable-menu-address-field
+
+permissions:
+  contents: write
 
 jobs:
-  noop:
+  patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - run: echo ready
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/readable-menu-address-field
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply focused patch
+        run: python3 scripts/tmp-readable-menu-address.py
+      - name: Run focused regressions
+        run: node --test tests/readable-menu-style.test.js tests/catalog-csv.test.js tests/catalog-import-preview.test.js tests/catalog-product-address.test.js
+      - name: Commit staged result
+        shell: bash
+        run: |
+          rm scripts/tmp-readable-menu-address.py .github/workflows/tmp-readable-menu-address.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix: improve readable menu metadata and tones"
+          git push origin HEAD:fix/readable-menu-address-field
