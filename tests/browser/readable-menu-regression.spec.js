@@ -66,7 +66,7 @@ test('readable table reuses classic row colors, protects price columns and hides
   expect(locationResponse.status()).toBe(201);
   const location = await locationResponse.json();
   const productResponse = await page.request.post('/api/catalog/products', { data:{
-    name:`ДЛИННОЕ НАЗВАНИЕ ТОВАРА ${suffix}`,
+    name:`ЧЕШСКИЙ КАБАНЧИК, ПШЕНИЧНОЕ ОСОБОЕ СВЕТЛОЕ ${suffix}`,
     producer:'Пивоварня',
     address:'Хабаровский край, Комсомольск-на-Амуре',
     characteristics:'светлое, фильтрованное',
@@ -83,7 +83,7 @@ test('readable table reuses classic row colors, protects price columns and hides
   expect(screenResponse.status()).toBe(201);
   const screen = await screenResponse.json();
   const rows = [
-    { id:`section-${suffix}`, kind:'section', name:'ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ', enabled:true },
+    { id:`section-${suffix}`, kind:'section', name:'ПИВО СВЕТЛОЕ НЕФИЛЬТРОВАННОЕ ОСОБОЕ', enabled:true },
     { id:`item-a-${suffix}`, kind:'item', product_id:product.id, enabled:true },
     { id:`item-b-${suffix}`, kind:'item', product_id:product.id, enabled:true }
   ];
@@ -93,12 +93,41 @@ test('readable table reuses classic row colors, protects price columns and hides
   const svg = page.locator('#scene-editor-stage svg.menu-table-svg');
   await expect(svg.locator('.table-item')).toHaveCount(2);
   await expect(svg).not.toContainText('Хабаровский край');
-  await expect(svg).toContainText('Пивоварня · 4,5% · светлое, фильтрованное');
+  await expect(svg).toContainText('Пивоварня · светлое, фильтрованное');
+  await expect(svg.locator('.item-strength').first()).toHaveText(' · 4,5%');
 
   const readable = await rowVisuals(page);
   expect(readable.map((row) => row.tone)).toEqual(['light', 'accent']);
   expect(readable.every((row) => row.priceFills.length === 2 && row.priceFills.every((fill) => fill === row.nameFill))).toBe(true);
   expect(readable.some((row) => row.overlapsPrice)).toBe(false);
+
+  const headerGeometry = await svg.locator('.table-section').first().evaluate((section) => {
+    const title = section.querySelector('.section-title');
+    const titleZone = section.querySelector('.section-title-zone');
+    const labels = [...section.querySelectorAll('.price-label')];
+    const clipRef = titleZone?.getAttribute('clip-path')?.match(/#([^)]*)/)?.[1];
+    const clipRect = clipRef ? document.getElementById(clipRef)?.querySelector('rect') : null;
+    const clipRight = clipRect ? Number(clipRect.getAttribute('x')) + Number(clipRect.getAttribute('width')) : Infinity;
+    const firstPriceLeft = labels.length ? Math.min(...labels.map((label) => label.getBBox().x)) : Infinity;
+    return {
+      protected:clipRight < firstPriceLeft,
+      titleSize:Number(title?.getAttribute('font-size') || 0),
+      labelSizes:labels.map((label) => Number(label.getAttribute('font-size') || 0))
+    };
+  });
+  expect(headerGeometry.protected).toBe(true);
+  expect(headerGeometry.titleSize).toBeGreaterThan(30);
+  expect(headerGeometry.labelSizes).toHaveLength(2);
+  expect(headerGeometry.labelSizes.every((size) => size > 24)).toBe(true);
+
+  const inlineStrength = await svg.locator('.item-name').first().evaluate((name) => {
+    const strength = name.querySelector('.item-strength');
+    return {
+      nameSize:Number.parseFloat(getComputedStyle(name).fontSize),
+      strengthSize:Number.parseFloat(getComputedStyle(strength).fontSize)
+    };
+  });
+  expect(inlineStrength.strengthSize).toBeCloseTo(inlineStrength.nameSize, 3);
 
   await saveStyle(page, screen, rows, 'legacy');
   await page.reload();
