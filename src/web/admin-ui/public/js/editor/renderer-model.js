@@ -170,16 +170,27 @@ function filtrationLabel(value) {
   return '';
 }
 
-export function formatProductMetadata(product) {
+function productCharacteristics(product) {
   const characteristics = String(product?.characteristics || '').trim();
-  const fallbackCharacteristics = [
+  if (characteristics) return characteristics;
+  return [
     beverageColorLabel(product?.beverage_color),
     filtrationLabel(product?.filtration)
   ].filter(Boolean).join(' · ');
+}
+
+export function formatProductReadableMetadata(product) {
+  return [
+    product?.producer || '',
+    productCharacteristics(product)
+  ].filter(Boolean).join(' · ');
+}
+
+export function formatProductMetadata(product) {
   return [
     product?.producer || '',
     formatStrength(product?.strength || ''),
-    characteristics || fallbackCharacteristics
+    productCharacteristics(product)
   ].filter(Boolean).join(' · ');
 }
 
@@ -279,7 +290,9 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         sourceRowId: row.id || null,
         tone,
         name: product?.name || row.name || 'Продукция не выбрана',
-        metadata: formatProductMetadata(product),
+        strength:formatStrength(product?.strength || ''),
+        metadata:formatProductMetadata(product),
+        metadataReadable:formatProductReadableMetadata(product),
         promotion:row.promotion === true,
         promotionText:row.promotion_text || row.promotionText || '',
         pricePrimary: product?.price_primary || row.price_primary || row.pricePrimary || '',

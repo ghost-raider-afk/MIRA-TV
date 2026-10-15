@@ -128,6 +128,11 @@ test('readable rows reuse classic alternating tones and keep address out of TV m
   assert.equal(layout.themeTableStyle.item_tone_mode, 'alternating');
   assert.equal(layout.themeTableStyle.price_mode, 'alternating');
   assert.equal(lines[1].metadata, 'Завод 1 · 4,5% · светлое, фильтрованное');
+  assert.equal(lines[1].metadataReadable, 'Завод 1 · светлое, фильтрованное');
+  assert.equal(lines[1].strength, '4,5%');
+  assert.match(svg, />Первый<tspan class="item-strength"> · 4,5%<\/tspan>/);
+  assert.match(svg, /section-title-zone/);
+  assert.match(svg, /mira-item-content-clip-/);
   assert.doesNotMatch(svg, /Адрес не для ТВ|Другой адрес/);
   const lightStart = svg.indexOf('tone-light');
   const accentStart = svg.indexOf('tone-accent');

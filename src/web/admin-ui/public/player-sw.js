@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v64';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v65';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v65';
+const SHELL_CACHE = 'mira-tv-player-shell-v66';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: classic row-tone parity, protected price zone and catalog address metadata.
+// Source revision: collision-proof readable table geometry and compact product hierarchy.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',

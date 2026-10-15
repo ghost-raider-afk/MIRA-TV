@@ -109,16 +109,23 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const readable = styleId === 'readable';
   const title = String(line.name || 'Меню');
-  const baseline = box.top + (readable ? 43 : 35) * fontScale;
-  const titleRight = readable && Number.isFinite(horizontal.priceZoneLeft) ? horizontal.priceZoneLeft : horizontal.primaryPriceX;
-  const titleWidth = line.showPriceLabels ? titleRight - horizontal.left - 18 * horizontal.scaleX : horizontal.tableWidth;
-  const maximumCharacters = Math.max(16, Math.floor(titleWidth / ((readable ? 16 : 17) * fontScale)));
+  const baseline = box.top + (readable ? 41.5 : 35) * fontScale;
+  const titleX = horizontal.left + 19 * horizontal.scaleX;
+  const titleRight = readable && Number.isFinite(horizontal.textRight)
+    ? horizontal.textRight
+    : readable && Number.isFinite(horizontal.priceZoneLeft)
+      ? horizontal.priceZoneLeft
+      : horizontal.primaryPriceX;
+  const titleWidth = line.showPriceLabels
+    ? Math.max(1, titleRight - titleX)
+    : Math.max(1, horizontal.right - titleX);
+  const maximumCharacters = Math.max(8, Math.floor(titleWidth / ((readable ? 15.5 : 17) * fontScale)));
   const priceLabelCenterOffset = readable && Number.isFinite(horizontal.priceCellWidth)
     ? horizontal.priceCellWidth / 2
     : (MENU_REFERENCE.priceColumnGap / 3) * horizontal.scaleX;
   const labels = line.showPriceLabels
-    ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 20 : 22) * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1 л</text>
-      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 20 : 22) * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle' }, typography)}>1,5 л</text>` : '';
+    ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 25.5 : 22) * fontScale, weight: 800, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1 л</text>
+      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 25.5 : 22) * fontScale, weight: 800, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1,5 л</text>` : '';
   const rectHeight = Math.max(1, box.height - MENU_REFERENCE.sectionInset * scale);
   const fill = themeId === 'premium'
     ? 'url(#mira-theme-premium-gold)'
@@ -129,7 +136,13 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
         : palette.accent;
   const radius = themeId === 'chalk' ? 3 : themeId === 'legacy' ? 5 : 7;
   const stroke = themeId === 'chalk' ? ' stroke="#F4E7B0" stroke-opacity=".20" stroke-width="1"' : '';
-  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: (readable ? 29 : 28) * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
+  const titleAttributes = textAttributes({ size: (readable ? 32 : 28) * fontScale, weight: 800, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography);
+  const titleText = `<text x="${titleX}" y="${baseline}" class="section-title" ${titleAttributes}>${escapeXml(truncateText(title, maximumCharacters))}</text>`;
+  const clipId = `mira-section-title-clip-${Math.round(box.top * 10)}-${Math.round(horizontal.left * 10)}`;
+  const titleMarkup = readable && line.showPriceLabels
+    ? `<defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><rect x="${titleX}" y="${box.top}" width="${titleWidth}" height="${rectHeight}"/></clipPath></defs><g class="section-title-zone" clip-path="url(#${clipId})">${titleText}</g>`
+    : titleText;
+  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/>${titleMarkup}${labels}</g>`;
 }
 
 function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
@@ -146,12 +159,13 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
   const showSequence = themed && themeStyle.show_sequence !== false;
   const numberX = horizontal.left + 16 * horizontal.scaleX;
   const nameX = horizontal.left + (showSequence ? 55 : 22) * horizontal.scaleX;
-  const priceBaseline = box.top + (readable ? 43 : 35) * fontScale;
-  const hasMetadata = Boolean(line.metadata);
-  const nameBaseline = hasMetadata ? box.top + (readable ? 24.5 : 21) * fontScale : priceBaseline;
-  const metaBaseline = box.top + (readable ? 56.5 : 44.5) * fontScale;
-  const nameSize = (readable ? (hasMetadata ? 27 : 28) : (hasMetadata ? 24 : 25)) * fontScale;
-  const metaSize = (readable ? 14.5 : 13.5) * fontScale;
+  const priceBaseline = box.top + (readable ? 40.5 : 35) * fontScale;
+  const metadata = readable && typeof line.metadataReadable === 'string' ? line.metadataReadable : line.metadata;
+  const hasMetadata = Boolean(metadata);
+  const nameBaseline = hasMetadata ? box.top + (readable ? 25.5 : 21) * fontScale : priceBaseline;
+  const metaBaseline = box.top + (readable ? 46.5 : 44.5) * fontScale;
+  const nameSize = (readable ? (hasMetadata ? 27.5 : 28) : (hasMetadata ? 24 : 25)) * fontScale;
+  const metaSize = (readable ? 14 : 13.5) * fontScale;
   const itemFont = themeTypography.item || typography;
   const metaFont = themeTypography.meta || typography;
   const priceFont = themeTypography.price || typography;
@@ -159,9 +173,25 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     ? { markup:'', width:0 }
     : promotionMarkup(line, nameX, box, scale, itemFont, nameBaseline, settings);
   const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
-  const textRight = readable && Number.isFinite(horizontal.priceZoneLeft) ? horizontal.priceZoneLeft : horizontal.primaryPriceX;
-  const nameCharacters = Math.max(8, Math.floor((textRight - itemNameX - 14 * horizontal.scaleX) / ((readable ? 14 : 13) * fontScale)));
-  const metaCharacters = Math.max(18, Math.floor((textRight - nameX - 14 * horizontal.scaleX) / ((readable ? 7.5 : 7) * fontScale)));
+  const textRight = readable && Number.isFinite(horizontal.textRight)
+    ? horizontal.textRight
+    : readable && Number.isFinite(horizontal.priceZoneLeft)
+      ? horizontal.priceZoneLeft
+      : horizontal.primaryPriceX;
+  const nameCharacters = Math.max(8, Math.floor((textRight - itemNameX) / ((readable ? 13.5 : 13) * fontScale)));
+  const metaCharacters = Math.max(14, Math.floor((textRight - nameX) / ((readable ? 7.2 : 7) * fontScale)));
+  const strength = readable ? String(line.strength || '').trim() : '';
+  const strengthSuffix = strength ? ` · ${strength}` : '';
+  const nameBudget = Math.max(4, nameCharacters - [...strengthSuffix].length);
+  const displayName = truncateText(line.name, nameBudget);
+  const strengthMarkup = strength ? `<tspan class="item-strength">${escapeXml(strengthSuffix)}</tspan>` : '';
+  const contentClipX = horizontal.left + 8 * horizontal.scaleX;
+  const contentClipWidth = Math.max(1, textRight - contentClipX);
+  const contentClipId = `mira-item-content-clip-${Math.round(box.top * 10)}-${Math.round(horizontal.left * 10)}`;
+  const contentClip = readable
+    ? `<defs><clipPath id="${contentClipId}" clipPathUnits="userSpaceOnUse"><rect x="${contentClipX}" y="${box.top}" width="${contentClipWidth}" height="${box.height}"/></clipPath></defs>`
+    : '';
+  const contentClipAttribute = readable ? ` clip-path="url(#${contentClipId})"` : '';
   const priceMode = String(themeStyle.price_mode || 'alternating');
   let primaryPriceColor = priceMode === 'primary-accent'
     ? palette.accentText
@@ -184,7 +214,8 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     ${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}
     ${numberMarkup}
     ${promotion.markup}
-    <g class="table-item-content"><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: itemColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(line.name, nameCharacters))}</text>${line.metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor, fontFamily:metaFont?.family }, metaFont)}>${escapeXml(truncateText(line.metadata, metaCharacters))}</text>` : ''}</g>
+    ${contentClip}
+    <g class="table-item-content"${contentClipAttribute}><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: itemColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(displayName)}${strengthMarkup}</text>${metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor, fontFamily:metaFont?.family }, metaFont)}>${escapeXml(truncateText(metadata, metaCharacters))}</text>` : ''}</g>
     <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}</g>
   </g>`;
 }
