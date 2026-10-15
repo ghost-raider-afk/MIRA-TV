@@ -70,7 +70,8 @@ export function createScreensRepository(pool) {
         [location_id, locationNumber, resolvedName, resolution, status, active, now]
       );
       const id = Number(rows[0].id);
-      await pool.query('INSERT INTO screen_drafts (screen_id, rows_json, settings_json, scene_json, revision, updated_at) VALUES ($1,$2,$3,$4,1,$5)', [id,'[]','{}',JSON.stringify({ version: 1, elements: [] }),now]);
+      const defaultSettings = JSON.stringify({ table_style:'readable', font_family:'dejavu-condensed', price_font_size_pt:32 });
+      await pool.query('INSERT INTO screen_drafts (screen_id, rows_json, settings_json, scene_json, revision, updated_at) VALUES ($1,$2,$3,$4,1,$5)', [id,'[]',defaultSettings,JSON.stringify({ version: 1, elements: [] }),now]);
       return getScreen(id);
     },
     async updateScreen(id, { location_id, name, resolution = '1920×1080', status = 'draft', active = true }) {
