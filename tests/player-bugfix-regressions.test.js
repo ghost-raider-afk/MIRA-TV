@@ -15,8 +15,11 @@ test('unsupported desktop Player does not render the Android-only label', async 
 
 test('Player shell advances so cached TVs receive the bugfix assets', async () => {
   const source = await readFile(new URL('../src/web/admin-ui/public/player-sw.js', import.meta.url), 'utf8');
-  assert.match(source, /RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v61'/);
-  assert.match(source, /SHELL_CACHE = 'mira-tv-player-shell-v62'/);
+  const retiredVersion = Number(source.match(/^const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v(\d+)';$/m)?.[1]);
+  const activeVersion = Number(source.match(/^const SHELL_CACHE = 'mira-tv-player-shell-v(\d+)';$/m)?.[1]);
+  assert.ok(Number.isSafeInteger(retiredVersion), 'retired Player shell cache must be versioned');
+  assert.ok(Number.isSafeInteger(activeVersion), 'active Player shell cache must be versioned');
+  assert.equal(activeVersion, retiredVersion + 1);
 });
 
 test('table content editor opens only from the explicit inspector action', async () => {
