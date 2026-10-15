@@ -24,11 +24,6 @@ async function createScreen(page) {
 }
 
 async function expectNoPageOverflow(page) {
-  await expect.poll(() => page.evaluate(() => ({
-    client:document.documentElement.clientWidth,
-    scroll:document.documentElement.scrollWidth
-  }))).toEqual(expect.objectContaining({ client:await page.evaluate(() => document.documentElement.clientWidth) }));
-
   const overflow = await page.evaluate(() => ({
     client:document.documentElement.clientWidth,
     scroll:document.documentElement.scrollWidth
