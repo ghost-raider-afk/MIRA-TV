@@ -7,6 +7,7 @@ const MIN_FONT_SCALE = 55;
 const MAX_FONT_SCALE = 130;
 const DEFAULT_FONT_FAMILY = 'arial-narrow';
 const PROMOTION_SHAPES = new Set(['base', 'capsule', 'cut', 'chevron', 'tag']);
+const TABLE_STYLES = new Set(['legacy', 'readable']);
 const FONT_FAMILIES = new Set([
   'arial-narrow',
   'tahoma-bold',
@@ -46,6 +47,12 @@ function promotionShape(value) {
   return value;
 }
 
+function tableStyle(value) {
+  if (value === undefined || value === null || value === '') return 'legacy';
+  if (typeof value !== 'string' || !TABLE_STYLES.has(value)) throw new ValidationError('Стиль таблицы выбран неверно.');
+  return value;
+}
+
 function backgroundUrl(value, { allowBackgroundImage }) {
   if (!allowBackgroundImage || value === undefined || value === null || value === '') return '';
   if (typeof value !== 'string' || !BACKGROUND_URL.test(value)) throw new ValidationError('Фоновое изображение монитора имеет недопустимый адрес.');
@@ -65,6 +72,7 @@ function integer(value, field, fallback, minimum, maximum) {
 
 export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth = 1920, maxHeight = 1080 } = {}) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const table_style = tableStyle(source.table_style);
   const table_x = integer(source.table_x, 'table_x', DEFAULT_GEOMETRY.x, 0, Math.max(0, maxWidth - 1));
   const table_y = integer(source.table_y, 'table_y', DEFAULT_GEOMETRY.y, 0, Math.max(0, maxHeight - 1));
   const table_width_px = integer(source.table_width_px, 'table_width_px', DEFAULT_GEOMETRY.width, 1, maxWidth);
@@ -73,13 +81,14 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
   if (table_y + table_height_px > maxHeight) throw new ValidationError('Таблица выходит за нижнюю границу экрана.');
   return Object.freeze({
     theme: menuThemeInput(source.theme),
+    table_style,
     background_color: color(source.background_color, 'background_color', '#101828'),
     background_image_url: backgroundUrl(source.background_image_url, { allowBackgroundImage }),
     accent_color: color(source.accent_color, 'accent_color', '#F4C915'),
     text_color: color(source.text_color, 'text_color', '#F8FAFC'),
     font_scale_percent: fontScale(source.font_scale_percent),
     font_family: fontFamily(source.font_family),
-    price_font_size_pt: integer(source.price_font_size_pt, 'price_font_size_pt', 27, 18, 40),
+    price_font_size_pt: integer(source.price_font_size_pt, 'price_font_size_pt', table_style === 'readable' ? 32 : 27, 18, 40),
     promotion_badge_shape: promotionShape(source.promotion_badge_shape),
     promotion_font_family: fontFamily(source.promotion_font_family, 'Шрифт акции', DEFAULT_FONT_FAMILY),
     promotion_font_size_percent: integer(source.promotion_font_size_percent, 'promotion_font_size_percent', 100, 60, 180),
@@ -96,4 +105,5 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
 export const MENU_FONT_SCALE_RANGE = Object.freeze({ minimum: MIN_FONT_SCALE, maximum: MAX_FONT_SCALE });
 export const MENU_FONT_FAMILIES = Object.freeze([...FONT_FAMILIES]);
 export const MENU_PROMOTION_SHAPES = Object.freeze([...PROMOTION_SHAPES]);
+export const MENU_TABLE_STYLES = Object.freeze([...TABLE_STYLES]);
 export const MENU_DEFAULT_GEOMETRY = DEFAULT_GEOMETRY;

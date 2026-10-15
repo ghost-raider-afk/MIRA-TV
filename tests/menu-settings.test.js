@@ -37,6 +37,7 @@ test('monitor settings contract stores only canonical renderer and theme fields'
       },
       overrides: []
     },
+    table_style:'legacy',
     background_color: '#101828',
     background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.png',
     accent_color: '#F4C915', text_color: '#F8FAFC', font_scale_percent: 92, font_family: 'tahoma-bold',
