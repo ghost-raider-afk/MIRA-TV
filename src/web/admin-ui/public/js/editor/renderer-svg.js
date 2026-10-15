@@ -3,12 +3,12 @@ import {
   MENU_PRICE_FONT_SIZE,
   MENU_TABLE_STYLE,
   TV1_REFERENCE_SCALE,
-  buildRenderLayout,
   escapeXml,
   fontDefinition,
   priceParts,
   truncateText
 } from './renderer-model.js';
+import { buildMenuRenderLayout } from './renderer-layout.js';
 
 function textAttributes({ size, weight = 400, fill, letterSpacing = 0, anchor = null, opacity = null, fontFamily = null }, typography) {
   const resolvedWeight = Math.max(weight, typography?.weightFloor || 400);
@@ -25,7 +25,8 @@ function separatorMarkup(box, horizontal, scale, themeId = 'legacy', themeStyle 
     ? themeStyle.separator_dashed
     : themeId === 'legacy' || themeId === 'chalk';
   const stroke = themeStyle.separator || (themeId === 'chalk' ? '#5B5B56' : MENU_TABLE_STYLE.separator);
-  const opacity = themeId === 'legacy' ? '.65' : themeId === 'chalk' ? '.50' : '.42';
+  const readable = themeStyle.table_style_mode === 'readable';
+  const opacity = readable ? '.34' : themeId === 'legacy' ? '.65' : themeId === 'chalk' ? '.50' : '.42';
   return `<line x1="${horizontal.left + MENU_REFERENCE.separatorInset * horizontal.scaleX}" y1="${y}" x2="${horizontal.right}" y2="${y}" class="separator" stroke="${stroke}" stroke-width="${Math.max(1, scale)}"${dashed ? ` stroke-dasharray="${6 * scale} ${7 * scale}"` : ''} opacity="${opacity}"/>`;
 }
 
@@ -104,16 +105,17 @@ function promotionMarkup(line, x, box, scale, typography, textBaseline, settings
   };
 }
 
-function sectionMarkup(line, box, horizontal, palette, scale, typography, themeId = 'legacy') {
+function sectionMarkup(line, box, horizontal, palette, scale, typography, themeId = 'legacy', styleId = 'legacy') {
   const fontScale = TV1_REFERENCE_SCALE * scale;
+  const readable = styleId === 'readable';
   const title = String(line.name || 'Меню');
-  const baseline = box.top + 35 * fontScale;
+  const baseline = box.top + (readable ? 43 : 35) * fontScale;
   const titleWidth = line.showPriceLabels ? horizontal.primaryPriceX - horizontal.left - 45 * horizontal.scaleX : horizontal.tableWidth;
-  const maximumCharacters = Math.max(16, Math.floor(titleWidth / (17 * fontScale)));
+  const maximumCharacters = Math.max(16, Math.floor(titleWidth / ((readable ? 16 : 17) * fontScale)));
   const priceLabelCenterOffset = (MENU_REFERENCE.priceColumnGap / 3) * horizontal.scaleX;
   const labels = line.showPriceLabels
-    ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: 22 * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1 л</text>
-      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: 22 * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle' }, typography)}>1,5 л</text>` : '';
+    ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 20 : 22) * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1 л</text>
+      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 20 : 22) * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle' }, typography)}>1,5 л</text>` : '';
   const rectHeight = Math.max(1, box.height - MENU_REFERENCE.sectionInset * scale);
   const fill = themeId === 'premium'
     ? 'url(#mira-theme-premium-gold)'
@@ -124,27 +126,29 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
         : palette.accent;
   const radius = themeId === 'chalk' ? 3 : themeId === 'legacy' ? 5 : 7;
   const stroke = themeId === 'chalk' ? ' stroke="#F4E7B0" stroke-opacity=".20" stroke-width="1"' : '';
-  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: 28 * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
+  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/><text x="${horizontal.left + 19 * horizontal.scaleX}" y="${baseline}" class="section-title" ${textAttributes({ size: (readable ? 29 : 28) * fontScale, weight: 700, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography)}>${escapeXml(truncateText(title, maximumCharacters))}</text>${labels}</g>`;
 }
 
 function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
+  const readable = themeStyle.table_style_mode === 'readable';
   const toneColor = line.tone === 'accent' ? palette.accentText : palette.primaryText;
   const legacyMetaColor = line.tone === 'accent' ? palette.accentSecondaryText : palette.secondaryText;
   const themed = themeId !== 'legacy';
-  const fixedTone = themed && themeStyle.item_tone_mode === 'fixed';
+  const styled = themed || readable;
+  const fixedTone = styled && themeStyle.item_tone_mode === 'fixed';
   const itemColor = fixedTone ? palette.primaryText : toneColor;
   const metaColor = fixedTone ? palette.secondaryText : legacyMetaColor;
   const priceOnlyPromotion = themed && themeStyle.promotion_style === 'price-only' && line.promotion === true;
   const showSequence = themed && themeStyle.show_sequence !== false;
   const numberX = horizontal.left + 16 * horizontal.scaleX;
   const nameX = horizontal.left + (showSequence ? 55 : 22) * horizontal.scaleX;
-  const priceBaseline = box.top + 35 * fontScale;
+  const priceBaseline = box.top + (readable ? 43 : 35) * fontScale;
   const hasMetadata = Boolean(line.metadata);
-  const nameBaseline = hasMetadata ? box.top + 21 * fontScale : priceBaseline;
-  const metaBaseline = box.top + 44.5 * fontScale;
-  const nameSize = (hasMetadata ? 24 : 25) * fontScale;
-  const metaSize = 13.5 * fontScale;
+  const nameBaseline = hasMetadata ? box.top + (readable ? 27 : 21) * fontScale : priceBaseline;
+  const metaBaseline = box.top + (readable ? 53 : 44.5) * fontScale;
+  const nameSize = (readable ? (hasMetadata ? 27 : 28) : (hasMetadata ? 24 : 25)) * fontScale;
+  const metaSize = (readable ? 14.5 : 13.5) * fontScale;
   const itemFont = themeTypography.item || typography;
   const metaFont = themeTypography.meta || typography;
   const priceFont = themeTypography.price || typography;
@@ -152,8 +156,8 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     ? { markup:'', width:0 }
     : promotionMarkup(line, nameX, box, scale, itemFont, nameBaseline, settings);
   const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
-  const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / (13 * fontScale)));
-  const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / (7 * fontScale)));
+  const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / ((readable ? 14 : 13) * fontScale)));
+  const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / ((readable ? 7.5 : 7) * fontScale)));
   const priceMode = String(themeStyle.price_mode || 'alternating');
   let primaryPriceColor = priceMode === 'primary-accent'
     ? palette.accentText
@@ -183,37 +187,46 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
 
 function packagingMarkup(line, box, horizontal, palette, scale, typography, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
-  const gap = 34 * horizontal.scaleX;
+  const readable = themeStyle.table_style_mode === 'readable';
+  const gap = (readable ? 22 : 34) * horizontal.scaleX;
   const cellWidth = (horizontal.tableWidth - gap) / 2;
-  const baseline = box.top + 35 * fontScale;
+  const baseline = box.top + (readable ? 43 : 35) * fontScale;
   const itemFont = themeTypography.item || typography;
   const priceFont = themeTypography.price || typography;
   const cells = line.items.map((item, index) => {
     const x = horizontal.left + index * (cellWidth + gap);
     const right = x + cellWidth;
-    const toneColor = item.tone === 'accent' ? palette.accentText : palette.primaryText;
-    const maximumCharacters = Math.max(8, Math.floor((cellWidth - 175 * horizontal.scaleX) / (13 * fontScale)));
-    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: 25 * fontScale, weight: 700, fill: toneColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, priceFont, priceFontSizePt, 'packaging-price')}</g></g>`;
+    const toneColor = readable ? palette.primaryText : item.tone === 'accent' ? palette.accentText : palette.primaryText;
+    const maximumCharacters = Math.max(8, Math.floor((cellWidth - 175 * horizontal.scaleX) / ((readable ? 14 : 13) * fontScale)));
+    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: (readable ? 27 : 25) * fontScale, weight: 700, fill: toneColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, readable ? palette.accentText : toneColor, priceFont, priceFontSizePt, 'packaging-price')}</g></g>`;
   }).join('\n');
   return `<g class="table-packaging">${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}${cells}</g>`;
 }
 
-export function buildTableSvg(model, lines, layout = buildRenderLayout(model, lines)) {
+export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model, lines)) {
   const { palette, horizontal, vertical, typography } = layout;
   const themeId = model.themeId || 'legacy';
   const themeStyle = layout.themeTableStyle || {};
   const themeTypography = layout.themeTypography || {};
   const scale = vertical.scale;
+  const readable = layout.styleId === 'readable';
   const content = lines.map((line, index) => {
     const box = vertical.boxes[index];
-    if (line.kind === 'section') return sectionMarkup(line, box, horizontal, palette, scale, themeTypography.section || typography, themeId);
-    if (line.kind === 'packaging') return packagingMarkup(line, box, horizontal, palette, scale, typography, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
-    return itemMarkup(line, box, horizontal, palette, scale, typography, model.settings, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
+    const lineHorizontal = layout.horizontals?.[index] || horizontal;
+    if (line.kind === 'section') {
+      const sectionLine = readable ? { ...line, showPriceLabels:true } : line;
+      return sectionMarkup(sectionLine, box, lineHorizontal, palette, scale, themeTypography.section || typography, themeId, layout.styleId);
+    }
+    if (line.kind === 'packaging') return packagingMarkup(line, box, lineHorizontal, palette, scale, typography, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
+    return itemMarkup(line, box, lineHorizontal, palette, scale, typography, model.settings, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
   }).join('\n');
-  const lastBottom = vertical.boxes.length ? vertical.boxes[vertical.boxes.length - 1].bottom : model.viewport.height;
-  const firstTop = vertical.boxes.length ? vertical.boxes[0].top : 0;
+  const lastBottom = vertical.boxes.length ? Math.max(...vertical.boxes.map((box) => box?.bottom || 0)) : model.viewport.height;
+  const firstTop = vertical.boxes.length ? Math.min(...vertical.boxes.map((box) => box?.top ?? model.viewport.height)) : 0;
   const priceColumns = themeId !== 'legacy' && themeStyle.price_column_borders !== false
     ? `<g class="theme-price-columns" opacity=".38"><line x1="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/><line x1="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/></g>`
+    : '';
+  const readableSurfaces = readable
+    ? `<g class="readable-table-surfaces">${layout.columns.map((column) => `<rect x="${column.left}" y="${layout.frame.y}" width="${column.tableWidth}" height="${layout.frame.height}" rx="10" fill="#090C10" fill-opacity=".82" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="1"/>`).join('')}</g>`
     : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" class="menu-table-svg" width="${model.viewport.width}" height="${model.viewport.height}" viewBox="0 0 ${model.viewport.width} ${model.viewport.height}" preserveAspectRatio="xMinYMin meet" aria-label="Предпросмотр таблицы меню" font-family="${escapeXml(typography.family)}">
     <defs>
@@ -223,6 +236,7 @@ export function buildTableSvg(model, lines, layout = buildRenderLayout(model, li
       <linearGradient id="mira-promo-badge-depth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7b86"/><stop offset="0.22" stop-color="#f85361"/><stop offset="0.56" stop-color="${MENU_TABLE_STYLE.promotion}"/><stop offset="0.82" stop-color="#b71928"/><stop offset="1" stop-color="#760813"/></linearGradient>
       <linearGradient id="mira-promo-badge-bevel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".30"/><stop offset=".52" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
     </defs>
+    ${readableSurfaces}
     ${priceColumns}
     ${content}
   </svg>`;
