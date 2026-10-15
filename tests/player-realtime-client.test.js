@@ -11,7 +11,7 @@ function replaceGlobal(name, value) {
   };
 }
 
-test('Player realtime keeps transport authoritative when Android TV reports navigator offline', () => {
+test('Player realtime treats browser online state as advisory and keeps transport authoritative', () => {
   const sockets = [];
   class FakeWebSocket extends EventTarget {
     static OPEN = 1;
