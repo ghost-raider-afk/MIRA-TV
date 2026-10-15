@@ -44,16 +44,21 @@ async function rowVisuals(page) {
     const name = item.querySelector('.item-name');
     const meta = item.querySelector('.item-meta');
     const prices = [...item.querySelectorAll('.table-item-prices .price')];
-    const nameBox = name?.getBBox();
-    const metaBox = meta?.getBBox();
     const priceBoxes = prices.map((price) => price.getBBox());
+    const content = item.querySelector('.table-item-content');
+    const clipRef = content?.getAttribute('clip-path')?.match(/#([^)]*)/)?.[1];
+    const clipRect = clipRef ? document.getElementById(clipRef)?.querySelector('rect') : null;
+    const clipRight = clipRect
+      ? Number(clipRect.getAttribute('x')) + Number(clipRect.getAttribute('width'))
+      : null;
+    const firstPriceLeft = priceBoxes.length ? Math.min(...priceBoxes.map((priceBox) => priceBox.x)) : null;
     return {
       tone:item.classList.contains('tone-accent') ? 'accent' : 'light',
       nameFill:name?.getAttribute('fill') || '',
       metaFill:meta?.getAttribute('fill') || '',
       priceFills:prices.map((price) => price.getAttribute('fill') || ''),
-      overlapsPrice:Boolean(priceBoxes.length && [nameBox, metaBox].filter(Boolean).some((box) =>
-        box.x + box.width > Math.min(...priceBoxes.map((priceBox) => priceBox.x)) - 1))
+      clippedContent:Boolean(clipRect),
+      overlapsPrice:clipRight === null || firstPriceLeft === null || clipRight >= firstPriceLeft - 1
     };
   }));
 }
@@ -99,6 +104,7 @@ test('readable table reuses classic row colors, protects price columns and hides
   const readable = await rowVisuals(page);
   expect(readable.map((row) => row.tone)).toEqual(['light', 'accent']);
   expect(readable.every((row) => row.priceFills.length === 2 && row.priceFills.every((fill) => fill === row.nameFill))).toBe(true);
+  expect(readable.every((row) => row.clippedContent)).toBe(true);
   expect(readable.some((row) => row.overlapsPrice)).toBe(false);
 
   const headerGeometry = await svg.locator('.table-section').first().evaluate((section) => {
