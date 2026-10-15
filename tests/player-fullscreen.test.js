@@ -27,8 +27,11 @@ test('Player follows the visual viewport and retries fullscreen from a TV user g
 
 test('offline Player shell carries the readable renderer and fullscreen helper atomically', async () => {
   const worker = await read('player-sw.js');
-  assert.match(worker, /const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v63'/);
-  assert.match(worker, /const SHELL_CACHE = 'mira-tv-player-shell-v64'/);
+  const retiredVersion = Number(worker.match(/^const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v(\d+)'/m)?.[1]);
+  const activeVersion = Number(worker.match(/^const SHELL_CACHE = 'mira-tv-player-shell-v(\d+)'/m)?.[1]);
+  assert.ok(Number.isSafeInteger(retiredVersion), 'retired Player shell cache must be versioned');
+  assert.ok(Number.isSafeInteger(activeVersion), 'active Player shell cache must be versioned');
+  assert.equal(activeVersion, retiredVersion + 1);
   assert.match(worker, /'\/js\/player\/player-fullscreen\.js'/);
   assert.match(worker, /'\/js\/editor\/renderer-layout\.js'/);
 });
