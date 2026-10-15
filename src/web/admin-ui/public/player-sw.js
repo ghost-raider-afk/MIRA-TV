@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v62';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v63';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v63';
+const SHELL_CACHE = 'mira-tv-player-shell-v64';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: Device Session-authorized realtime transport for TV browsers.
+// Source revision: readable menu layout and TV-browser fullscreen viewport support.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
@@ -41,6 +41,7 @@ const SHELL_ASSETS = [
   '/css/player-scene.css',
   '/css/weather-widget.css',
   '/js/player/player.js',
+  '/js/player/player-fullscreen.js',
   '/js/player/player-background-services.js',
   '/js/core/dom-compat.js',
   '/js/player/player-boot.js',
@@ -61,6 +62,7 @@ const SHELL_ASSETS = [
   '/js/player/scene-layer-composer.js',
   '/js/editor/renderer.js',
   '/js/editor/renderer-model.js',
+  '/js/editor/renderer-layout.js',
   '/js/editor/renderer-svg.js',
 ];
 
