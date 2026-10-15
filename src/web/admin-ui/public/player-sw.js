@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v63';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v64';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v64';
+const SHELL_CACHE = 'mira-tv-player-shell-v65';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: readable menu layout and TV-browser fullscreen viewport support.
+// Source revision: classic row-tone parity, protected price zone and catalog address metadata.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
