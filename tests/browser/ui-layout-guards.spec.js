@@ -82,8 +82,10 @@ test('Scene Editor and table editor stay inside the mobile viewport without clip
   await expectInsideViewport(dialog, viewport);
   await expectNoPageOverflow(page);
 
-  await expect(dialog.getByRole('button', { name:'Читаемый · 2 колонки' })).toBeVisible();
-  await expect(dialog.getByRole('button', { name:'Классический' })).toBeVisible();
+  const styleSelect = dialog.getByLabel('Стиль таблицы');
+  await expect(styleSelect).toBeVisible();
+  await expect(styleSelect.locator('option[value="readable"]')).toHaveText('Читаемый · 2 колонки');
+  await expect(styleSelect.locator('option[value="legacy"]')).toHaveText('Классический');
   await expect(dialog.getByRole('button', { name:'+ Раздел' })).toBeVisible();
   await expect(dialog.getByRole('button', { name:'+ Продукт' })).toBeVisible();
   await expect(dialog.getByRole('button', { name:'+ Тара' })).toBeVisible();
