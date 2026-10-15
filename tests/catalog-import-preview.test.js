@@ -112,3 +112,31 @@ test('catalog import duplicate identifies the exact row and product name', async
       && error.message === 'Строка 7: продукция «Повтор из CSV» уже существует. Укажите ID существующей записи для обновления или измените название.'
   );
 });
+
+
+test('legacy CSV without address preserves an existing structured address', async () => {
+  const existing = { ...EXISTING, address:'Хабаровский край, Комсомольск-на-Амуре' };
+  const store = { async listProducts() { return [existing]; } };
+  const csv = [
+    'ID;Название;Производитель;Крепость;Цена 1 л;Алкогольная;Цвет напитка;Фильтрация;Активна',
+    `7;${existing.name};${existing.producer};${existing.strength};${existing.price_primary};да;светлый;фильтрованное;да`
+  ].join('\r\n');
+
+  const preview = await previewProductsImport(store, { csv });
+  assert.equal(preview.rows[0].values.address, existing.address);
+  assert.equal(preview.rows[0].normalized.address, existing.address);
+  assert.equal(preview.rows[0].status, 'unchanged');
+});
+
+test('CSV with an explicit blank address can clear the address', async () => {
+  const existing = { ...EXISTING, address:'Старый адрес' };
+  const store = { async listProducts() { return [existing]; } };
+  const csv = [
+    'ID;Название;Производитель;Адрес;Крепость;Цена 1 л;Алкогольная;Цвет напитка;Фильтрация;Активна',
+    `7;${existing.name};${existing.producer};;${existing.strength};${existing.price_primary};да;светлый;фильтрованное;да`
+  ].join('\r\n');
+
+  const preview = await previewProductsImport(store, { csv });
+  assert.equal(preview.rows[0].normalized.address, '');
+  assert.ok(preview.rows[0].changes.some((item) => item.field === 'address' && item.before === 'Старый адрес' && item.after === ''));
+});

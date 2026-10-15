@@ -203,6 +203,7 @@ function csvDraftRows(source) {
       key: `row-${line}`,
       line,
       excluded: false,
+      addressProvided: columns.has('address'),
       values: {
         id: cell(row, columns, 'id'),
         name: cell(row, columns, 'name'),
@@ -271,6 +272,7 @@ function importDraftRow(input, index) {
     key: candidateKey,
     line,
     excluded: source.excluded === true,
+    addressProvided: source.addressProvided !== false,
     values: {
       id: text(values.id).trim(),
       name: text(values.name),
@@ -329,6 +331,8 @@ function previewRow(draft, existingById, idCounts) {
     catch (error) { addError(errors, 'id', error); }
   }
   if (id && idCounts.get(id) > 1) addError(errors, 'id', `ID ${id} встречается в импорте несколько раз.`);
+  const existing = id ? existingById.get(id) : null;
+  if (!draft.addressProvided && existing) values.address = existing.address || '';
 
   let alcoholic = values.alcoholic;
   let beverageColor = values.beverage_color;
@@ -365,7 +369,6 @@ function previewRow(draft, existingById, idCounts) {
     }
   }
 
-  const existing = id ? existingById.get(id) : null;
   if (id && !existing) addError(errors, 'id', `Продукция с ID ${id} не найдена. Удалите ID, чтобы создать новую запись.`);
 
   if (draft.excluded) {
