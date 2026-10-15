@@ -20,6 +20,7 @@
               <form id="product-form" class="form-grid">
                 <label class="field field-full"><span>Название</span><input id="product-name" maxlength="120" required /></label>
                 <label class="field"><span>Производитель</span><input id="product-producer" maxlength="120" /></label>
+                <label class="field"><span>Адрес</span><input id="product-address" maxlength="180" /></label>
                 <label class="field"><span>Крепость</span><input id="product-strength" maxlength="20" placeholder="Например, 4,5%" /></label>
                 <label class="field field-full"><span>Характеристики</span><input id="product-characteristics" maxlength="180" placeholder="Например, светлое, фильтрованное" /></label>
                 <label class="field"><span>Цена за 1 л, ₽</span><input id="product-price-primary" inputmode="decimal" maxlength="16" placeholder="240" required /></label>
@@ -43,7 +44,7 @@
                 <span>Всего <strong data-import-count="total">0</strong></span><span>Новых <strong data-import-count="new">0</strong></span><span>Изменено <strong data-import-count="changed">0</strong></span><span>Без изменений <strong data-import-count="unchanged">0</strong></span><span>Ошибок <strong data-import-count="error">0</strong></span><span>Исключено <strong data-import-count="excluded">0</strong></span>
               </div>
               <p class="form-message is-hidden" id="product-import-message" role="status"></p>
-              <div class="catalog-import-table-wrap"><table class="catalog-import-table"><thead><tr><th>Статус</th><th>ID</th><th>Название</th><th>Производитель</th><th>Характеристики</th><th>Крепость</th><th>Цена 1 л</th><th>Цена 1,5 л<br /><small>расчётная</small></th><th>Алкогольная</th><th>Цвет</th><th>Фильтрация</th><th>Активна</th><th>Исключить</th></tr></thead><tbody id="product-import-body"></tbody></table></div>
+              <div class="catalog-import-table-wrap"><table class="catalog-import-table"><thead><tr><th>Статус</th><th>ID</th><th>Название</th><th>Производитель</th><th>Адрес</th><th>Характеристики</th><th>Крепость</th><th>Цена 1 л</th><th>Цена 1,5 л<br /><small>расчётная</small></th><th>Алкогольная</th><th>Цвет</th><th>Фильтрация</th><th>Активна</th><th>Исключить</th></tr></thead><tbody id="product-import-body"></tbody></table></div>
               <div class="catalog-import-actions"><span class="catalog-import-hint" id="product-import-hint">Сначала исправьте все ошибки.</span><button class="button button-primary" id="product-import-apply" type="button" disabled>Применить изменения</button></div>
             </section>
             <dialog class="catalog-editor-dialog" id="packaging-dialog" aria-labelledby="packaging-form-title">

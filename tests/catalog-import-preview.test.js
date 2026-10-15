@@ -7,6 +7,7 @@ const EXISTING = Object.freeze({
   id: 7,
   name: 'Старое название',
   producer: 'Пивоварня',
+  address: 'Комсомольск-на-Амуре',
   characteristics: '',
   strength: '4,5%',
   price_primary: '240',
@@ -20,10 +21,10 @@ const EXISTING = Object.freeze({
 test('catalog import preview classifies rows, reports diffs and keeps unknown IDs editable', async () => {
   const store = { async listProducts() { return [EXISTING]; } };
   const csv = [
-    'ID;Название;Производитель;Крепость;Цена 1 л;Алкогольная;Цвет напитка;Фильтрация;Активна',
-    '7;Новое название;Пивоварня;4,5%;250;да;светлый;фильтрованное;да',
-    ';Новая позиция;;;100;нет;;;да',
-    '999;Ошибочная позиция;;;120;нет;;;да'
+    'ID;Название;Производитель;Адрес;Крепость;Цена 1 л;Алкогольная;Цвет напитка;Фильтрация;Активна',
+    '7;Новое название;Пивоварня;Комсомольск-на-Амуре;4,5%;250;да;светлый;фильтрованное;да',
+    ';Новая позиция;;;;100;нет;;;да',
+    '999;Ошибочная позиция;;;;120;нет;;;да'
   ].join('\r\n');
 
   const preview = await previewProductsImport(store, { csv });
@@ -78,9 +79,9 @@ test('catalog import apply validates again inside one transaction and skips unch
   };
 
   const rows = [
-    { key: 'changed', line: 2, values: { id: '7', name: 'Обновлено', producer: 'Пивоварня', characteristics: '', strength: '4,5%', price_primary: '250', alcoholic: true, beverage_color: 'light', filtration: 'filtered', active: true } },
-    { key: 'same', line: 3, values: { id: '8', name: second.name, producer: second.producer, characteristics: second.characteristics, strength: second.strength, price_primary: second.price_primary, alcoholic: second.alcoholic, beverage_color: second.beverage_color, filtration: second.filtration, active: second.active } },
-    { key: 'new', line: 4, values: { id: '', name: 'Новая', producer: '', characteristics: '', strength: '', price_primary: '100', alcoholic: false, beverage_color: 'none', filtration: 'none', active: true } },
+    { key: 'changed', line: 2, values: { id: '7', name: 'Обновлено', producer: 'Пивоварня', address: EXISTING.address, characteristics: '', strength: '4,5%', price_primary: '250', alcoholic: true, beverage_color: 'light', filtration: 'filtered', active: true } },
+    { key: 'same', line: 3, values: { id: '8', name: second.name, producer: second.producer, address: second.address, characteristics: second.characteristics, strength: second.strength, price_primary: second.price_primary, alcoholic: second.alcoholic, beverage_color: second.beverage_color, filtration: second.filtration, active: second.active } },
+    { key: 'new', line: 4, values: { id: '', name: 'Новая', producer: '', address: '', characteristics: '', strength: '', price_primary: '100', alcoholic: false, beverage_color: 'none', filtration: 'none', active: true } },
     { key: 'excluded', line: 5, excluded: true, values: { id: '999', name: '', price_primary: '' } }
   ];
 
@@ -110,4 +111,32 @@ test('catalog import duplicate identifies the exact row and product name', async
     (error) => error instanceof ConflictError
       && error.message === 'Строка 7: продукция «Повтор из CSV» уже существует. Укажите ID существующей записи для обновления или измените название.'
   );
+});
+
+
+test('legacy CSV without address preserves an existing structured address', async () => {
+  const existing = { ...EXISTING, address:'Хабаровский край, Комсомольск-на-Амуре' };
+  const store = { async listProducts() { return [existing]; } };
+  const csv = [
+    'ID;Название;Производитель;Крепость;Цена 1 л;Алкогольная;Цвет напитка;Фильтрация;Активна',
+    `7;${existing.name};${existing.producer};${existing.strength};${existing.price_primary};да;светлый;фильтрованное;да`
+  ].join('\r\n');
+
+  const preview = await previewProductsImport(store, { csv });
+  assert.equal(preview.rows[0].values.address, existing.address);
+  assert.equal(preview.rows[0].normalized.address, existing.address);
+  assert.equal(preview.rows[0].status, 'unchanged');
+});
+
+test('CSV with an explicit blank address can clear the address', async () => {
+  const existing = { ...EXISTING, address:'Старый адрес' };
+  const store = { async listProducts() { return [existing]; } };
+  const csv = [
+    'ID;Название;Производитель;Адрес;Крепость;Цена 1 л;Алкогольная;Цвет напитка;Фильтрация;Активна',
+    `7;${existing.name};${existing.producer};;${existing.strength};${existing.price_primary};да;светлый;фильтрованное;да`
+  ].join('\r\n');
+
+  const preview = await previewProductsImport(store, { csv });
+  assert.equal(preview.rows[0].normalized.address, '');
+  assert.ok(preview.rows[0].changes.some((item) => item.field === 'address' && item.before === 'Старый адрес' && item.after === ''));
 });

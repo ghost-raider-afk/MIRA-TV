@@ -6,6 +6,7 @@ const PRODUCT = Object.freeze({
   id: 7,
   name: 'СНЕЖНЫЙ ЭЛЬ; особый',
   producer: 'ООО "Пивоварня"',
+  address: 'Хабаровский край, Комсомольск-на-Амуре',
   characteristics: 'светлое, фильтрованное',
   strength: '4,5%',
   price_primary: '240',
@@ -18,7 +19,8 @@ const PRODUCT = Object.freeze({
 
 test('product CSV export marks 1.5 l price as calculated and round-trips editable fields', () => {
   const csv = productsToCsv([PRODUCT]);
-  assert.ok(csv.startsWith('\uFEFFID;Название;Производитель;'));
+  assert.ok(csv.startsWith('\uFEFFID;Название;Производитель;Адрес;'));
+  assert.match(csv, /Хабаровский край, Комсомольск-на-Амуре/);
   assert.match(csv, /Цена 1,5 л \(расчётная\)/);
   assert.match(csv, /"СНЕЖНЫЙ ЭЛЬ; особый"/);
   assert.match(csv, /"ООО ""Пивоварня"""/);
@@ -29,6 +31,7 @@ test('product CSV export marks 1.5 l price as calculated and round-trips editabl
   assert.deepEqual(entry.product, {
     name: PRODUCT.name,
     producer: PRODUCT.producer,
+    address: PRODUCT.address,
     characteristics: PRODUCT.characteristics,
     strength: PRODUCT.strength,
     price_primary: '240',

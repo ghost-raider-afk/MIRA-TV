@@ -89,10 +89,11 @@ test('readable table style renders two section columns and can switch back to le
   const itemMeta = firstItem.locator('.item-meta');
   const prices = firstItem.locator('.table-item-prices .price');
   expect(Number(await itemName.getAttribute('font-size'))).toBeGreaterThan(27);
-  expect((await itemName.getAttribute('fill'))?.toUpperCase()).toBe('#F8FAFC');
+  const itemNameFill = (await itemName.getAttribute('fill'))?.toUpperCase();
+  expect(itemNameFill).toBe('#F8FAFC');
   expect((await itemMeta.getAttribute('fill'))?.toUpperCase()).toBe('#C5CBD2');
-  expect((await prices.nth(0).getAttribute('fill'))?.toUpperCase()).toBe('#F4C915');
-  expect((await prices.nth(1).getAttribute('fill'))?.toUpperCase()).toBe('#F8FAFC');
+  expect((await prices.nth(0).getAttribute('fill'))?.toUpperCase()).toBe(itemNameFill);
+  expect((await prices.nth(1).getAttribute('fill'))?.toUpperCase()).toBe(itemNameFill);
 
   await page.locator('#scene-editor-table-layer').click();
   await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();

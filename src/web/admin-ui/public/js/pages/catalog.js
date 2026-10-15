@@ -42,11 +42,11 @@ function renderCatalogProducts() {
   if (!list || !empty) return;
   const query = normalizedQuery('product-filter');
   const products = state.products.filter((product) => matchesQuery([
-    product.name, product.producer, product.characteristics, product.strength
+    product.name, product.producer, product.address, product.characteristics, product.strength
   ], query));
   const rows = products.map((product) => recordRow(
     product.name,
-    [product.producer || 'Производитель не указан', product.characteristics || product.strength || 'Без характеристик', `1 л: ${price(product.price_primary)} · 1,5 л (расчётная): ${price(product.price_secondary)}`, product.active ? 'активна' : 'скрыта'].join(' · '),
+    [product.producer || 'Производитель не указан', product.address || 'Адрес не указан', product.characteristics || product.strength || 'Без характеристик', `1 л: ${price(product.price_primary)} · 1,5 л (расчётная): ${price(product.price_secondary)}`, product.active ? 'активна' : 'скрыта'].join(' · '),
     [makeButton('Изменить', '', () => editProduct(product)), makeButton('Удалить', 'danger', () => void deleteProduct(product))]
   ));
   empty.textContent = query && state.products.length ? 'По запросу ничего не найдено.' : 'Продукции пока нет.';
@@ -82,6 +82,7 @@ function editProduct(product) {
   state.editingProductId = product.id;
   element('product-name').value = product.name;
   element('product-producer').value = product.producer || '';
+  element('product-address').value = product.address || '';
   element('product-characteristics').value = product.characteristics || '';
   element('product-strength').value = product.strength || '';
   element('product-price-primary').value = product.price_primary || '';
@@ -202,6 +203,7 @@ export function initialiseCatalog() {
       const payload = {
         name: element('product-name').value,
         producer: element('product-producer').value,
+        address: element('product-address').value,
         characteristics: element('product-characteristics').value,
         strength: element('product-strength').value,
         price_primary: element('product-price-primary').value,

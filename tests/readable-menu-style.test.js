@@ -106,3 +106,38 @@ test('missing table style keeps the previous single-column geometry', () => {
   assert.equal(layout.columns.length, 1);
   assert.doesNotMatch(svg, /readable-table-surfaces/);
 });
+
+
+test('readable rows reuse classic alternating tones and keep address out of TV metadata', () => {
+  const model = buildRenderModel({
+    settings:{ table_style:'readable' },
+    rows:[
+      { id:'s1', kind:'section', name:'Раздел', enabled:true },
+      { id:'i1', kind:'item', product_id:1, enabled:true },
+      { id:'i2', kind:'item', product_id:2, enabled:true }
+    ]
+  }, { width:1920, height:1080 });
+  const products = [
+    { id:1, name:'Первый', producer:'Завод 1', address:'Адрес не для ТВ', characteristics:'светлое, фильтрованное', strength:'4,5%', price_primary:'100', price_secondary:'150' },
+    { id:2, name:'Второй', producer:'Завод 2', address:'Другой адрес', characteristics:'тёмное, нефильтрованное', strength:'5%', price_primary:'200', price_secondary:'300' }
+  ];
+  const lines = buildDisplayLines(model, { products });
+  const layout = buildRenderLayout(model, lines);
+  const svg = buildTableSvg(model, lines, layout);
+
+  assert.equal(layout.themeTableStyle.item_tone_mode, 'alternating');
+  assert.equal(layout.themeTableStyle.price_mode, 'alternating');
+  assert.equal(lines[1].metadata, 'Завод 1 · 4,5% · светлое, фильтрованное');
+  assert.doesNotMatch(svg, /Адрес не для ТВ|Другой адрес/);
+  const lightStart = svg.indexOf('tone-light');
+  const accentStart = svg.indexOf('tone-accent');
+  const lightRow = svg.slice(lightStart, accentStart);
+  const accentRow = svg.slice(accentStart);
+  assert.match(lightRow, new RegExp(`class=\"item-name\"[^>]*fill=\"${layout.palette.primaryText}\"`));
+  assert.match(lightRow, new RegExp(`class=\"item-meta\"[^>]*fill=\"${layout.palette.secondaryText}\"`));
+  assert.equal((lightRow.match(new RegExp(`class=\"price\"[^>]*fill=\"${layout.palette.primaryText}\"`, 'g')) || []).length, 2);
+  assert.match(accentRow, new RegExp(`class=\"item-name\"[^>]*fill=\"${layout.palette.accentText}\"`));
+  assert.match(accentRow, new RegExp(`class=\"item-meta\"[^>]*fill=\"${layout.palette.accentSecondaryText}\"`));
+  assert.equal((accentRow.match(new RegExp(`class=\"price\"[^>]*fill=\"${layout.palette.accentText}\"`, 'g')) || []).length, 2);
+  assert.ok(layout.columns[0].priceZoneLeft < layout.columns[0].primaryPriceX);
+});

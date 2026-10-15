@@ -81,6 +81,7 @@ export function productInput(body) {
   return {
     name: requireText(body.name, 'Название продукции'),
     producer: optionalText(body.producer, 'Производитель', { max: 120 }),
+    address: optionalText(body.address, 'Адрес', { max: 180 }),
     characteristics: optionalText(body.characteristics, 'Характеристики', { max: 180 }),
     strength: optionalText(body.strength, 'Крепость', { max: 20 }),
     price_primary: pricePrimary,
