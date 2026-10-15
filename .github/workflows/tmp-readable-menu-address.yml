@@ -34,6 +34,16 @@ jobs:
           p.write_text(text)
           PY
           python3 scripts/tmp-readable-menu-address.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tests/readable-menu-style.test.js')
+          text = p.read_text()
+          old = '''  assert.match(svg, new RegExp(`tone-light[\\s\\S]*fill=\\"${layout.palette.primaryText}\\"[\\s\\S]*table-item-prices[\\s\\S]*fill=\\"${layout.palette.primaryText}\\"`));\n  assert.match(svg, new RegExp(`tone-accent[\\s\\S]*fill=\\"${layout.palette.accentText}\\"[\\s\\S]*table-item-prices[\\s\\S]*fill=\\"${layout.palette.accentText}\\"`));'''
+          new = '''  const lightStart = svg.indexOf('tone-light');\n  const accentStart = svg.indexOf('tone-accent');\n  const lightRow = svg.slice(lightStart, accentStart);\n  const accentRow = svg.slice(accentStart);\n  assert.match(lightRow, new RegExp(`class=\\"item-name\\"[^>]*fill=\\"${layout.palette.primaryText}\\"`));\n  assert.match(lightRow, new RegExp(`class=\\"item-meta\\"[^>]*fill=\\"${layout.palette.secondaryText}\\"`));\n  assert.equal((lightRow.match(new RegExp(`class=\\"price\\"[^>]*fill=\\"${layout.palette.primaryText}\\"`, 'g')) || []).length, 2);\n  assert.match(accentRow, new RegExp(`class=\\"item-name\\"[^>]*fill=\\"${layout.palette.accentText}\\"`));\n  assert.match(accentRow, new RegExp(`class=\\"item-meta\\"[^>]*fill=\\"${layout.palette.accentSecondaryText}\\"`));\n  assert.equal((accentRow.match(new RegExp(`class=\\"price\\"[^>]*fill=\\"${layout.palette.accentText}\\"`, 'g')) || []).length, 2);'''
+          if old not in text:
+              raise SystemExit('readable tone assertion patch not found')
+          p.write_text(text.replace(old, new, 1))
+          PY
       - name: Run focused regressions
         run: node --test tests/readable-menu-style.test.js tests/catalog-csv.test.js tests/catalog-import-preview.test.js tests/catalog-product-address.test.js
       - name: Commit staged result
