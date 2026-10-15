@@ -44,7 +44,9 @@ test('Scene remains the only canonical editor while TV management reuses network
   assert.match(rows, /datasetName:'previewProductSelect'/);
   assert.match(rows, /role', 'combobox'/);
   assert.match(rows, /editor-preview-choice-search/);
-  assert.doesNotMatch(rows, /createElement\('select'\)/);
+  assert.match(rows, /styleSelect = document\.createElement\('select'\)/);
+  assert.match(rows, /new Option\('Читаемый · 2 колонки', 'readable'\)/);
+  assert.match(rows, /new Option\('Классический', 'legacy'\)/);
   assert.match(rows, /updateRow\(editorState, row\.id, \{ name: input\.value \}\)/);
   assert.doesNotMatch(rows, /createElement\('table'\)|<thead>|<tbody>/);
   assert.doesNotMatch(editorCss, /editor-menu-editor-table|editor-menu-table-scroll|editor-menu-rows/);
