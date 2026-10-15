@@ -234,12 +234,13 @@ function structuralChange(options, action) {
   return result;
 }
 
-function positionRowControl(node, box, model, layout) {
-  node.style.left = percent(layout.horizontal.left, model.viewport.width);
+function positionRowControl(node, box, model, layout, index) {
+  const horizontal = layout.horizontals?.[index] || layout.horizontal;
+  node.style.left = percent(horizontal.left, model.viewport.width);
   node.style.top = percent(box.top, model.viewport.height);
-  node.style.width = percent(layout.horizontal.tableWidth, model.viewport.width);
+  node.style.width = percent(horizontal.tableWidth, model.viewport.width);
   node.style.height = percent(box.height, model.viewport.height);
-  node.style.setProperty('--preview-name-width', `${Math.max(42, ((layout.horizontal.primaryPriceX - layout.horizontal.left) / layout.horizontal.tableWidth) * 100 - 3)}%`);
+  node.style.setProperty('--preview-name-width', `${Math.max(42, ((horizontal.primaryPriceX - horizontal.left) / horizontal.tableWidth) * 100 - 3)}%`);
 }
 
 function sectionInlineControl(editorState, row, options) {
@@ -583,6 +584,24 @@ export function renderTableEditorRows(editorState, {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'scene-table-editor-toolbar';
+
+  const styleLabel = document.createElement('label');
+  styleLabel.className = 'scene-table-editor-style';
+  const styleCaption = document.createElement('span');
+  styleCaption.textContent = 'Стиль';
+  const styleSelect = document.createElement('select');
+  styleSelect.setAttribute('aria-label', 'Стиль таблицы');
+  styleSelect.add(new Option('Читаемый · 2 колонки', 'readable'));
+  styleSelect.add(new Option('Классический', 'legacy'));
+  styleSelect.value = editorState.settings?.table_style || 'legacy';
+  styleSelect.addEventListener('change', () => {
+    onBeforeMutate?.();
+    editorState.settings = { ...(editorState.settings || {}), table_style:styleSelect.value };
+    onVisualChange?.();
+  });
+  styleLabel.append(styleCaption, styleSelect);
+  toolbar.append(styleLabel);
+
   const toolbarLabel = document.createElement('span');
   toolbarLabel.textContent = 'Добавить';
   toolbar.append(toolbarLabel);
@@ -690,7 +709,7 @@ export function renderPreviewRows(editorState, {
     control.className = `editor-preview-row-control editor-preview-row-${line.kind}`;
     control.dataset.editorPreviewRowControl = line.kind;
     control.dataset.sourceRowIds = sourceIds.join(',');
-    positionRowControl(control, box, model, layout);
+    positionRowControl(control, box, model, layout, index);
 
     if (line.kind === 'section') {
       const row = editorState.rows.find((item) => item.id === line.sourceRowId);
