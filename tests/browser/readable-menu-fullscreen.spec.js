@@ -84,6 +84,16 @@ test('readable table style renders two section columns and can switch back to le
   const sectionXs = await stage.locator('.section-title').evaluateAll((nodes) => nodes.map((node) => Number(node.getAttribute('x'))));
   expect(sectionXs[1]).toBeGreaterThan(sectionXs[0] + 500);
 
+  const firstItem = stage.locator('.table-item').first();
+  const itemName = firstItem.locator('.item-name');
+  const itemMeta = firstItem.locator('.item-meta');
+  const prices = firstItem.locator('.table-item-prices .price');
+  expect(Number(await itemName.getAttribute('font-size'))).toBeGreaterThan(27);
+  expect((await itemName.getAttribute('fill'))?.toUpperCase()).toBe('#F8FAFC');
+  expect((await itemMeta.getAttribute('fill'))?.toUpperCase()).toBe('#C5CBD2');
+  expect((await prices.nth(0).getAttribute('fill'))?.toUpperCase()).toBe('#F4C915');
+  expect((await prices.nth(1).getAttribute('fill'))?.toUpperCase()).toBe('#F8FAFC');
+
   await page.locator('#scene-editor-table-layer').click();
   await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   const styleSelect = page.getByLabel('Стиль таблицы');
@@ -151,6 +161,7 @@ test('authorized TV Player fits the visual viewport and requests fullscreen on t
     await tvPage.goto('/player');
     const player = tvPage.locator('[data-tv-player]');
     await expect(player).toBeVisible({ timeout:5000 });
+    await expect(tvPage.locator('[data-player-boot]')).toBeHidden({ timeout:5000 });
 
     const rootBox = await tvPage.locator('.player-root').boundingBox();
     expect(rootBox).not.toBeNull();
