@@ -74,6 +74,8 @@ test('Scene Editor and table editor stay inside the mobile viewport without clip
   await expectInsideViewport(page.locator('.scene-editor-commandbar'), viewport);
   await expectInsideViewport(page.locator('#scene-editor-stage-shell'), viewport);
 
+  await page.getByRole('button', { name:/Слои/ }).click();
+  await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
   await page.locator('#scene-editor-table-layer').click();
   await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   const dialog = page.locator('.scene-table-editor-dialog');
