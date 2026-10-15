@@ -4,7 +4,7 @@ import { element, setMessage, clearMessage, setPending } from '../core/dom.js';
 import { decodeCsvFile } from './csv-decoder.js';
 
 const IMPORT_STATUS_LABELS = Object.freeze({ new: 'Новая', changed: 'Изменена', unchanged: 'Без изменений', error: 'Ошибка', excluded: 'Исключена' });
-const IMPORT_FIELDS = Object.freeze(['id', 'name', 'producer', 'characteristics', 'strength', 'price_primary', 'alcoholic', 'beverage_color', 'filtration', 'active']);
+const IMPORT_FIELDS = Object.freeze(['id', 'name', 'producer', 'address', 'characteristics', 'strength', 'price_primary', 'alcoholic', 'beverage_color', 'filtration', 'active']);
 let importPreview = null;
 let importValidationTimer = null;
 let importEditRevision = 0;
@@ -73,6 +73,7 @@ function importRowMarkup(row) {
     ${importTextCell(row, 'id', { max: 20, inputmode: 'numeric' })}
     ${importTextCell(row, 'name', { max: 120 })}
     ${importTextCell(row, 'producer', { max: 120 })}
+    ${importTextCell(row, 'address', { max: 180 })}
     ${importTextCell(row, 'characteristics', { max: 180 })}
     ${importTextCell(row, 'strength', { max: 20 })}
     ${importTextCell(row, 'price_primary', { max: 16, inputmode: 'decimal' })}

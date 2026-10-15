@@ -25,6 +25,7 @@ import { migrateMenuThemeTemplates } from './migrations/menu-theme-templates.js'
 import { migrateWebSessions } from './migrations/web-sessions.js';
 import { migrateDeviceSessionRotation } from './migrations/device-session-rotation.js';
 import { migrateLoginRateLimits } from './migrations/login-rate-limits.js';
+import { migrateCatalogProductAddress } from './migrations/catalog-product-address.js';
 import { migrateScreenRenderJournal } from './migrations/screen-render-journal.js';
 import { migrateWeatherWidget } from './migrations/weather-widget.js';
 import { migrateManagerRole } from './migrations/manager-role.js';
@@ -84,7 +85,8 @@ const MIGRATIONS = Object.freeze([
   { name: '030-menu-theme-templates', run: migrateMenuThemeTemplates },
   { name: '031-web-sessions', run: migrateWebSessions },
   { name: '032-device-session-rotation', run: migrateDeviceSessionRotation },
-  { name: '033-login-rate-limits', run: migrateLoginRateLimits }
+  { name: '033-login-rate-limits', run: migrateLoginRateLimits },
+  { name: '034-catalog-product-address', run: migrateCatalogProductAddress }
 ]);
 
 function createRepositories(queryable) {

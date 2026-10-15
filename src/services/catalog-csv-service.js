@@ -5,6 +5,7 @@ const EXPORT_HEADERS = Object.freeze([
   ['id', 'ID'],
   ['name', 'Название'],
   ['producer', 'Производитель'],
+  ['address', 'Адрес'],
   ['characteristics', 'Характеристики'],
   ['strength', 'Крепость'],
   ['price_primary', 'Цена 1 л'],
@@ -16,7 +17,7 @@ const EXPORT_HEADERS = Object.freeze([
 ]);
 
 const HEADER_ALIASES = new Map([
-  ['id', 'id'], ['название', 'name'], ['name', 'name'], ['производитель', 'producer'], ['producer', 'producer'],
+  ['id', 'id'], ['название', 'name'], ['name', 'name'], ['производитель', 'producer'], ['producer', 'producer'], ['адрес', 'address'], ['address', 'address'],
   ['характеристики', 'characteristics'], ['characteristics', 'characteristics'], ['крепость', 'strength'], ['strength', 'strength'],
   ['цена 1 л', 'price_primary'], ['цена за 1 л', 'price_primary'], ['price_primary', 'price_primary'],
   ['цена 1,5 л', 'price_secondary'], ['цена за 1,5 л', 'price_secondary'], ['цена 1,5 л (расчётная)', 'price_secondary'],
@@ -29,7 +30,7 @@ const HEADER_ALIASES = new Map([
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'да', 'д']);
 const FALSE_VALUES = new Set(['0', 'false', 'no', 'нет', 'н']);
 const PRODUCT_FIELDS = Object.freeze([
-  'name', 'producer', 'characteristics', 'strength', 'price_primary', 'price_secondary',
+  'name', 'producer', 'address', 'characteristics', 'strength', 'price_primary', 'price_secondary',
   'alcoholic', 'beverage_color', 'filtration', 'active'
 ]);
 
@@ -69,6 +70,7 @@ export function productsToCsv(products) {
     product.id,
     product.name,
     product.producer,
+    product.address,
     product.characteristics,
     product.strength,
     readablePrice(product.price_primary),
@@ -205,6 +207,7 @@ function csvDraftRows(source) {
         id: cell(row, columns, 'id'),
         name: cell(row, columns, 'name'),
         producer: cell(row, columns, 'producer'),
+        address: cell(row, columns, 'address'),
         characteristics: cell(row, columns, 'characteristics'),
         strength: cell(row, columns, 'strength'),
         price_primary: cell(row, columns, 'price_primary'),
@@ -228,6 +231,7 @@ function strictProductFromDraft(entry) {
     product: productInput({
       name: entry.values.name,
       producer: entry.values.producer,
+      address: entry.values.address,
       characteristics: entry.values.characteristics,
       strength: entry.values.strength,
       price_primary: entry.values.price_primary,
@@ -271,6 +275,7 @@ function importDraftRow(input, index) {
       id: text(values.id).trim(),
       name: text(values.name),
       producer: text(values.producer),
+      address: text(values.address),
       characteristics: text(values.characteristics),
       strength: text(values.strength),
       price_primary: text(values.price_primary),
@@ -291,6 +296,7 @@ function errorField(error) {
   const message = String(error?.message || 'Некорректное значение.');
   if (message.includes('Название продукции')) return 'name';
   if (message.includes('Производитель')) return 'producer';
+  if (message.includes('Адрес')) return 'address';
   if (message.includes('Характеристики')) return 'characteristics';
   if (message.includes('Крепость')) return 'strength';
   if (message.includes('Цена за 1 л')) return 'price_primary';
@@ -344,6 +350,7 @@ function previewRow(draft, existingById, idCounts) {
       product = productInput({
         name: values.name,
         producer: values.producer,
+        address: values.address,
         characteristics: values.characteristics,
         strength: values.strength,
         price_primary: values.price_primary,

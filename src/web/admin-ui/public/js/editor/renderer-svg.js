@@ -110,9 +110,12 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
   const readable = styleId === 'readable';
   const title = String(line.name || 'Меню');
   const baseline = box.top + (readable ? 43 : 35) * fontScale;
-  const titleWidth = line.showPriceLabels ? horizontal.primaryPriceX - horizontal.left - 45 * horizontal.scaleX : horizontal.tableWidth;
+  const titleRight = readable && Number.isFinite(horizontal.priceZoneLeft) ? horizontal.priceZoneLeft : horizontal.primaryPriceX;
+  const titleWidth = line.showPriceLabels ? titleRight - horizontal.left - 18 * horizontal.scaleX : horizontal.tableWidth;
   const maximumCharacters = Math.max(16, Math.floor(titleWidth / ((readable ? 16 : 17) * fontScale)));
-  const priceLabelCenterOffset = (MENU_REFERENCE.priceColumnGap / 3) * horizontal.scaleX;
+  const priceLabelCenterOffset = readable && Number.isFinite(horizontal.priceCellWidth)
+    ? horizontal.priceCellWidth / 2
+    : (MENU_REFERENCE.priceColumnGap / 3) * horizontal.scaleX;
   const labels = line.showPriceLabels
     ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 20 : 22) * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1 л</text>
       <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 20 : 22) * fontScale, weight: 700, fill: palette.sectionText, anchor: 'middle' }, typography)}>1,5 л</text>` : '';
@@ -145,8 +148,8 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
   const nameX = horizontal.left + (showSequence ? 55 : 22) * horizontal.scaleX;
   const priceBaseline = box.top + (readable ? 43 : 35) * fontScale;
   const hasMetadata = Boolean(line.metadata);
-  const nameBaseline = hasMetadata ? box.top + (readable ? 27 : 21) * fontScale : priceBaseline;
-  const metaBaseline = box.top + (readable ? 53 : 44.5) * fontScale;
+  const nameBaseline = hasMetadata ? box.top + (readable ? 24.5 : 21) * fontScale : priceBaseline;
+  const metaBaseline = box.top + (readable ? 56.5 : 44.5) * fontScale;
   const nameSize = (readable ? (hasMetadata ? 27 : 28) : (hasMetadata ? 24 : 25)) * fontScale;
   const metaSize = (readable ? 14.5 : 13.5) * fontScale;
   const itemFont = themeTypography.item || typography;
@@ -156,8 +159,9 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     ? { markup:'', width:0 }
     : promotionMarkup(line, nameX, box, scale, itemFont, nameBaseline, settings);
   const itemNameX = nameX + (promotion.width ? promotion.width + 11 * fontScale : 0);
-  const nameCharacters = Math.max(8, Math.floor((horizontal.primaryPriceX - itemNameX - 30 * horizontal.scaleX) / ((readable ? 14 : 13) * fontScale)));
-  const metaCharacters = Math.max(18, Math.floor((horizontal.primaryPriceX - nameX - 30 * horizontal.scaleX) / ((readable ? 7.5 : 7) * fontScale)));
+  const textRight = readable && Number.isFinite(horizontal.priceZoneLeft) ? horizontal.priceZoneLeft : horizontal.primaryPriceX;
+  const nameCharacters = Math.max(8, Math.floor((textRight - itemNameX - 14 * horizontal.scaleX) / ((readable ? 14 : 13) * fontScale)));
+  const metaCharacters = Math.max(18, Math.floor((textRight - nameX - 14 * horizontal.scaleX) / ((readable ? 7.5 : 7) * fontScale)));
   const priceMode = String(themeStyle.price_mode || 'alternating');
   let primaryPriceColor = priceMode === 'primary-accent'
     ? palette.accentText
@@ -196,9 +200,9 @@ function packagingMarkup(line, box, horizontal, palette, scale, typography, pric
   const cells = line.items.map((item, index) => {
     const x = horizontal.left + index * (cellWidth + gap);
     const right = x + cellWidth;
-    const toneColor = readable ? palette.primaryText : item.tone === 'accent' ? palette.accentText : palette.primaryText;
+    const toneColor = item.tone === 'accent' ? palette.accentText : palette.primaryText;
     const maximumCharacters = Math.max(8, Math.floor((cellWidth - 175 * horizontal.scaleX) / ((readable ? 14 : 13) * fontScale)));
-    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: (readable ? 27 : 25) * fontScale, weight: 700, fill: toneColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, readable ? palette.accentText : toneColor, priceFont, priceFontSizePt, 'packaging-price')}</g></g>`;
+    return `<g class="packaging-cell tone-${item.tone === 'accent' ? 'accent' : 'light'}"><g class="packaging-cell-content"><text x="${x + 22 * horizontal.scaleX}" y="${baseline}" class="packaging-name" ${textAttributes({ size: (readable ? 27 : 25) * fontScale, weight: 700, fill: toneColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(truncateText(item.name, maximumCharacters))}</text></g><g class="packaging-cell-price">${priceMarkup(item.unitPrice, right - 22 * horizontal.scaleX, baseline, scale, toneColor, priceFont, priceFontSizePt, 'packaging-price')}</g></g>`;
   }).join('\n');
   return `<g class="table-packaging">${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}${cells}</g>`;
 }

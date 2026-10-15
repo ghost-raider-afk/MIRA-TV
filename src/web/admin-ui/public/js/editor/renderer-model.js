@@ -171,11 +171,15 @@ function filtrationLabel(value) {
 }
 
 export function formatProductMetadata(product) {
+  const characteristics = String(product?.characteristics || '').trim();
+  const fallbackCharacteristics = [
+    beverageColorLabel(product?.beverage_color),
+    filtrationLabel(product?.filtration)
+  ].filter(Boolean).join(' · ');
   return [
     product?.producer || '',
     formatStrength(product?.strength || ''),
-    beverageColorLabel(product?.beverage_color),
-    filtrationLabel(product?.filtration)
+    characteristics || fallbackCharacteristics
   ].filter(Boolean).join(' · ');
 }
 

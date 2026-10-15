@@ -38,16 +38,23 @@ function bestSequentialSplit(groups) {
 function readableHorizontal(left, width) {
   const scaleX = width / MENU_REFERENCE.tableWidth;
   const right = left + width;
-  const secondaryPriceX = right - Math.max(12, width * .025);
-  const primaryPriceX = secondaryPriceX - Math.max(104, width * .165);
+  const rightPadding = Math.max(12, width * .025);
+  const priceCellWidth = Math.max(84, width * .13);
+  const priceColumnGap = Math.max(14, width * .022);
+  const secondaryPriceX = right - rightPadding;
+  const primaryPriceX = secondaryPriceX - priceCellWidth - priceColumnGap;
+  const priceZoneLeft = primaryPriceX - priceCellWidth;
   return Object.freeze({
     left,
     right,
     tableWidth:width,
     scaleX,
+    priceCellWidth,
+    priceColumnGap,
+    priceZoneLeft,
     primaryPriceX,
     secondaryPriceX,
-    nameWidth:primaryPriceX - left
+    nameWidth:priceZoneLeft - left
   });
 }
 
@@ -106,8 +113,8 @@ function readableLayout(model, lines, legacy) {
     table_style_mode:'readable',
     separator_dashed:false,
     separator:'#6E747C',
-    item_tone_mode:'fixed',
-    price_mode:'primary-accent',
+    item_tone_mode:'alternating',
+    price_mode:'alternating',
     price_column_borders:false,
     show_sequence:false
   });
