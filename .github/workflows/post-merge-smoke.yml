@@ -1,0 +1,102 @@
+name: post-merge-smoke
+
+on:
+  workflow_run:
+    workflows:
+      - check
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-merge-smoke-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout validated main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Verify checked commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install browser smoke dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Prepare isolated production smoke environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          sed -i \
+            -e 's|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=mira.example.test|' \
+            -e 's|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=ops@example.test|' \
+            -e 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=ci-production-db-password-0123456789|' \
+            -e 's|^BOOTSTRAP_ADMIN_USERNAME=.*|BOOTSTRAP_ADMIN_USERNAME=admin|' \
+            -e 's|^BOOTSTRAP_ADMIN_PASSWORD=.*|BOOTSTRAP_ADMIN_PASSWORD=Production-Smoke-Password1!|' \
+            -e 's|^SESSION_SECRET=.*|SESSION_SECRET=ci-production-session-secret-012345678901234567890123456789|' \
+            -e 's|^SECURE_COOKIES=.*|SECURE_COOKIES=false|' \
+            .env
+          cat > /tmp/mira-tv-compose-smoke.yaml <<'YAML'
+          services:
+            app:
+              ports:
+                - "127.0.0.1:18080:8080"
+          YAML
+
+      - name: Start production Compose stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml config --quiet
+          docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml up -d --build --wait --wait-timeout 180
+          docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml ps
+
+      - name: Verify readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 10 --retry-delay 1 --retry-connrefused \
+            http://127.0.0.1:18080/readyz >/dev/null
+
+      - name: Run critical Preview and Player smoke
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:18080
+          E2E_ADMIN_PASSWORD: Production-Smoke-Password1!
+        run: npx playwright test tests/browser/admin-player-apply-e2e.spec.js --project=chromium
+
+      - name: Show production logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml ps || true
+          docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml logs --no-color --tail=200 app db proxy || true
+
+      - name: Cleanup isolated production stack
+        if: always()
+        shell: bash
+        run: |
+          docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml down -v --remove-orphans || true
+          rm -f .env /tmp/mira-tv-compose-smoke.yaml
