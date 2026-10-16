@@ -47,6 +47,13 @@ test('failed Player shell activation is retried with bounded backoff only while 
   assert.match(source, /serverVersion === PLAYER_BUILD_VERSION[\s\S]*clearPlayerBuildRetry\(\);/);
 });
 
+test('Player reconciles its build after Last Known Good restore', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');
+  const reconcile = source.match(/function reconcilePlayerBuild\([\s\S]*?\n}\n\nasync function bootstrapPlayer/)?.[0] || '';
+  assert.match(reconcile, /if \(!changedNames\?\.includes\('runtime'\)\) return;/);
+  assert.doesNotMatch(reconcile, /source === 'last-known-good'/);
+});
+
 test('table content editor opens only from the explicit inspector action', async () => {
   const source = await readFile(new URL('../src/web/admin-ui/public/js/pages/scene.js', import.meta.url), 'utf8');
   assert.match(source, /openEditor\.textContent = 'Редактировать содержимое';\s*openEditor\.addEventListener\('click', openTableEditor\);/s);
