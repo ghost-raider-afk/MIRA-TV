@@ -96,3 +96,13 @@ test('TV snapshot waits for the rendered frame and coalesces rapid requests', as
   assert.doesNotMatch(source, /function requestPreview\(\) \{[\s\S]{0,120}publishPreview\(\)/);
   assert.match(source, /finally \{\s*previewInFlight = false;\s*if \(previewQueued\) schedulePreview\(\);\s*\}/s);
 });
+
+test('TV Player makes one compatible fullscreen attempt when the rendered Player becomes active', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player-fullscreen.js', import.meta.url), 'utf8');
+  assert.match(source, /let automaticAttempted = false;/);
+  assert.match(source, /function requestFullscreenCompat\(\)[\s\S]*request\.call\(root\)/s);
+  assert.doesNotMatch(source, /request\.call\(root,\s*\{\s*navigationUI:/);
+  assert.match(source, /function tryAutomaticFullscreen\(\)[\s\S]*automaticAttempted = true;[\s\S]*requestFullscreenCompat\(\)/s);
+  assert.match(source, /mira:player-active[\s\S]*tryAutomaticFullscreen\(\);[\s\S]*reportRuntimeState\(\);/s);
+  assert.match(source, /else armGesture\(\);/);
+});
