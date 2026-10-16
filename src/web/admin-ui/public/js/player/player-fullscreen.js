@@ -3,6 +3,8 @@
   const player = document.querySelector('[data-tv-player]');
   const playerStage = document.querySelector('[data-player-stage]');
   const visualViewport = window.visualViewport;
+  const runtimeBootId = `fullscreen_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`.slice(0, 64);
+  let runtimeSequence = 0;
   let gestureArmed = false;
   let lastRuntimeState = '';
 
@@ -32,17 +34,15 @@
     const displayFullscreen = displayMode('(display-mode: fullscreen)');
     const standaloneDisplay = displayMode('(display-mode: standalone)') || navigator.standalone === true;
     return {
-      fullscreen: {
-        mode: apiFullscreen
-          ? 'fullscreen-api'
-          : displayFullscreen
-            ? 'display-fullscreen'
-            : standaloneDisplay
-              ? 'standalone'
-              : 'browser',
-        fullscreen_enabled: Boolean(document.fullscreenEnabled ?? document.webkitFullscreenEnabled),
-        request_supported: typeof fullscreenRequest() === 'function'
-      }
+      mode: apiFullscreen
+        ? 'fullscreen-api'
+        : displayFullscreen
+          ? 'display-fullscreen'
+          : standaloneDisplay
+            ? 'standalone'
+            : 'browser',
+      fullscreen_enabled: Boolean(document.fullscreenEnabled ?? document.webkitFullscreenEnabled),
+      request_supported: typeof fullscreenRequest() === 'function'
     };
   }
 
@@ -51,15 +51,27 @@
     const state = fullscreenRuntimeState();
     const fingerprint = JSON.stringify(state);
     if (fingerprint === lastRuntimeState) return;
+    const seq = runtimeSequence + 1;
     lastRuntimeState = fingerprint;
-    void fetch('/api/device/runtime-state', {
+    void fetch('/api/device/player-logs', {
       method:'POST',
       credentials:'include',
       cache:'no-store',
       headers:{ 'content-type':'application/json' },
-      body:fingerprint
+      body:JSON.stringify({
+        boot_id:runtimeBootId,
+        events:[{
+          seq,
+          level:'info',
+          type:'fullscreen.state',
+          revision:'',
+          device_timestamp:new Date().toISOString(),
+          data:state
+        }]
+      })
     }).then((response) => {
-      if (!response.ok) lastRuntimeState = '';
+      if (response.ok) runtimeSequence = seq;
+      else lastRuntimeState = '';
     }).catch(() => {
       lastRuntimeState = '';
     });
