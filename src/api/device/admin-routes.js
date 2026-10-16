@@ -95,10 +95,17 @@ export function createDeviceAdminRouter({ store, realtime }) {
 
   router.get('/bindings', async (request, response) => {
     const bindings = await store.listDeviceBindings();
-    const diagnostics = typeof store.listLatestPlayerLogsByDeviceIds === 'function'
-      ? await store.listLatestPlayerLogsByDeviceIds(bindings.map((binding) => binding.device_id))
-      : [];
+    const deviceIds = bindings.map((binding) => binding.device_id);
+    const [diagnostics, fullscreenDiagnostics] = await Promise.all([
+      typeof store.listLatestPlayerLogsByDeviceIds === 'function'
+        ? store.listLatestPlayerLogsByDeviceIds(deviceIds)
+        : [],
+      typeof store.listLatestPlayerFullscreenByDeviceIds === 'function'
+        ? store.listLatestPlayerFullscreenByDeviceIds(deviceIds)
+        : []
+    ]);
     const diagnosticByDevice = new Map(diagnostics.map((entry) => [Number(entry.device_id), entry]));
+    const fullscreenByDevice = new Map(fullscreenDiagnostics.map((entry) => [Number(entry.device_id), entry]));
     const measurePing = request.query.measure_ping === '1';
     const pingResults = new Map();
     if (measurePing) {
@@ -124,7 +131,8 @@ export function createDeviceAdminRouter({ store, realtime }) {
         preview_updated_at:preview?.updated_at || null,
         ping_ms: measurePing && Number.isFinite(measuredPing) ? measuredPing : null,
         ping_measured_at: measuredAt,
-        player_diagnostic: diagnosticByDevice.get(Number(binding.device_id)) || null
+        player_diagnostic: diagnosticByDevice.get(Number(binding.device_id)) || null,
+        player_fullscreen: fullscreenByDevice.get(Number(binding.device_id)) || null
       };
     }));
   });
