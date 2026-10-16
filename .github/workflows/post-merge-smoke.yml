@@ -85,7 +85,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:18080
           E2E_ADMIN_PASSWORD: Production-Smoke-Password1!
-        run: npx playwright test tests/browser/admin-player-apply-e2e.spec.js --project=chromium
+        run: >-
+          npx playwright test
+          tests/browser/admin-player-apply-e2e.spec.js
+          tests/browser/player-soft-reprovision.spec.js
+          --project=chromium
 
       - name: Show production logs on failure
         if: failure()
