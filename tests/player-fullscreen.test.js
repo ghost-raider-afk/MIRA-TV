@@ -25,6 +25,21 @@ test('Player follows the visual viewport and retries fullscreen from a TV user g
   assert.match(fullscreen, /navigationUI:'hide'/);
 });
 
+test('Player reports fullscreen mode diagnostics only on lifecycle changes', async () => {
+  const fullscreen = await read('js/player/player-fullscreen.js');
+  assert.match(fullscreen, /type:'fullscreen\.state'/);
+  assert.match(fullscreen, /mode: apiFullscreen/);
+  assert.match(fullscreen, /'fullscreen-api'/);
+  assert.match(fullscreen, /'display-fullscreen'/);
+  assert.match(fullscreen, /'standalone'/);
+  assert.match(fullscreen, /'browser'/);
+  assert.match(fullscreen, /fullscreen_enabled/);
+  assert.match(fullscreen, /request_supported/);
+  assert.match(fullscreen, /mira:player-active/);
+  assert.match(fullscreen, /mira:player-realtime-connected/);
+  assert.doesNotMatch(fullscreen, /setInterval|setTimeout/);
+});
+
 test('offline Player shell carries the readable renderer and fullscreen helper atomically', async () => {
   const worker = await read('player-sw.js');
   const retiredVersion = Number(worker.match(/^const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v(\d+)'/m)?.[1]);
