@@ -7,7 +7,7 @@ window.__miraPlayerModuleStarted = true;
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.10';
+const PLAYER_BUILD_VERSION = '1.18.11';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
 const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
@@ -726,7 +726,7 @@ async function registerOfflinePlayer() {
   if (!offlinePlayerRegistrationPromise) {
     offlinePlayerRegistrationPromise = (async () => {
       await retireLegacyRootPlayerRegistration();
-      const registration = await navigator.serviceWorker.register('/player-sw.js', { scope: '/player' });
+      const registration = await navigator.serviceWorker.register(`/player-sw.js?v=${encodeURIComponent(PLAYER_BUILD_VERSION)}`, { scope:'/player', updateViaCache:'none' });
       const candidate = registration.installing || registration.waiting;
       if (candidate) await waitForServiceWorkerActivation(candidate);
       return registration;
@@ -857,8 +857,9 @@ async function initialisePlayer() {
     backgroundServices?.stop();
   });
   void navigator.storage?.persist?.().catch(() => undefined);
+  void registerOfflinePlayer();
   const restored = await playerStateSync.restoreLastKnownGood();
-  playerStateSync.note('player.boot', { restored });
+  playerStateSync.note('player.boot', { restored, build:PLAYER_BUILD_VERSION });
   await bootstrapPlayer();
 }
 

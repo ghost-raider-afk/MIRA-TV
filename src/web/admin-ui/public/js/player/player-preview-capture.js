@@ -185,7 +185,7 @@ async function capturePlayerPreview(stage, maxBytes) {
   clone.style.transform = 'none';
   clone.style.transformOrigin = 'top left';
 
-  if (!await inlineStaticAssets(stage, clone)) return null;
+  await inlineStaticAssets(stage, clone);
 
   const serialized = new XMLSerializer().serializeToString(clone);
   const css = styleSheetText();
