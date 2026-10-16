@@ -14,11 +14,11 @@ export function initialiseSceneTvApply() {
   button.className = 'button button-primary';
   button.type = 'button';
   button.textContent = 'Применить на ТВ';
-  button.title = 'Сохранить текущее состояние сцены при необходимости и применить его на подключённом ТВ';
+  button.title = 'Повторно отправить последнее сохранённое состояние сцены подключённому ТВ';
   actions.insertBefore(button, saveButton.nextSibling);
 
   const syncEnabled = () => {
-    button.disabled = screenSelect.disabled || saveButton.disabled || !/^\d+$/.test(String(screenSelect.value || ''));
+    button.disabled = screenSelect.disabled || !/^\d+$/.test(String(screenSelect.value || ''));
   };
 
   const selectObserver = typeof MutationObserver === 'function'
@@ -29,14 +29,10 @@ export function initialiseSceneTvApply() {
     attributes: true,
     attributeFilter: ['disabled']
   });
-  selectObserver?.observe(saveButton, {
-    attributes: true,
-    attributeFilter: ['disabled']
-  });
 
   const onApply = async () => {
     if (dirtyState.classList.contains('is-dirty')) {
-      saveButton.click();
+      setMessage('scene-editor-message', 'Сначала сохраните изменения сцены, затем примените их на ТВ.');
       return;
     }
     const screenId = Number(screenSelect.value);
