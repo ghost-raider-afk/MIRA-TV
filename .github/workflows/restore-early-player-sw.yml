@@ -25,6 +25,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           player = Path('src/web/admin-ui/public/js/player/player.js')
           text = player.read_text(encoding='utf-8')
@@ -36,11 +37,19 @@ jobs:
 
           tests = Path('tests/player-bugfix-regressions.test.js')
           text = tests.read_text(encoding='utf-8')
-          old = "test('Player registers the update worker before LKG restore and bypasses HTTP script cache', async () => {\n  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');\n  assert.match(source, /register\\(`\\/player-sw\\.js\\?v=\\$\\{encodeURIComponent\\(PLAYER_BUILD_VERSION\\)\\}`,[^\\n]*updateViaCache:'none'/);\n  const initialise = source.match(/async function initialisePlayer\\(\\) \\{[\\s\\S]*?\\n}\\n\\nvoid initialisePlayer/)?.[0] || '';\n  assert.ok(initialise.indexOf('void registerOfflinePlayer();') < initialise.indexOf('restoreLastKnownGood()'));\n  assert.match(source, /player\\.boot', \\{ restored, build:PLAYER_BUILD_VERSION \\}/);\n});"
-          new = "test('Player registers the Offline shell during startup before LKG restore', async () => {\n  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');\n  assert.match(source, /navigator\\.serviceWorker\\.register\\('\/player-sw\\.js', \\{ scope: '\/player' \\}\\)/);\n  assert.doesNotMatch(source, /player-sw\\.js\\?v=|updateViaCache/);\n  const initialise = source.match(/async function initialisePlayer\\(\\) \\{[\\s\\S]*?\\n}\\n\\nvoid initialisePlayer/)?.[0] || '';\n  assert.ok(initialise.indexOf('void registerOfflinePlayer();') < initialise.indexOf('restoreLastKnownGood()'));\n  assert.match(source, /player\\.boot', \\{ restored, build:PLAYER_BUILD_VERSION \\}/);\n});"
-          if old not in text:
+          pattern = re.compile(r"test\('Player registers the update worker before LKG restore and bypasses HTTP script cache', async \(\) => \{.*?\n\}\);", re.S)
+          replacement = r'''test('Player registers the Offline shell during startup before LKG restore', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');
+  assert.match(source, /navigator\.serviceWorker\.register\('\/player-sw\.js', \{ scope: '\/player' \}\)/);
+  assert.doesNotMatch(source, /player-sw\.js\?v=|updateViaCache/);
+  const initialise = source.match(/async function initialisePlayer\(\) \{[\s\S]*?\n}\n\nvoid initialisePlayer/)?.[0] || '';
+  assert.ok(initialise.indexOf('void registerOfflinePlayer();') < initialise.indexOf('restoreLastKnownGood()'));
+  assert.match(source, /player\.boot', \{ restored, build:PLAYER_BUILD_VERSION \}/);
+});'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
               raise SystemExit('registration regression test not found')
-          tests.write_text(text.replace(old, new, 1), encoding='utf-8')
+          tests.write_text(text, encoding='utf-8')
 
           notes = Path('docs/releases/1.18.11.md')
           text = notes.read_text(encoding='utf-8')
