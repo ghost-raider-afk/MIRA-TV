@@ -39,13 +39,13 @@ test('Scene Editor enables Apply to TV after its monitor list loads asynchronous
   await expect(apply).toBeEnabled();
 });
 
-test('Apply to TV saves the current dirty Scene Editor state with one click', async ({ page }) => {
+test('Apply to TV refuses to force an unsaved Scene Editor draft', async ({ page }) => {
   await mountApplyUi(page, { dirty:true, ready:true });
 
   const apply = page.locator('#scene-editor-apply-tv');
   await expect(apply).toBeEnabled();
   await apply.click();
 
-  await expect.poll(() => page.evaluate(() => window.__sceneSubmitCount)).toBe(1);
-  await expect(page.locator('#scene-editor-message')).not.toContainText('Сначала сохраните');
+  await expect.poll(() => page.evaluate(() => window.__sceneSubmitCount)).toBe(0);
+  await expect(page.locator('#scene-editor-message')).toContainText('Сначала сохраните изменения сцены');
 });
