@@ -2,9 +2,15 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { deviceSessionTokenFromRequest, tokenHash } from '../services/device-session-service.js';
 
 const HEARTBEAT_MS = 60_000;
+const REPROVISION_TTL_MS = 10 * 60_000;
 
 function safeClose(socket, code, reason) {
   try { socket.close(code, reason); } catch {}
+}
+
+function validCommandId(value) {
+  const id = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? id : '';
 }
 
 function addToIndex(index, key, socket) {
@@ -33,6 +39,7 @@ export function createPlayerRealtime({ store }) {
   const screenPreviews = new Map();
   const forceRenderOnNextConnect = new Map();
   const previewOnNextConnect = new Set();
+  const reprovisionByScreen = new Map();
   let heartbeatTimer = null;
   let attachedServer = null;
 
@@ -53,6 +60,17 @@ export function createPlayerRealtime({ store }) {
     if (socket.readyState !== WebSocket.OPEN) return false;
     socket.send(JSON.stringify(payload));
     return true;
+  }
+
+  function pruneReprovision(screenId = null) {
+    const now = Date.now();
+    const entries = screenId === null
+      ? [...reprovisionByScreen.entries()]
+      : [[Number(screenId), reprovisionByScreen.get(Number(screenId))]];
+    for (const [id, command] of entries) {
+      if (!command) continue;
+      if (now - command.requestedAtMs > REPROVISION_TTL_MS) reprovisionByScreen.delete(id);
+    }
   }
 
   function notifyScreen(screenId, revision = '', { forceRender = false } = {}) {
@@ -84,6 +102,64 @@ export function createPlayerRealtime({ store }) {
     let sent = 0;
     for (const id of new Set((screenIds || []).map(Number).filter(Number.isSafeInteger))) sent += notifyScreen(id);
     return sent;
+  }
+
+  function requestReprovision(screenId, revision = '', commandId = '') {
+    const id = Number(screenId);
+    const command = validCommandId(commandId);
+    if (!Number.isSafeInteger(id) || id < 1 || !command) return null;
+    const now = new Date();
+    const state = {
+      commandId: command,
+      revision: String(revision || ''),
+      requestedAt: now.toISOString(),
+      requestedAtMs: now.getTime(),
+      deliveredAt: null,
+      acknowledgedAt: null,
+      completedAt: null
+    };
+    reprovisionByScreen.set(id, state);
+    previewOnNextConnect.add(id);
+    const sockets = byScreen.get(id);
+    let sent = 0;
+    for (const socket of sockets || []) {
+      if (send(socket, {
+        type:'context.changed',
+        revision:state.revision,
+        force_reprovision:state.commandId
+      })) sent += 1;
+    }
+    if (sent > 0) state.deliveredAt = new Date().toISOString();
+    return { command_id:state.commandId, delivered:sent > 0, connections:sent };
+  }
+
+  function reprovisionStatus(screenId, commandId) {
+    const id = Number(screenId);
+    const command = validCommandId(commandId);
+    pruneReprovision(id);
+    const state = reprovisionByScreen.get(id);
+    if (!state || state.commandId !== command) return null;
+    return {
+      command_id:state.commandId,
+      revision:state.revision,
+      status:state.completedAt ? 'completed' : state.acknowledgedAt ? 'acknowledged' : state.deliveredAt ? 'delivered' : 'pending',
+      requested_at:state.requestedAt,
+      delivered_at:state.deliveredAt,
+      acknowledged_at:state.acknowledgedAt,
+      completed_at:state.completedAt
+    };
+  }
+
+  function acknowledgeReprovision(screenId, commandId) {
+    const id = Number(screenId);
+    const command = validCommandId(commandId);
+    pruneReprovision(id);
+    const state = reprovisionByScreen.get(id);
+    if (!state || state.commandId !== command) return false;
+    if (!state.acknowledgedAt) state.acknowledgedAt = new Date().toISOString();
+    previewOnNextConnect.delete(id);
+    requestScreenPreview(id);
+    return true;
   }
 
   function requestScreenPreview(screenId) {
@@ -163,6 +239,8 @@ export function createPlayerRealtime({ store }) {
       etag: `"tv-preview-${id}-${Date.now().toString(36)}"`
     };
     screenPreviews.set(id, preview);
+    const reprovision = reprovisionByScreen.get(id);
+    if (reprovision?.acknowledgedAt && !reprovision.completedAt) reprovision.completedAt = updatedAt;
     return { content_type:type, updated_at:updatedAt, etag:preview.etag, bytes:preview.buffer.length };
   }
 
@@ -185,6 +263,7 @@ export function createPlayerRealtime({ store }) {
     screenPreviews.delete(id);
     forceRenderOnNextConnect.delete(id);
     previewOnNextConnect.delete(id);
+    reprovisionByScreen.delete(id);
     return disconnectIndexed(byScreen, id, 'binding revoked');
   }
 
@@ -201,6 +280,7 @@ export function createPlayerRealtime({ store }) {
   function startHeartbeat() {
     if (heartbeatTimer) return;
     heartbeatTimer = setInterval(() => {
+      pruneReprovision();
       for (const socket of wss.clients) {
         if (socket.isAlive === false) {
           socket.terminate();
@@ -234,9 +314,28 @@ export function createPlayerRealtime({ store }) {
             ws.isAlive = true;
             ws.miraLastSeenAt = new Date().toISOString();
           });
+          ws.on('message', (data, isBinary) => {
+            if (isBinary) return;
+            try {
+              const message = JSON.parse(data.toString());
+              if (message?.type === 'reprovision.ack') {
+                acknowledgeReprovision(session.screen_id, message.command_id);
+              }
+            } catch {}
+          });
           add(session, ws);
           send(ws, { type: 'ready', screen_id: session.screen_id });
           const screenId = Number(session.screen_id);
+          pruneReprovision(screenId);
+          const reprovision = reprovisionByScreen.get(screenId);
+          if (reprovision && !reprovision.acknowledgedAt) {
+            if (send(ws, {
+              type:'context.changed',
+              revision:reprovision.revision,
+              force_reprovision:reprovision.commandId
+            })) reprovision.deliveredAt = new Date().toISOString();
+            return;
+          }
           if (forceRenderOnNextConnect.has(screenId)) {
             const revision = forceRenderOnNextConnect.get(screenId) || '';
             forceRenderOnNextConnect.delete(screenId);
@@ -263,6 +362,7 @@ export function createPlayerRealtime({ store }) {
     screenPreviews.clear();
     forceRenderOnNextConnect.clear();
     previewOnNextConnect.clear();
+    reprovisionByScreen.clear();
     wss.close();
   }
 
@@ -271,6 +371,9 @@ export function createPlayerRealtime({ store }) {
     close,
     notifyScreen,
     notifyScreens,
+    requestReprovision,
+    reprovisionStatus,
+    acknowledgeReprovision,
     requestScreenPreview,
     disconnectScreen,
     disconnectDevice,

@@ -7,7 +7,7 @@ window.__miraPlayerModuleStarted = true;
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.11';
+const PLAYER_BUILD_VERSION = '1.18.12';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
 const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
@@ -627,7 +627,8 @@ async function fetchDeviceSession(timeoutMs = 3500) {
 
 async function loadPlayer({ fallbackToActivation = true } = {}) {
   clearPairingTimers();
-  const result = await playerStateSync.syncNow('boot');
+  const syncReason = new URL(location.href).searchParams.has('reprovision') ? 'reprovision' : 'boot';
+  const result = await playerStateSync.syncNow(syncReason);
   if (result.unauthorized) {
     if (fallbackToActivation) showPairingIntro();
     return false;

@@ -443,15 +443,15 @@ export function createPlayerStateSync({
     }
   }
 
-  async function fetchDelta() {
+  async function fetchDelta(forceFullSnapshot = false) {
     const response = await fetchWithTimeout('/api/device/player-delta', {
       method: 'POST',
       credentials: 'include',
       cache: 'no-store',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        schema_version: active?.schema_version || 0,
-        hashes: active?.hashes || {}
+        schema_version: forceFullSnapshot ? 0 : active?.schema_version || 0,
+        hashes: forceFullSnapshot ? {} : active?.hashes || {}
       })
     }, 5000);
     if (response.status === 401 || response.status === 403) return { unauthorized: true };
@@ -461,7 +461,7 @@ export function createPlayerStateSync({
 
   async function performSync(reason) {
     try {
-      const result = await fetchDelta();
+      const result = await fetchDelta(reason === 'reprovision');
       if (result.unauthorized) {
         stop();
         await clearLastKnownGood().catch(() => undefined);

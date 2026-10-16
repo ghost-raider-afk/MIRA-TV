@@ -2,6 +2,23 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { setMessage, setPending } from '../core/dom.js';
 
+const APPLY_ACK_TIMEOUT_MS = 45_000;
+const APPLY_ACK_POLL_MS = 500;
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForTvApply(screenId, commandId) {
+  const deadline = Date.now() + APPLY_ACK_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const status = await api.get(`${API.deviceBindings}/${screenId}/apply/${commandId}`);
+    if (status?.status === 'completed') return status;
+    await wait(APPLY_ACK_POLL_MS);
+  }
+  return null;
+}
+
 export function initialiseSceneTvApply() {
   const actions = document.querySelector('.scene-editor-command-actions');
   const screenSelect = document.getElementById('scene-editor-screen');
@@ -14,7 +31,7 @@ export function initialiseSceneTvApply() {
   button.className = 'button button-primary';
   button.type = 'button';
   button.textContent = 'Применить на ТВ';
-  button.title = 'Сохранить текущее состояние сцены при необходимости и применить его на подключённом ТВ';
+  button.title = 'Сохранить сцену, сбросить устаревший Player shell и полностью синхронизировать ТВ без повторной регистрации';
   actions.insertBefore(button, saveButton.nextSibling);
 
   let applyAfterSave = false;
@@ -33,16 +50,26 @@ export function initialiseSceneTvApply() {
     const screenId = Number(requestedScreenId);
     if (!Number.isSafeInteger(screenId) || screenId < 1) return;
 
-    setPending(button, true, 'Применяем…');
+    setPending(button, true, 'Синхронизируем ТВ…');
     try {
       const result = await api.post(`${API.deviceBindings}/${screenId}/apply`, {});
+      if (!result?.command_id) throw new Error('Сервер не вернул команду синхронизации ТВ.');
+      const completed = await waitForTvApply(screenId, result.command_id);
+      if (!completed) {
+        setMessage(
+          'scene-editor-message',
+          'Команда отправлена на ТВ, но Player ещё не подтвердил перезапуск. Синхронизация продолжится при восстановлении связи.',
+          'warning'
+        );
+        return;
+      }
       setMessage(
         'scene-editor-message',
-        `Текущее сохранённое состояние принудительно применяется на ТВ${result?.revision ? ` · ревизия ${result.revision}` : ''}.`,
+        `ТВ полностью синхронизирован без повторной регистрации${result?.revision ? ` · ревизия ${result.revision}` : ''}.`,
         'success'
       );
     } catch (error) {
-      setMessage('scene-editor-message', error.message || 'Не удалось применить состояние на ТВ.');
+      setMessage('scene-editor-message', error.message || 'Не удалось полностью синхронизировать ТВ.');
     } finally {
       setPending(button, false);
       syncEnabled();

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { parseReserveCode, parseScanPayload, tokenHash } from '../../services/device-session-service.js';
@@ -153,14 +154,33 @@ export function createDeviceAdminRouter({ store, realtime }) {
     const revision = revisions[0];
     if (!revision) throw conflict('Не удалось подготовить состояние монитора для повторного применения.');
 
-    realtime?.notifyScreen(screenId, revision.revision, { forceRender:true });
+    const commandId = crypto.randomUUID();
+    const dispatched = realtime?.requestReprovision?.(screenId, revision.revision, commandId);
+    if (!dispatched) throw conflict('Не удалось подготовить принудительную синхронизацию TV Player.');
+
     await activity(store, request, {
       action: 'screen.force_applied',
       entity_type: 'screen',
       entity_id: screenId,
-      message: `Запрошено принудительное применение сохранённой сцены на ТВ «${screen.name}».`
+      message: `Запрошена полная синхронизация TV Player «${screen.name}» без повторной регистрации.`
     });
-    return response.json({ screen_id:screenId, revision:revision.revision });
+    return response.status(202).json({
+      screen_id:screenId,
+      revision:revision.revision,
+      command_id:commandId,
+      status:dispatched.delivered ? 'delivered' : 'pending'
+    });
+  });
+
+  router.get('/bindings/:screenId/apply/:commandId', async (request, response) => {
+    const screenId = positiveId(request.params.screenId, 'screen_id');
+    const commandId = activationId(request.params.commandId);
+    if (!commandId) return response.status(400).json({ error: 'Некорректная команда синхронизации ТВ.' });
+    const binding = await store.getActiveDeviceBindingByScreen(screenId);
+    if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
+    const status = realtime?.reprovisionStatus?.(screenId, commandId) || null;
+    if (!status) throw notFound('Команда синхронизации ТВ не найдена или уже истекла.');
+    return response.json({ screen_id:screenId, ...status });
   });
 
   router.get('/bindings/:screenId/preview', async (request, response) => {
