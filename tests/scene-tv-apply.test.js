@@ -34,9 +34,24 @@ test('soft reprovision preserves binding while clearing only Player shell state'
   ]);
   assert.match(server, /force_reprovision:state\.commandId/);
   assert.match(server, /message\?\.type === 'reprovision\.ack'/);
+  assert.match(server, /reprovision\?\.acknowledgedAt && !reprovision\.completedAt/);
   assert.match(client, /location\.replace\(recoveryUrl\(reprovision\)\)/);
   assert.match(client, /type:'reprovision\.ack'/);
   assert.match(recovery, /registration\.unregister\(\)/);
   assert.match(recovery, /name\.startsWith\('mira-tv-player-shell-'\)/);
   assert.doesNotMatch(recovery, /localStorage\.clear|indexedDB\.deleteDatabase|mira-tv\.device-key/);
+});
+
+test('recovered Player requests a full five-component state while retaining LKG as rollback', async () => {
+  const [player, stateSync, recovery] = await Promise.all([
+    readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/web/admin-ui/public/js/player/player-state-sync.js', import.meta.url), 'utf8'),
+    readFile(new URL('../src/web/admin-ui/public/js/player/player-recovery.js', import.meta.url), 'utf8')
+  ]);
+  assert.match(player, /searchParams\.has\('reprovision'\) \? 'reprovision' : 'boot'/);
+  assert.match(stateSync, /async function fetchDelta\(forceFullSnapshot = false\)/);
+  assert.match(stateSync, /schema_version: forceFullSnapshot \? 0 : active\?\.schema_version \|\| 0/);
+  assert.match(stateSync, /hashes: forceFullSnapshot \? \{\} : active\?\.hashes \|\| \{\}/);
+  assert.match(stateSync, /fetchDelta\(reason === 'reprovision'\)/);
+  assert.doesNotMatch(recovery, /clearLastKnownGood|clearAssetManifests|indexedDB\.deleteDatabase/);
 });
