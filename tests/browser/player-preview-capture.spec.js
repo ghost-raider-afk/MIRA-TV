@@ -87,3 +87,33 @@ test('TV snapshot keeps the previous LKG frame when a required visual asset cann
   expect(published).toBe(false);
   expect(previewPosts).toBe(0);
 });
+
+test('TV snapshot retries a transient visual asset failure on the next event-driven capture', async ({ page }) => {
+  const png = await solidPng();
+  let assetRequests = 0;
+  let previewPosts = 0;
+  await page.route('**/preview-transient.png', (route) => {
+    assetRequests += 1;
+    if (assetRequests === 1) return route.fulfill({ status:503, body:'retry' });
+    return route.fulfill({ status:200, contentType:'image/png', body:png });
+  });
+  await page.route('**/api/device/preview', (route) => {
+    previewPosts += 1;
+    return route.fulfill({ status:202, contentType:'application/json', body:'{}' });
+  });
+
+  await page.goto('/signin');
+  await installPreviewStage(page, '/preview-transient.png');
+  const result = await page.evaluate(async () => {
+    const { publishPlayerPreview } = await import('/js/player/player-preview-capture.js');
+    const stage = document.body.firstElementChild;
+    return [
+      await publishPlayerPreview(stage, { maxBytes:262144 }),
+      await publishPlayerPreview(stage, { maxBytes:262144 })
+    ];
+  });
+
+  expect(result).toEqual([false, true]);
+  expect(assetRequests).toBe(2);
+  expect(previewPosts).toBe(1);
+});
