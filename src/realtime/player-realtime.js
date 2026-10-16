@@ -31,6 +31,7 @@ export function createPlayerRealtime({ store }) {
   const byScreen = new Map();
   const byDevice = new Map();
   const screenPreviews = new Map();
+  const previewOnNextConnect = new Set();
   let heartbeatTimer = null;
   let attachedServer = null;
 
@@ -53,12 +54,19 @@ export function createPlayerRealtime({ store }) {
     return true;
   }
 
-  function notifyScreen(screenId, revision = '') {
-    const sockets = byScreen.get(Number(screenId));
+  function notifyScreen(screenId, revision = '', { forceRender = false } = {}) {
+    const id = Number(screenId);
+    if (forceRender && Number.isSafeInteger(id) && id > 0) previewOnNextConnect.add(id);
+    const sockets = byScreen.get(id);
     if (!sockets) return 0;
+    const payload = {
+      type: 'context.changed',
+      revision: String(revision || ''),
+      ...(forceRender ? { force_render:true } : {})
+    };
     let sent = 0;
     for (const socket of sockets) {
-      if (send(socket, { type: 'context.changed', revision: String(revision || '') })) sent += 1;
+      if (send(socket, payload)) sent += 1;
     }
     return sent;
   }
@@ -159,13 +167,15 @@ export function createPlayerRealtime({ store }) {
       content_type: preview.contentType,
       updated_at: preview.updatedAt,
       etag: preview.etag,
-      bytes: preview.buffer.length
+      bytes:preview.buffer.length
     } : null;
   }
 
   function disconnectScreen(screenId) {
-    screenPreviews.delete(Number(screenId));
-    return disconnectIndexed(byScreen, screenId, 'binding revoked');
+    const id = Number(screenId);
+    screenPreviews.delete(id);
+    previewOnNextConnect.delete(id);
+    return disconnectIndexed(byScreen, id, 'binding revoked');
   }
 
   function disconnectDevice(deviceId) {
@@ -216,7 +226,9 @@ export function createPlayerRealtime({ store }) {
           });
           add(session, ws);
           send(ws, { type: 'ready', screen_id: session.screen_id });
-          if (!screenPreviews.has(Number(session.screen_id))) send(ws, { type:'preview.request' });
+          const screenId = Number(session.screen_id);
+          const forcePreview = previewOnNextConnect.delete(screenId);
+          if (forcePreview || !screenPreviews.has(screenId)) send(ws, { type:'preview.request' });
         });
       } catch {
         socket.destroy();
@@ -231,6 +243,7 @@ export function createPlayerRealtime({ store }) {
     byScreen.clear();
     byDevice.clear();
     screenPreviews.clear();
+    previewOnNextConnect.clear();
     wss.close();
   }
 
