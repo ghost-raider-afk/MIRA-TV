@@ -18,8 +18,17 @@ export function initialiseSceneTvApply() {
   actions.insertBefore(button, saveButton.nextSibling);
 
   const syncEnabled = () => {
-    button.disabled = !/^\d+$/.test(String(screenSelect.value || ''));
+    button.disabled = screenSelect.disabled || !/^\d+$/.test(String(screenSelect.value || ''));
   };
+
+  const selectObserver = typeof MutationObserver === 'function'
+    ? new MutationObserver(syncEnabled)
+    : null;
+  selectObserver?.observe(screenSelect, {
+    childList: true,
+    attributes: true,
+    attributeFilter: ['disabled']
+  });
 
   const onApply = async () => {
     if (dirtyState.classList.contains('is-dirty')) {
@@ -52,6 +61,7 @@ export function initialiseSceneTvApply() {
   return () => {
     button.removeEventListener('click', onApply);
     screenSelect.removeEventListener('change', syncEnabled);
+    selectObserver?.disconnect();
     button.remove();
   };
 }
