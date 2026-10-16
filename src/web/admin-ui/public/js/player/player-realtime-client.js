@@ -1,4 +1,21 @@
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 15000, 30000];
+const REPROVISION_PARAM = 'reprovision';
+
+function validCommandId(value) {
+  const id = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? id : '';
+}
+
+function currentReprovisionCommand() {
+  try { return validCommandId(new URL(location.href).searchParams.get(REPROVISION_PARAM)); }
+  catch { return ''; }
+}
+
+function recoveryUrl(commandId) {
+  const url = new URL('/tv-recovery', location.origin);
+  url.searchParams.set(REPROVISION_PARAM, commandId);
+  return url.href;
+}
 
 export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected } = {}) {
   let socket = null;
@@ -26,6 +43,12 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     }, retryDelay());
   }
 
+  function acknowledgeRecoveredPlayer(target) {
+    const commandId = currentReprovisionCommand();
+    if (!commandId || target.readyState !== WebSocket.OPEN) return;
+    try { target.send(JSON.stringify({ type:'reprovision.ack', command_id:commandId })); } catch {}
+  }
+
   function connect() {
     if (stopped || socket) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -42,6 +65,7 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
       if (socket !== next) return;
       attempt = 0;
       onConnected?.();
+      acknowledgeRecoveredPlayer(next);
       window.dispatchEvent(new CustomEvent('mira:player-realtime-connected'));
     });
     next.addEventListener('message', (event) => {
@@ -50,6 +74,11 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
         const message = JSON.parse(event.data);
         if (message?.type === 'context.changed') {
           window.dispatchEvent(new CustomEvent('mira:player-realtime-change', { detail: message }));
+          const reprovision = validCommandId(message.force_reprovision);
+          if (reprovision && reprovision !== currentReprovisionCommand()) {
+            location.replace(recoveryUrl(reprovision));
+            return;
+          }
           if (message.force_render === true) {
             location.reload();
             return;
