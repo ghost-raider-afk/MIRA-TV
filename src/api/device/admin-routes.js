@@ -137,6 +137,32 @@ export function createDeviceAdminRouter({ store, realtime }) {
     }));
   });
 
+  router.post('/bindings/:screenId/apply', async (request, response) => {
+    const screenId = positiveId(request.params.screenId, 'screen_id');
+    const screen = await store.getScreen(screenId);
+    if (!screen || screen.active === false) throw notFound('Активный монитор не найден.');
+    const binding = await store.getActiveDeviceBindingByScreen(screenId);
+    if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
+
+    const revisions = await store.markScreenRenderChanged(
+      [screenId],
+      ['screen', 'menu', 'scene', 'runtime'],
+      'screen.force_applied',
+      request.session.sub
+    );
+    const revision = revisions[0];
+    if (!revision) throw conflict('Не удалось подготовить состояние монитора для повторного применения.');
+
+    realtime?.notifyScreen(screenId, revision.revision);
+    await activity(store, request, {
+      action: 'screen.force_applied',
+      entity_type: 'screen',
+      entity_id: screenId,
+      message: `Запрошено принудительное применение сохранённой сцены на ТВ «${screen.name}».`
+    });
+    return response.json({ screen_id:screenId, revision:revision.revision });
+  });
+
   router.get('/bindings/:screenId/preview', async (request, response) => {
     const screenId = positiveId(request.params.screenId, 'screen_id');
     const binding = await store.getActiveDeviceBindingByScreen(screenId);
