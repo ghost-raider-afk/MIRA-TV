@@ -6,6 +6,7 @@
   const runtimeBootId = `fullscreen_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`.slice(0, 64);
   let runtimeSequence = 0;
   let gestureArmed = false;
+  let automaticAttempted = false;
   let lastRuntimeState = '';
 
   function displayMode(query) {
@@ -107,21 +108,35 @@
     return player instanceof HTMLElement && !player.classList.contains('is-hidden');
   }
 
+  function requestFullscreenCompat() {
+    const request = fullscreenRequest();
+    if (typeof request !== 'function' || standalone() || fullscreenElement()) return Promise.resolve(false);
+    try {
+      return Promise.resolve(request.call(root)).then(() => Boolean(fullscreenElement())).catch(() => false);
+    } catch {
+      return Promise.resolve(false);
+    }
+  }
+
+  function tryAutomaticFullscreen() {
+    if (automaticAttempted || !playerVisible() || standalone() || fullscreenElement()) return;
+    automaticAttempted = true;
+    void requestFullscreenCompat().then((entered) => {
+      syncViewport();
+      if (entered) disarmGesture();
+      else armGesture();
+      reportRuntimeState();
+    });
+  }
+
   function enterFromGesture(event) {
     if (!playerVisible()) return;
     if (event?.type === 'keydown' && ['Escape','Esc'].includes(event.key)) return;
-    const request = fullscreenRequest();
-    if (typeof request !== 'function' || standalone() || fullscreenElement()) {
-      disarmGesture();
-      return;
-    }
-    try {
-      const result = request.call(root, { navigationUI:'hide' });
-      Promise.resolve(result).then(() => {
-        if (fullscreenElement()) disarmGesture();
-        syncViewport();
-      }).catch(() => undefined);
-    } catch {}
+    void requestFullscreenCompat().then((entered) => {
+      syncViewport();
+      if (entered) disarmGesture();
+      reportRuntimeState();
+    });
   }
 
   function onFullscreenChange() {
@@ -139,7 +154,9 @@
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
   playerStage?.addEventListener('mira:player-active', (event) => {
-    if (event.detail?.active === true) reportRuntimeState();
+    if (event.detail?.active !== true) return;
+    tryAutomaticFullscreen();
+    reportRuntimeState();
   });
   window.addEventListener('mira:player-realtime-connected', reportRuntimeState);
   window.addEventListener('online', reportRuntimeState, { passive:true });
