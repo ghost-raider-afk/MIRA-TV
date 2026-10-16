@@ -50,6 +50,10 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
         const message = JSON.parse(event.data);
         if (message?.type === 'context.changed') {
           window.dispatchEvent(new CustomEvent('mira:player-realtime-change', { detail: message }));
+          if (message.force_render === true) {
+            location.reload();
+            return;
+          }
           onChanged?.(message);
         } else if (message?.type === 'preview.request') {
           window.dispatchEvent(new CustomEvent('mira:player-preview-request'));

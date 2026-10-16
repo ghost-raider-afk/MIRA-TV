@@ -14,19 +14,23 @@ export function initialiseSceneTvApply() {
   button.className = 'button button-primary';
   button.type = 'button';
   button.textContent = 'Применить на ТВ';
-  button.title = 'Повторно отправить последнее сохранённое состояние сцены подключённому ТВ';
+  button.title = 'Сохранить текущее состояние сцены при необходимости и применить его на подключённом ТВ';
   actions.insertBefore(button, saveButton.nextSibling);
 
-  const syncEnabled = () => {
-    button.disabled = !/^\d+$/.test(String(screenSelect.value || ''));
+  let applyAfterSave = false;
+  let applyAfterSaveScreenId = null;
+
+  const selectedScreenId = () => {
+    const screenId = Number(screenSelect.value);
+    return Number.isSafeInteger(screenId) && screenId > 0 ? screenId : null;
   };
 
-  const onApply = async () => {
-    if (dirtyState.classList.contains('is-dirty')) {
-      setMessage('scene-editor-message', 'Сначала сохраните изменения сцены, затем примените их на ТВ.');
-      return;
-    }
-    const screenId = Number(screenSelect.value);
+  const syncEnabled = () => {
+    button.disabled = applyAfterSave || screenSelect.disabled || saveButton.disabled || !selectedScreenId();
+  };
+
+  const forceApply = async (requestedScreenId = selectedScreenId()) => {
+    const screenId = Number(requestedScreenId);
     if (!Number.isSafeInteger(screenId) || screenId < 1) return;
 
     setPending(button, true, 'Применяем…');
@@ -34,7 +38,7 @@ export function initialiseSceneTvApply() {
       const result = await api.post(`${API.deviceBindings}/${screenId}/apply`, {});
       setMessage(
         'scene-editor-message',
-        `Сохранённое состояние отправлено на ТВ${result?.revision ? ` · ревизия ${result.revision}` : ''}.`,
+        `Текущее сохранённое состояние принудительно применяется на ТВ${result?.revision ? ` · ревизия ${result.revision}` : ''}.`,
         'success'
       );
     } catch (error) {
@@ -45,6 +49,49 @@ export function initialiseSceneTvApply() {
     }
   };
 
+  const syncAfterSave = () => {
+    syncEnabled();
+    if (!applyAfterSave || saveButton.disabled) return;
+    const screenId = applyAfterSaveScreenId;
+    applyAfterSave = false;
+    applyAfterSaveScreenId = null;
+    if (dirtyState.classList.contains('is-dirty')) {
+      syncEnabled();
+      return;
+    }
+    void forceApply(screenId);
+  };
+
+  const stateObserver = typeof MutationObserver === 'function'
+    ? new MutationObserver(syncAfterSave)
+    : null;
+  stateObserver?.observe(screenSelect, {
+    childList: true,
+    attributes: true,
+    attributeFilter: ['disabled']
+  });
+  stateObserver?.observe(saveButton, {
+    attributes: true,
+    attributeFilter: ['disabled']
+  });
+  stateObserver?.observe(dirtyState, {
+    attributes: true,
+    attributeFilter: ['class']
+  });
+
+  const onApply = () => {
+    const screenId = selectedScreenId();
+    if (!screenId) return;
+    if (dirtyState.classList.contains('is-dirty')) {
+      applyAfterSave = true;
+      applyAfterSaveScreenId = screenId;
+      syncEnabled();
+      saveButton.click();
+      return;
+    }
+    void forceApply(screenId);
+  };
+
   button.addEventListener('click', onApply);
   screenSelect.addEventListener('change', syncEnabled);
   syncEnabled();
@@ -52,6 +99,7 @@ export function initialiseSceneTvApply() {
   return () => {
     button.removeEventListener('click', onApply);
     screenSelect.removeEventListener('change', syncEnabled);
+    stateObserver?.disconnect();
     button.remove();
   };
 }

@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('fullscreen diagnostics flow from Player telemetry to TV management', async () => {
   const [fullscreen, repository, admin, screens] = await Promise.all([
     read('src/web/admin-ui/public/js/player/player-fullscreen.js'),
-    read('src/db/player-telemetry-repository.js'),
+    read('src/db/player-telemetry.js'),
     read('src/api/device/admin-routes.js'),
     read('src/web/admin-ui/public/js/pages/screens.js')
   ]);

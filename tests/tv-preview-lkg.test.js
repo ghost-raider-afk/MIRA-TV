@@ -29,7 +29,8 @@ test('Player publishes a frame on first missing LKG and after applied content ch
     read('src/realtime/player-realtime.js'),
     read('src/web/admin-ui/public/js/player/player-state-sync.js')
   ]);
-  assert.match(realtime, /!screenPreviews\.has\(Number\(session\.screen_id\)\).*preview\.request/);
+  assert.match(realtime, /const screenId = Number\(session\.screen_id\)/);
+  assert.match(realtime, /if \(forcePreview \|\| !screenPreviews\.has\(screenId\)\) send\(ws, \{ type:'preview\.request' \}\)/);
   assert.match(sync, /source !== 'last-known-good'.*changedNames\.length > 0/);
   assert.match(sync, /mira:player-preview-request/);
 });

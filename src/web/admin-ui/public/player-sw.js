@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v68';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v69';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v69';
+const SHELL_CACHE = 'mira-tv-player-shell-v70';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: TV network diagnostics, resilient Player refresh and coalesced snapshots.
+// Source revision: stale-shell convergence, TV network diagnostics and resilient snapshots.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
@@ -71,16 +71,29 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+async function refreshUpgradedPlayerClients() {
+  const clients = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
+  await Promise.all(clients.map(async (client) => {
+    try {
+      const url = new URL(client.url);
+      if (url.origin !== self.location.origin || url.pathname !== '/player') return;
+      await client.navigate(url.href);
+    } catch {}
+  }));
+}
+
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    const names = await caches.keys();
+    const upgraded = names.some((name) => name.startsWith('mira-tv-player-shell-') && name !== SHELL_CACHE);
     await Promise.all([
       caches.delete(RETIRED_SHELL_CACHE),
       caches.delete(LEGACY_SHELL_CACHE)
     ]);
     const keep = new Set([SHELL_CACHE, DATA_CACHE]);
-    const names = await caches.keys();
     await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-') && !keep.has(name)).map((name) => caches.delete(name)));
     await self.clients.claim();
+    if (upgraded) await refreshUpgradedPlayerClients();
   })());
 });
 

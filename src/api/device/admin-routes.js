@@ -153,7 +153,7 @@ export function createDeviceAdminRouter({ store, realtime }) {
     const revision = revisions[0];
     if (!revision) throw conflict('Не удалось подготовить состояние монитора для повторного применения.');
 
-    realtime?.notifyScreen(screenId, revision.revision);
+    realtime?.notifyScreen(screenId, revision.revision, { forceRender:true });
     await activity(store, request, {
       action: 'screen.force_applied',
       entity_type: 'screen',

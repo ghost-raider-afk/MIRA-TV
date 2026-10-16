@@ -18,6 +18,6 @@ test('force apply bumps persistent render revision and wakes the existing realti
   const source = await readFile(new URL('../src/api/device/admin-routes.js', import.meta.url), 'utf8');
   assert.match(source, /router\.post\('\/bindings\/:screenId\/apply'/);
   assert.match(source, /markScreenRenderChanged\([\s\S]*\['screen', 'menu', 'scene', 'runtime'\][\s\S]*'screen\.force_applied'/);
-  assert.match(source, /realtime\?\.notifyScreen\(screenId, revision\.revision\)/);
+  assert.match(source, /realtime\?\.notifyScreen\(screenId, revision\.revision, \{ forceRender:true \}\)/);
   assert.doesNotMatch(source, /requestScreenPreview|capturePreview/);
 });
