@@ -84,7 +84,7 @@ test('upgraded Offline Player shell reloads only controlled /player clients once
   await activate(harness);
   assert.equal(harness.claimed(), 1);
   assert.deepEqual(harness.navigated, ['https://tv.example/player']);
-  assert.ok(harness.deleted.includes('mira-tv-player-shell-v70'));
+  assert.ok(harness.deleted.includes('mira-tv-player-shell-v71'));
 });
 
 test('first Offline Player shell install does not reload the Player', async () => {
