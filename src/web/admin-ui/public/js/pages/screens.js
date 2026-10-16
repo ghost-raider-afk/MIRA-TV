@@ -164,7 +164,8 @@ function syncTvUnit(unit, screen, binding) {
       host.dataset.tvFaceKey = faceKey;
       host.replaceChildren(createTvFace(screen, binding));
     } else {
-      currentFace.className = `screen-tv-face is-${status.key}`;
+      currentFace.classList.remove('is-unbound', 'is-online', 'is-offline');
+      currentFace.classList.add(`is-${status.key}`);
     }
   }
   const meta = unit.querySelector('[data-tv-meta]');
@@ -428,7 +429,9 @@ function updatePreviewDialog(screen) {
     visual.dataset.tvPreviewKey = previewKey;
     visual.replaceChildren(createTvFace(screen, binding, true));
   } else if (currentFace) {
-    currentFace.className = `screen-tv-face is-${status.key} is-large`;
+    currentFace.classList.remove('is-unbound', 'is-online', 'is-offline');
+    currentFace.classList.add(`is-${status.key}`);
+    currentFace.classList.add('is-large');
   }
   fillCardMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
 }
