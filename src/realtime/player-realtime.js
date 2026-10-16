@@ -148,7 +148,7 @@ export function createPlayerRealtime({ store }) {
     const remaining = Math.max(250, deadline - Date.now());
     const values = await Promise.all(sockets.map((socket) => pingSocket(socket, remaining)));
     const valid = values.filter((value) => Number.isFinite(value));
-    return valid.length ? Math.min(valid) : null;
+    return valid.length ? Math.min(...valid) : null;
   }
 
   function updateScreenPreview(screenId, buffer, contentType = 'image/webp') {
