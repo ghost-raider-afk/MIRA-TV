@@ -7,8 +7,10 @@ window.__miraPlayerModuleStarted = true;
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.7';
+const PLAYER_BUILD_VERSION = '1.18.8';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
+const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
+const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
 const activationView = document.querySelector('[data-activation-view]');
 const showActivationButton = document.querySelector('[data-show-activation]');
 const pairing = document.querySelector('[data-activation-pairing]');
@@ -33,6 +35,9 @@ let bootstrapRetryTimer = null;
 let playerStateSync = null;
 let offlinePlayerRegistrationPromise = null;
 let playerBuildUpdatePromise = null;
+let playerBuildRetryTimer = null;
+let playerBuildRetryDelayMs = PLAYER_BUILD_RETRY_MIN_MS;
+let playerBuildRetryVersion = '';
 let serviceWorkerControllerChanged = false;
 let backgroundServices = null;
 let backgroundServicesPromise = null;
@@ -651,6 +656,32 @@ function clearReloadVersion() {
   catch {}
 }
 
+function clearPlayerBuildRetry() {
+  if (playerBuildRetryTimer) clearTimeout(playerBuildRetryTimer);
+  playerBuildRetryTimer = null;
+  playerBuildRetryVersion = '';
+  playerBuildRetryDelayMs = PLAYER_BUILD_RETRY_MIN_MS;
+}
+
+function schedulePlayerBuildRetry(serverVersion) {
+  const version = String(serverVersion || '').trim();
+  if (!version || version === PLAYER_BUILD_VERSION || playerBuildRetryTimer) return;
+  playerBuildRetryVersion = version;
+  const delay = playerBuildRetryDelayMs;
+  playerBuildRetryDelayMs = Math.min(PLAYER_BUILD_RETRY_MAX_MS, Math.max(PLAYER_BUILD_RETRY_MIN_MS, delay * 2));
+  playerBuildRetryTimer = setTimeout(() => {
+    playerBuildRetryTimer = null;
+    if (playerBuildRetryVersion !== version) return;
+    if (!navigator.onLine) {
+      schedulePlayerBuildRetry(version);
+      return;
+    }
+    void updatePlayerBuild(version).then((updated) => {
+      if (!updated) schedulePlayerBuildRetry(version);
+    });
+  }, delay);
+}
+
 function waitForServiceWorkerActivation(worker) {
   if (!worker) return Promise.resolve(false);
   if (worker.state === 'activated') return Promise.resolve(true);
@@ -741,10 +772,18 @@ function reconcilePlayerBuild(context, changedNames, source) {
   if (!serverVersion) return;
   if (serverVersion === PLAYER_BUILD_VERSION) {
     clearReloadVersion();
+    clearPlayerBuildRetry();
     return;
   }
-  if (storedReloadVersion() === serverVersion) return;
-  void updatePlayerBuild(serverVersion);
+  if (playerBuildRetryVersion && playerBuildRetryVersion !== serverVersion) clearPlayerBuildRetry();
+  if (storedReloadVersion() === serverVersion) {
+    clearReloadVersion();
+    schedulePlayerBuildRetry(serverVersion);
+    return;
+  }
+  void updatePlayerBuild(serverVersion).then((updated) => {
+    if (!updated) schedulePlayerBuildRetry(serverVersion);
+  });
 }
 
 async function bootstrapPlayer() {
@@ -816,7 +855,8 @@ async function initialisePlayer() {
     if (document.visibilityState === 'visible') void requestWakeLock();
   });
   window.addEventListener('pagehide', () => {
-      backgroundServices?.stop();
+    clearPlayerBuildRetry();
+    backgroundServices?.stop();
   });
   void navigator.storage?.persist?.().catch(() => undefined);
   const restored = await playerStateSync.restoreLastKnownGood();
