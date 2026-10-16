@@ -260,9 +260,7 @@ export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model
   const priceColumns = themeId !== 'legacy' && themeStyle.price_column_borders !== false
     ? `<g class="theme-price-columns" opacity=".38"><line x1="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/><line x1="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/></g>`
     : '';
-  const readableSurfaces = readable
-    ? `<g class="readable-table-surfaces">${layout.columns.map((column) => `<rect x="${column.left}" y="${layout.frame.y}" width="${column.tableWidth}" height="${layout.frame.height}" rx="10" fill="#090C10" fill-opacity=".82" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="1"/>`).join('')}</g>`
-    : '';
+  const tableSurfaces = `<g class="menu-table-surfaces ${readable ? 'readable-table-surfaces' : 'classic-table-surface'}">${layout.columns.map((column) => `<rect x="${column.left}" y="${layout.frame.y}" width="${column.tableWidth}" height="${layout.frame.height}" rx="10" fill="#090C10" fill-opacity=".82" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="1"/>`).join('')}</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" class="menu-table-svg" width="${model.viewport.width}" height="${model.viewport.height}" viewBox="0 0 ${model.viewport.width} ${model.viewport.height}" preserveAspectRatio="xMinYMin meet" aria-label="Предпросмотр таблицы меню" font-family="${escapeXml(typography.family)}">
     <defs>
       <linearGradient id="mira-theme-premium-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F9D760"/><stop offset=".42" stop-color="#E9B638"/><stop offset="1" stop-color="#C98C16"/></linearGradient>
@@ -271,7 +269,7 @@ export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model
       <linearGradient id="mira-promo-badge-depth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7b86"/><stop offset="0.22" stop-color="#f85361"/><stop offset="0.56" stop-color="${MENU_TABLE_STYLE.promotion}"/><stop offset="0.82" stop-color="#b71928"/><stop offset="1" stop-color="#760813"/></linearGradient>
       <linearGradient id="mira-promo-badge-bevel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".30"/><stop offset=".52" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
     </defs>
-    ${readableSurfaces}
+    ${tableSurfaces}
     ${priceColumns}
     ${content}
   </svg>`;

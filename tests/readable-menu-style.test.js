@@ -13,6 +13,8 @@ function product(id, name, primary, secondary) {
   return { id, name, price_primary:primary, price_secondary:secondary, producer:'Производитель', strength:'4,5%' };
 }
 
+const TABLE_SURFACE_PATTERN = /<rect x="[^"]+" y="[^"]+" width="[^"]+" height="[^"]+" rx="10" fill="#090C10" fill-opacity="\.82" stroke="#FFFFFF" stroke-opacity="\.12" stroke-width="1"\/>/g;
+
 test('legacy menus stay legacy while readable settings use the new defaults', () => {
   const legacy = menuSettingsInput({});
   assert.equal(legacy.table_style, 'legacy');
@@ -58,6 +60,7 @@ test('readable layout balances complete sections into two columns', () => {
 
   const svg = buildTableSvg(model, lines, layout);
   assert.match(svg, /readable-table-surfaces/);
+  assert.equal((svg.match(TABLE_SURFACE_PATTERN) || []).length, 2);
   assert.equal((svg.match(/>1 л<\/text>/g) || []).length, 2);
   assert.equal((svg.match(/>1,5 л<\/text>/g) || []).length, 2);
   assert.match(svg, />Алтунин</);
@@ -88,7 +91,7 @@ test('packaging remains supported by the same readable table renderer', () => {
   assert.match(svg, /table-packaging/);
 });
 
-test('missing table style keeps the previous single-column geometry', () => {
+test('classic style keeps single-column geometry and reuses the readable table surface', () => {
   const model = buildRenderModel({
     settings:{},
     rows:[
@@ -104,7 +107,9 @@ test('missing table style keeps the previous single-column geometry', () => {
 
   assert.equal(layout.styleId, 'legacy');
   assert.equal(layout.columns.length, 1);
+  assert.match(svg, /classic-table-surface/);
   assert.doesNotMatch(svg, /readable-table-surfaces/);
+  assert.equal((svg.match(TABLE_SURFACE_PATTERN) || []).length, 1);
 });
 
 
