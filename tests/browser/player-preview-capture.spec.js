@@ -90,11 +90,14 @@ test('TV snapshot keeps the previous LKG frame when a required visual asset cann
 
 test('TV snapshot retries a transient visual asset failure on the next event-driven capture', async ({ page }) => {
   const png = await solidPng();
-  let assetRequests = 0;
+  let assetFetchRequests = 0;
   let previewPosts = 0;
   await page.route('**/preview-transient.png', (route) => {
-    assetRequests += 1;
-    if (assetRequests === 1) return route.fulfill({ status:503, body:'retry' });
+    if (route.request().resourceType() !== 'fetch') {
+      return route.fulfill({ status:200, contentType:'image/png', body:png });
+    }
+    assetFetchRequests += 1;
+    if (assetFetchRequests === 1) return route.fulfill({ status:503, body:'retry' });
     return route.fulfill({ status:200, contentType:'image/png', body:png });
   });
   await page.route('**/api/device/preview', (route) => {
@@ -114,6 +117,6 @@ test('TV snapshot retries a transient visual asset failure on the next event-dri
   });
 
   expect(result).toEqual([false, true]);
-  expect(assetRequests).toBe(2);
+  expect(assetFetchRequests).toBe(2);
   expect(previewPosts).toBe(1);
 });
