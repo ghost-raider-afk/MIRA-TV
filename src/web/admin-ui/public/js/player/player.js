@@ -7,7 +7,7 @@ window.__miraPlayerModuleStarted = true;
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.9';
+const PLAYER_BUILD_VERSION = '1.18.10';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
 const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
@@ -766,7 +766,7 @@ async function updatePlayerBuild(serverVersion) {
 }
 
 function reconcilePlayerBuild(context, changedNames, source) {
-  if (source === 'last-known-good' || !changedNames?.includes('runtime')) return;
+  if (!changedNames?.includes('runtime')) return;
   const serverVersion = String(context?.app_version || '').trim();
   if (!serverVersion) return;
   if (serverVersion === PLAYER_BUILD_VERSION) {
