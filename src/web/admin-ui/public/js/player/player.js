@@ -726,7 +726,7 @@ async function registerOfflinePlayer() {
   if (!offlinePlayerRegistrationPromise) {
     offlinePlayerRegistrationPromise = (async () => {
       await retireLegacyRootPlayerRegistration();
-      const registration = await navigator.serviceWorker.register(`/player-sw.js?v=${encodeURIComponent(PLAYER_BUILD_VERSION)}`, { scope:'/player', updateViaCache:'none' });
+      const registration = await navigator.serviceWorker.register('/player-sw.js', { scope: '/player' });
       const candidate = registration.installing || registration.waiting;
       if (candidate) await waitForServiceWorkerActivation(candidate);
       return registration;
