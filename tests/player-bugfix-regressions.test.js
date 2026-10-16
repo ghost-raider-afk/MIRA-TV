@@ -62,3 +62,28 @@ test('table content editor opens only from the explicit inspector action', async
   assert.match(source, /tableLayer\.addEventListener\('click', \(\) => selectOwner\('table'\)\);/);
   assert.doesNotMatch(source, /shouldOpenEditor/);
 });
+
+test('Player registers the Offline shell during startup before LKG restore', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');
+  const initialise = source.match(/async function initialisePlayer\(\)[\s\S]*?\n}\n\nvoid initialisePlayer/)?.[0] || '';
+  assert.match(source, /navigator\.serviceWorker\.register\('\/player-sw\.js', \{ scope: '\/player' \}\)/);
+  assert.doesNotMatch(source, /player-sw\.js\?v=|updateViaCache/);
+  assert.match(initialise, /void registerOfflinePlayer\(\);\s*const restored = await playerStateSync\.restoreLastKnownGood\(\);/s);
+  assert.match(initialise, /playerStateSync\.note\('player\.boot', \{ restored, build:PLAYER_BUILD_VERSION \}\);/);
+});
+
+test('Player shell activation is not blocked by optional theme or font assets', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/player-sw.js', import.meta.url), 'utf8');
+  assert.match(source, /const CORE_SHELL_ASSETS = \[/);
+  assert.match(source, /const OPTIONAL_SHELL_ASSETS = \[/);
+  assert.match(source, /CORE_SHELL_ASSETS\.map\(\(path\) => cacheShellAsset\(cache, path, true\)\)/);
+  assert.match(source, /OPTIONAL_SHELL_ASSETS\.map\(\(path\) => cacheShellAsset\(cache, path, false\)\)/);
+  assert.match(source, /if \(required\) throw error;/);
+  assert.doesNotMatch(source, /cache\.addAll\(SHELL_ASSETS\)/);
+});
+
+test('TV snapshot remains fresh when one visual asset cannot be inlined', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player-preview-capture.js', import.meta.url), 'utf8');
+  assert.match(source, /await inlineStaticAssets\(stage, clone\);/);
+  assert.doesNotMatch(source, /if \(!await inlineStaticAssets\(stage, clone\)\) return null;/);
+});

@@ -1,43 +1,13 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v70';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v71';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v71';
+const SHELL_CACHE = 'mira-tv-player-shell-v72';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
 // Source revision: stale-shell convergence, TV network diagnostics and resilient snapshots.
-const SHELL_ASSETS = [
+const CORE_SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
-  '/brand/player-icon-192.png',
-  '/brand/player-icon-512.png',
-  '/brand/themes/premium-background.svg',
-  '/brand/themes/chalk-background.svg',
-  '/brand/themes/brand-premium-background.svg',
-  '/brand/themes/premium-side.svg',
-  '/brand/themes/chalk-side.svg',
-  '/brand/themes/brand-premium-side.svg',
   '/css/fonts.css',
-  '/fonts/DejaVuSans.ttf',
-  '/fonts/DejaVuSans-Bold.ttf',
-  '/fonts/DejaVuSansCondensed.ttf',
-  '/fonts/DejaVuSansCondensed-Bold.ttf',
-  '/fonts/DejaVuSerif.ttf',
-  '/fonts/DejaVuSerif-Bold.ttf',
-  '/fonts/DejaVuSansMono.ttf',
-  '/fonts/DejaVuSansMono-Bold.ttf',
-  '/fonts/DejaVuSerifCondensed.ttf',
-  '/fonts/DejaVuSerifCondensed-Bold.ttf',
-  '/fonts/theme/montserrat-cyrillic-700-normal.woff2',
-  '/fonts/theme/montserrat-cyrillic-900-normal.woff2',
-  '/fonts/theme/roboto-condensed-cyrillic-400-normal.woff2',
-  '/fonts/theme/roboto-condensed-cyrillic-700-normal.woff2',
-  '/fonts/theme/oswald-cyrillic-700-normal.woff2',
-  '/fonts/theme/russo-one-cyrillic-400-normal.woff2',
-  '/fonts/theme/neucha-cyrillic-400-normal.woff2',
-  '/fonts/theme/pt-sans-narrow-cyrillic-400-normal.woff2',
-  '/fonts/theme/pt-sans-narrow-cyrillic-700-normal.woff2',
-  '/fonts/theme/yanone-kaffeesatz-cyrillic-400-normal.woff2',
-  '/fonts/theme/yanone-kaffeesatz-cyrillic-700-normal.woff2',
-  '/fonts/theme/underdog-cyrillic-400-normal.woff2',
   '/css/player.css',
   '/css/player-scene.css',
   '/css/weather-widget.css',
@@ -66,13 +36,63 @@ const SHELL_ASSETS = [
   '/js/editor/renderer-layout.js',
   '/js/editor/renderer-svg.js',
 ];
+const OPTIONAL_SHELL_ASSETS = [
+  '/brand/player-icon-192.png',
+  '/brand/player-icon-512.png',
+  '/brand/themes/premium-background.svg',
+  '/brand/themes/chalk-background.svg',
+  '/brand/themes/brand-premium-background.svg',
+  '/brand/themes/premium-side.svg',
+  '/brand/themes/chalk-side.svg',
+  '/brand/themes/brand-premium-side.svg',
+  '/fonts/DejaVuSans.ttf',
+  '/fonts/DejaVuSans-Bold.ttf',
+  '/fonts/DejaVuSansCondensed.ttf',
+  '/fonts/DejaVuSansCondensed-Bold.ttf',
+  '/fonts/DejaVuSerif.ttf',
+  '/fonts/DejaVuSerif-Bold.ttf',
+  '/fonts/DejaVuSansMono.ttf',
+  '/fonts/DejaVuSansMono-Bold.ttf',
+  '/fonts/DejaVuSerifCondensed.ttf',
+  '/fonts/DejaVuSerifCondensed-Bold.ttf',
+  '/fonts/theme/montserrat-cyrillic-700-normal.woff2',
+  '/fonts/theme/montserrat-cyrillic-900-normal.woff2',
+  '/fonts/theme/roboto-condensed-cyrillic-400-normal.woff2',
+  '/fonts/theme/roboto-condensed-cyrillic-700-normal.woff2',
+  '/fonts/theme/oswald-cyrillic-700-normal.woff2',
+  '/fonts/theme/russo-one-cyrillic-400-normal.woff2',
+  '/fonts/theme/neucha-cyrillic-400-normal.woff2',
+  '/fonts/theme/pt-sans-narrow-cyrillic-400-normal.woff2',
+  '/fonts/theme/pt-sans-narrow-cyrillic-700-normal.woff2',
+  '/fonts/theme/yanone-kaffeesatz-cyrillic-400-normal.woff2',
+  '/fonts/theme/yanone-kaffeesatz-cyrillic-700-normal.woff2',
+  '/fonts/theme/underdog-cyrillic-400-normal.woff2',
+];
+const SHELL_ASSETS = [...CORE_SHELL_ASSETS, ...OPTIONAL_SHELL_ASSETS];
 
 let shellUpdateCheckInFlight = null;
 let shellUpdateCheckedAt = 0;
 
+async function cacheShellAsset(cache, path, required) {
+  try {
+    const request = new Request(path, { method:'GET', credentials:'same-origin', cache:'reload' });
+    const response = await fetch(request);
+    if (!response.ok) throw new Error(`Player shell asset unavailable: ${path} HTTP ${response.status}`);
+    await cache.put(path, response.clone());
+    return true;
+  } catch (error) {
+    if (required) throw error;
+    return false;
+  }
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS)));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    await Promise.all(CORE_SHELL_ASSETS.map((path) => cacheShellAsset(cache, path, true)));
+    await Promise.all(OPTIONAL_SHELL_ASSETS.map((path) => cacheShellAsset(cache, path, false)));
+    await self.skipWaiting();
+  })());
 });
 
 async function refreshUpgradedPlayerClients() {
