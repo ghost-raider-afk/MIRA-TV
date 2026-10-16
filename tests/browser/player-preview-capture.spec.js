@@ -69,7 +69,7 @@ test('TV snapshot inlines nested stage backgrounds before publishing', async ({ 
   expect(data[offset]).toBeGreaterThan(data[offset + 2] * 2);
 });
 
-test('TV snapshot keeps the previous LKG frame when a required visual asset cannot be embedded', async ({ page }) => {
+test('TV snapshot publishes the current frame when one visual asset cannot be embedded', async ({ page }) => {
   let previewPosts = 0;
   await page.route('**/preview-missing.png', (route) => route.fulfill({ status:404, body:'missing' }));
   await page.route('**/api/device/preview', (route) => {
@@ -84,11 +84,11 @@ test('TV snapshot keeps the previous LKG frame when a required visual asset cann
     return publishPlayerPreview(document.body.firstElementChild, { maxBytes:262144 });
   });
 
-  expect(published).toBe(false);
-  expect(previewPosts).toBe(0);
+  expect(published).toBe(true);
+  expect(previewPosts).toBe(1);
 });
 
-test('TV snapshot retries a transient visual asset failure on the next event-driven capture', async ({ page }) => {
+test('TV snapshot retries transient asset inlining without freezing the LKG frame', async ({ page }) => {
   const png = await solidPng();
   let assetFetchRequests = 0;
   let previewPosts = 0;
@@ -116,7 +116,7 @@ test('TV snapshot retries a transient visual asset failure on the next event-dri
     ];
   });
 
-  expect(result).toEqual([false, true]);
+  expect(result).toEqual([true, true]);
   expect(assetFetchRequests).toBe(2);
-  expect(previewPosts).toBe(1);
+  expect(previewPosts).toBe(2);
 });
