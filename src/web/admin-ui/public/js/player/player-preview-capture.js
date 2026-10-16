@@ -8,6 +8,7 @@ const PREVIEW_ATTEMPTS = Object.freeze([
   Object.freeze({ width:480, quality:0.60 })
 ]);
 const assetCache = new Map();
+const BACKGROUND_URL_PATTERN = /url\((['"]?)(?!data:|blob:|#)([^'")]+)\1\)/gi;
 
 function canonicalSize(stage) {
   const width = Math.max(1, Number(stage?.dataset?.sceneViewportWidth) || Number.parseFloat(stage?.style?.width) || 1920);
@@ -49,6 +50,7 @@ async function blobAsDataUrl(blob) {
 async function assetDataUrl(source) {
   const url = String(source || '').trim();
   if (!url) return '';
+  if (/^data:/i.test(url)) return url;
   let resolved;
   try { resolved = new URL(url, location.href); }
   catch { return ''; }
@@ -67,6 +69,42 @@ function canvasBlob(canvas, type, quality) {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
+async function inlineBackgroundImages(value) {
+  const source = String(value || '');
+  const matches = [...source.matchAll(BACKGROUND_URL_PATTERN)];
+  if (!matches.length) return { value:source, complete:true };
+  let result = source;
+  let complete = true;
+  for (const match of matches) {
+    const data = await assetDataUrl(match[2]);
+    if (!data) {
+      complete = false;
+      continue;
+    }
+    result = result.replace(match[0], `url("${data}")`);
+  }
+  return { value:result, complete };
+}
+
+async function waitForStageImages(stage, timeoutMs = 1200) {
+  const pending = [...stage.querySelectorAll('img')].filter((image) => image.currentSrc || image.src);
+  if (!pending.length) return;
+  const settle = Promise.all(pending.map((image) => {
+    if (image.complete) return Promise.resolve();
+    if (typeof image.decode === 'function') return image.decode().catch(() => undefined);
+    return new Promise((resolve) => {
+      const done = () => {
+        image.removeEventListener('load', done);
+        image.removeEventListener('error', done);
+        resolve();
+      };
+      image.addEventListener('load', done, { once:true });
+      image.addEventListener('error', done, { once:true });
+    });
+  }));
+  await Promise.race([settle, new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+}
+
 async function inlineStaticAssets(stage, clone) {
   const originals = [stage, ...stage.querySelectorAll('*')];
   const copies = [clone, ...clone.querySelectorAll('*')];
@@ -76,20 +114,28 @@ async function inlineStaticAssets(stage, clone) {
     const original = originals[index];
     const copy = copies[index];
     if (original instanceof HTMLImageElement && copy instanceof HTMLImageElement) {
-      tasks.push(assetDataUrl(original.currentSrc || original.src).then((data) => {
-        if (data) copy.src = data;
-      }));
+      const source = original.currentSrc || original.src;
+      if (source) {
+        tasks.push(assetDataUrl(source).then((data) => {
+          if (!data) return false;
+          copy.src = data;
+          return true;
+        }));
+      }
+    }
+    if (original instanceof HTMLElement && copy instanceof HTMLElement) {
+      const background = getComputedStyle(original).backgroundImage;
+      if (background && background !== 'none' && background.includes('url(')) {
+        tasks.push(inlineBackgroundImages(background).then((result) => {
+          copy.style.backgroundImage = result.value;
+          return result.complete;
+        }));
+      }
     }
   }
 
-  const background = getComputedStyle(stage).backgroundImage;
-  const match = /url\(["']?([^"')]+)["']?\)/i.exec(background);
-  if (match) {
-    tasks.push(assetDataUrl(match[1]).then((data) => {
-      if (data && clone instanceof HTMLElement) clone.style.backgroundImage = `url("${data}")`;
-    }));
-  }
-  await Promise.all(tasks);
+  const results = await Promise.all(tasks);
+  return results.every((complete) => complete !== false);
 }
 
 async function encodedPreview(image, sceneWidth, sceneHeight, maxBytes) {
@@ -116,6 +162,7 @@ async function encodedPreview(image, sceneWidth, sceneHeight, maxBytes) {
 async function capturePlayerPreview(stage, maxBytes) {
   if (!(stage instanceof HTMLElement) || !stage.isConnected) return null;
   try { await document.fonts?.ready; } catch {}
+  await waitForStageImages(stage);
 
   const { width, height } = canonicalSize(stage);
   const clone = stage.cloneNode(true);
@@ -130,7 +177,7 @@ async function capturePlayerPreview(stage, maxBytes) {
   clone.style.transform = 'none';
   clone.style.transformOrigin = 'top left';
 
-  await inlineStaticAssets(stage, clone);
+  if (!await inlineStaticAssets(stage, clone)) return null;
 
   const serialized = new XMLSerializer().serializeToString(clone);
   const css = styleSheetText();
