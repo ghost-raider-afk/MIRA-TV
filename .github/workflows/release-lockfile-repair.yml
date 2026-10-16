@@ -1,0 +1,46 @@
+name: release-lockfile-repair
+
+on:
+  push:
+    branches:
+      - release/1.18.9
+    paths:
+      - .github/workflows/release-lockfile-repair.yml
+      - package.json
+      - package-lock.json
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/1.18.9
+          fetch-depth: 0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Regenerate lockfile with release toolchain
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit repaired lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo 'package-lock.json already canonical'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'release: regenerate 1.18.9 lockfile'
+          git push origin HEAD:release/1.18.9
