@@ -57,10 +57,18 @@ async function assetDataUrl(source) {
   if (resolved.origin !== location.origin) return '';
   const key = resolved.href;
   if (!assetCache.has(key)) {
-    assetCache.set(key, fetch(key, { credentials:'same-origin', cache:'force-cache' })
+    const request = fetch(key, { credentials:'same-origin', cache:'force-cache' })
       .then((response) => response.ok ? response.blob() : null)
       .then((blob) => blob ? blobAsDataUrl(blob) : '')
-      .catch(() => ''));
+      .then((data) => {
+        if (!data) assetCache.delete(key);
+        return data;
+      })
+      .catch(() => {
+        assetCache.delete(key);
+        return '';
+      });
+    assetCache.set(key, request);
   }
   return assetCache.get(key);
 }
