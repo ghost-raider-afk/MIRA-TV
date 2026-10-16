@@ -36,9 +36,9 @@ test('TV network keeps cards concise and manages monitor metadata in one dialog'
     await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
     const unit = page.locator(`[data-tv-unit][data-screen-id="${screen.id}"]`);
     await expect(unit).toBeVisible();
-    await expect(unit.locator('[data-tv-meta] .screen-tv-meta-row')).toHaveCount(3);
+    await expect(unit.locator('[data-tv-meta] .screen-tv-meta-row')).toHaveCount(2);
     await expect(unit.locator('[data-tv-meta]')).toContainText('Статус');
-    await expect(unit.locator('[data-tv-meta]')).toContainText('Контент');
+    await expect(unit.locator('[data-tv-meta]')).not.toContainText('Контент');
     await expect(unit.locator('[data-tv-meta]')).not.toContainText('IP-адрес');
     await expect(unit.locator('[data-tv-meta]')).not.toContainText('Производитель');
 
@@ -48,13 +48,15 @@ test('TV network keeps cards concise and manages monitor metadata in one dialog'
     await expect(dialog.locator('[data-tv-management-location]')).toHaveText(location.name);
     await expect(dialog.locator('[data-tv-management-device]')).toContainText('IP-адрес');
     await expect(dialog.locator('[data-tv-management-device]')).toContainText('Производитель');
+    await expect(dialog.locator('[data-tv-management-device]')).toContainText('Режим экрана');
+    await expect(dialog.locator('[data-tv-management-device]')).toContainText('Fullscreen API');
 
     const nextName = `Экран ${stamp}`;
     await dialog.locator('[data-tv-management-name]').fill(nextName);
     await dialog.locator('[data-tv-management-content-status]').selectOption('ready');
     await dialog.locator('[data-tv-management-save]').click();
     await expect(dialog).not.toBeVisible();
-    await expect(unit.locator('[data-tv-meta]')).toContainText('Готово');
+    await expect(unit.locator('[data-tv-meta]')).not.toContainText('Готово');
 
     const savedResponse = await page.request.get(`/api/screens/${screen.id}`);
     expect(savedResponse.ok()).toBeTruthy();
