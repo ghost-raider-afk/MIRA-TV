@@ -63,10 +63,11 @@ test('table content editor opens only from the explicit inspector action', async
   assert.doesNotMatch(source, /shouldOpenEditor/);
 });
 
-test('Player registers the update worker before LKG restore and bypasses HTTP script cache', async () => {
+test('Player registers the Offline shell during startup before LKG restore', async () => {
   const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');
   const initialise = source.match(/async function initialisePlayer\(\)[\s\S]*?\n}\n\nvoid initialisePlayer/)?.[0] || '';
-  assert.match(source, /register\(`\/player-sw\.js\?v=\$\{encodeURIComponent\(PLAYER_BUILD_VERSION\)\}`,[^\n]*updateViaCache:'none'/);
+  assert.match(source, /navigator\.serviceWorker\.register\('\/player-sw\.js', \{ scope: '\/player' \}\)/);
+  assert.doesNotMatch(source, /player-sw\.js\?v=|updateViaCache/);
   assert.match(initialise, /void registerOfflinePlayer\(\);\s*const restored = await playerStateSync\.restoreLastKnownGood\(\);/s);
   assert.match(initialise, /playerStateSync\.note\('player\.boot', \{ restored, build:PLAYER_BUILD_VERSION \}\);/);
 });
