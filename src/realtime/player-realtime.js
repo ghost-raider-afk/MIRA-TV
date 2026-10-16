@@ -115,7 +115,8 @@ export function createPlayerRealtime({ store }) {
       requestedAt: now.toISOString(),
       requestedAtMs: now.getTime(),
       deliveredAt: null,
-      acknowledgedAt: null
+      acknowledgedAt: null,
+      completedAt: null
     };
     reprovisionByScreen.set(id, state);
     previewOnNextConnect.add(id);
@@ -141,10 +142,11 @@ export function createPlayerRealtime({ store }) {
     return {
       command_id:state.commandId,
       revision:state.revision,
-      status:state.acknowledgedAt ? 'completed' : state.deliveredAt ? 'delivered' : 'pending',
+      status:state.completedAt ? 'completed' : state.acknowledgedAt ? 'acknowledged' : state.deliveredAt ? 'delivered' : 'pending',
       requested_at:state.requestedAt,
       delivered_at:state.deliveredAt,
-      acknowledged_at:state.acknowledgedAt
+      acknowledged_at:state.acknowledgedAt,
+      completed_at:state.completedAt
     };
   }
 
@@ -237,6 +239,8 @@ export function createPlayerRealtime({ store }) {
       etag: `"tv-preview-${id}-${Date.now().toString(36)}"`
     };
     screenPreviews.set(id, preview);
+    const reprovision = reprovisionByScreen.get(id);
+    if (reprovision?.acknowledgedAt && !reprovision.completedAt) reprovision.completedAt = updatedAt;
     return { content_type:type, updated_at:updatedAt, etag:preview.etag, bytes:preview.buffer.length };
   }
 
