@@ -6,16 +6,21 @@ const adminRoutes = readFileSync('src/api/device/admin-routes.js', 'utf8');
 const realtime = readFileSync('src/realtime/player-realtime.js', 'utf8');
 const realtimeClient = readFileSync('src/web/admin-ui/public/js/player/player-realtime-client.js', 'utf8');
 
-test('Apply to TV uses an explicit one-shot force-render realtime protocol', () => {
+test('Apply to TV uses acknowledged soft reprovision instead of blind force-render reload', () => {
   assert.match(
     adminRoutes,
-    /notifyScreen\(screenId, revision\.revision, \{ forceRender:true \}\)/,
-    'admin Apply must distinguish a force render from an ordinary context change'
+    /requestReprovision\?\.\(screenId, revision\.revision, commandId\)/,
+    'admin Apply must request the persistent soft reprovision protocol'
   );
-  assert.match(realtime, /function notifyScreen\(screenId, revision = '', \{ forceRender = false \} = \{\}\)/);
-  assert.match(realtime, /force_render:true/);
-  assert.match(realtime, /previewOnNextConnect\.add\(id\)/);
-  assert.match(realtime, /previewOnNextConnect\.delete\(screenId\)/);
-  assert.match(realtimeClient, /message\.force_render === true/);
-  assert.match(realtimeClient, /location\.reload\(\)/);
+  assert.doesNotMatch(
+    adminRoutes,
+    /notifyScreen\(screenId, revision\.revision, \{ forceRender:true \}\)/,
+    'admin Apply must not blindly reload the currently cached Player shell'
+  );
+  assert.match(realtime, /force_reprovision:state\.commandId/);
+  assert.match(realtime, /message\?\.type === 'reprovision\.ack'/);
+  assert.match(realtime, /status:state\.completedAt \? 'completed'/);
+  assert.match(realtime, /requestScreenPreview\(id\)/);
+  assert.match(realtimeClient, /location\.replace\(recoveryUrl\(reprovision\)\)/);
+  assert.match(realtimeClient, /type:'reprovision\.ack'/);
 });
