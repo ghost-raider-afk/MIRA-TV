@@ -31,6 +31,7 @@ export function createPlayerRealtime({ store }) {
   const byScreen = new Map();
   const byDevice = new Map();
   const screenPreviews = new Map();
+  const screenRuntimeStates = new Map();
   let heartbeatTimer = null;
   let attachedServer = null;
 
@@ -163,8 +164,21 @@ export function createPlayerRealtime({ store }) {
     } : null;
   }
 
+  function updateScreenRuntimeState(screenId, state) {
+    const id = Number(screenId);
+    if (!Number.isSafeInteger(id) || id < 1 || !state || typeof state !== 'object') return null;
+    const runtime = { ...state, updated_at:new Date().toISOString() };
+    screenRuntimeStates.set(id, runtime);
+    return runtime;
+  }
+
+  function runtimeStateForScreen(screenId) {
+    return screenRuntimeStates.get(Number(screenId)) || null;
+  }
+
   function disconnectScreen(screenId) {
     screenPreviews.delete(Number(screenId));
+    screenRuntimeStates.delete(Number(screenId));
     return disconnectIndexed(byScreen, screenId, 'binding revoked');
   }
 
@@ -231,6 +245,7 @@ export function createPlayerRealtime({ store }) {
     byScreen.clear();
     byDevice.clear();
     screenPreviews.clear();
+    screenRuntimeStates.clear();
     wss.close();
   }
 
@@ -246,6 +261,8 @@ export function createPlayerRealtime({ store }) {
     pingScreen,
     updateScreenPreview,
     screenPreview,
-    screenPreviewMeta
+    screenPreviewMeta,
+    updateScreenRuntimeState,
+    runtimeStateForScreen
   });
 }
