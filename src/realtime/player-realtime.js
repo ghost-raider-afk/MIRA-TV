@@ -216,6 +216,7 @@ export function createPlayerRealtime({ store }) {
           });
           add(session, ws);
           send(ws, { type: 'ready', screen_id: session.screen_id });
+          if (!screenPreviews.has(Number(session.screen_id))) send(ws, { type:'preview.request' });
         });
       } catch {
         socket.destroy();

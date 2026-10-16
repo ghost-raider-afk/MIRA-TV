@@ -124,8 +124,11 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
     ? horizontal.priceCellWidth / 2
     : (MENU_REFERENCE.priceColumnGap / 3) * horizontal.scaleX;
   const labels = line.showPriceLabels
-    ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 25.5 : 22) * fontScale, weight: 800, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1 л</text>
-      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size: (readable ? 25.5 : 22) * fontScale, weight: 800, fill: palette.sectionText, anchor: 'middle', fontFamily:typography?.family }, typography)}>1,5 л</text>` : '';
+    ? readable
+      ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size:25.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 л</text>`
+      : `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size:22 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 л</text>
+      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size:22 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1,5 л</text>`
+    : '';
   const rectHeight = Math.max(1, box.height - MENU_REFERENCE.sectionInset * scale);
   const fill = themeId === 'premium'
     ? 'url(#mira-theme-premium-gold)'
@@ -210,13 +213,16 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     secondaryCentsColor = palette.accentText;
   }
   const numberMarkup = showSequence ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle', fontFamily:itemFont?.family }, itemFont)}>${escapeXml(line.sequence || '')}</text>` : '';
+  const pricesMarkup = readable
+    ? priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)
+    : `${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}`;
   return `<g class="table-item theme-${themeId} tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}
     ${numberMarkup}
     ${promotion.markup}
     ${contentClip}
     <g class="table-item-content"${contentClipAttribute}><text x="${itemNameX}" y="${nameBaseline}" class="item-name" ${textAttributes({ size: nameSize, weight: 700, fill: itemColor, fontFamily:itemFont?.family }, itemFont)}>${escapeXml(displayName)}${strengthMarkup}</text>${metadata ? `<text x="${nameX}" y="${metaBaseline}" class="item-meta" ${textAttributes({ size: metaSize, weight: 400, fill: metaColor, fontFamily:metaFont?.family }, metaFont)}>${escapeXml(truncateText(metadata, metaCharacters))}</text>` : ''}</g>
-    <g class="table-item-prices">${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}</g>
+    <g class="table-item-prices">${pricesMarkup}</g>
   </g>`;
 }
 

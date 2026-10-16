@@ -73,17 +73,17 @@ function pingText(screenId, binding) {
   return Number.isFinite(ping.ms) ? `${Math.round(ping.ms)} мс` : 'нет ответа';
 }
 
-function previewUrl(screen, binding, { requestFresh = false } = {}) {
-  if (!binding?.online || (!requestFresh && !binding?.preview_available)) return '';
-  const version = requestFresh ? `request-${Date.now()}` : binding.preview_updated_at || '';
+function previewUrl(screen, binding) {
+  if (!binding?.preview_available) return '';
+  const version = binding.preview_updated_at || '';
   return `${API.deviceBindings}/${screen.id}/preview?v=${encodeURIComponent(version)}`;
 }
 
-function createTvFace(screen, binding, large = false, { requestFresh = false } = {}) {
+function createTvFace(screen, binding, large = false) {
   const status = statusState(binding);
   const face = document.createElement('div');
   face.className = `screen-tv-face is-${status.key}${large ? ' is-large' : ''}`;
-  const url = previewUrl(screen, binding, { requestFresh });
+  const url = previewUrl(screen, binding);
   if (url) {
     const image = document.createElement('img');
     image.src = url;
@@ -153,15 +153,18 @@ function fillCardMeta(container, screen, binding) {
   fillRows(container, cardMetaRows(screen, binding));
 }
 
-function syncTvUnit(unit, screen, binding, { requestFresh = false } = {}) {
+function syncTvUnit(unit, screen, binding) {
   const status = statusState(binding);
   unit.dataset.tvState = status.key;
   const host = unit.querySelector('[data-tv-face-host]');
   if (host) {
-    const faceKey = `${status.key}:${binding?.preview_updated_at || ''}:${requestFresh ? 'fresh' : 'cached'}`;
-    if (host.dataset.tvFaceKey !== faceKey) {
+    const faceKey = String(binding?.preview_updated_at || '');
+    const currentFace = host.querySelector('.screen-tv-face');
+    if (host.dataset.tvFaceKey !== faceKey || !currentFace) {
       host.dataset.tvFaceKey = faceKey;
-      host.replaceChildren(createTvFace(screen, binding, false, { requestFresh }));
+      host.replaceChildren(createTvFace(screen, binding));
+    } else {
+      currentFace.className = `screen-tv-face is-${status.key}`;
     }
   }
   const meta = unit.querySelector('[data-tv-meta]');
@@ -217,9 +220,7 @@ function createTvUnit(screen) {
   actions.append(manage, scene, bind);
 
   unit.append(open, actions);
-  syncTvUnit(unit, screen, binding, {
-    requestFresh:binding?.online === true && binding?.preview_available !== true
-  });
+  syncTvUnit(unit, screen, binding);
   return unit;
 }
 
@@ -415,18 +416,27 @@ function ensurePreviewDialog() {
   return dialog;
 }
 
-function updatePreviewDialog(screen, { requestFresh = false } = {}) {
+function updatePreviewDialog(screen) {
   const dialog = ensurePreviewDialog();
   const binding = bindingForScreen(screen.id);
+  const status = statusState(binding);
   dialog.querySelector('[data-tv-preview-title]').textContent = tvLabel(screen);
-  dialog.querySelector('[data-tv-preview-visual]').replaceChildren(createTvFace(screen, binding, true, { requestFresh }));
+  const visual = dialog.querySelector('[data-tv-preview-visual]');
+  const previewKey = String(binding?.preview_updated_at || '');
+  const currentFace = visual?.querySelector('.screen-tv-face');
+  if (visual && (visual.dataset.tvPreviewKey !== previewKey || !currentFace)) {
+    visual.dataset.tvPreviewKey = previewKey;
+    visual.replaceChildren(createTvFace(screen, binding, true));
+  } else if (currentFace) {
+    currentFace.className = `screen-tv-face is-${status.key} is-large`;
+  }
   fillCardMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
 }
 
 function openPreview(screen) {
   previewDialogScreenId = Number(screen.id);
   const dialog = ensurePreviewDialog();
-  updatePreviewDialog(screen, { requestFresh:true });
+  updatePreviewDialog(screen);
   if (!dialog.open) dialog.showModal();
 }
 

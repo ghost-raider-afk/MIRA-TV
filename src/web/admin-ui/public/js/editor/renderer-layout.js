@@ -39,10 +39,8 @@ function readableHorizontal(left, width) {
   const scaleX = width / MENU_REFERENCE.tableWidth;
   const right = left + width;
   const rightPadding = Math.max(12, width * .025);
-  const priceCellWidth = Math.max(96, width * .145);
-  const priceColumnGap = Math.max(12, width * .018);
-  const secondaryPriceX = right - rightPadding;
-  const primaryPriceX = secondaryPriceX - priceCellWidth - priceColumnGap;
+  const priceCellWidth = Math.max(104, width * .155);
+  const primaryPriceX = right - rightPadding;
   const priceZoneLeft = primaryPriceX - priceCellWidth;
   const textGap = Math.max(16, width * .024);
   const textRight = priceZoneLeft - textGap;
@@ -52,12 +50,12 @@ function readableHorizontal(left, width) {
     tableWidth:width,
     scaleX,
     priceCellWidth,
-    priceColumnGap,
+    priceColumnGap:0,
     priceZoneLeft,
     textGap,
     textRight,
     primaryPriceX,
-    secondaryPriceX,
+    secondaryPriceX:primaryPriceX,
     nameWidth:textRight - left
   });
 }

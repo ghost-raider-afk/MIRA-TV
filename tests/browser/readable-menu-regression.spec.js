@@ -103,7 +103,7 @@ test('readable table reuses classic row colors, protects price columns and hides
 
   const readable = await rowVisuals(page);
   expect(readable.map((row) => row.tone)).toEqual(['light', 'accent']);
-  expect(readable.every((row) => row.priceFills.length === 2 && row.priceFills.every((fill) => fill === row.nameFill))).toBe(true);
+  expect(readable.every((row) => row.priceFills.length === 1 && row.priceFills.every((fill) => fill === row.nameFill))).toBe(true);
   expect(readable.every((row) => row.clippedContent)).toBe(true);
   expect(readable.some((row) => row.overlapsPrice)).toBe(false);
 
@@ -123,7 +123,7 @@ test('readable table reuses classic row colors, protects price columns and hides
   });
   expect(headerGeometry.protected).toBe(true);
   expect(headerGeometry.titleSize).toBeGreaterThan(30);
-  expect(headerGeometry.labelSizes).toHaveLength(2);
+  expect(headerGeometry.labelSizes).toHaveLength(1);
   expect(headerGeometry.labelSizes.every((size) => size > 24)).toBe(true);
 
   const inlineStrength = await svg.locator('.item-name').first().evaluate((name) => {
@@ -140,6 +140,6 @@ test('readable table reuses classic row colors, protects price columns and hides
   await expect(svg.locator('.table-item')).toHaveCount(2);
   const classic = await rowVisuals(page);
 
-  expect(readable.map(({ tone, nameFill, metaFill, priceFills }) => ({ tone, nameFill, metaFill, priceFills })))
-    .toEqual(classic.map(({ tone, nameFill, metaFill, priceFills }) => ({ tone, nameFill, metaFill, priceFills })));
+  expect(readable.map(({ tone, nameFill, metaFill, priceFills }) => ({ tone, nameFill, metaFill, priceFill:priceFills[0] })))
+    .toEqual(classic.map(({ tone, nameFill, metaFill, priceFills }) => ({ tone, nameFill, metaFill, priceFill:priceFills[0] })));
 });

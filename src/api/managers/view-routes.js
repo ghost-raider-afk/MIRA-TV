@@ -11,20 +11,6 @@ async function savedVisibleScreen(store, id) {
   return screen;
 }
 
-async function requestedPreview(realtime, screenId, timeoutMs = 1800) {
-  const before = realtime?.screenPreviewMeta?.(screenId)?.etag || '';
-  const requested = realtime?.requestScreenPreview?.(screenId) || 0;
-  if (requested > 0) {
-    const deadline = Date.now() + Math.max(250, Number(timeoutMs) || 1800);
-    while (Date.now() < deadline) {
-      const current = realtime?.screenPreviewMeta?.(screenId);
-      if (current?.etag && current.etag !== before) break;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-  }
-  return realtime?.screenPreview?.(screenId) || null;
-}
-
 export function createManagerViewRouter({ store, config, weatherService, realtime }) {
   const router = express.Router();
 
@@ -59,7 +45,7 @@ export function createManagerViewRouter({ store, config, weatherService, realtim
   router.get('/screens/:id/preview', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
-    const preview = await requestedPreview(realtime, id);
+    const preview = realtime?.screenPreview?.(id) || null;
     if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', preview.etag);
