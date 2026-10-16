@@ -202,6 +202,7 @@ function mountFrontend(app, requirePageSession, requirePageRole) {
   });
   app.get('/signin', (_request, response) => sendHtmlFile(response, 'signin.html'));
   app.get('/player', (_request, response) => sendHtmlFile(response, 'player.html'));
+  app.get('/tv-recovery', (_request, response) => sendHtmlFile(response, 'player-recovery.html'));
   app.get(MANAGER_PAGE.path, requirePageSession, requirePageRole('manager'), (_request, response) => sendHtmlFile(response, MANAGER_PAGE.file));
   for (const page of AUTHENTICATED_PAGES) {
     app.get(page.path, requirePageSession, requirePageRole('administrator'), (_request, response) => sendHtmlFile(response, page.file));
