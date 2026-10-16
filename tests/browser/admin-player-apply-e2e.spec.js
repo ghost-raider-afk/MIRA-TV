@@ -154,9 +154,10 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await adminPage.goto('/screens');
     const tvCard = adminPage.locator(`[data-tv-unit][data-screen-id="${screenId}"]`);
     await expect(tvCard).toBeVisible();
-    await expect(tvCard).toContainText('Онлайн · связь есть');
+    await expect(tvCard).toContainText('Онлайн');
+    await expect(tvCard).not.toContainText('связь есть');
     await expect(tvCard).toContainText('Последняя связь');
-    await expect(tvCard).toContainText('Контент');
+    await expect(tvCard).not.toContainText('Контент');
     await expect(tvCard).not.toContainText('IP-адрес');
 
     await tvCard.getByRole('button', { name:/Управление/ }).click();

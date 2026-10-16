@@ -50,8 +50,16 @@ async function initialisePage(name) {
       return initialiseScreenEditor();
     }
     case 'scene': {
-      const { initialiseSceneEditor } = await import('./pages/scene.js');
-      return initialiseSceneEditor();
+      const [{ initialiseSceneEditor }, { initialiseSceneTvApply }] = await Promise.all([
+        import('./pages/scene.js'),
+        import('./pages/scene-tv-apply.js')
+      ]);
+      const disposeScene = initialiseSceneEditor();
+      const disposeTvApply = initialiseSceneTvApply();
+      return () => {
+        disposeTvApply?.();
+        disposeScene?.();
+      };
     }
     case 'catalog': {
       const { initialiseCatalog } = await import('./pages/catalog.js');

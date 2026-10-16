@@ -1,0 +1,57 @@
+import { API } from '../core/config.js';
+import { api } from '../core/api.js';
+import { setMessage, setPending } from '../core/dom.js';
+
+export function initialiseSceneTvApply() {
+  const actions = document.querySelector('.scene-editor-command-actions');
+  const screenSelect = document.getElementById('scene-editor-screen');
+  const dirtyState = document.getElementById('scene-editor-dirty-state');
+  const saveButton = document.getElementById('scene-editor-save');
+  if (!actions || !screenSelect || !dirtyState || !saveButton) return undefined;
+
+  const button = document.createElement('button');
+  button.id = 'scene-editor-apply-tv';
+  button.className = 'button button-primary';
+  button.type = 'button';
+  button.textContent = 'Применить на ТВ';
+  button.title = 'Повторно отправить последнее сохранённое состояние сцены подключённому ТВ';
+  actions.insertBefore(button, saveButton.nextSibling);
+
+  const syncEnabled = () => {
+    button.disabled = !/^\d+$/.test(String(screenSelect.value || ''));
+  };
+
+  const onApply = async () => {
+    if (dirtyState.classList.contains('is-dirty')) {
+      setMessage('scene-editor-message', 'Сначала сохраните изменения сцены, затем примените их на ТВ.');
+      return;
+    }
+    const screenId = Number(screenSelect.value);
+    if (!Number.isSafeInteger(screenId) || screenId < 1) return;
+
+    setPending(button, true, 'Применяем…');
+    try {
+      const result = await api.post(`${API.deviceBindings}/${screenId}/apply`, {});
+      setMessage(
+        'scene-editor-message',
+        `Сохранённое состояние отправлено на ТВ${result?.revision ? ` · ревизия ${result.revision}` : ''}.`,
+        'success'
+      );
+    } catch (error) {
+      setMessage('scene-editor-message', error.message || 'Не удалось применить состояние на ТВ.');
+    } finally {
+      setPending(button, false);
+      syncEnabled();
+    }
+  };
+
+  button.addEventListener('click', onApply);
+  screenSelect.addEventListener('change', syncEnabled);
+  syncEnabled();
+
+  return () => {
+    button.removeEventListener('click', onApply);
+    screenSelect.removeEventListener('change', syncEnabled);
+    button.remove();
+  };
+}

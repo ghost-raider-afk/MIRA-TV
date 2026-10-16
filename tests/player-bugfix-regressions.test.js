@@ -23,6 +23,30 @@ test('Player shell advances so cached TVs receive the bugfix assets', async () =
   assert.equal(activeVersion, retiredVersion + 1);
 });
 
+test('release version stays aligned across app, Player, environment and installer', async () => {
+  const [pkg, player, env, installer] = await Promise.all([
+    readFile(new URL('../package.json', import.meta.url), 'utf8').then(JSON.parse),
+    readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8'),
+    readFile(new URL('../.env.example', import.meta.url), 'utf8'),
+    readFile(new URL('../mira-tv.sh', import.meta.url), 'utf8')
+  ]);
+  const playerVersion = player.match(/const PLAYER_BUILD_VERSION = '([^']+)'/)?.[1];
+  const envVersion = env.match(/^MIRA_TV_VERSION=(.+)$/m)?.[1];
+  const installerVersion = installer.match(/^SCRIPT_VERSION="([^"]+)"$/m)?.[1];
+  assert.equal(pkg.version, pkg.miraVersion);
+  assert.equal(playerVersion, pkg.version);
+  assert.equal(envVersion, pkg.version);
+  assert.equal(installerVersion, pkg.version);
+});
+
+test('failed Player shell activation is retried with bounded backoff only while versions differ', async () => {
+  const source = await readFile(new URL('../src/web/admin-ui/public/js/player/player.js', import.meta.url), 'utf8');
+  assert.match(source, /const PLAYER_BUILD_RETRY_MIN_MS = 15_000;/);
+  assert.match(source, /const PLAYER_BUILD_RETRY_MAX_MS = 300_000;/);
+  assert.match(source, /if \(!updated\) schedulePlayerBuildRetry\(serverVersion\);/);
+  assert.match(source, /serverVersion === PLAYER_BUILD_VERSION[\s\S]*clearPlayerBuildRetry\(\);/);
+});
+
 test('table content editor opens only from the explicit inspector action', async () => {
   const source = await readFile(new URL('../src/web/admin-ui/public/js/pages/scene.js', import.meta.url), 'utf8');
   assert.match(source, /openEditor\.textContent = 'Редактировать содержимое';\s*openEditor\.addEventListener\('click', openTableEditor\);/s);

@@ -1,8 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v67';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v68';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v68';
+const SHELL_CACHE = 'mira-tv-player-shell-v69';
 const DATA_CACHE = 'mira-tv-player-data-v18';
-// Source revision: event-driven TV snapshots and single-price readable table.
+// Source revision: TV network diagnostics, resilient Player refresh and coalesced snapshots.
 const SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',

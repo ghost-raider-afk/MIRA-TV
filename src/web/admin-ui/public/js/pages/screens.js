@@ -3,6 +3,7 @@ import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { element, makeButton, setMessage, setPending } from '../core/dom.js';
 import { formatDate } from '../core/presentation.js';
+import { sortLocationsByOperationalPriority } from './tv-network-priority.js';
 
 const STATUS_REFRESH_MS = 5000;
 const pingByScreen = new Map();
@@ -27,22 +28,14 @@ function latestSeen(binding) {
 
 function statusState(binding) {
   if (!binding) return { key:'unbound', title:'TV не подключён' };
-  if (binding.online === true) return { key:'online', title:'Онлайн · связь есть' };
+  if (binding.online === true) return { key:'online', title:'Онлайн' };
   return { key:'offline', title:'Офлайн' };
 }
 
-function contentState(screen) {
-  const value = String(screen?.status || 'draft');
-  if (value === 'published') return 'Опубликовано';
-  if (value === 'ready') return 'Готово';
-  return 'Черновик';
-}
-
-function cardMetaRows(screen, binding) {
+function cardMetaRows(_screen, binding) {
   const status = statusState(binding);
   return [
     ['Статус', status.title, status.key],
-    ['Контент', contentState(screen), ''],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', '']
   ];
 }
@@ -71,6 +64,23 @@ function pingText(screenId, binding) {
   const ping = pingByScreen.get(Number(screenId));
   if (!ping || ping.connectedAt !== (binding.realtime_connected_at || null)) return 'не измерен';
   return Number.isFinite(ping.ms) ? `${Math.round(ping.ms)} мс` : 'нет ответа';
+}
+
+function fullscreenModeText(binding) {
+  const mode = String(binding?.player_fullscreen?.metadata?.mode || '');
+  if (mode === 'fullscreen-api') return 'Полный экран · API';
+  if (mode === 'display-fullscreen') return 'Полный экран · приложение';
+  if (mode === 'standalone') return 'Приложение · standalone';
+  if (mode === 'browser') return 'Браузер';
+  return binding ? 'Нет данных' : '—';
+}
+
+function fullscreenApiText(binding) {
+  const metadata = binding?.player_fullscreen?.metadata;
+  if (!binding) return '—';
+  if (!metadata) return 'Нет данных';
+  if (metadata.request_supported !== true) return 'Не поддерживается';
+  return metadata.fullscreen_enabled === true ? 'Доступен' : 'Ограничен браузером';
 }
 
 function previewUrl(screen, binding) {
@@ -126,7 +136,9 @@ function metaRows(screen, binding) {
     ['Производитель', binding?.manufacturer || 'Не определено', ''],
     ['Модель', binding?.model || 'Не определена', ''],
     ['IP-адрес', binding?.remote_address || '—', ''],
-    ['Ping', pingText(screen.id, binding), '']
+    ['Ping', pingText(screen.id, binding), ''],
+    ['Режим экрана', fullscreenModeText(binding), ''],
+    ['Fullscreen API', fullscreenApiText(binding), '']
   ];
 }
 
@@ -449,13 +461,29 @@ function refreshOpenPreview() {
   if (screen) updatePreviewDialog(screen);
 }
 
+function sortedLocations() {
+  return sortLocationsByOperationalPriority(state.locations, state.screens, state.deviceBindings);
+}
+
+function reorderLocationGroups() {
+  const list = document.querySelector('[data-screen-hierarchy]');
+  if (!list) return;
+  const groups = new Map([...list.querySelectorAll('[data-location-id]')]
+    .map((group) => [Number(group.dataset.locationId), group]));
+  for (const location of sortedLocations()) {
+    const group = groups.get(Number(location.id));
+    if (group) list.append(group);
+  }
+}
+
 function renderScreens() {
   const list = document.querySelector('[data-screen-hierarchy]');
   const empty = document.querySelector('[data-screens-empty]');
   if (!list || !empty) return;
-  const groups = state.locations.map((location) => {
+  const groups = sortedLocations().map((location) => {
     const group = document.createElement('article');
     group.className = 'screen-location-group';
+    group.dataset.locationId = String(location.id);
 
     const header = document.createElement('header');
     header.className = 'screen-location-header';
@@ -515,6 +543,7 @@ async function refreshRuntimeStatus() {
     const screen = state.screens.find((item) => Number(item.id) === Number(unit.dataset.screenId));
     if (screen) syncTvUnit(unit, screen, bindingForScreen(screen.id));
   });
+  reorderLocationGroups();
   refreshOpenPreview();
   updateManagementRuntime(managementScreen());
 }

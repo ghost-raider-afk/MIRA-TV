@@ -26,6 +26,7 @@ const modules = [
   '../src/web/admin-ui/public/js/pages/profile.js',
   '../src/web/admin-ui/public/js/pages/settings.js',
   '../src/web/admin-ui/public/js/pages/scene.js',
+  '../src/web/admin-ui/public/js/pages/scene-tv-apply.js',
   '../src/web/admin-ui/public/js/editor/state.js',
   '../src/web/admin-ui/public/js/editor/commands.js',
   '../src/web/admin-ui/public/js/editor/history.js',

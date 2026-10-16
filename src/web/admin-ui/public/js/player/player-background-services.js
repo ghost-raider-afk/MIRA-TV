@@ -4,17 +4,21 @@ import { createPlayerMetricsCollector } from './player-metrics.js';
 export function createPlayerBackgroundServices(stage, { isVisible = () => true } = {}) {
   const metrics = createPlayerMetricsCollector();
   let previewInFlight = false;
+  let previewQueued = false;
   let previewMaxBytes = null;
 
   async function publishPreview() {
-    if (previewInFlight || !isVisible() || !navigator.onLine) return;
+    if (previewInFlight || !previewQueued) return;
+    if (!isVisible() || !navigator.onLine) return;
     previewInFlight = true;
+    previewQueued = false;
     try {
       await publishPlayerPreview(stage, { maxBytes:previewMaxBytes });
     } catch (error) {
       console.debug('TV Player preview publish skipped', error);
     } finally {
       previewInFlight = false;
+      if (previewQueued) void publishPreview();
     }
   }
 
@@ -27,9 +31,11 @@ export function createPlayerBackgroundServices(stage, { isVisible = () => true }
 
   function online() {
     metrics.start();
+    if (previewQueued) void publishPreview();
   }
 
   function requestPreview() {
+    previewQueued = true;
     void publishPreview();
   }
 
