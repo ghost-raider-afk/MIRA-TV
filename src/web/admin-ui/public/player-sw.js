@@ -1,7 +1,8 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v69';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v70';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v70';
+const SHELL_CACHE = 'mira-tv-player-shell-v71';
 const DATA_CACHE = 'mira-tv-player-data-v18';
+const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
 // Source revision: stale-shell convergence, TV network diagnostics and resilient snapshots.
 const SHELL_ASSETS = [
   '/player.html',
@@ -66,6 +67,9 @@ const SHELL_ASSETS = [
   '/js/editor/renderer-svg.js',
 ];
 
+let shellUpdateCheckInFlight = null;
+let shellUpdateCheckedAt = 0;
+
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS)));
   self.skipWaiting();
@@ -96,6 +100,19 @@ self.addEventListener('activate', (event) => {
     if (upgraded) await refreshUpgradedPlayerClients();
   })());
 });
+
+function maybeCheckForShellUpdate() {
+  const now = Date.now();
+  if (shellUpdateCheckInFlight) return shellUpdateCheckInFlight;
+  if (shellUpdateCheckedAt && now - shellUpdateCheckedAt < SHELL_UPDATE_CHECK_MIN_MS) return Promise.resolve(false);
+  shellUpdateCheckedAt = now;
+  shellUpdateCheckInFlight = Promise.resolve()
+    .then(() => self.registration?.update?.())
+    .then(() => true)
+    .catch(() => false)
+    .finally(() => { shellUpdateCheckInFlight = null; });
+  return shellUpdateCheckInFlight;
+}
 
 function manifestAssetSet(manifest) {
   const values = Array.isArray(manifest)
@@ -172,6 +189,7 @@ self.addEventListener('message', (event) => {
   const type = event.data?.type;
   if (type === 'mira:player-cache-capabilities') {
     reply(event, { ok:true, local_first:true, protocol:1 });
+    event.waitUntil(maybeCheckForShellUpdate());
     return;
   }
   if (type === 'mira:player-stage-assets') {
