@@ -151,6 +151,7 @@ test('TV Player renders a realistic static screen within a measured runtime budg
   const snapshot = contextSnapshot();
   const weather = weatherResponse();
   let deltaRequests = 0;
+  let previewPublishes = 0;
 
   try {
     await page.route('**/api/device/session', (route) => route.fulfill({
@@ -159,6 +160,10 @@ test('TV Player renders a realistic static screen within a measured runtime budg
       body: JSON.stringify({ authorized: true, device_id: 77, device_key: 'runtime-audit-device-key-123456', session_expires_at: new Date(Date.now() + 86400000).toISOString(), screen: snapshot.screen })
     }));
     await page.route('**/api/device/player-logs', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accepted_through: 1000000 }) }));
+    await page.route('**/api/device/preview', (route) => {
+      previewPublishes += 1;
+      return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ stored:true }) });
+    });
     await page.route('**/api/device/player-delta', (route) => {
       deltaRequests += 1;
       const body = deltaRequests === 1
@@ -259,6 +264,7 @@ test('TV Player renders a realistic static screen within a measured runtime budg
     expect(audit.mainThreadUtilizationPercent).toBeLessThan(15);
     expect(audit.encodedMiB).toBeLessThan(4);
     expect(audit.resourceRequests).toBeLessThan(80);
+    expect(previewPublishes).toBeLessThanOrEqual(1);
   } finally {
     await browserContext.close();
   }

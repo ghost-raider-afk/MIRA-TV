@@ -136,6 +136,7 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
         ok:response.ok(),
         online:binding?.online === true,
         preview:binding?.preview_available === true,
+        previewUpdatedAt:String(binding?.preview_updated_at || ''),
         ping:Number(binding?.ping_ms),
         address:String(binding?.remote_address || '')
       };
@@ -143,9 +144,10 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect.poll(tvNetworkState, { timeout:10000 }).toMatchObject({
       ok:true,
       online:true,
-      preview:false
+      preview:true
     });
     const measured = await tvNetworkState();
+    expect(measured.previewUpdatedAt).not.toBe('');
     expect(measured.ping).toBeGreaterThanOrEqual(0);
     expect(measured.address).not.toBe('');
 
@@ -164,7 +166,15 @@ test('admin scene save reaches live Player delta and updates keyed generic DOM',
     await expect(managementDialog.locator('.screen-tv-meta-row', { hasText:'Ping' }).locator('strong')).toContainText('мс');
     await managementDialog.locator('[data-tv-management-cancel]').click();
 
-    await expect(tvCard.locator('.screen-tv-face img')).toHaveCount(1, { timeout:5000 });
+    const previewImage = tvCard.locator('.screen-tv-face img');
+    await expect(previewImage).toHaveCount(1, { timeout:5000 });
+    await previewImage.evaluate((node) => { node.dataset.identityProbe = 'stable-preview-img'; });
+    const previewSrc = await previewImage.getAttribute('src');
+    const previewRevision = (await tvNetworkState()).previewUpdatedAt;
+    await adminPage.waitForTimeout(5200);
+    await expect(tvCard.locator('.screen-tv-face img[data-identity-probe="stable-preview-img"]')).toHaveCount(1);
+    expect(await previewImage.getAttribute('src')).toBe(previewSrc);
+    expect((await tvNetworkState()).previewUpdatedAt).toBe(previewRevision);
     await expect(tvCard.locator('.screen-tv-face')).toHaveClass(/has-player-frame/, { timeout:5000 });
     await expect.poll(tvNetworkState, { timeout:5000 }).toMatchObject({
       ok:true,
