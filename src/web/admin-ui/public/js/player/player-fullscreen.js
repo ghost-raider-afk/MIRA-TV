@@ -1,13 +1,20 @@
 (() => {
   const root = document.documentElement;
   const player = document.querySelector('[data-tv-player]');
+  const playerStage = document.querySelector('[data-player-stage]');
   const visualViewport = window.visualViewport;
   let gestureArmed = false;
+  let lastRuntimeState = '';
+
+  function displayMode(query) {
+    try { return window.matchMedia?.(query).matches === true; }
+    catch { return false; }
+  }
 
   function standalone() {
     return Boolean(
-      window.matchMedia?.('(display-mode: fullscreen)').matches
-      || window.matchMedia?.('(display-mode: standalone)').matches
+      displayMode('(display-mode: fullscreen)')
+      || displayMode('(display-mode: standalone)')
       || navigator.standalone === true
     );
   }
@@ -18,6 +25,44 @@
 
   function fullscreenRequest() {
     return root.requestFullscreen || root.webkitRequestFullscreen || null;
+  }
+
+  function fullscreenRuntimeState() {
+    const apiFullscreen = Boolean(fullscreenElement());
+    const displayFullscreen = displayMode('(display-mode: fullscreen)');
+    const standaloneDisplay = displayMode('(display-mode: standalone)') || navigator.standalone === true;
+    return {
+      fullscreen: {
+        mode: apiFullscreen
+          ? 'fullscreen-api'
+          : displayFullscreen
+            ? 'display-fullscreen'
+            : standaloneDisplay
+              ? 'standalone'
+              : 'browser',
+        fullscreen_enabled: Boolean(document.fullscreenEnabled ?? document.webkitFullscreenEnabled),
+        request_supported: typeof fullscreenRequest() === 'function'
+      }
+    };
+  }
+
+  function reportRuntimeState() {
+    if (!playerVisible()) return;
+    const state = fullscreenRuntimeState();
+    const fingerprint = JSON.stringify(state);
+    if (fingerprint === lastRuntimeState) return;
+    lastRuntimeState = fingerprint;
+    void fetch('/api/device/runtime-state', {
+      method:'POST',
+      credentials:'include',
+      cache:'no-store',
+      headers:{ 'content-type':'application/json' },
+      body:fingerprint
+    }).then((response) => {
+      if (!response.ok) lastRuntimeState = '';
+    }).catch(() => {
+      lastRuntimeState = '';
+    });
   }
 
   function syncViewport() {
@@ -71,6 +116,7 @@
     syncViewport();
     if (fullscreenElement()) disarmGesture();
     else armGesture();
+    reportRuntimeState();
   }
 
   syncViewport();
@@ -80,4 +126,9 @@
   visualViewport?.addEventListener('scroll', syncViewport, { passive:true });
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  playerStage?.addEventListener('mira:player-active', (event) => {
+    if (event.detail?.active === true) reportRuntimeState();
+  });
+  window.addEventListener('mira:player-realtime-connected', reportRuntimeState);
+  window.addEventListener('online', reportRuntimeState, { passive:true });
 })();
