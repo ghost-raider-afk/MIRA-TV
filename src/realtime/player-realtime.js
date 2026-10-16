@@ -31,6 +31,7 @@ export function createPlayerRealtime({ store }) {
   const byScreen = new Map();
   const byDevice = new Map();
   const screenPreviews = new Map();
+  const forceRenderOnNextConnect = new Map();
   const previewOnNextConnect = new Set();
   let heartbeatTimer = null;
   let attachedServer = null;
@@ -56,17 +57,25 @@ export function createPlayerRealtime({ store }) {
 
   function notifyScreen(screenId, revision = '', { forceRender = false } = {}) {
     const id = Number(screenId);
+    const revisionText = String(revision || '');
     if (forceRender && Number.isSafeInteger(id) && id > 0) previewOnNextConnect.add(id);
     const sockets = byScreen.get(id);
-    if (!sockets) return 0;
+    if (!sockets) {
+      if (forceRender && Number.isSafeInteger(id) && id > 0) forceRenderOnNextConnect.set(id, revisionText);
+      return 0;
+    }
     const payload = {
       type: 'context.changed',
-      revision: String(revision || ''),
+      revision: revisionText,
       ...(forceRender ? { force_render:true } : {})
     };
     let sent = 0;
     for (const socket of sockets) {
       if (send(socket, payload)) sent += 1;
+    }
+    if (forceRender) {
+      if (sent > 0) forceRenderOnNextConnect.delete(id);
+      else forceRenderOnNextConnect.set(id, revisionText);
     }
     return sent;
   }
@@ -139,7 +148,7 @@ export function createPlayerRealtime({ store }) {
     const remaining = Math.max(250, deadline - Date.now());
     const values = await Promise.all(sockets.map((socket) => pingSocket(socket, remaining)));
     const valid = values.filter((value) => Number.isFinite(value));
-    return valid.length ? Math.min(...valid) : null;
+    return valid.length ? Math.min(valid) : null;
   }
 
   function updateScreenPreview(screenId, buffer, contentType = 'image/webp') {
@@ -174,6 +183,7 @@ export function createPlayerRealtime({ store }) {
   function disconnectScreen(screenId) {
     const id = Number(screenId);
     screenPreviews.delete(id);
+    forceRenderOnNextConnect.delete(id);
     previewOnNextConnect.delete(id);
     return disconnectIndexed(byScreen, id, 'binding revoked');
   }
@@ -227,6 +237,14 @@ export function createPlayerRealtime({ store }) {
           add(session, ws);
           send(ws, { type: 'ready', screen_id: session.screen_id });
           const screenId = Number(session.screen_id);
+          if (forceRenderOnNextConnect.has(screenId)) {
+            const revision = forceRenderOnNextConnect.get(screenId) || '';
+            forceRenderOnNextConnect.delete(screenId);
+            if (!send(ws, { type:'context.changed', revision, force_render:true })) {
+              forceRenderOnNextConnect.set(screenId, revision);
+            }
+            return;
+          }
           const forcePreview = previewOnNextConnect.delete(screenId);
           if (forcePreview || !screenPreviews.has(screenId)) send(ws, { type:'preview.request' });
         });
@@ -243,6 +261,7 @@ export function createPlayerRealtime({ store }) {
     byScreen.clear();
     byDevice.clear();
     screenPreviews.clear();
+    forceRenderOnNextConnect.clear();
     previewOnNextConnect.clear();
     wss.close();
   }
