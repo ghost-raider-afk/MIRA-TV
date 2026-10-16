@@ -627,7 +627,8 @@ async function fetchDeviceSession(timeoutMs = 3500) {
 
 async function loadPlayer({ fallbackToActivation = true } = {}) {
   clearPairingTimers();
-  const result = await playerStateSync.syncNow('boot');
+  const syncReason = new URL(location.href).searchParams.has('reprovision') ? 'reprovision' : 'boot';
+  const result = await playerStateSync.syncNow(syncReason);
   if (result.unauthorized) {
     if (fallbackToActivation) showPairingIntro();
     return false;
