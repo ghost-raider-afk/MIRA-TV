@@ -18,27 +18,6 @@ function activationSummary(record) {
   };
 }
 
-const PREVIEW_WAIT_MS = 2500;
-const PREVIEW_POLL_MS = 50;
-
-function pause(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-async function freshScreenPreview(realtime, screenId) {
-  const previousEtag = realtime?.screenPreviewMeta?.(screenId)?.etag || '';
-  const requested = realtime?.requestScreenPreview?.(screenId) || 0;
-  if (requested > 0) {
-    const deadline = Date.now() + PREVIEW_WAIT_MS;
-    while (Date.now() < deadline) {
-      const preview = realtime?.screenPreview?.(screenId);
-      if (preview && preview.etag !== previousEtag) return preview;
-      await pause(PREVIEW_POLL_MS);
-    }
-  }
-  return realtime?.screenPreview?.(screenId) || null;
-}
-
 export function createDeviceAdminRouter({ store, realtime }) {
   const router = express.Router();
 
@@ -133,9 +112,6 @@ export function createDeviceAdminRouter({ store, realtime }) {
       const presence = realtime?.presenceForScreen(binding.screen_id)
         || { online:false, connections:0, connected_at:null, realtime_last_seen_at:null };
       const preview = realtime?.screenPreviewMeta(binding.screen_id);
-      const previewIsCurrentSession = Boolean(
-        preview && (!presence.connected_at || Date.parse(preview.updated_at) >= Date.parse(presence.connected_at))
-      );
       const measuredPing = measurePing ? pingResults.get(Number(binding.screen_id)) : null;
       const online = presence.online === true;
       return {
@@ -144,8 +120,8 @@ export function createDeviceAdminRouter({ store, realtime }) {
         realtime_connections: presence.connections || 0,
         realtime_connected_at: presence.connected_at || null,
         realtime_last_seen_at: presence.realtime_last_seen_at || null,
-        preview_available: online && previewIsCurrentSession,
-        preview_updated_at: previewIsCurrentSession ? preview.updated_at : null,
+        preview_available:Boolean(preview),
+        preview_updated_at:preview?.updated_at || null,
         ping_ms: measurePing && Number.isFinite(measuredPing) ? measuredPing : null,
         ping_measured_at: measuredAt,
         player_diagnostic: diagnosticByDevice.get(Number(binding.device_id)) || null
@@ -157,9 +133,7 @@ export function createDeviceAdminRouter({ store, realtime }) {
     const screenId = positiveId(request.params.screenId, 'screen_id');
     const binding = await store.getActiveDeviceBindingByScreen(screenId);
     if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
-    const presence = realtime?.presenceForScreen(screenId);
-    if (presence?.online !== true) return response.status(404).json({ error: 'TV Player сейчас не в сети.' });
-    const preview = await freshScreenPreview(realtime, screenId);
+    const preview = realtime?.screenPreview?.(screenId) || null;
     if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('ETag', preview.etag);

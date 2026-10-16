@@ -79,7 +79,7 @@ test('readable table style renders two section columns and can switch back to le
   await expect(stage.locator('.readable-table-surfaces rect')).toHaveCount(2);
   await expect(stage.locator('.section-title')).toHaveCount(2);
   await expect(stage.locator('.price-label', { hasText:'1 л' })).toHaveCount(2);
-  await expect(stage.locator('.price-label', { hasText:'1,5 л' })).toHaveCount(2);
+  await expect(stage.locator('.price-label', { hasText:'1,5 л' })).toHaveCount(0);
 
   const sectionXs = await stage.locator('.section-title').evaluateAll((nodes) => nodes.map((node) => Number(node.getAttribute('x'))));
   expect(sectionXs[1]).toBeGreaterThan(sectionXs[0] + 500);
@@ -93,7 +93,7 @@ test('readable table style renders two section columns and can switch back to le
   expect(itemNameFill).toBe('#F8FAFC');
   expect((await itemMeta.getAttribute('fill'))?.toUpperCase()).toBe('#C5CBD2');
   expect((await prices.nth(0).getAttribute('fill'))?.toUpperCase()).toBe(itemNameFill);
-  expect((await prices.nth(1).getAttribute('fill'))?.toUpperCase()).toBe(itemNameFill);
+  await expect(prices).toHaveCount(1);
 
   await page.locator('#scene-editor-table-layer').click();
   await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();

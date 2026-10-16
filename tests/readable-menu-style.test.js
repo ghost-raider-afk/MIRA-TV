@@ -62,7 +62,7 @@ test('readable layout balances complete sections into two columns', () => {
   assert.match(svg, /readable-table-surfaces/);
   assert.equal((svg.match(TABLE_SURFACE_PATTERN) || []).length, 2);
   assert.equal((svg.match(/>1 л<\/text>/g) || []).length, 2);
-  assert.equal((svg.match(/>1,5 л<\/text>/g) || []).length, 2);
+  assert.equal((svg.match(/>1,5 л<\/text>/g) || []).length, 0);
   assert.match(svg, />Алтунин</);
   assert.match(svg, />Бавария</);
 });
@@ -145,9 +145,10 @@ test('readable rows reuse classic alternating tones and keep address out of TV m
   const accentRow = svg.slice(accentStart);
   assert.match(lightRow, new RegExp(`class=\"item-name\"[^>]*fill=\"${layout.palette.primaryText}\"`));
   assert.match(lightRow, new RegExp(`class=\"item-meta\"[^>]*fill=\"${layout.palette.secondaryText}\"`));
-  assert.equal((lightRow.match(new RegExp(`class=\"price\"[^>]*fill=\"${layout.palette.primaryText}\"`, 'g')) || []).length, 2);
+  assert.equal((lightRow.match(new RegExp(`class=\"price\"[^>]*fill=\"${layout.palette.primaryText}\"`, 'g')) || []).length, 1);
   assert.match(accentRow, new RegExp(`class=\"item-name\"[^>]*fill=\"${layout.palette.accentText}\"`));
   assert.match(accentRow, new RegExp(`class=\"item-meta\"[^>]*fill=\"${layout.palette.accentSecondaryText}\"`));
-  assert.equal((accentRow.match(new RegExp(`class=\"price\"[^>]*fill=\"${layout.palette.accentText}\"`, 'g')) || []).length, 2);
+  assert.equal((accentRow.match(new RegExp(`class=\"price\"[^>]*fill=\"${layout.palette.accentText}\"`, 'g')) || []).length, 1);
   assert.ok(layout.columns[0].priceZoneLeft < layout.columns[0].primaryPriceX);
+  assert.equal(layout.columns[0].secondaryPriceX, layout.columns[0].primaryPriceX);
 });

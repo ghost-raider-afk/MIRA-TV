@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Manager uses on-demand TV snapshots instead of a second scene renderer', async () => {
+test('Manager uses passive LKG TV snapshots instead of a second scene renderer', async () => {
   const [manager, routes, realtime, client, player, background] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/manager.js'),
     read('src/api/managers/view-routes.js'),
@@ -15,7 +15,8 @@ test('Manager uses on-demand TV snapshots instead of a second scene renderer', a
   ]);
   assert.doesNotMatch(manager, /PlayerSceneRenderer|previewRenderers|fullscreenRenderer/);
   assert.match(manager, /URL\.createObjectURL/);
-  assert.match(routes, /requestScreenPreview/);
+  assert.match(routes, /screenPreview/);
+  assert.doesNotMatch(routes, /requestScreenPreview/);
   assert.match(realtime, /type:'preview\.request'/);
   assert.match(client, /mira:player-preview-request/);
   assert.match(player, /mira:player-preview-request/);

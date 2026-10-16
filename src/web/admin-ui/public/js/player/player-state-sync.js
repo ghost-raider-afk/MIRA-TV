@@ -438,6 +438,9 @@ export function createPlayerStateSync({
       local_first: Boolean(stagedManifest && !degradedAssetError)
     });
     void warmAssets?.(context, changedNames);
+    if (source !== 'last-known-good' && changedNames.length > 0) {
+      window.dispatchEvent(new CustomEvent('mira:player-preview-request', { detail:{ reason:'state-applied' } }));
+    }
   }
 
   async function fetchDelta() {
