@@ -776,7 +776,6 @@ function reconcilePlayerBuild(context, changedNames, source) {
   }
   if (playerBuildRetryVersion && playerBuildRetryVersion !== serverVersion) clearPlayerBuildRetry();
   if (storedReloadVersion() === serverVersion) {
-    clearReloadVersion();
     schedulePlayerBuildRetry(serverVersion);
     return;
   }
