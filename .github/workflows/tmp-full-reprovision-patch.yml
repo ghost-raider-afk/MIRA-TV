@@ -1,0 +1,55 @@
+name: tmp-full-reprovision-patch
+
+on:
+  push:
+    branches:
+      - release/1.18.12-soft-reprovision
+    paths:
+      - .github/workflows/tmp-full-reprovision-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/1.18.12-soft-reprovision
+          fetch-depth: 0
+      - name: Force a full context snapshot after recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          state = Path('src/web/admin-ui/public/js/player/player-state-sync.js')
+          text = state.read_text()
+          old = """  async function fetchDelta() {\n    const response = await fetchWithTimeout('/api/device/player-delta', {\n      method: 'POST',\n      credentials: 'include',\n      cache: 'no-store',\n      headers: { 'content-type': 'application/json' },\n      body: JSON.stringify({\n        schema_version: active?.schema_version || 0,\n        hashes: active?.hashes || {}\n      })\n    }, 5000);\n"""
+          new = """  async function fetchDelta(forceFullSnapshot = false) {\n    const response = await fetchWithTimeout('/api/device/player-delta', {\n      method: 'POST',\n      credentials: 'include',\n      cache: 'no-store',\n      headers: { 'content-type': 'application/json' },\n      body: JSON.stringify({\n        schema_version: forceFullSnapshot ? 0 : active?.schema_version || 0,\n        hashes: forceFullSnapshot ? {} : active?.hashes || {}\n      })\n    }, 5000);\n"""
+          if text.count(old) != 1:
+              raise SystemExit('fetchDelta source mismatch')
+          text = text.replace(old, new)
+          old_call = "      const result = await fetchDelta();\n"
+          new_call = "      const result = await fetchDelta(reason === 'reprovision');\n"
+          if text.count(old_call) != 1:
+              raise SystemExit('fetchDelta call mismatch')
+          state.write_text(text.replace(old_call, new_call))
+
+          player = Path('src/web/admin-ui/public/js/player/player.js')
+          text = player.read_text()
+          old = """async function loadPlayer({ fallbackToActivation = true } = {}) {\n  clearPairingTimers();\n  const result = await playerStateSync.syncNow('boot');\n"""
+          new = """async function loadPlayer({ fallbackToActivation = true } = {}) {\n  clearPairingTimers();\n  const syncReason = new URL(location.href).searchParams.has('reprovision') ? 'reprovision' : 'boot';\n  const result = await playerStateSync.syncNow(syncReason);\n"""
+          if text.count(old) != 1:
+              raise SystemExit('loadPlayer source mismatch')
+          player.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/web/admin-ui/public/js/player/player-state-sync.js src/web/admin-ui/public/js/player/player.js
+          git commit -m 'feat: force full Player state after soft reprovision'
+          git push origin HEAD:release/1.18.12-soft-reprovision
