@@ -7,35 +7,9 @@ import {
 
 const READABLE_ROW_HEIGHT = 66;
 const READABLE_COLUMN_GAP = 24;
+const MIN_TWO_COLUMN_WIDTH = 900;
 
-function sectionGroups(lines) {
-  const groups = [];
-  let current = null;
-  lines.forEach((line, index) => {
-    if (line?.kind === 'section' || !current) {
-      current = { indexes:[] };
-      groups.push(current);
-    }
-    current.indexes.push(index);
-  });
-  return groups;
-}
-
-function bestSequentialSplit(groups) {
-  if (groups.length < 2) return null;
-  const sizes = groups.map((group) => group.indexes.length);
-  const total = sizes.reduce((sum, value) => sum + value, 0);
-  let left = 0;
-  let best = { cut:1, difference:Number.POSITIVE_INFINITY };
-  for (let cut = 1; cut < groups.length; cut += 1) {
-    left += sizes[cut - 1];
-    const difference = Math.abs(left - (total - left));
-    if (difference < best.difference) best = { cut, difference };
-  }
-  return best.cut;
-}
-
-function readableHorizontal(left, width) {
+function readableHorizontal(left, width, extra = {}) {
   const scaleX = width / MENU_REFERENCE.tableWidth;
   const right = left + width;
   const rightPadding = Math.max(12, width * .025);
@@ -56,7 +30,8 @@ function readableHorizontal(left, width) {
     textRight,
     primaryPriceX,
     secondaryPriceX:primaryPriceX,
-    nameWidth:textRight - left
+    nameWidth:textRight - left,
+    ...extra
   });
 }
 
@@ -64,28 +39,45 @@ function rounded(value) {
   return Math.round(value * 10) / 10;
 }
 
+function manualReadablePositions(lines, twoColumns) {
+  if (!twoColumns) {
+    return {
+      positions:lines.map((_line, index) => ({ row:index, column:0, full:false })),
+      maxRows:Math.max(1, lines.length)
+    };
+  }
+
+  const cursors = [0, 0];
+  const positions = lines.map((line) => {
+    const full = line?.kind === 'section' && line?.column === 'full';
+    if (full) {
+      const row = Math.max(...cursors);
+      cursors[0] = row + 1;
+      cursors[1] = row + 1;
+      return { row, column:0, full:true };
+    }
+    const column = line?.column === 'right' ? 1 : 0;
+    const row = cursors[column];
+    cursors[column] += 1;
+    return { row, column, full:false };
+  });
+
+  return { positions, maxRows:Math.max(1, ...cursors) };
+}
+
 function readableLayout(model, lines, legacy) {
   const frame = legacy.frame;
-  const groups = sectionGroups(lines);
-  const split = bestSequentialSplit(groups);
-  const twoColumns = split !== null && frame.width >= 900;
+  const twoColumns = frame.width >= MIN_TWO_COLUMN_WIDTH;
   const gap = twoColumns ? Math.min(READABLE_COLUMN_GAP, frame.width * .025) : 0;
   const columnWidth = twoColumns ? (frame.width - gap) / 2 : frame.width;
   const columns = twoColumns
     ? [readableHorizontal(frame.x, columnWidth), readableHorizontal(frame.x + columnWidth + gap, columnWidth)]
     : [readableHorizontal(frame.x, frame.width)];
+  const fullHorizontal = twoColumns
+    ? readableHorizontal(frame.x, frame.width, { fullWidth:true })
+    : columns[0];
 
-  const lineColumns = new Array(lines.length).fill(0);
-  if (twoColumns) {
-    groups.forEach((group, groupIndex) => {
-      const column = groupIndex < split ? 0 : 1;
-      group.indexes.forEach((index) => { lineColumns[index] = column; });
-    });
-  }
-
-  const indexesByColumn = columns.map((_column, columnIndex) =>
-    lineColumns.map((column, index) => column === columnIndex ? index : -1).filter((index) => index >= 0));
-  const maxRows = Math.max(1, ...indexesByColumn.map((indexes) => indexes.length));
+  const { positions, maxRows } = manualReadablePositions(lines, twoColumns);
   const available = frame.height;
   const baseHeight = maxRows * READABLE_ROW_HEIGHT;
   const requestedPercent = requestedFontScalePercent(model.settings);
@@ -96,18 +88,16 @@ function readableLayout(model, lines, legacy) {
   const boxes = new Array(lines.length);
   const horizontals = new Array(lines.length);
 
-  indexesByColumn.forEach((indexes, columnIndex) => {
-    indexes.forEach((lineIndex, position) => {
-      const top = frame.y + position * rowHeight;
-      boxes[lineIndex] = Object.freeze({
-        top,
-        height:rowHeight,
-        bottom:top + rowHeight,
-        gapBefore:0,
-        column:columnIndex
-      });
-      horizontals[lineIndex] = columns[columnIndex];
+  positions.forEach((position, lineIndex) => {
+    const top = frame.y + position.row * rowHeight;
+    boxes[lineIndex] = Object.freeze({
+      top,
+      height:rowHeight,
+      bottom:top + rowHeight,
+      gapBefore:0,
+      column:position.full ? 'full' : position.column
     });
+    horizontals[lineIndex] = position.full ? fullHorizontal : columns[position.column];
   });
 
   const themeTableStyle = Object.freeze({

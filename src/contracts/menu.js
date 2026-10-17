@@ -5,6 +5,7 @@
  * @property {string} id
  * @property {'section'} kind
  * @property {string} name
+ * @property {'left'|'right'|'full'} column
  * @property {boolean} enabled
  *
  * @typedef {Object} MenuProductRow
@@ -19,6 +20,7 @@
  * @property {string} promotion_text
  * @property {'wave'|'gloss'|'fill'|'pulse'|'runner'} promotion_animation
  * @property {'shine'|'breathe'} promotion_badge_animation
+ * @property {'left'|'right'} column
  * @property {boolean} enabled
  *
  * @typedef {Object} MenuPackagingRow
@@ -27,6 +29,7 @@
  * @property {number} packaging_id
  * @property {string} name
  * @property {string} unit_price
+ * @property {'left'|'right'} column
  * @property {boolean} enabled
  *
  * @typedef {MenuSectionRow|MenuProductRow|MenuPackagingRow} MenuRow

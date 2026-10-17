@@ -33,6 +33,7 @@ import { migrateSceneElementsStorage } from './migrations/scene-elements.js';
 import { migrateLegacySceneOwnership } from './migrations/scene-element-ownership.js';
 import { retireLegacySceneOwnership } from './migrations/scene-ownership-cleanup.js';
 import { removeLegacySceneElements } from './migrations/scene-legacy-elements-cleanup.js';
+import { migrateReadableManualColumns } from './migrations/readable-manual-columns.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -86,7 +87,8 @@ const MIGRATIONS = Object.freeze([
   { name: '031-web-sessions', run: migrateWebSessions },
   { name: '032-device-session-rotation', run: migrateDeviceSessionRotation },
   { name: '033-login-rate-limits', run: migrateLoginRateLimits },
-  { name: '034-catalog-product-address', run: migrateCatalogProductAddress }
+  { name: '034-catalog-product-address', run: migrateCatalogProductAddress },
+  { name: '035-readable-manual-columns', run: migrateReadableManualColumns }
 ]);
 
 function createRepositories(queryable) {

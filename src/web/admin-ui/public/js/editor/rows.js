@@ -7,6 +7,7 @@ export function createEditorRow(kind) {
   return {
     id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     kind,
+    column:'left',
     enabled: true,
     ...(kind === 'section'
       ? { name: 'Новый раздел' }
@@ -232,6 +233,38 @@ function structuralChange(options, action) {
   const result = action();
   if (result !== false) options.onStructureChange?.();
   return result;
+}
+
+function rowColumnControl(editorState, row, options) {
+  const shell = document.createElement('div');
+  shell.className = 'scene-table-editor-placement';
+  shell.setAttribute('role', 'group');
+  shell.setAttribute('aria-label', 'Расположение строки');
+  const choices = row.kind === 'section'
+    ? [['left','←','Левая колонка'], ['full','↔','На всю ширину'], ['right','→','Правая колонка']]
+    : [['left','←','Левая колонка'], ['right','→','Правая колонка']];
+  const current = row.kind === 'section' && row.column === 'full'
+    ? 'full'
+    : row.column === 'right' ? 'right' : 'left';
+
+  for (const [value, label, title] of choices) {
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.className = 'scene-table-editor-placement-button';
+    control.dataset.column = value;
+    control.textContent = label;
+    control.title = title;
+    control.setAttribute('aria-label', title);
+    control.setAttribute('aria-pressed', String(current === value));
+    control.classList.toggle('is-selected', current === value);
+    control.addEventListener('click', () => {
+      if (current === value) return;
+      activateRow(editorState, row.id, options);
+      structuralChange(options, () => updateRow(editorState, row.id, { column:value }));
+    });
+    shell.append(control);
+  }
+  return shell;
 }
 
 function positionRowControl(node, box, model, layout, index) {
@@ -504,12 +537,12 @@ function tableEditorFrame(model) {
   return { x, y, width, height };
 }
 
-function tableEditorGroups(editorState) {
+function tableEditorGroups(editorState, readable = false) {
   const visible = editorState.rows.filter((row) => row?.enabled !== false);
   const groups = [];
   for (let index = 0; index < visible.length; index += 1) {
     const row = visible[index];
-    if (row.kind !== 'packaging') {
+    if (readable || row.kind !== 'packaging') {
       groups.push({ kind:row.kind, rows:[row] });
       continue;
     }
@@ -522,6 +555,24 @@ function tableEditorGroups(editorState) {
     }
   }
   return groups;
+}
+
+function tableEditorPositions(groups) {
+  const cursors = [0, 0];
+  return groups.map((group) => {
+    const row = group.rows[0];
+    const full = group.kind === 'section' && row?.column === 'full';
+    if (full) {
+      const position = Math.max(...cursors);
+      cursors[0] = position + 1;
+      cursors[1] = position + 1;
+      return { row:position, column:'full' };
+    }
+    const column = row?.column === 'right' ? 1 : 0;
+    const position = cursors[column];
+    cursors[column] += 1;
+    return { row:position, column };
+  });
 }
 
 function tableEditorKindLabel(kind, count = 1) {
@@ -597,7 +648,7 @@ export function renderTableEditorRows(editorState, {
   styleSelect.addEventListener('change', () => {
     onBeforeMutate?.();
     editorState.settings = { ...(editorState.settings || {}), table_style:styleSelect.value };
-    onVisualChange?.();
+    onStructureChange?.();
   });
   styleLabel.append(styleCaption, styleSelect);
   toolbar.append(styleLabel);
@@ -639,19 +690,41 @@ export function renderTableEditorRows(editorState, {
     editorTarget:target
   };
 
-  const groups = tableEditorGroups(editorState);
+  const readable = String(editorState.settings?.table_style || 'legacy') === 'readable';
+  const groups = tableEditorGroups(editorState, readable);
+  const positions = readable ? tableEditorPositions(groups) : [];
+  if (readable) {
+    scroll.classList.add('is-two-columns');
+    for (const [column, label] of [[1,'Левая колонка'], [2,'Правая колонка']]) {
+      const columnTitle = document.createElement('strong');
+      columnTitle.className = 'scene-table-editor-column-title';
+      columnTitle.textContent = label;
+      columnTitle.style.gridColumn = String(column);
+      columnTitle.style.gridRow = '1';
+      scroll.append(columnTitle);
+    }
+  }
+
   if (!groups.length) {
     const empty = document.createElement('p');
     empty.className = 'scene-table-editor-empty';
     empty.textContent = 'Таблица пуста. Добавьте раздел, продукцию или тару.';
+    if (readable) empty.style.gridColumn = '1 / -1';
     scroll.append(empty);
   }
 
-  for (const group of groups) {
+  groups.forEach((group, groupIndex) => {
     const rowNode = document.createElement('div');
     rowNode.className = `scene-table-editor-row is-${group.kind}`;
     rowNode.dataset.sourceRowIds = group.rows.map((row) => row.id).join(',');
     rowNode.classList.toggle('is-selected', group.rows.some((row) => row.id === editorState.selectedRowId));
+
+    if (readable) {
+      const position = positions[groupIndex];
+      rowNode.dataset.column = String(position.column);
+      rowNode.style.gridColumn = position.column === 'full' ? '1 / -1' : String(position.column + 1);
+      rowNode.style.gridRow = String(position.row + 2);
+    }
 
     const type = document.createElement('span');
     type.className = 'scene-table-editor-kind';
@@ -666,8 +739,9 @@ export function renderTableEditorRows(editorState, {
       activateRow(editorState, group.rows[0].id, options);
     });
     rowNode.append(type, control);
+    if (readable) rowNode.append(rowColumnControl(editorState, group.rows[0], options));
     scroll.append(rowNode);
-  }
+  });
 
   body.append(scroll, inspector);
   dialog.append(head, toolbar, body);

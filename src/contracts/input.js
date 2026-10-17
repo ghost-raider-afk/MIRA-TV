@@ -97,6 +97,14 @@ export function packagingInput(body) {
   return { name: requireText(body.name, 'Название тары'), unit_price: normalisePrice(body.unit_price, 'Цена тары'), active: body.active !== false };
 }
 
+function menuRowColumn(row, kind) {
+  const value = row?.column;
+  if (value === undefined || value === null || value === '') return 'left';
+  if (value === 'left' || value === 'right') return value;
+  if (kind === 'section' && value === 'full') return value;
+  throw new ValidationError('Колонка строки меню выбрана неверно.');
+}
+
 export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, maxHeight = 1080 } = {}) {
   if (!Array.isArray(body.rows)) throw new ValidationError('Меню должно содержать список строк.');
   const products = new Map((await store.listProducts()).map((item) => [item.id, item]));
@@ -108,7 +116,8 @@ export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, m
     if (usedIds.has(candidateId)) throw new ValidationError('Идентификаторы строк меню должны быть уникальными.');
     usedIds.add(candidateId);
     const id = candidateId;
-    if (kind === 'section') return { id, kind, name: requireText(row.name, 'Название раздела', { max: 100 }), enabled: row.enabled !== false };
+    const column = menuRowColumn(row, kind);
+    if (kind === 'section') return { id, kind, name: requireText(row.name, 'Название раздела', { max: 100 }), column, enabled: row.enabled !== false };
     if (kind === 'item') {
       const product = products.get(positiveId(row.product_id ?? row.productId, 'Продукция'));
       if (!product || !product.active) throw new UnprocessableEntityError('Каждая позиция меню должна быть связана с активной продукцией общей базы.');
@@ -119,13 +128,14 @@ export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, m
         price_primary: product.price_primary, price_secondary: product.price_secondary,
         promotion: row.promotion === true,
         promotion_text: optionalText(row.promotion_text ?? row.promotionText, 'Текст акции', { max: 80 }),
+        column,
         enabled: row.enabled !== false
       };
     }
     if (kind === 'packaging') {
       const item = packaging.get(positiveId(row.packaging_id ?? row.packagingId, 'Тара'));
       if (!item || !item.active) throw new UnprocessableEntityError('Каждая строка тары должна быть связана с активной тарой общей базы.');
-      return { id, kind, packaging_id: item.id, name: item.name, unit_price: item.unit_price, enabled: row.enabled !== false };
+      return { id, kind, packaging_id: item.id, name: item.name, unit_price: item.unit_price, column, enabled: row.enabled !== false };
     }
     throw new ValidationError('Тип строки меню не поддерживается.');
   });

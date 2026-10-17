@@ -30,16 +30,16 @@ test('new screens explicitly start with readable table style', async () => {
   assert.match(source, /defaultSettings = JSON\.stringify\(\{ table_style:'readable', font_family:'dejavu-condensed', price_font_size_pt:32 \}\)/);
 });
 
-test('readable layout balances complete sections into two columns', () => {
+test('readable layout follows persisted manual columns without automatic balancing', () => {
   const rows = [
-    { id:'s1', kind:'section', name:'Фильтрованное', enabled:true },
-    { id:'a1', kind:'item', product_id:1, enabled:true },
-    { id:'a2', kind:'item', product_id:2, enabled:true },
-    { id:'a3', kind:'item', product_id:3, enabled:true },
-    { id:'s2', kind:'section', name:'Нефильтрованное', enabled:true },
-    { id:'b1', kind:'item', product_id:4, enabled:true },
-    { id:'b2', kind:'item', product_id:5, enabled:true },
-    { id:'b3', kind:'item', product_id:6, enabled:true }
+    { id:'s1', kind:'section', name:'Фильтрованное', column:'left', enabled:true },
+    { id:'a1', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'a2', kind:'item', product_id:2, column:'left', enabled:true },
+    { id:'a3', kind:'item', product_id:3, column:'left', enabled:true },
+    { id:'s2', kind:'section', name:'Нефильтрованное', column:'right', enabled:true },
+    { id:'b1', kind:'item', product_id:4, column:'right', enabled:true },
+    { id:'b2', kind:'item', product_id:5, column:'right', enabled:true },
+    { id:'b3', kind:'item', product_id:6, column:'right', enabled:true }
   ];
   const products = [
     product(1,'Алтунин','268','402'), product(2,'Бир Ком','205','307'), product(3,'Двойное золотое','255','382'),
@@ -55,6 +55,7 @@ test('readable layout balances complete sections into two columns', () => {
   assert.equal(layout.vertical.boxes[3].column, 0);
   assert.equal(layout.vertical.boxes[4].column, 1);
   assert.equal(layout.vertical.boxes[7].column, 1);
+  assert.equal(layout.vertical.boxes[0].top, layout.vertical.boxes[4].top);
   assert.ok(layout.horizontals[4].left > layout.horizontals[0].left);
   assert.ok(layout.vertical.effectivePercent >= 99);
 
@@ -67,13 +68,38 @@ test('readable layout balances complete sections into two columns', () => {
   assert.match(svg, />Бавария</);
 });
 
-test('packaging remains supported by the same readable table renderer', () => {
+test('one readable section can span both columns while its products are placed manually', () => {
+  const rows = [
+    { id:'s1', kind:'section', name:'Пиво', column:'full', enabled:true },
+    { id:'a1', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'a2', kind:'item', product_id:2, column:'left', enabled:true },
+    { id:'b1', kind:'item', product_id:3, column:'right', enabled:true },
+    { id:'b2', kind:'item', product_id:4, column:'right', enabled:true }
+  ];
+  const products = [
+    product(1,'Один','100','150'), product(2,'Два','110','165'),
+    product(3,'Три','120','180'), product(4,'Четыре','130','195')
+  ];
+  const model = buildRenderModel({ settings:{ table_style:'readable' }, rows }, { width:1920, height:1080 });
+  const lines = buildDisplayLines(model, { products });
+  const layout = buildRenderLayout(model, lines);
+
+  assert.equal(layout.columns.length, 2);
+  assert.equal(layout.vertical.boxes[0].column, 'full');
+  assert.equal(layout.vertical.boxes[1].column, 0);
+  assert.equal(layout.vertical.boxes[3].column, 1);
+  assert.equal(layout.vertical.boxes[1].top, layout.vertical.boxes[3].top);
+  assert.equal(layout.horizontals[0].tableWidth, layout.frame.width);
+  assert.ok(layout.horizontals[3].left > layout.horizontals[1].left);
+});
+
+test('readable packaging is one ordinary visual row per entry and uses manual columns', () => {
   const model = buildRenderModel({
     settings:{ table_style:'readable' },
     rows:[
-      { id:'s1', kind:'section', name:'Тара', enabled:true },
-      { id:'p1', kind:'packaging', packaging_id:11, enabled:true },
-      { id:'p2', kind:'packaging', packaging_id:12, enabled:true }
+      { id:'s1', kind:'section', name:'Тара', column:'left', enabled:true },
+      { id:'p1', kind:'packaging', packaging_id:11, column:'left', enabled:true },
+      { id:'p2', kind:'packaging', packaging_id:12, column:'right', enabled:true }
     ]
   }, { width:1920, height:1080 });
   const lines = buildDisplayLines(model, {
@@ -83,9 +109,14 @@ test('packaging remains supported by the same readable table renderer', () => {
     ]
   });
   const layout = buildRenderLayout(model, lines);
+  const packagingLines = lines.filter((line) => line.kind === 'packaging');
   const svg = buildTableSvg(model, lines, layout);
 
-  assert.equal(layout.styleId, 'readable');
+  assert.equal(packagingLines.length, 2);
+  assert.equal(packagingLines[0].items.length, 1);
+  assert.equal(packagingLines[1].items.length, 1);
+  assert.equal(layout.vertical.boxes[1].column, 0);
+  assert.equal(layout.vertical.boxes[2].column, 1);
   assert.match(svg, />ПЭТ 1 л</);
   assert.match(svg, />ПЭТ 1,5 л</);
   assert.match(svg, /table-packaging/);
@@ -117,9 +148,9 @@ test('readable rows reuse classic alternating tones and keep address out of TV m
   const model = buildRenderModel({
     settings:{ table_style:'readable' },
     rows:[
-      { id:'s1', kind:'section', name:'Раздел', enabled:true },
-      { id:'i1', kind:'item', product_id:1, enabled:true },
-      { id:'i2', kind:'item', product_id:2, enabled:true }
+      { id:'s1', kind:'section', name:'Раздел', column:'left', enabled:true },
+      { id:'i1', kind:'item', product_id:1, column:'left', enabled:true },
+      { id:'i2', kind:'item', product_id:2, column:'left', enabled:true }
     ]
   }, { width:1920, height:1080 });
   const products = [

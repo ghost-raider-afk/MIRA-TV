@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 
 const currentAppVersion = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
+const currentShellCache = 'mira-tv-player-shell-v76';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 
 function offlineContext() {
@@ -26,6 +27,18 @@ function offlineContext() {
     metrics_interval_ms: 60000,
     preview_max_bytes: 1048576
   };
+}
+
+async function waitForCurrentPlayerShell(page) {
+  await expect.poll(() => page.evaluate(async (cacheName) => {
+    if (!('serviceWorker' in navigator)) return false;
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration.active?.scriptURL?.includes('/player-sw.js')) return false;
+    const names = await caches.keys();
+    return navigator.serviceWorker.controller !== null && names.includes(cacheName);
+  }, currentShellCache), { timeout:10000 }).toBe(true);
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
 }
 
 test('TV cold-starts the last working screen after a browser restart with no network', async ({ browser }) => {
@@ -72,7 +85,7 @@ test('TV cold-starts the last working screen after a browser restart with no net
       return record?.revision || '';
     }), { timeout:5000 }).toBe('7:1');
 
-    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await waitForCurrentPlayerShell(page);
     await page.goto('/signin');
 
     await page.unroute('**/api/device/session');
