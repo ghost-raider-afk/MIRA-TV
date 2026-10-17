@@ -109,7 +109,7 @@ export function migrateReadableRows(rows, settings = {}, resolution = '1920×108
     return { ...row, column };
   });
 
-  return { rows:migrated, changed };
+  return { rows:changed ? migrated : source, changed };
 }
 
 export async function migrateReadableManualColumns(queryable) {
