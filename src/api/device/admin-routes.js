@@ -183,6 +183,19 @@ export function createDeviceAdminRouter({ store, realtime }) {
     return response.json({ screen_id:screenId, ...status });
   });
 
+  router.post('/bindings/:screenId/preview', async (request, response) => {
+    const screenId = positiveId(request.params.screenId, 'screen_id');
+    const binding = await store.getActiveDeviceBindingByScreen(screenId);
+    if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
+    const delivered = Number(realtime?.requestScreenPreview?.(screenId) || 0);
+    if (delivered < 1) throw conflict('TV Player сейчас офлайн. Скриншот не запрошен.');
+    return response.status(202).json({
+      screen_id:screenId,
+      status:'requested',
+      delivered_connections:delivered
+    });
+  });
+
   router.get('/bindings/:screenId/preview', async (request, response) => {
     const screenId = positiveId(request.params.screenId, 'screen_id');
     const binding = await store.getActiveDeviceBindingByScreen(screenId);
