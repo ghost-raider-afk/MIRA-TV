@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 const staleShellCache = 'mira-tv-player-shell-v-stale-e2e';
-const activeShellCache = 'mira-tv-player-shell-v75';
+const activeShellCache = 'mira-tv-player-shell-v76';
 
 async function login(page) {
   await page.goto('/signin');
@@ -12,6 +12,18 @@ async function login(page) {
     page.waitForURL((url) => url.pathname === '/'),
     page.getByRole('button', { name:/войти/i }).click()
   ]);
+}
+
+async function waitForCurrentPlayerShell(page) {
+  await expect.poll(() => page.evaluate(async (cacheName) => {
+    if (!('serviceWorker' in navigator)) return false;
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration.active?.scriptURL?.includes('/player-sw.js')) return false;
+    const names = await caches.keys();
+    return navigator.serviceWorker.controller !== null && names.includes(cacheName);
+  }, activeShellCache), { timeout:10000 }).toBe(true);
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page.locator('[data-tv-player]')).toBeVisible({ timeout:10000 });
 }
 
 test('Apply on TV clears stale Player shell and keeps the existing binding', async ({ browser }) => {
@@ -58,12 +70,7 @@ test('Apply on TV clears stale Player shell and keeps the existing binding', asy
     expect((await pollResponse.json()).status).toBe('authorized');
 
     await tvPage.goto('/player');
-    await expect(tvPage.locator('[data-tv-player]')).toBeVisible({ timeout:10000 });
-    await expect.poll(() => tvPage.evaluate(async () => {
-      if (!('serviceWorker' in navigator)) return '';
-      const registration = await navigator.serviceWorker.ready;
-      return registration.active?.scriptURL || '';
-    }), { timeout:10000 }).toContain('/player-sw.js');
+    await waitForCurrentPlayerShell(tvPage);
 
     await tvPage.evaluate(async (name) => {
       await caches.open(name);
