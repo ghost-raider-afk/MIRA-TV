@@ -1,9 +1,9 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v73';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v74';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v74';
+const SHELL_CACHE = 'mira-tv-player-shell-v75';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
-// Source revision: stale-shell convergence, TV network diagnostics and resilient snapshots.
+// Source revision: on-demand TV screenshots and Player shell convergence.
 const CORE_SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
@@ -157,13 +157,13 @@ async function ensureManifestAssets(manifest) {
   let fetched = 0;
   let cached = 0;
   for (const href of required) {
-    const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
+    const request = new Request(href, { method: 'GET', credentials:'same-origin' });
     if (await cache.match(request)) {
       cached += 1;
       continue;
     }
     try {
-      const response = await fetch(request, { cache: 'force-cache' });
+      const response = await fetch(request, { cache:'force-cache' });
       if (response.status !== 200) {
         failed.push(href);
         continue;
@@ -233,7 +233,7 @@ self.addEventListener('message', (event) => {
 async function networkWithTimeout(request, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(request, { signal: controller.signal, cache: 'no-cache' }); }
+  try { return await fetch(request, { signal:controller.signal, cache:'no-cache' }); }
   finally { clearTimeout(timer); }
 }
 
