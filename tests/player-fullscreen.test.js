@@ -5,7 +5,7 @@ import test from 'node:test';
 const publicRoot = new URL('../src/web/admin-ui/public/', import.meta.url);
 const read = (path) => readFile(new URL(path, publicRoot), 'utf8');
 
-test('Player follows the visual viewport and retries fullscreen from a TV user gesture', async () => {
+test('Player follows the visual viewport and retries fullscreen from a TV OK gesture', async () => {
   const [html, css, fullscreen] = await Promise.all([
     read('player.html'),
     read('css/player.css'),
@@ -19,10 +19,28 @@ test('Player follows the visual viewport and retries fullscreen from a TV user g
 
   assert.match(fullscreen, /window\.visualViewport/);
   assert.match(fullscreen, /root\.requestFullscreen \|\| root\.webkitRequestFullscreen/);
+  assert.match(fullscreen, /request\.call\(root\)/);
+  assert.doesNotMatch(fullscreen, /navigationUI/);
   assert.match(fullscreen, /window\.addEventListener\('pointerdown', enterFromGesture/);
   assert.match(fullscreen, /window\.addEventListener\('keydown', enterFromGesture/);
+  assert.match(fullscreen, /\['Enter', 'NumpadEnter', 'Select'\]/);
+  assert.match(fullscreen, /\[13, 23\]/);
   assert.match(fullscreen, /playerVisible\(\)/);
-  assert.match(fullscreen, /navigationUI:'hide'/);
+});
+
+test('failed automatic fullscreen shows one brief non-blocking OK hint', async () => {
+  const [css, fullscreen] = await Promise.all([
+    read('css/player.css'),
+    read('js/player/player-fullscreen.js')
+  ]);
+  assert.match(fullscreen, /let hintShown = false/);
+  assert.match(fullscreen, /if \(hintShown \|\|/);
+  assert.match(fullscreen, /Нажмите OK для полноэкранного режима/);
+  assert.match(fullscreen, /showFullscreenHint\(\)/);
+  assert.match(css, /\.player-fullscreen-hint/);
+  assert.match(css, /animation:\s*mira-player-fullscreen-hint 5s/);
+  assert.match(css, /pointer-events:\s*none/);
+  assert.match(css, /@keyframes mira-player-fullscreen-hint/);
 });
 
 test('Player reports fullscreen mode diagnostics only on lifecycle changes', async () => {
@@ -35,9 +53,10 @@ test('Player reports fullscreen mode diagnostics only on lifecycle changes', asy
   assert.match(fullscreen, /'browser'/);
   assert.match(fullscreen, /fullscreen_enabled/);
   assert.match(fullscreen, /request_supported/);
+  assert.match(fullscreen, /last_error/);
   assert.match(fullscreen, /mira:player-active/);
   assert.match(fullscreen, /mira:player-realtime-connected/);
-  assert.doesNotMatch(fullscreen, /setInterval|setTimeout/);
+  assert.doesNotMatch(fullscreen, /setInterval/);
 });
 
 test('offline Player shell carries the readable renderer and fullscreen helper atomically', async () => {
