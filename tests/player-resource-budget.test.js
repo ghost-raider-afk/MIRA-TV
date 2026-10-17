@@ -28,6 +28,8 @@ test('TV preview is request-driven rather than a permanent capture loop', async 
   ]);
   assert.match(player, /mira:player-preview-request/);
   assert.match(background, /requestPreview/);
-  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);
+  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);
+  assert.match(background, /previewTimer = setTimeout/);
+  assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);
   assert.match(realtime, /preview\.request/);
 });

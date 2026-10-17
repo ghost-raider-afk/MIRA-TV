@@ -1,11 +1,28 @@
 import { publishPlayerPreview } from './player-preview-capture.js';
 import { createPlayerMetricsCollector } from './player-metrics.js';
 
+const PREVIEW_SETTLE_MS = 1500;
+
 export function createPlayerBackgroundServices(stage, { isVisible = () => true } = {}) {
   const metrics = createPlayerMetricsCollector();
   let previewInFlight = false;
   let previewQueued = false;
   let previewMaxBytes = null;
+  let previewTimer = null;
+
+  function clearPreviewTimer() {
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = null;
+  }
+
+  function schedulePreview() {
+    if (!previewQueued || previewInFlight || !isVisible() || !navigator.onLine) return;
+    clearPreviewTimer();
+    previewTimer = setTimeout(() => {
+      previewTimer = null;
+      void publishPreview();
+    }, PREVIEW_SETTLE_MS);
+  }
 
   async function publishPreview() {
     if (previewInFlight || !previewQueued) return;
@@ -18,7 +35,7 @@ export function createPlayerBackgroundServices(stage, { isVisible = () => true }
       console.debug('TV Player preview publish skipped', error);
     } finally {
       previewInFlight = false;
-      if (previewQueued) void publishPreview();
+      if (previewQueued) schedulePreview();
     }
   }
 
@@ -31,16 +48,17 @@ export function createPlayerBackgroundServices(stage, { isVisible = () => true }
 
   function online() {
     metrics.start();
-    if (previewQueued) void publishPreview();
+    if (previewQueued) schedulePreview();
   }
 
   function requestPreview() {
     previewQueued = true;
-    void publishPreview();
+    schedulePreview();
   }
 
   function stop() {
     metrics.stop();
+    clearPreviewTimer();
   }
 
   return Object.freeze({ configure, online, requestPreview, stop });

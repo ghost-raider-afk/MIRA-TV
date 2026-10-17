@@ -56,6 +56,8 @@ test('noncritical TV diagnostics are deferred until after the first rendered fra
   assert.match(player, /void ensureBackgroundServices\(\)\.then/);
   assert.match(background, /publishPlayerPreview/);
   assert.match(background, /createPlayerMetricsCollector/);
-  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);
+  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);
+  assert.match(background, /previewTimer = setTimeout/);
+  assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);
   assert.doesNotMatch(dockerfile, /ffmpeg|fonts-dejavu-core/);
 });

@@ -108,7 +108,7 @@ test('readable table style renders two section columns and can switch back to le
   await expect(stage.locator('.readable-table-surfaces rect')).toHaveCount(2);
 });
 
-test('authorized TV Player fits the visual viewport and requests fullscreen on the first TV gesture', async ({ browser }) => {
+test('authorized TV Player fits the visual viewport and makes one automatic legacy-compatible fullscreen request', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const tvContext = await browser.newContext({
     baseURL,
@@ -122,8 +122,8 @@ test('authorized TV Player fits the visual viewport and requests fullscreen on t
     window.__miraFullscreenCalls = [];
     Object.defineProperty(Element.prototype, 'requestFullscreen', {
       configurable:true,
-      value(options) {
-        window.__miraFullscreenCalls.push(options || null);
+      value(...args) {
+        window.__miraFullscreenCalls.push(args.length);
         return Promise.resolve();
       }
     });
@@ -169,10 +169,10 @@ test('authorized TV Player fits the visual viewport and requests fullscreen on t
     expect(Math.abs(rootBox.width - 1280)).toBeLessThanOrEqual(1);
     expect(Math.abs(rootBox.height - 720)).toBeLessThanOrEqual(1);
 
-    expect(await tvPage.evaluate(() => window.__miraFullscreenCalls.length)).toBe(0);
-    await player.click({ position:{ x:20, y:20 } });
     await expect.poll(() => tvPage.evaluate(() => window.__miraFullscreenCalls.length)).toBe(1);
-    expect(await tvPage.evaluate(() => window.__miraFullscreenCalls[0]?.navigationUI)).toBe('hide');
+    expect(await tvPage.evaluate(() => window.__miraFullscreenCalls[0])).toBe(0);
+    await tvPage.waitForTimeout(250);
+    expect(await tvPage.evaluate(() => window.__miraFullscreenCalls.length)).toBe(1);
   } finally {
     await Promise.allSettled([adminContext.close(), tvContext.close()]);
   }

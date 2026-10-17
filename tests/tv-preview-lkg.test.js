@@ -38,7 +38,9 @@ test('Player publishes a frame on first missing LKG and after applied content ch
 test('Player coalesces a content change that arrives while preview capture is in flight', async () => {
   const services = await read('src/web/admin-ui/public/js/player/player-background-services.js');
   assert.match(services, /let previewQueued = false/);
-  assert.match(services, /previewQueued = true;\s*void publishPreview\(\)/s);
-  assert.match(services, /previewInFlight = false;\s*if \(previewQueued\) void publishPreview\(\)/s);
-  assert.doesNotMatch(services, /setInterval|setTimeout/);
+  assert.match(services, /const PREVIEW_SETTLE_MS = 1500;/);
+  assert.match(services, /previewQueued = true;\s*schedulePreview\(\)/s);
+  assert.match(services, /previewInFlight = false;\s*if \(previewQueued\) schedulePreview\(\)/s);
+  assert.match(services, /previewTimer = setTimeout/);
+  assert.doesNotMatch(services, /setInterval|previewCaptureIntervalMs/);
 });

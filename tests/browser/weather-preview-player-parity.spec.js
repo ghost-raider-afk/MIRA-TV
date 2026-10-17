@@ -124,6 +124,10 @@ test('monitor editor hides Weather while Player keeps persisted canonical geomet
         send(){}
       }
       window.WebSocket=FakeWebSocket;
+      Object.defineProperty(Element.prototype, 'requestFullscreen', {
+        configurable:true,
+        value(){ return Promise.resolve(); }
+      });
     });
     const playerPage=await player.newPage();
     const scene=weatherScene(screen.id);

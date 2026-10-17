@@ -7,7 +7,7 @@ window.__miraPlayerModuleStarted = true;
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.12';
+const PLAYER_BUILD_VERSION = '1.18.13';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
 const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
@@ -298,11 +298,8 @@ async function requestWakeLock() {
   } catch {}
 }
 
-async function enterImmersiveMode() {
+function prepareTvDisplay() {
   void requestWakeLock();
-  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-    await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
-  }
 }
 
 function showActivationScreen() {
@@ -461,7 +458,7 @@ async function createActivation({ automatic = false } = {}) {
   showActivationButton.disabled = true;
   activationStatus.textContent = automatic ? 'Обновляем код подключения…' : 'Создаём код подключения…';
   try {
-    await enterImmersiveMode();
+    prepareTvDisplay();
     const deviceInfo = await detectDeviceInfo();
     const response = await fetchWithTimeout('/api/device/activations', {
       method: 'POST',

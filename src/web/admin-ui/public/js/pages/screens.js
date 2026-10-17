@@ -32,10 +32,21 @@ function statusState(binding) {
   return { key:'offline', title:'Офлайн' };
 }
 
+function fullscreenCardState(binding) {
+  if (!binding) return { title:'—', key:'unknown' };
+  if (binding.online !== true) return { title:'Нет данных', key:'unknown' };
+  const mode = String(binding.player_fullscreen?.metadata?.mode || '');
+  if (['fullscreen-api', 'display-fullscreen', 'standalone'].includes(mode)) return { title:'Fullscreen', key:'fullscreen' };
+  if (mode === 'browser') return { title:'Окно', key:'window' };
+  return { title:'Нет данных', key:'unknown' };
+}
+
 function cardMetaRows(_screen, binding) {
   const status = statusState(binding);
+  const display = fullscreenCardState(binding);
   return [
     ['Статус', status.title, status.key],
+    ['Показ', display.title, display.key],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', '']
   ];
 }
@@ -81,6 +92,16 @@ function fullscreenApiText(binding) {
   if (!metadata) return 'Нет данных';
   if (metadata.request_supported !== true) return 'Не поддерживается';
   return metadata.fullscreen_enabled === true ? 'Доступен' : 'Ограничен браузером';
+}
+
+function fullscreenErrorText(binding) {
+  const error = String(binding?.player_fullscreen?.metadata?.last_error || '').trim();
+  return error || '—';
+}
+
+function fullscreenTelemetryText(binding) {
+  const receivedAt = binding?.player_fullscreen?.server_received_at;
+  return receivedAt ? formatDate(receivedAt) : '—';
 }
 
 function previewUrl(screen, binding) {
@@ -138,7 +159,9 @@ function metaRows(screen, binding) {
     ['IP-адрес', binding?.remote_address || '—', ''],
     ['Ping', pingText(screen.id, binding), ''],
     ['Режим экрана', fullscreenModeText(binding), ''],
-    ['Fullscreen API', fullscreenApiText(binding), '']
+    ['Fullscreen API', fullscreenApiText(binding), ''],
+    ['Fullscreen телеметрия', fullscreenTelemetryText(binding), ''],
+    ['Ошибка fullscreen', fullscreenErrorText(binding), '']
   ];
 }
 
@@ -151,7 +174,7 @@ function fillRows(container, rows) {
     name.textContent = label;
     const text = document.createElement('strong');
     text.textContent = value;
-    if (label === 'Статус') text.className = `is-${stateKey}`;
+    if (stateKey) text.className = `is-${stateKey}`;
     row.append(name, text);
     container.append(row);
   }

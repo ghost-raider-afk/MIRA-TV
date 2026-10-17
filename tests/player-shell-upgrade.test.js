@@ -89,7 +89,6 @@ test('upgraded Offline Player shell reloads only controlled /player clients once
 
 test('first Offline Player shell install does not reload the Player', async () => {
   const harness = serviceWorkerHarness([
-    'mira-tv-player-shell-v73',
     'mira-tv-player-data-v18'
   ]);
   await activate(harness);
