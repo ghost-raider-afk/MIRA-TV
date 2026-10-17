@@ -6,10 +6,13 @@ import { formatDate } from '../core/presentation.js';
 import { sortLocationsByOperationalPriority } from './tv-network-priority.js';
 
 const STATUS_REFRESH_MS = 5000;
+const PREVIEW_REFRESH_DELAY_MS = 2200;
 const pingByScreen = new Map();
 let statusTimer = null;
 let previewDialog = null;
 let previewDialogScreenId = null;
+let previewRequestTimer = null;
+let previewRequestInFlight = false;
 let managementDialog = null;
 let managementDialogScreenId = null;
 let requestedManagementHandled = false;
@@ -48,6 +51,13 @@ function cardMetaRows(_screen, binding) {
     ['Статус', status.title, status.key],
     ['Показ', display.title, display.key],
     ['Последняя связь', latestSeen(binding) ? formatDate(latestSeen(binding)) : '—', '']
+  ];
+}
+
+function previewMetaRows(screen, binding) {
+  return [
+    ...cardMetaRows(screen, binding),
+    ['Последний скриншот', binding?.preview_updated_at ? formatDate(binding.preview_updated_at) : '—', '']
   ];
 }
 
@@ -430,6 +440,72 @@ function createSourceSelect() {
   return select;
 }
 
+function clearPreviewRequestTimer() {
+  if (previewRequestTimer) clearTimeout(previewRequestTimer);
+  previewRequestTimer = null;
+}
+
+function updatePreviewRequestControl(binding) {
+  const button = previewDialog?.querySelector('[data-tv-preview-request]');
+  if (!(button instanceof HTMLButtonElement)) return;
+  button.disabled = previewRequestInFlight || binding?.online !== true;
+  button.textContent = previewRequestInFlight ? 'Запрашиваем…' : 'Запросить скриншот';
+  button.title = !binding
+    ? 'TV не подключён'
+    : binding.online === true
+      ? 'Запросить новый скриншот TV Player'
+      : 'TV Player офлайн';
+}
+
+async function requestPreviewScreenshot() {
+  const screenId = Number(previewDialogScreenId);
+  if (!Number.isInteger(screenId) || screenId < 1 || previewRequestInFlight) return;
+  const binding = bindingForScreen(screenId);
+  if (binding?.online !== true) return;
+
+  const previousUpdatedAt = String(binding.preview_updated_at || '');
+  const status = previewDialog?.querySelector('[data-tv-preview-request-status]');
+  previewRequestInFlight = true;
+  if (status) status.textContent = 'Запрашиваем новый скриншот…';
+  updatePreviewRequestControl(binding);
+
+  try {
+    await api.post(`${API.deviceBindings}/${screenId}/preview`, {});
+    if (Number(previewDialogScreenId) !== screenId || !previewDialog?.open) {
+      previewRequestInFlight = false;
+      return;
+    }
+    if (status) status.textContent = 'Запрос отправлен TV Player.';
+    clearPreviewRequestTimer();
+    previewRequestTimer = setTimeout(async () => {
+      previewRequestTimer = null;
+      let refreshError = null;
+      try {
+        await refreshRuntimeStatus();
+      } catch (error) {
+        refreshError = error;
+      }
+      previewRequestInFlight = false;
+      if (Number(previewDialogScreenId) !== screenId || !previewDialog?.open) return;
+      const screen = state.screens.find((item) => Number(item.id) === screenId);
+      if (screen) updatePreviewDialog(screen);
+      const current = bindingForScreen(screenId);
+      const updatedAt = String(current?.preview_updated_at || '');
+      if (status) {
+        status.textContent = refreshError
+          ? refreshError.message
+          : updatedAt && updatedAt !== previousUpdatedAt
+            ? 'Скриншот обновлён.'
+            : 'Запрос отправлен. Новый кадр ещё не получен.';
+      }
+    }, PREVIEW_REFRESH_DELAY_MS);
+  } catch (error) {
+    previewRequestInFlight = false;
+    if (status) status.textContent = error.message;
+    updatePreviewRequestControl(bindingForScreen(screenId));
+  }
+}
+
 function ensurePreviewDialog() {
   if (previewDialog?.isConnected) return previewDialog;
   const dialog = document.createElement('dialog');
@@ -442,11 +518,18 @@ function ensurePreviewDialog() {
         <p class="eyebrow">TV PLAYER</p>
         <h2 data-tv-preview-title>TV</h2>
         <div class="screen-tv-meta is-dialog" data-tv-preview-meta></div>
+        <button class="button button-secondary screen-tv-preview-request" data-tv-preview-request type="button">Запросить скриншот</button>
+        <small class="screen-tv-preview-request-status" data-tv-preview-request-status aria-live="polite"></small>
       </div>
     </div>`;
   dialog.querySelector('.screen-tv-preview-close')?.addEventListener('click', () => dialog.close());
+  dialog.querySelector('[data-tv-preview-request]')?.addEventListener('click', () => void requestPreviewScreenshot());
   dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
-  dialog.addEventListener('close', () => { previewDialogScreenId = null; });
+  dialog.addEventListener('close', () => {
+    previewDialogScreenId = null;
+    previewRequestInFlight = false;
+    clearPreviewRequestTimer();
+  });
   document.body.append(dialog);
   previewDialog = dialog;
   return dialog;
@@ -468,12 +551,15 @@ function updatePreviewDialog(screen) {
     currentFace.classList.add(`is-${status.key}`);
     currentFace.classList.add('is-large');
   }
-  fillCardMeta(dialog.querySelector('[data-tv-preview-meta]'), screen, binding);
+  fillRows(dialog.querySelector('[data-tv-preview-meta]'), previewMetaRows(screen, binding));
+  updatePreviewRequestControl(binding);
 }
 
 function openPreview(screen) {
   previewDialogScreenId = Number(screen.id);
   const dialog = ensurePreviewDialog();
+  const requestStatus = dialog.querySelector('[data-tv-preview-request-status]');
+  if (requestStatus) requestStatus.textContent = '';
   updatePreviewDialog(screen);
   if (!dialog.open) dialog.showModal();
 }
@@ -632,6 +718,8 @@ export function initialiseScreens() {
       disposed = true;
       if (statusTimer) clearInterval(statusTimer);
       statusTimer = null;
+      clearPreviewRequestTimer();
+      previewRequestInFlight = false;
       refreshButton?.removeEventListener('click', fullRefresh);
       previewDialog?.close();
       previewDialog?.remove();
