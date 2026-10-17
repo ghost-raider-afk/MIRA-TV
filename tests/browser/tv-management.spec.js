@@ -36,8 +36,9 @@ test('TV network keeps cards concise and manages monitor metadata in one dialog'
     await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
     const unit = page.locator(`[data-tv-unit][data-screen-id="${screen.id}"]`);
     await expect(unit).toBeVisible();
-    await expect(unit.locator('[data-tv-meta] .screen-tv-meta-row')).toHaveCount(2);
+    await expect(unit.locator('[data-tv-meta] .screen-tv-meta-row')).toHaveCount(3);
     await expect(unit.locator('[data-tv-meta]')).toContainText('Статус');
+    await expect(unit.locator('[data-tv-meta]')).toContainText('Показ');
     await expect(unit.locator('[data-tv-meta]')).not.toContainText('Контент');
     await expect(unit.locator('[data-tv-meta]')).not.toContainText('IP-адрес');
     await expect(unit.locator('[data-tv-meta]')).not.toContainText('Производитель');
@@ -50,6 +51,8 @@ test('TV network keeps cards concise and manages monitor metadata in one dialog'
     await expect(dialog.locator('[data-tv-management-device]')).toContainText('Производитель');
     await expect(dialog.locator('[data-tv-management-device]')).toContainText('Режим экрана');
     await expect(dialog.locator('[data-tv-management-device]')).toContainText('Fullscreen API');
+    await expect(dialog.locator('[data-tv-management-device]')).toContainText('Fullscreen телеметрия');
+    await expect(dialog.locator('[data-tv-management-device]')).toContainText('Ошибка fullscreen');
 
     const nextName = `Экран ${stamp}`;
     await dialog.locator('[data-tv-management-name]').fill(nextName);
