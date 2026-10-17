@@ -1,9 +1,9 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v74';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v75';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v75';
+const SHELL_CACHE = 'mira-tv-player-shell-v76';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
-// Source revision: on-demand TV screenshots and Player shell convergence.
+// Source revision: manual readable columns and row-level table placement.
 const CORE_SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
