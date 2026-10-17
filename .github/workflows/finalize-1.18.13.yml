@@ -1,0 +1,62 @@
+name: finalize MIRA-TV 1.18.13
+on:
+  push:
+    branches:
+      - fix/delayed-tv-snapshot
+    paths:
+      - .github/workflows/finalize-1.18.13.yml
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/delayed-tv-snapshot
+      - name: Apply release metadata and fullscreen ownership cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} occurrence(s) of {old!r}, found {actual}')
+              p.write_text(text.replace(old, new))
+
+          replace('package.json', '"version": "1.18.12"', '"version": "1.18.13"')
+          replace('package.json', '"miraVersion": "1.18.12"', '"miraVersion": "1.18.13"')
+          replace('package-lock.json', '"version": "1.18.12"', '"version": "1.18.13"', 2)
+          replace('.env.example', 'MIRA_TV_VERSION=1.18.12', 'MIRA_TV_VERSION=1.18.13')
+          replace('mira-tv.sh', 'SCRIPT_VERSION="1.18.12"', 'SCRIPT_VERSION="1.18.13"')
+          replace('src/web/admin-ui/public/js/player/player.js', "const PLAYER_BUILD_VERSION = '1.18.12';", "const PLAYER_BUILD_VERSION = '1.18.13';")
+          replace('src/web/admin-ui/public/player-sw.js', "const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v72';", "const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v73';")
+          replace('src/web/admin-ui/public/player-sw.js', "const SHELL_CACHE = 'mira-tv-player-shell-v73';", "const SHELL_CACHE = 'mira-tv-player-shell-v74';")
+
+          replace(
+              'src/web/admin-ui/public/js/player/player.js',
+              """async function enterImmersiveMode() {\n  void requestWakeLock();\n  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {\n    await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);\n  }\n}\n""",
+              """function prepareTvDisplay() {\n  void requestWakeLock();\n}\n"""
+          )
+          replace('src/web/admin-ui/public/js/player/player.js', '    await enterImmersiveMode();', '    prepareTvDisplay();')
+
+          replace(
+              'src/web/admin-ui/public/js/pages/screens.js',
+              """function fullscreenCardState(binding) {\n  const mode = String(binding?.player_fullscreen?.metadata?.mode || '');\n  if (['fullscreen-api', 'display-fullscreen', 'standalone'].includes(mode)) return { title:'Fullscreen', key:'fullscreen' };\n  if (mode === 'browser') return { title:'Окно', key:'window' };\n  return { title:binding ? 'Нет данных' : '—', key:'unknown' };\n}\n""",
+              """function fullscreenCardState(binding) {\n  if (!binding) return { title:'—', key:'unknown' };\n  if (binding.online !== true) return { title:'Нет данных', key:'unknown' };\n  const mode = String(binding.player_fullscreen?.metadata?.mode || '');\n  if (['fullscreen-api', 'display-fullscreen', 'standalone'].includes(mode)) return { title:'Fullscreen', key:'fullscreen' };\n  if (mode === 'browser') return { title:'Окно', key:'window' };\n  return { title:'Нет данных', key:'unknown' };\n}\n"""
+          )
+          PY
+      - name: Commit finalization
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add package.json package-lock.json .env.example mira-tv.sh \
+            src/web/admin-ui/public/js/player/player.js \
+            src/web/admin-ui/public/player-sw.js \
+            src/web/admin-ui/public/js/pages/screens.js
+          git diff --cached --check
+          git commit -m "release: align MIRA-TV 1.18.13 and fullscreen ownership"
+          git push origin HEAD:fix/delayed-tv-snapshot
