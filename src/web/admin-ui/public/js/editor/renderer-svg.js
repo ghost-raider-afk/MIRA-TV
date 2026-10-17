@@ -10,6 +10,8 @@ import {
 } from './renderer-model.js';
 import { buildMenuRenderLayout } from './renderer-layout.js';
 
+const TABLE_SURFACE_OPACITY = '.76';
+
 function textAttributes({ size, weight = 400, fill, letterSpacing = 0, anchor = null, opacity = null, fontFamily = null }, typography) {
   const resolvedWeight = Math.max(weight, typography?.weightFloor || 400);
   return [
@@ -111,25 +113,35 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
   const title = String(line.name || 'Меню');
   const baseline = box.top + (readable ? 41.5 : 35) * fontScale;
   const titleX = horizontal.left + 19 * horizontal.scaleX;
-  const titleRight = readable && Number.isFinite(horizontal.textRight)
-    ? horizontal.textRight
-    : readable && Number.isFinite(horizontal.priceZoneLeft)
-      ? horizontal.priceZoneLeft
-      : horizontal.primaryPriceX;
-  const titleWidth = line.showPriceLabels
-    ? Math.max(1, titleRight - titleX)
-    : Math.max(1, horizontal.right - titleX);
+  const classicGap = MENU_REFERENCE.priceColumnGap * horizontal.scaleX;
+  const firstDividerX = readable && Number.isFinite(horizontal.priceZoneLeft)
+    ? horizontal.priceZoneLeft
+    : horizontal.primaryPriceX - classicGap;
+  const titleRight = line.showPriceLabels
+    ? firstDividerX
+    : horizontal.right;
+  const titleWidth = Math.max(1, titleRight - titleX);
   const maximumCharacters = Math.max(8, Math.floor(titleWidth / ((readable ? 15.5 : 17) * fontScale)));
-  const priceLabelCenterOffset = readable && Number.isFinite(horizontal.priceCellWidth)
-    ? horizontal.priceCellWidth / 2
-    : (MENU_REFERENCE.priceColumnGap / 3) * horizontal.scaleX;
+  const primaryLabelX = readable && Number.isFinite(horizontal.priceCellWidth)
+    ? horizontal.primaryPriceX - horizontal.priceCellWidth / 2
+    : horizontal.primaryPriceX - classicGap / 2;
+  const secondaryLabelX = horizontal.secondaryPriceX - classicGap / 2;
   const labels = line.showPriceLabels
     ? readable
-      ? `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size:25.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 л</text>`
-      : `<text x="${horizontal.primaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size:22 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 л</text>
-      <text x="${horizontal.secondaryPriceX - priceLabelCenterOffset}" y="${baseline}" class="price-label" ${textAttributes({ size:22 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1,5 л</text>`
+      ? `<text x="${primaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:25.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 Л</text>`
+      : `<text x="${primaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:23.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 Л</text>
+      <text x="${secondaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:23.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1,5 Л</text>`
     : '';
   const rectHeight = Math.max(1, box.height - MENU_REFERENCE.sectionInset * scale);
+  const dividerInset = Math.max(8 * scale, rectHeight * .20);
+  const dividerBottom = box.top + rectHeight - dividerInset;
+  const dividerTop = box.top + dividerInset;
+  const dividerXs = line.showPriceLabels
+    ? readable
+      ? [firstDividerX]
+      : [firstDividerX, horizontal.primaryPriceX]
+    : [];
+  const dividers = dividerXs.map((x) => `<line x1="${x}" y1="${dividerTop}" x2="${x}" y2="${dividerBottom}" class="section-price-divider" stroke="${palette.sectionText}" stroke-opacity=".32" stroke-width="${Math.max(1, 1.1 * scale)}"/>`).join('');
   const fill = themeId === 'premium'
     ? 'url(#mira-theme-premium-gold)'
     : themeId === 'chalk'
@@ -142,10 +154,10 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
   const titleAttributes = textAttributes({ size: (readable ? 32 : 28) * fontScale, weight: 800, fill: palette.sectionText, letterSpacing: 0.3, fontFamily:typography?.family }, typography);
   const titleText = `<text x="${titleX}" y="${baseline}" class="section-title" ${titleAttributes}>${escapeXml(truncateText(title, maximumCharacters))}</text>`;
   const clipId = `mira-section-title-clip-${Math.round(box.top * 10)}-${Math.round(horizontal.left * 10)}`;
-  const titleMarkup = readable && line.showPriceLabels
+  const titleMarkup = line.showPriceLabels
     ? `<defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><rect x="${titleX}" y="${box.top}" width="${titleWidth}" height="${rectHeight}"/></clipPath></defs><g class="section-title-zone" clip-path="url(#${clipId})">${titleText}</g>`
     : titleText;
-  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/>${titleMarkup}${labels}</g>`;
+  return `<g class="${themeId === 'legacy' ? 'table-section' : `table-section theme-${themeId}`}"><rect x="${horizontal.left}" y="${box.top}" width="${horizontal.tableWidth}" height="${rectHeight}" rx="${radius}" ry="${radius}" fill="${fill}"${stroke}/>${titleMarkup}${dividers}${labels}</g>`;
 }
 
 function itemMarkup(line, box, horizontal, palette, scale, typography, settings, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
@@ -162,12 +174,14 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
   const showSequence = themed && themeStyle.show_sequence !== false;
   const numberX = horizontal.left + 16 * horizontal.scaleX;
   const nameX = horizontal.left + (showSequence ? 55 : 22) * horizontal.scaleX;
-  const priceBaseline = box.top + (readable ? 40.5 : 35) * fontScale;
   const metadata = readable && typeof line.metadataReadable === 'string' ? line.metadataReadable : line.metadata;
-  const hasMetadata = Boolean(metadata);
-  const nameBaseline = hasMetadata ? box.top + (readable ? 25.5 : 21) * fontScale : priceBaseline;
-  const metaBaseline = box.top + (readable ? 46.5 : 44.5) * fontScale;
+  const hasMetadata = Boolean(String(metadata || '').trim());
   const nameSize = (readable ? (hasMetadata ? 27.5 : 28) : (hasMetadata ? 24 : 25)) * fontScale;
+  const normalPriceBaseline = box.top + (readable ? 40.5 : 35) * fontScale;
+  const compactBaseline = box.top + box.height / 2 + nameSize * .34;
+  const priceBaseline = hasMetadata ? normalPriceBaseline : compactBaseline;
+  const nameBaseline = hasMetadata ? box.top + (readable ? 25.5 : 21) * fontScale : compactBaseline;
+  const metaBaseline = box.top + (readable ? 46.5 : 44.5) * fontScale;
   const metaSize = (readable ? 14 : 13.5) * fontScale;
   const itemFont = themeTypography.item || typography;
   const metaFont = themeTypography.meta || typography;
@@ -255,7 +269,9 @@ export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model
     const box = vertical.boxes[index];
     const lineHorizontal = layout.horizontals?.[index] || horizontal;
     if (line.kind === 'section') {
-      const sectionLine = readable ? { ...line, showPriceLabels:lineHorizontal.fullWidth !== true } : line;
+      const sectionLine = readable
+        ? { ...line, showPriceLabels:line.sectionType !== 'packaging' && lineHorizontal.fullWidth !== true }
+        : { ...line, showPriceLabels:line.sectionType !== 'packaging' && line.showPriceLabels === true };
       return sectionMarkup(sectionLine, box, lineHorizontal, palette, scale, themeTypography.section || typography, themeId, layout.styleId);
     }
     if (line.kind === 'packaging') return packagingMarkup(line, box, lineHorizontal, palette, scale, typography, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
@@ -266,7 +282,7 @@ export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model
   const priceColumns = themeId !== 'legacy' && themeStyle.price_column_borders !== false
     ? `<g class="theme-price-columns" opacity=".38"><line x1="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.primaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/><line x1="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y1="${firstTop}" x2="${horizontal.secondaryPriceX - 118 * horizontal.scaleX}" y2="${lastBottom}" stroke="#74736F" stroke-width="1"/></g>`
     : '';
-  const tableSurfaces = `<g class="menu-table-surfaces ${readable ? 'readable-table-surfaces' : 'classic-table-surface'}">${layout.columns.map((column) => `<rect x="${column.left}" y="${layout.frame.y}" width="${column.tableWidth}" height="${layout.frame.height}" rx="10" fill="#090C10" fill-opacity=".82" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="1"/>`).join('')}</g>`;
+  const tableSurfaces = `<g class="menu-table-surfaces ${readable ? 'readable-table-surfaces' : 'classic-table-surface'}">${layout.columns.map((column) => `<rect x="${column.left}" y="${layout.frame.y}" width="${column.tableWidth}" height="${layout.frame.height}" rx="10" fill="#090C10" fill-opacity="${TABLE_SURFACE_OPACITY}" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="1"/>`).join('')}</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" class="menu-table-svg" width="${model.viewport.width}" height="${model.viewport.height}" viewBox="0 0 ${model.viewport.width} ${model.viewport.height}" preserveAspectRatio="xMinYMin meet" aria-label="Предпросмотр таблицы меню" font-family="${escapeXml(typography.family)}">
     <defs>
       <linearGradient id="mira-theme-premium-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F9D760"/><stop offset=".42" stop-color="#E9B638"/><stop offset="1" stop-color="#C98C16"/></linearGradient>
