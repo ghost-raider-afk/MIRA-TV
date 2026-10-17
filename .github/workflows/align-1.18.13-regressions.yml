@@ -1,0 +1,85 @@
+name: align MIRA-TV 1.18.13 regressions
+on:
+  push:
+    branches:
+      - fix/delayed-tv-snapshot
+    paths:
+      - .github/workflows/align-1.18.13-regressions.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/delayed-tv-snapshot
+      - name: Align approved one-shot preview and fullscreen regressions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} occurrence(s), found {actual}: {old!r}')
+              p.write_text(text.replace(old, new, count))
+
+          for path in [
+              'tests/device-player-architecture.test.js',
+              'tests/manager-renderer-ownership.test.js',
+              'tests/player-resource-budget.test.js',
+              'tests/tv-scene-runtime-ownership.test.js',
+          ]:
+              p = Path(path)
+              text = p.read_text()
+              if '/setInterval|schedulePreview|previewCaptureIntervalMs/' in text:
+                  text = text.replace(
+                      '/setInterval|schedulePreview|previewCaptureIntervalMs/',
+                      '/setInterval|previewCaptureIntervalMs/'
+                  )
+              elif '/setInterval|schedulePreview/' in text:
+                  text = text.replace('/setInterval|schedulePreview/', '/setInterval/')
+              else:
+                  raise SystemExit(f'{path}: preview loop guard anchor not found')
+              anchor = "  assert.match(background, /publishPlayerPreview/);\n"
+              addition = anchor + "  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(background, /previewTimer = setTimeout/);\n"
+              if anchor not in text:
+                  raise SystemExit(f'{path}: publishPlayerPreview anchor not found')
+              p.write_text(text.replace(anchor, addition, 1))
+
+          replace(
+              'tests/tv-preview-lkg.test.js',
+              """  assert.match(services, /previewQueued = true;\\s*void publishPreview\\(\\)/s);\n  assert.match(services, /previewInFlight = false;\\s*if \\(previewQueued\\) void publishPreview\\(\\)/s);\n  assert.doesNotMatch(services, /setInterval|setTimeout/);\n""",
+              """  assert.match(services, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(services, /previewQueued = true;\\s*schedulePreview\\(\\)/s);\n  assert.match(services, /previewInFlight = false;\\s*if \\(previewQueued\\) schedulePreview\\(\\)/s);\n  assert.match(services, /previewTimer = setTimeout/);\n  assert.doesNotMatch(services, /setInterval|previewCaptureIntervalMs/);\n"""
+          )
+
+          replace(
+              'tests/player-bugfix-regressions.test.js',
+              "  assert.match(source, /else armGesture\\(\\);/);\n",
+              "  assert.match(source, /else \\{\\s*armGesture\\(\\);\\s*showFullscreenHint\\(\\);\\s*\\}/s);\n"
+          )
+
+          replace(
+              'tests/player-shell-upgrade.test.js',
+              """  const harness = serviceWorkerHarness([\n    'mira-tv-player-shell-v73',\n    'mira-tv-player-data-v18'\n  ]);\n  await activate(harness);\n  assert.equal(harness.claimed(), 1);\n  assert.deepEqual(harness.navigated, []);\n""",
+              """  const harness = serviceWorkerHarness([\n    'mira-tv-player-data-v18'\n  ]);\n  await activate(harness);\n  assert.equal(harness.claimed(), 1);\n  assert.deepEqual(harness.navigated, []);\n""",
+              1
+          )
+          PY
+      - name: Commit regression alignment
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/device-player-architecture.test.js \
+            tests/manager-renderer-ownership.test.js \
+            tests/player-resource-budget.test.js \
+            tests/tv-scene-runtime-ownership.test.js \
+            tests/tv-preview-lkg.test.js \
+            tests/player-bugfix-regressions.test.js \
+            tests/player-shell-upgrade.test.js
+          git diff --cached --check
+          git commit -m "test: align delayed preview and fullscreen regressions"
+          git push origin HEAD:fix/delayed-tv-snapshot
