@@ -43,6 +43,16 @@ test('failed automatic fullscreen shows one brief non-blocking OK hint', async (
   assert.match(css, /@keyframes mira-player-fullscreen-hint/);
 });
 
+test('dedicated fullscreen helper is the only Player owner of the Fullscreen API', async () => {
+  const [player, fullscreen] = await Promise.all([
+    read('js/player/player.js'),
+    read('js/player/player-fullscreen.js')
+  ]);
+  assert.doesNotMatch(player, /requestFullscreen|webkitRequestFullscreen/);
+  assert.match(player, /function prepareTvDisplay\(\) \{\s*void requestWakeLock\(\);\s*\}/s);
+  assert.match(fullscreen, /root\.requestFullscreen \|\| root\.webkitRequestFullscreen/);
+});
+
 test('Player reports fullscreen mode diagnostics only on lifecycle changes', async () => {
   const fullscreen = await read('js/player/player-fullscreen.js');
   assert.match(fullscreen, /type:'fullscreen\.state'/);
