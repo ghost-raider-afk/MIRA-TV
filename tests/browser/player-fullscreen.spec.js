@@ -30,22 +30,7 @@ const contextPayload = {
   preview_max_bytes: 262144
 };
 
-test('active Android TV makes one legacy-compatible fullscreen request', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.__miraFullscreenCalls = [];
-    Object.defineProperty(Document.prototype, 'fullscreenEnabled', {
-      configurable: true,
-      get: () => true
-    });
-    Object.defineProperty(Element.prototype, 'requestFullscreen', {
-      configurable: true,
-      value: function (...args) {
-        window.__miraFullscreenCalls.push(args.length);
-        return Promise.resolve();
-      }
-    });
-  });
-
+async function routePlayer(page) {
   await page.route('**/api/device/session', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -62,6 +47,24 @@ test('active Android TV makes one legacy-compatible fullscreen request', async (
     body: JSON.stringify({ accepted_through: 999 })
   }));
   await page.route('**/api/device/preview', (route) => route.fulfill({ status: 204, body: '' }));
+}
+
+test('active Android TV makes one legacy-compatible fullscreen request', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__miraFullscreenCalls = [];
+    Object.defineProperty(Document.prototype, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => true
+    });
+    Object.defineProperty(Element.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: function (...args) {
+        window.__miraFullscreenCalls.push(args.length);
+        return Promise.resolve();
+      }
+    });
+  });
+  await routePlayer(page);
 
   await page.goto('/player');
   await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/, { timeout: 7000 });
@@ -71,4 +74,51 @@ test('active Android TV makes one legacy-compatible fullscreen request', async (
 
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.__miraFullscreenCalls.length)).toBe(1);
+});
+
+test('TV shows one brief hint and retries fullscreen only from OK after automatic rejection', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__miraFullscreenCalls = [];
+    window.__miraFullscreenActive = false;
+    Object.defineProperty(Document.prototype, 'fullscreenEnabled', {
+      configurable: true,
+      get: () => true
+    });
+    Object.defineProperty(Document.prototype, 'fullscreenElement', {
+      configurable: true,
+      get: () => window.__miraFullscreenActive ? document.documentElement : null
+    });
+    Object.defineProperty(Element.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: function (...args) {
+        window.__miraFullscreenCalls.push(args.length);
+        if (window.__miraFullscreenCalls.length === 1) {
+          const error = new Error('User gesture required');
+          error.name = 'NotAllowedError';
+          return Promise.reject(error);
+        }
+        window.__miraFullscreenActive = true;
+        return Promise.resolve();
+      }
+    });
+  });
+  await routePlayer(page);
+
+  await page.goto('/player');
+  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/, { timeout: 7000 });
+  await expect.poll(() => page.evaluate(() => window.__miraFullscreenCalls.length)).toBe(1);
+
+  const hint = page.locator('.player-fullscreen-hint');
+  await expect(hint).toHaveText('Нажмите OK для полноэкранного режима');
+  await expect(hint).toBeVisible();
+
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.__miraFullscreenCalls.length)).toBe(1);
+
+  await page.keyboard.press('Enter');
+  await expect.poll(() => page.evaluate(() => window.__miraFullscreenCalls.length)).toBe(2);
+  expect(await page.evaluate(() => window.__miraFullscreenCalls[1])).toBe(0);
+  await expect(hint).toHaveCount(0);
+  expect(await page.evaluate(() => window.__miraFullscreenActive)).toBe(true);
 });
