@@ -157,13 +157,13 @@ async function ensureManifestAssets(manifest) {
   let fetched = 0;
   let cached = 0;
   for (const href of required) {
-    const request = new Request(href, { method: 'GET', credentials:'same-origin' });
+    const request = new Request(href, { method: 'GET', credentials: 'same-origin' });
     if (await cache.match(request)) {
       cached += 1;
       continue;
     }
     try {
-      const response = await fetch(request, { cache:'force-cache' });
+      const response = await fetch(request, { cache: 'force-cache' });
       if (response.status !== 200) {
         failed.push(href);
         continue;
@@ -233,7 +233,7 @@ self.addEventListener('message', (event) => {
 async function networkWithTimeout(request, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(request, { signal:controller.signal, cache:'no-cache' }); }
+  try { return await fetch(request, { signal: controller.signal, cache: 'no-cache' }); }
   finally { clearTimeout(timer); }
 }
 
