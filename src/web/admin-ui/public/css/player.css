@@ -102,6 +102,29 @@ button { font: inherit; }
 .tv-player { position: absolute; inset: 0; background: #101828; }
 .tv-player-stage { position: absolute; top: 0; left: 0; right: auto; bottom: auto; overflow: hidden; background-position: center; background-repeat: no-repeat; background-size: cover; transform-origin: top left; }
 .player-connection-message { position: absolute; right: 24px; bottom: 24px; z-index: 10; max-width: min(560px, calc(100vw - 48px)); padding: 12px 16px; border-radius: 12px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 16px; }
+.player-fullscreen-hint {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(18px, 4vh, 44px);
+  z-index: 30;
+  max-width: min(520px, calc(100vw - 36px));
+  padding: 9px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: clamp(14px, 1.6vw, 20px);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: mira-player-fullscreen-hint 5s ease forwards;
+}
+@keyframes mira-player-fullscreen-hint {
+  0%, 76% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
 .is-hidden { display: none !important; }
 
 @media (max-height: 760px) {
