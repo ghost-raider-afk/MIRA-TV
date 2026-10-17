@@ -4,16 +4,32 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('admin preview endpoints are passive LKG readers', async () => {
+test('admin preview GET stays passive while explicit POST requests a new frame', async () => {
   const [deviceAdmin, manager] = await Promise.all([
     read('src/api/device/admin-routes.js'),
     read('src/api/managers/view-routes.js')
   ]);
-  assert.doesNotMatch(deviceAdmin, /freshScreenPreview|requestScreenPreview/);
+  const getPreview = deviceAdmin.match(/router\.get\('\/bindings\/:screenId\/preview'[\s\S]*?\n  \}\);/)?.[0] || '';
+  assert.match(deviceAdmin, /router\.post\('\/bindings\/:screenId\/preview'[\s\S]*requestScreenPreview\?\.\(screenId\)/);
+  assert.doesNotMatch(getPreview, /requestScreenPreview/);
   assert.match(deviceAdmin, /preview_available:Boolean\(preview\)/);
   assert.match(deviceAdmin, /screenPreview\?\.\(screenId\)/);
   assert.doesNotMatch(manager, /requestedPreview|requestScreenPreview/);
   assert.match(manager, /screenPreview\?\.\(id\)/);
+});
+
+test('TV preview exposes manual screenshot refresh, capture time and uncropped frame', async () => {
+  const [screens, styles, capture] = await Promise.all([
+    read('src/web/admin-ui/public/js/pages/screens.js'),
+    read('src/web/admin-ui/public/css/pages/screens.css'),
+    read('src/web/admin-ui/public/js/player/player-preview-capture.js')
+  ]);
+  assert.match(screens, /Последний скриншот/);
+  assert.match(screens, /data-tv-preview-request/);
+  assert.match(screens, /api\.post\(`\$\{API\.deviceBindings\}\/\$\{screenId\}\/preview`, \{\}\)/);
+  assert.match(screens, /const PREVIEW_REFRESH_DELAY_MS = 2200;/);
+  assert.match(styles, /\.screen-tv-face img\{[^}]*object-fit:contain/);
+  assert.match(capture, /stage\.cloneNode\(true\)/);
 });
 
 test('TV cards keep the same image across status-only refreshes', async () => {
