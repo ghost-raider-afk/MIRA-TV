@@ -27,28 +27,26 @@ jobs:
                   raise SystemExit(f'{path}: expected {count} occurrence(s), found {actual}: {old!r}')
               p.write_text(text.replace(old, new, count))
 
-          for path in [
-              'tests/device-player-architecture.test.js',
-              'tests/manager-renderer-ownership.test.js',
-              'tests/player-resource-budget.test.js',
-              'tests/tv-scene-runtime-ownership.test.js',
-          ]:
-              p = Path(path)
-              text = p.read_text()
-              if '/setInterval|schedulePreview|previewCaptureIntervalMs/' in text:
-                  text = text.replace(
-                      '/setInterval|schedulePreview|previewCaptureIntervalMs/',
-                      '/setInterval|previewCaptureIntervalMs/'
-                  )
-              elif '/setInterval|schedulePreview/' in text:
-                  text = text.replace('/setInterval|schedulePreview/', '/setInterval/')
-              else:
-                  raise SystemExit(f'{path}: preview loop guard anchor not found')
-              anchor = "  assert.match(background, /publishPlayerPreview/);\n"
-              addition = anchor + "  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(background, /previewTimer = setTimeout/);\n"
-              if anchor not in text:
-                  raise SystemExit(f'{path}: publishPlayerPreview anchor not found')
-              p.write_text(text.replace(anchor, addition, 1))
+          changes = {
+            'tests/device-player-architecture.test.js': (
+              "  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);\n",
+              "  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(background, /previewTimer = setTimeout/);\n  assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);\n"
+            ),
+            'tests/manager-renderer-ownership.test.js': (
+              "  assert.doesNotMatch(background, /setInterval|schedulePreview/);\n",
+              "  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(background, /previewTimer = setTimeout/);\n  assert.doesNotMatch(background, /setInterval/);\n"
+            ),
+            'tests/player-resource-budget.test.js': (
+              "  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);\n",
+              "  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(background, /previewTimer = setTimeout/);\n  assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);\n"
+            ),
+            'tests/tv-scene-runtime-ownership.test.js': (
+              "  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);\n",
+              "  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);\n  assert.match(background, /previewTimer = setTimeout/);\n  assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);\n"
+            ),
+          }
+          for path, (old, new) in changes.items():
+              replace(path, old, new)
 
           replace(
               'tests/tv-preview-lkg.test.js',
@@ -65,8 +63,7 @@ jobs:
           replace(
               'tests/player-shell-upgrade.test.js',
               """  const harness = serviceWorkerHarness([\n    'mira-tv-player-shell-v73',\n    'mira-tv-player-data-v18'\n  ]);\n  await activate(harness);\n  assert.equal(harness.claimed(), 1);\n  assert.deepEqual(harness.navigated, []);\n""",
-              """  const harness = serviceWorkerHarness([\n    'mira-tv-player-data-v18'\n  ]);\n  await activate(harness);\n  assert.equal(harness.claimed(), 1);\n  assert.deepEqual(harness.navigated, []);\n""",
-              1
+              """  const harness = serviceWorkerHarness([\n    'mira-tv-player-data-v18'\n  ]);\n  await activate(harness);\n  assert.equal(harness.claimed(), 1);\n  assert.deepEqual(harness.navigated, []);\n"""
           )
           PY
       - name: Commit regression alignment
