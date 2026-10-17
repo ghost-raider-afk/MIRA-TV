@@ -31,7 +31,7 @@ async function createProduct(page, name, primary, secondary) {
   return response.json();
 }
 
-test('readable table style renders two section columns and can switch back to legacy', async ({ page }) => {
+test('readable table style follows manual columns and editor switches to the same two-column structure', async ({ page }) => {
   await login(page);
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -56,10 +56,10 @@ test('readable table style renders two section columns and can switch back to le
     data:{
       revision:initial.draft.revision,
       rows:[
-        { id:`section-a-${stamp}`, kind:'section', name:'ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ', enabled:true },
-        { id:`item-a-${stamp}`, kind:'item', product_id:leftProduct.id, enabled:true },
-        { id:`section-b-${stamp}`, kind:'section', name:'ПИВО СВЕТЛОЕ НЕФИЛЬТРОВАННОЕ', enabled:true },
-        { id:`item-b-${stamp}`, kind:'item', product_id:rightProduct.id, enabled:true }
+        { id:`section-a-${stamp}`, kind:'section', name:'ПИВО СВЕТЛОЕ ФИЛЬТРОВАННОЕ', column:'left', enabled:true },
+        { id:`item-a-${stamp}`, kind:'item', product_id:leftProduct.id, column:'left', enabled:true },
+        { id:`section-b-${stamp}`, kind:'section', name:'ПИВО СВЕТЛОЕ НЕФИЛЬТРОВАННОЕ', column:'right', enabled:true },
+        { id:`item-b-${stamp}`, kind:'item', product_id:rightProduct.id, column:'right', enabled:true }
       ],
       settings:{
         ...initial.draft.settings,
@@ -95,17 +95,28 @@ test('readable table style renders two section columns and can switch back to le
   expect((await prices.nth(0).getAttribute('fill'))?.toUpperCase()).toBe(itemNameFill);
   await expect(prices).toHaveCount(1);
 
+  const initialItemX = Number(await itemName.getAttribute('x'));
   await page.locator('#scene-editor-table-layer').click();
   await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
   const styleSelect = page.getByLabel('Стиль таблицы');
   await expect(styleSelect).toHaveValue('readable');
+  await expect(page.locator('.scene-table-editor-scroll.is-two-columns')).toBeVisible();
+  await expect(page.locator('.scene-table-editor-column-title')).toHaveText(['Левая колонка','Правая колонка']);
+
+  const leftItemRow = page.locator(`.scene-table-editor-row[data-source-row-ids="item-a-${stamp}"]`);
+  await expect(leftItemRow.getByRole('button', { name:'Левая колонка' })).toHaveAttribute('aria-pressed', 'true');
+  await leftItemRow.getByRole('button', { name:'Правая колонка' }).click();
+  const movedItemRow = page.locator(`.scene-table-editor-row[data-source-row-ids="item-a-${stamp}"]`);
+  await expect(movedItemRow.getByRole('button', { name:'Правая колонка' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => Number(await stage.locator('.table-item').first().locator('.item-name').getAttribute('x'))).toBeGreaterThan(initialItemX + 500);
 
   await styleSelect.selectOption('legacy');
   await expect(stage.locator('.readable-table-surfaces')).toHaveCount(0);
   await expect(page.locator('#scene-editor-dirty-state')).toHaveText('Не сохранено');
 
-  await styleSelect.selectOption('readable');
+  await page.getByLabel('Стиль таблицы').selectOption('readable');
   await expect(stage.locator('.readable-table-surfaces rect')).toHaveCount(2);
+  await expect(page.locator('.scene-table-editor-scroll.is-two-columns')).toBeVisible();
 });
 
 test('authorized TV Player fits the visual viewport and makes one automatic legacy-compatible fullscreen request', async ({ browser }) => {
