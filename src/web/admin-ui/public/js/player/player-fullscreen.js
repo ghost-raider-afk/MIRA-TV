@@ -7,7 +7,10 @@
   let runtimeSequence = 0;
   let gestureArmed = false;
   let automaticAttempted = false;
+  let hintShown = false;
+  let hintNode = null;
   let lastRuntimeState = '';
+  let lastFullscreenError = '';
 
   function displayMode(query) {
     try { return window.matchMedia?.(query).matches === true; }
@@ -43,7 +46,8 @@
             ? 'standalone'
             : 'browser',
       fullscreen_enabled: Boolean(document.fullscreenEnabled ?? document.webkitFullscreenEnabled),
-      request_supported: typeof fullscreenRequest() === 'function'
+      request_supported: typeof fullscreenRequest() === 'function',
+      last_error: lastFullscreenError || null
     };
   }
 
@@ -108,12 +112,47 @@
     return player instanceof HTMLElement && !player.classList.contains('is-hidden');
   }
 
+  function fullscreenError(error) {
+    const name = String(error?.name || '').trim();
+    const message = String(error?.message || '').trim();
+    return [name, message].filter(Boolean).join(': ').slice(0, 240) || 'Fullscreen request rejected';
+  }
+
+  function hideFullscreenHint() {
+    hintNode?.remove();
+    hintNode = null;
+  }
+
+  function showFullscreenHint() {
+    if (hintShown || !playerVisible() || standalone() || fullscreenElement()) return;
+    hintShown = true;
+    const hint = document.createElement('div');
+    hint.className = 'player-fullscreen-hint';
+    hint.textContent = 'Нажмите OK для полноэкранного режима';
+    hint.setAttribute('role', 'status');
+    hint.setAttribute('aria-live', 'polite');
+    hint.addEventListener('animationend', () => {
+      if (hintNode === hint) hintNode = null;
+      hint.remove();
+    }, { once:true });
+    player.append(hint);
+    hintNode = hint;
+  }
+
   function requestFullscreenCompat() {
     const request = fullscreenRequest();
     if (typeof request !== 'function' || standalone() || fullscreenElement()) return Promise.resolve(false);
     try {
-      return Promise.resolve(request.call(root)).then(() => Boolean(fullscreenElement())).catch(() => false);
-    } catch {
+      return Promise.resolve(request.call(root)).then(() => {
+        const entered = Boolean(fullscreenElement());
+        lastFullscreenError = entered ? '' : 'Fullscreen не активирован браузером.';
+        return entered;
+      }).catch((error) => {
+        lastFullscreenError = fullscreenError(error);
+        return false;
+      });
+    } catch (error) {
+      lastFullscreenError = fullscreenError(error);
       return Promise.resolve(false);
     }
   }
@@ -123,26 +162,43 @@
     automaticAttempted = true;
     void requestFullscreenCompat().then((entered) => {
       syncViewport();
-      if (entered) disarmGesture();
-      else armGesture();
+      if (entered) {
+        hideFullscreenHint();
+        disarmGesture();
+      } else {
+        armGesture();
+        showFullscreenHint();
+      }
       reportRuntimeState();
     });
   }
 
   function enterFromGesture(event) {
     if (!playerVisible()) return;
-    if (event?.type === 'keydown' && ['Escape','Esc'].includes(event.key)) return;
+    if (event?.type === 'keydown') {
+      const key = String(event.key || '');
+      const keyCode = Number(event.keyCode || event.which || 0);
+      if (!['Enter', 'NumpadEnter', 'Select'].includes(key) && ![13, 23].includes(keyCode)) return;
+    }
     void requestFullscreenCompat().then((entered) => {
       syncViewport();
-      if (entered) disarmGesture();
+      if (entered) {
+        hideFullscreenHint();
+        disarmGesture();
+      }
       reportRuntimeState();
     });
   }
 
   function onFullscreenChange() {
     syncViewport();
-    if (fullscreenElement()) disarmGesture();
-    else armGesture();
+    if (fullscreenElement()) {
+      lastFullscreenError = '';
+      hideFullscreenHint();
+      disarmGesture();
+    } else {
+      armGesture();
+    }
     reportRuntimeState();
   }
 
