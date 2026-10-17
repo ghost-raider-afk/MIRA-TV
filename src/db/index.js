@@ -33,6 +33,7 @@ import { migrateSceneElementsStorage } from './migrations/scene-elements.js';
 import { migrateLegacySceneOwnership } from './migrations/scene-element-ownership.js';
 import { retireLegacySceneOwnership } from './migrations/scene-ownership-cleanup.js';
 import { removeLegacySceneElements } from './migrations/scene-legacy-elements-cleanup.js';
+import { migrateCatalogChangeRequests } from './migrations/catalog-change-requests.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -43,6 +44,7 @@ import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
+import { createCatalogChangeRequestsRepository } from './catalog-change-requests.js';
 import { createDevicesRepository } from './devices.js';
 import { createDeviceSessionRotationRepository } from './device-session-rotation.js';
 import { createLoginRateLimitsRepository } from './login-rate-limits.js';
@@ -86,7 +88,8 @@ const MIGRATIONS = Object.freeze([
   { name: '031-web-sessions', run: migrateWebSessions },
   { name: '032-device-session-rotation', run: migrateDeviceSessionRotation },
   { name: '033-login-rate-limits', run: migrateLoginRateLimits },
-  { name: '034-catalog-product-address', run: migrateCatalogProductAddress }
+  { name: '034-catalog-product-address', run: migrateCatalogProductAddress },
+  { name: '035-catalog-change-requests', run: migrateCatalogChangeRequests }
 ]);
 
 function createRepositories(queryable) {
@@ -101,6 +104,7 @@ function createRepositories(queryable) {
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
+    createCatalogChangeRequestsRepository(queryable),
     createDevicesRepository(queryable),
     createDeviceSessionRotationRepository(queryable),
     createLoginRateLimitsRepository(queryable),
