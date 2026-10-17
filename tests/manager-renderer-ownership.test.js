@@ -39,8 +39,8 @@ test('Manager proposals and administrator approvals stay behind their existing r
     read('src/api/managers/admin-routes.js')
   ]);
 
-  assert.match(server, /app\.use\('\/api\/manager', requireApiRole\('manager'\), managerViewRouter\)/);
-  assert.match(server, /app\.use\('\/api\/admin\/managers', requireApiRole\('administrator'\), managerAdminRouter\)/);
+  assert.match(server, /app\.use\('\/api\/manager', requireApiRole\('manager'\), createManagerViewRouter\(dependencies\)\)/);
+  assert.match(server, /app\.use\('\/api\/admin\/managers', requireAdministrator, createManagerAdminRouter\(dependencies\)\)/);
   assert.match(managerRoutes, /router\.post\('\/proposals'/);
   assert.match(managerRoutes, /managerUsername:request\.session\.sub/);
   assert.match(adminRoutes, /\/proposals\/:id\/approve/);

@@ -1,9 +1,9 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v75';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v76';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v76';
+const SHELL_CACHE = 'mira-tv-player-shell-v77';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
-// Source revision: manual readable columns and row-level table placement.
+// Source revision: shared table fixes and manager catalog proposals.
 const CORE_SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
@@ -33,6 +33,7 @@ const CORE_SHELL_ASSETS = [
   '/js/player/scene-layer-composer.js',
   '/js/editor/renderer.js',
   '/js/editor/renderer-model.js',
+  '/js/editor/renderer-lines.js',
   '/js/editor/renderer-layout.js',
   '/js/editor/renderer-svg.js',
 ];
