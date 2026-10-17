@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 const staleShellCache = 'mira-tv-player-shell-v-stale-e2e';
+const activeShellCache = 'mira-tv-player-shell-v74';
 
 async function login(page) {
   await page.goto('/signin');
@@ -96,7 +97,7 @@ test('Apply on TV clears stale Player shell and keeps the existing binding', asy
     }, { timeout:10000 }).toBe(true);
 
     await expect.poll(() => tvPage.evaluate((name) => caches.keys().then((names) => names.includes(name)), staleShellCache), { timeout:10000 }).toBe(false);
-    await expect.poll(() => tvPage.evaluate(() => caches.keys()), { timeout:10000 }).toContain('mira-tv-player-shell-v73');
+    await expect.poll(() => tvPage.evaluate(() => caches.keys()), { timeout:10000 }).toContain(activeShellCache);
     expect(await tvPage.evaluate(() => localStorage.getItem('mira-tv.device-key.v1'))).toBe(deviceKey);
 
     const afterBindings = await (await adminPage.request.get('/api/device-admin/bindings')).json();
