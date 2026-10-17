@@ -58,165 +58,721 @@ function setHidden(element, hidden) {
 
 function finishPlayerBoot() {
   window.__miraPlayerBootReady = true;
-  document.documentElement.classList.add('player-boot-ready');
+  if (typeof window.__miraPlayerFinishBoot === 'function') {
+    window.__miraPlayerFinishBoot();
+    return;
+  }
+  setHidden(document.querySelector('[data-player-boot]'), true);
 }
 
-function setMessage(text, isError = false) {
-  if (!playerMessage) return;
-  playerMessage.textContent = text;
-  playerMessage.classList.toggle('is-error', isError);
+function playerRunsStandalone() {
+  return Boolean(
+    window.matchMedia?.('(display-mode: standalone)').matches
+    || window.matchMedia?.('(display-mode: fullscreen)').matches
+    || navigator.standalone === true
+  );
 }
 
-function showPlayer(active) {
-  player?.classList.toggle('is-hidden', !active);
-  activationView?.classList.toggle('is-hidden', active);
+function setInstallPlayerHint(text = '') {
+  if (!installPlayerHint) return;
+  installPlayerHint.textContent = text;
+  setHidden(installPlayerHint, !text);
 }
 
-function startActivationExpiry(expiresAt) {
-  clearInterval(expiryTimer);
-  const tick = () => {
-    const remainingMs = new Date(expiresAt).getTime() - Date.now();
-    if (remainingMs <= 0) {
-      activationExpiry.textContent = 'Код истёк';
-      clearInterval(expiryTimer);
+function playerInstallSupportedPlatform() {
+  return /Android/i.test(String(navigator.userAgent || ''));
+}
+
+function playerInstallFallbackText() {
+  if (!playerInstallSupportedPlatform()) return 'Установка MIRA-TV Player предназначена для Android TV / Google TV.';
+  return 'Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».';
+}
+
+async function installPlayerShortcut() {
+  if (playerRunsStandalone()) {
+    setInstallPlayerHint('MIRA-TV Player уже запущен как установленное приложение.');
+    return;
+  }
+  if (!playerInstallPrompt) {
+    setInstallPlayerHint(playerInstallFallbackText());
+    return;
+  }
+
+  const prompt = playerInstallPrompt;
+  playerInstallPrompt = null;
+  try {
+    await prompt.prompt();
+    const choice = await Promise.resolve(prompt.userChoice);
+    if (choice?.outcome === 'accepted') {
+      setInstallPlayerHint('Установка подтверждена. Ярлык MIRA-TV Player появится в системе.');
+      if (installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player устанавливается';
       return;
     }
-    activationExpiry.textContent = `Действует ещё ${Math.ceil(remainingMs / 1000)} сек.`;
-  };
-  tick();
-  expiryTimer = setInterval(tick, 1000);
+  } catch {}
+  setInstallPlayerHint(playerInstallFallbackText());
 }
 
-function loadActivationRecord() {
+window.addEventListener('beforeinstallprompt', (event) => {
+  if (!playerInstallSupportedPlatform()) return;
+  event.preventDefault();
+  playerInstallPrompt = event;
+  if (installPlayerButton) installPlayerButton.textContent = 'Установить MIRA-TV Player';
+  setInstallPlayerHint('');
+});
+
+window.addEventListener('appinstalled', () => {
+  playerInstallPrompt = null;
+  if (installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
+  setInstallPlayerHint('Ярлык MIRA-TV Player установлен.');
+});
+
+function dispatchPlayerActivity(active) {
+  const value = active === true;
+  if (playerStage instanceof HTMLElement) playerStage.dataset.playerActive = value ? 'true' : 'false';
+  playerStage?.dispatchEvent(new CustomEvent('mira:player-active', { detail: { active: value } }));
+}
+
+function syncPlayerPageVisibility() {
+  if (playerStage instanceof HTMLElement) {
+    playerStage.dataset.playerPageVisible = document.visibilityState === 'hidden' ? 'false' : 'true';
+  }
+}
+
+function usableActivation(record) {
+  return Boolean(
+    record
+    && typeof record === 'object'
+    && typeof record.activation_id === 'string'
+    && typeof record.poll_secret === 'string'
+    && typeof record.expires_at === 'string'
+    && Date.parse(record.expires_at) > Date.now()
+  );
+}
+
+function activationFromStorage() {
   try {
-    const current = JSON.parse(localStorage.getItem(ACTIVATION_STORAGE_KEY) || 'null');
-    if (current?.activation_id && current?.poll_secret) return current;
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_ACTIVATION_STORAGE_KEY) || 'null');
-    if (legacy?.activation_id && legacy?.poll_secret) {
-      localStorage.setItem(ACTIVATION_STORAGE_KEY, JSON.stringify(legacy));
-      localStorage.removeItem(LEGACY_ACTIVATION_STORAGE_KEY);
+    const record = JSON.parse(localStorage.getItem(ACTIVATION_STORAGE_KEY) || 'null');
+    if (usableActivation(record)) return record;
+  } catch {}
+
+  try {
+    const legacy = JSON.parse(sessionStorage.getItem(LEGACY_ACTIVATION_STORAGE_KEY) || 'null');
+    if (usableActivation(legacy)) {
+      saveActivation(legacy);
       return legacy;
     }
-  } catch {
-    // Ignore malformed local activation state.
-  }
+  } catch {}
+
+  clearActivation();
   return null;
 }
 
-function saveActivationRecord(record) {
-  localStorage.setItem(ACTIVATION_STORAGE_KEY, JSON.stringify(record));
-  localStorage.removeItem(LEGACY_ACTIVATION_STORAGE_KEY);
+function saveActivation(record) {
+  try { localStorage.setItem(ACTIVATION_STORAGE_KEY, JSON.stringify(record)); } catch {}
+  try { sessionStorage.removeItem(LEGACY_ACTIVATION_STORAGE_KEY); } catch {}
 }
 
-function clearActivationRecord() {
-  localStorage.removeItem(ACTIVATION_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_ACTIVATION_STORAGE_KEY);
+function clearActivation() {
+  try { localStorage.removeItem(ACTIVATION_STORAGE_KEY); } catch {}
+  try { sessionStorage.removeItem(LEGACY_ACTIVATION_STORAGE_KEY); } catch {}
 }
 
-function loadDeviceKey() {
-  return localStorage.getItem(DEVICE_KEY_STORAGE_KEY) || '';
+function currentDeviceKey() {
+  try {
+    const key = String(localStorage.getItem(DEVICE_KEY_STORAGE_KEY) || '').trim();
+    return /^[a-zA-Z0-9_-]{16,128}$/.test(key) ? key : '';
+  } catch {
+    return '';
+  }
 }
 
-function saveDeviceKey(value) {
-  const key = String(value || '').trim();
-  if (!key) return;
-  localStorage.setItem(DEVICE_KEY_STORAGE_KEY, key);
+function rememberDeviceKey(key) {
+  const value = String(key || '').trim();
+  if (!/^[a-zA-Z0-9_-]{16,128}$/.test(value)) return;
+  try { localStorage.setItem(DEVICE_KEY_STORAGE_KEY, value); } catch {}
 }
 
-function clearDeviceKey() {
-  localStorage.removeItem(DEVICE_KEY_STORAGE_KEY);
+function cleanDeviceLabel(value, max) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
+}
+
+function modelFromUserAgent(userAgent) {
+  const ua = String(userAgent || '');
+  const android = /Android\s+[^;()]+;\s*([^;()]+?)(?:\s+Build\/|;|\))/i.exec(ua)?.[1]?.trim() || '';
+  if (android && !/^(?:android|linux|wv|mobile|k)$/i.test(android)) return cleanDeviceLabel(android, 120);
+  const explicit = /\b(MIBOX[A-Z0-9_-]*|MiTV[A-Z0-9_-]*|BRAVIA[A-Z0-9_-]*|AFT[A-Z0-9_-]+|SHIELD(?:\s+Android\s+TV)?|SM-[A-Z0-9_-]+|ADT-[A-Z0-9_-]+)\b/i.exec(ua)?.[1];
+  return cleanDeviceLabel(explicit, 120);
+}
+
+function manufacturerFromDevice(model, userAgent, platform) {
+  const source = `${model} ${userAgent} ${platform}`;
+  const vendors = [
+    ['Samsung', /\b(?:samsung|sm-[a-z0-9])/i],
+    ['LG', /\b(?:lgtv|lge|webos|oled\d)/i],
+    ['Sony', /\b(?:sony|bravia)/i],
+    ['Xiaomi', /\b(?:xiaomi|redmi|mibox|mitv)/i],
+    ['TCL', /\btcl\b/i],
+    ['Hisense', /\bhisense\b/i],
+    ['Philips', /\bphilips\b/i],
+    ['NVIDIA', /\bshield\b/i],
+    ['Amazon', /\baft[a-z0-9_-]+\b/i],
+    ['Google', /\b(?:chromecast|adt-[a-z0-9_-]+)\b/i],
+    ['Panasonic', /\bpanasonic\b/i]
+  ];
+  return vendors.find(([, pattern]) => pattern.test(source))?.[0] || '';
+}
+
+async function detectDeviceInfo() {
+  const userAgent = navigator.userAgent || '';
+  let model = '';
+  let platform = navigator.platform || '';
+  try {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+      const values = await navigator.userAgentData.getHighEntropyValues(['model', 'platform']);
+      model = cleanDeviceLabel(values?.model, 120);
+      platform = cleanDeviceLabel(values?.platform || platform, 80);
+    }
+  } catch {}
+  if (!model) model = modelFromUserAgent(userAgent);
+  return {
+    manufacturer: manufacturerFromDevice(model, userAgent, platform),
+    model
+  };
+}
+
+function formatReserveCode(value) {
+  const code = String(value || '').replace(/\D/g, '').slice(0, 6);
+  return code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : '—— ——';
+}
+
+function formatRemaining(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function clearPairingTimers() {
+  if (pollTimer) clearTimeout(pollTimer);
+  if (expiryTimer) clearInterval(expiryTimer);
+  if (rotationRetryTimer) clearTimeout(rotationRetryTimer);
+  pollTimer = null;
+  expiryTimer = null;
+  rotationRetryTimer = null;
+}
+
+function clearBootstrapRetry() {
+  if (bootstrapRetryTimer) clearTimeout(bootstrapRetryTimer);
+  bootstrapRetryTimer = null;
+}
+
+function setActivationLead(text) {
+  if (activationLead) activationLead.textContent = text;
+}
+
+function invalidatePairing(text = 'Обновляем код подключения…') {
+  qrContainer.innerHTML = '';
+  reserveCode.textContent = '—— ——';
+  if (activationExpiry) activationExpiry.textContent = 'QR обновляется';
+  activationStatus.textContent = text;
+}
+
+function retryAfterSeconds(response) {
+  const raw = Number.parseInt(response?.headers?.get?.('retry-after') || '', 10);
+  return Number.isInteger(raw) && raw > 0 ? raw : 5;
+}
+
+async function activationRequestError(response) {
+  const body = await response.json().catch(() => null);
+  const error = new Error(body?.error || `HTTP ${response.status}`);
+  error.status = response.status;
+  error.retryAfterSeconds = retryAfterSeconds(response);
+  return error;
+}
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; }, { once: true });
+  } catch {}
+}
+
+function prepareTvDisplay() {
+  void requestWakeLock();
+}
+
+function showActivationScreen() {
+  finishPlayerBoot();
+  backgroundServices?.stop();
+  playerStateSync?.stop();
+  playerSceneRenderer.reset();
+  setHidden(player, true);
+  dispatchPlayerActivity(false);
+  setHidden(activationView, false);
+  setHidden(playerMessage, true);
+}
+
+function showPairingIntro() {
+  clearPairingTimers();
+  clearBootstrapRetry();
+  showActivationScreen();
+  setActivationLead('Этот телевизор ещё не авторизован.');
+  showActivationButton.textContent = 'Показать QR-код';
+  showActivationButton.disabled = false;
+  setHidden(showActivationButton, false);
+  setHidden(pairing, true);
+}
+
+function keepNeutralBoot() {
+  showBootstrapUnavailable('Проверяем сохранённое подключение телевизора…');
+}
+
+function showBootstrapUnavailable(text = 'Связь с сервером временно недоступна. Повторяем проверку…') {
+  backgroundServices?.stop();
+  playerStateSync?.stop();
+  playerSceneRenderer.reset();
+  setHidden(player, true);
+  dispatchPlayerActivity(false);
+  setHidden(activationView, true);
+  setHidden(playerMessage, true);
+  const boot = document.querySelector('[data-player-boot]');
+  const status = document.querySelector('[data-player-boot-status]');
+  setHidden(boot, false);
+  if (status) status.textContent = text;
+}
+
+function scheduleBootstrapRetry(delay = 3000) {
+  clearBootstrapRetry();
+  bootstrapRetryTimer = setTimeout(() => void bootstrapPlayer(), delay);
+}
+
+function startExpiryCountdown(record) {
+  if (expiryTimer) clearInterval(expiryTimer);
+  let rotationStarted = false;
+  const tick = () => {
+    const remaining = Date.parse(record.expires_at) - Date.now();
+    if (remaining > 0) {
+      if (activationExpiry) activationExpiry.textContent = `QR действителен ${formatRemaining(remaining)}`;
+      return;
+    }
+    if (rotationStarted) return;
+    rotationStarted = true;
+    if (expiryTimer) clearInterval(expiryTimer);
+    expiryTimer = null;
+    clearActivation();
+    invalidatePairing();
+    void createActivation({ automatic: true });
+  };
+  tick();
+  if (!rotationStarted) expiryTimer = setInterval(tick, 250);
+}
+
+function showPairing(record) {
+  clearBootstrapRetry();
+  showActivationScreen();
+  setActivationLead('Этот телевизор ещё не авторизован.');
+  setHidden(showActivationButton, false);
+  qrContainer.innerHTML = record.qr_svg;
+  reserveCode.textContent = formatReserveCode(record.reserve_code);
+  activationStatus.textContent = 'Ожидание авторизации…';
+  showActivationButton.textContent = 'Обновить код сейчас';
+  setHidden(pairing, false);
+  startExpiryCountdown(record);
+}
+
+function schedulePoll(record, options = {}) {
+  if (pollTimer) clearTimeout(pollTimer);
+  const delay = Math.max(1000, Number(record.poll_interval_ms) || 2000);
+  pollTimer = setTimeout(() => void pollActivation(record, options), delay);
+}
+
+function completeActivationNavigation(record) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/api/device/activations/${encodeURIComponent(record.activation_id)}/complete`;
+  form.style.display = 'none';
+
+  const secret = document.createElement('input');
+  secret.type = 'hidden';
+  secret.name = 'poll_secret';
+  secret.value = record.poll_secret;
+  form.appendChild(secret);
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
+async function pollActivation(record, { revealPending = true, handoffRetry = false } = {}) {
+  if (Date.parse(record.expires_at) <= Date.now()) return;
+  try {
+    const headers = { 'x-device-activation-secret': record.poll_secret };
+    if (handoffRetry) headers['x-mira-device-handoff-retry'] = '1';
+    const response = await fetchWithTimeout(`/api/device/activations/${encodeURIComponent(record.activation_id)}/status`, {
+      headers,
+      credentials: 'include',
+      cache: 'no-store'
+    }, 5000);
+    if (response.status === 410 || response.status === 404) {
+      clearActivation();
+      if (revealPending) invalidatePairing();
+      else showBootstrapUnavailable('Код подключения истёк. Создаём новый…');
+      await createActivation({ automatic: true });
+      return;
+    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const body = await response.json();
+    if (body.status === 'authorized') {
+      clearPairingTimers();
+      activationStatus.textContent = 'Авторизовано. Запускаем MIRA-TV…';
+      showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
+      completeActivationNavigation(record);
+      return;
+    }
+    if (!revealPending) showPairing(record);
+    else activationStatus.textContent = 'Ожидание авторизации…';
+  } catch (error) {
+    console.warn('TV activation poll failed', error);
+    if (revealPending) {
+      activationStatus.textContent = 'Нет связи с сервером. QR действует до окончания таймера.';
+    } else {
+      showBootstrapUnavailable('Проверяем сохранённое подключение…');
+    }
+  }
+  if (Date.parse(record.expires_at) > Date.now()) schedulePoll(record, { revealPending, handoffRetry });
+}
+
+async function createActivation({ automatic = false } = {}) {
+  if (activationRequestInFlight) return;
+  clearBootstrapRetry();
+  setActivationLead('Этот телевизор ещё не авторизован.');
+  setHidden(showActivationButton, false);
+  const previous = activationFromStorage();
+  activationRequestInFlight = true;
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
+  if (!automatic) {
+    if (expiryTimer) clearInterval(expiryTimer);
+    expiryTimer = null;
+  }
+  showActivationButton.disabled = true;
+  activationStatus.textContent = automatic ? 'Обновляем код подключения…' : 'Создаём код подключения…';
+  try {
+    prepareTvDisplay();
+    const deviceInfo = await detectDeviceInfo();
+    const response = await fetchWithTimeout('/api/device/activations', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ device_key: currentDeviceKey() || undefined, device_info: deviceInfo }),
+      cache: 'no-store'
+    }, 7000);
+    if (!response.ok) throw await activationRequestError(response);
+    const record = await response.json();
+    rememberDeviceKey(record.device_key);
+    clearPairingTimers();
+    saveActivation(record);
+    showPairing(record);
+    schedulePoll(record);
+  } catch (error) {
+    console.error('TV activation could not start', error);
+    if (usableActivation(previous)) {
+      showPairing(previous);
+      schedulePoll(previous);
+      if (error?.status === 429) {
+        activationStatus.textContent = `Код обновлялся слишком часто. Текущий QR продолжает работать. Новый код можно запросить через ${error.retryAfterSeconds || 5} с.`;
+      } else {
+        activationStatus.textContent = 'Не удалось обновить QR. Текущий код продолжает работать и остаётся связан с сервером.';
+      }
+      return;
+    }
+
+    showActivationScreen();
+    setHidden(showActivationButton, false);
+    setHidden(pairing, false);
+    if (error?.status === 429) {
+      const delay = Math.max(1, Number(error.retryAfterSeconds) || 5);
+      invalidatePairing(`Слишком много запросов на обновление QR. Повтор через ${delay} с.`);
+      rotationRetryTimer = setTimeout(() => void createActivation({ automatic: true }), delay * 1000);
+    } else {
+      invalidatePairing('Связь с сервером временно недоступна. Новый QR появится автоматически после восстановления связи.');
+      rotationRetryTimer = setTimeout(() => void createActivation({ automatic: true }), 5000);
+    }
+  } finally {
+    activationRequestInFlight = false;
+    showActivationButton.disabled = false;
+  }
+}
+
+async function ensureBackgroundServices() {
+  if (backgroundServices) return backgroundServices;
+  if (!backgroundServicesPromise) {
+    backgroundServicesPromise = import('./player-background-services.js')
+      .then(({ createPlayerBackgroundServices }) => {
+        backgroundServices = createPlayerBackgroundServices(playerStage, {
+          isVisible:() => document.visibilityState !== 'hidden' && !player?.classList.contains('is-hidden')
+        });
+        return backgroundServices;
+      })
+      .catch((error) => {
+        backgroundServicesPromise = null;
+        console.warn('Player background services unavailable', error);
+        return null;
+      });
+  }
+  return backgroundServicesPromise;
+}
+
+window.addEventListener('mira:player-preview-request', () => {
+  void ensureBackgroundServices().then((services) => services?.requestPreview());
+});
+
+function showConnectionMessage(message) {
+  if (!message) {
+    setHidden(playerMessage, true);
+    playerMessage.textContent = '';
+    return;
+  }
+  playerMessage.textContent = message;
+  setHidden(playerMessage, false);
+}
+
+function afterFirstPlayerFrame(callback) {
+  if (typeof requestAnimationFrame !== 'function') {
+    setTimeout(callback, 0);
+    return;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(callback));
+}
+
+function runPostFrameWork({ context, changedNames, source }) {
+  reconcilePlayerBuild(context, changedNames, source);
+  void ensureBackgroundServices().then((services) => services?.configure(context, { source }));
+  void registerOfflinePlayer();
+}
+
+function schedulePostFrameWork(context, changedNames, source) {
+  const work = { context, changedNames:[...(changedNames || [])], source };
+  if (firstPlayerFramePresented) {
+    runPostFrameWork(work);
+    return;
+  }
+  pendingPostFrameWork = work;
+  if (firstFrameWorkScheduled) return;
+  firstFrameWorkScheduled = true;
+  afterFirstPlayerFrame(() => {
+    firstPlayerFramePresented = true;
+    firstFrameWorkScheduled = false;
+    const pending = pendingPostFrameWork;
+    pendingPostFrameWork = null;
+    if (pending) runPostFrameWork(pending);
+  });
+}
+
+async function applySyncedContext(context, changedNames, { source } = {}) {
+  clearPairingTimers();
+  await playerSceneRenderer.render(context, changedNames);
+  setHidden(activationView, true);
+  setHidden(player, false);
+  dispatchPlayerActivity(true);
+  finishPlayerBoot();
+  if (source === 'last-known-good') {
+    showConnectionMessage('ТВ запущен по последнему рабочему состоянию. Проверяем связь с сервером…');
+  }
+  void requestWakeLock();
+  schedulePostFrameWork(context, changedNames, source);
+}
+
+function playerConnectivityChanged(state) {
+  if (state === 'online') {
+    void ensureBackgroundServices().then((services) => services?.online());
+    showConnectionMessage('');
+    return;
+  }
+  if (!playerStateSync?.hasContext) return;
+  if (state === 'offline') {
+    showConnectionMessage('Нет связи с сервером. ТВ продолжает работать по последнему рабочему состоянию.');
+  } else if (state === 'degraded') {
+    showConnectionMessage('Связь с сервером нестабильна. Текущий экран продолжает работать локально.');
+  }
+}
+
+function playerUnauthorized() {
+  backgroundServices?.stop();
+  if (activationFromStorage()) {
+    showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
+    return;
+  }
+  clearActivation();
+  showPairingIntro();
+}
+
+async function fetchDeviceSession(timeoutMs = 3500) {
+  const deviceInfo = await detectDeviceInfo();
+  const headers = {};
+  if (deviceInfo.manufacturer) headers['x-mira-device-manufacturer'] = deviceInfo.manufacturer;
+  if (deviceInfo.model) headers['x-mira-device-model'] = deviceInfo.model;
+  const response = await fetchWithTimeout('/api/device/session', {
+    cache: 'no-store',
+    credentials: 'include',
+    headers
+  }, timeoutMs);
+  if (response.status === 401 || response.status === 403) return { unauthorized: true };
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return { session: await response.json().catch(() => null) };
+}
+
+async function loadPlayer({ fallbackToActivation = true } = {}) {
+  clearPairingTimers();
+  const syncReason = new URL(location.href).searchParams.has('reprovision') ? 'reprovision' : 'boot';
+  const result = await playerStateSync.syncNow(syncReason);
+  if (result.unauthorized) {
+    if (fallbackToActivation) showPairingIntro();
+    return false;
+  }
+  if (result.hasContext || playerStateSync.hasContext) {
+    playerStateSync.start();
+    void requestWakeLock();
+    return true;
+  }
+  if (fallbackToActivation) showPairingIntro();
+  return false;
 }
 
 function storedReloadVersion() {
-  return sessionStorage.getItem(PLAYER_RELOAD_VERSION_KEY) || '';
+  try { return sessionStorage.getItem(PLAYER_RELOAD_VERSION_KEY) || ''; }
+  catch { return ''; }
 }
 
 function rememberReloadVersion(version) {
-  sessionStorage.setItem(PLAYER_RELOAD_VERSION_KEY, version);
+  try { sessionStorage.setItem(PLAYER_RELOAD_VERSION_KEY, version); }
+  catch {}
 }
 
 function clearReloadVersion() {
-  sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY);
+  try { sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY); }
+  catch {}
 }
 
 function clearPlayerBuildRetry() {
-  clearTimeout(playerBuildRetryTimer);
+  if (playerBuildRetryTimer) clearTimeout(playerBuildRetryTimer);
   playerBuildRetryTimer = null;
   playerBuildRetryVersion = '';
   playerBuildRetryDelayMs = PLAYER_BUILD_RETRY_MIN_MS;
 }
 
-function schedulePlayerBuildRetry(version) {
-  const normalizedVersion = String(version || '').trim();
-  if (!normalizedVersion || normalizedVersion === PLAYER_BUILD_VERSION) {
-    clearPlayerBuildRetry();
-    return;
-  }
-  if (playerBuildRetryTimer && playerBuildRetryVersion === normalizedVersion) return;
-  clearTimeout(playerBuildRetryTimer);
-  playerBuildRetryVersion = normalizedVersion;
+function schedulePlayerBuildRetry(serverVersion) {
+  const version = String(serverVersion || '').trim();
+  if (!version || version === PLAYER_BUILD_VERSION || playerBuildRetryTimer) return;
+  playerBuildRetryVersion = version;
   const delay = playerBuildRetryDelayMs;
+  playerBuildRetryDelayMs = Math.min(PLAYER_BUILD_RETRY_MAX_MS, Math.max(PLAYER_BUILD_RETRY_MIN_MS, delay * 2));
   playerBuildRetryTimer = setTimeout(() => {
     playerBuildRetryTimer = null;
-    void updatePlayerBuild(normalizedVersion);
+    if (playerBuildRetryVersion !== version) return;
+    if (!navigator.onLine) {
+      schedulePlayerBuildRetry(version);
+      return;
+    }
+    void updatePlayerBuild(version).then((updated) => {
+      if (!updated) schedulePlayerBuildRetry(version);
+    });
   }, delay);
-  playerBuildRetryDelayMs = Math.min(PLAYER_BUILD_RETRY_MAX_MS, delay * 2);
+}
+
+function waitForServiceWorkerActivation(worker) {
+  if (!worker) return Promise.resolve(false);
+  if (worker.state === 'activated') return Promise.resolve(true);
+  if (worker.state === 'redundant') return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const onStateChange = () => {
+      if (worker.state !== 'activated' && worker.state !== 'redundant') return;
+      worker.removeEventListener('statechange', onStateChange);
+      resolve(worker.state === 'activated');
+    };
+    worker.addEventListener('statechange', onStateChange);
+  });
+}
+
+function isLegacyRootPlayerRegistration(registration) {
+  try {
+    const scope = new URL(registration?.scope || '', window.location.origin);
+    const scriptUrl = registration?.active?.scriptURL
+      || registration?.waiting?.scriptURL
+      || registration?.installing?.scriptURL
+      || '';
+    const script = new URL(scriptUrl, window.location.origin);
+    return scope.origin === window.location.origin
+      && scope.pathname === '/'
+      && script.origin === window.location.origin
+      && script.pathname === '/player-sw.js';
+  } catch {
+    return false;
+  }
+}
+
+async function retireLegacyRootPlayerRegistration() {
+  if (typeof navigator.serviceWorker.getRegistrations !== 'function') return;
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations
+    .filter(isLegacyRootPlayerRegistration)
+    .map((registration) => registration.unregister().catch(() => false)));
+}
+
+async function registerOfflinePlayer() {
+  if (!('serviceWorker' in navigator)) return null;
+  if (!offlinePlayerRegistrationPromise) {
+    offlinePlayerRegistrationPromise = (async () => {
+      await retireLegacyRootPlayerRegistration();
+      const registration = await navigator.serviceWorker.register('/player-sw.js', { scope: '/player' });
+      const candidate = registration.installing || registration.waiting;
+      if (candidate) await waitForServiceWorkerActivation(candidate);
+      return registration;
+    })().catch((error) => {
+      offlinePlayerRegistrationPromise = null;
+      console.warn('Offline TV player service worker could not start', error);
+      return null;
+    });
+  }
+  return offlinePlayerRegistrationPromise;
 }
 
 async function updatePlayerBuild(serverVersion) {
-  if (!('serviceWorker' in navigator)) return false;
   if (playerBuildUpdatePromise) return playerBuildUpdatePromise;
   playerBuildUpdatePromise = (async () => {
-    try {
-      const registration = await navigator.serviceWorker.getRegistration('/player');
-      if (!registration) return false;
-      await registration.update();
-      const worker = registration.waiting || registration.installing;
-      if (worker) worker.postMessage({ type:'mira.player.activate' });
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type:'mira.player.activate' });
-      }
-      rememberReloadVersion(serverVersion);
-      if (serviceWorkerControllerChanged) {
-        window.location.reload();
-        return true;
-      }
-      const changed = await new Promise((resolve) => {
-        let settled = false;
-        const finish = (value) => {
-          if (settled) return;
-          settled = true;
-          resolve(value);
-        };
-        const timer = setTimeout(() => finish(false), 4_000);
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          clearTimeout(timer);
-          finish(true);
-        }, { once:true });
-      });
-      if (changed) {
-        window.location.reload();
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    } finally {
-      playerBuildUpdatePromise = null;
-    }
-  })();
+    const registration = await registerOfflinePlayer();
+    if (!registration) return false;
+
+    const controllerChangedBeforeUpdate = serviceWorkerControllerChanged;
+    await registration.update();
+    const candidate = registration.installing || registration.waiting;
+    const activated = candidate
+      ? await waitForServiceWorkerActivation(candidate)
+      : controllerChangedBeforeUpdate || serviceWorkerControllerChanged;
+
+    if (!activated) return false;
+    rememberReloadVersion(serverVersion);
+    location.reload();
+    return true;
+  })().catch((error) => {
+    console.warn('MIRA-TV Player update could not be activated', error);
+    return false;
+  }).finally(() => {
+    playerBuildUpdatePromise = null;
+  });
   return playerBuildUpdatePromise;
 }
 
-function reconcilePlayerBuild(state, changedNames) {
+function reconcilePlayerBuild(context, changedNames, source) {
   if (!changedNames?.includes('runtime')) return;
-  const serverVersion = String(state?.runtime?.app_version || '').trim();
+  const serverVersion = String(context?.app_version || '').trim();
   if (!serverVersion) return;
   if (serverVersion === PLAYER_BUILD_VERSION) {
-    clearPlayerBuildRetry();
     clearReloadVersion();
+    clearPlayerBuildRetry();
     return;
   }
+  if (playerBuildRetryVersion && playerBuildRetryVersion !== serverVersion) clearPlayerBuildRetry();
   if (storedReloadVersion() === serverVersion) {
     schedulePlayerBuildRetry(serverVersion);
     return;
@@ -227,234 +783,86 @@ function reconcilePlayerBuild(state, changedNames) {
 }
 
 async function bootstrapPlayer() {
-  if (!playerStateSync) return false;
+  clearBootstrapRetry();
   try {
-    const result = await playerStateSync.refresh(ALL_PLAYER_COMPONENTS, 'bootstrap');
-    if (result?.state) {
-      showPlayer(true);
-      return true;
-    }
-  } catch {
-    // LKG remains visible while bootstrap retries.
-  }
-  return false;
-}
-
-function scheduleBootstrapRetry() {
-  clearTimeout(bootstrapRetryTimer);
-  bootstrapRetryTimer = setTimeout(() => {
-    bootstrapRetryTimer = null;
-    void bootstrapPlayer().then((active) => {
-      if (!active) scheduleBootstrapRetry();
-    });
-  }, 5_000);
-}
-
-function stopActivationPolling() {
-  clearTimeout(pollTimer);
-  pollTimer = null;
-}
-
-async function fetchActivationStatus(record) {
-  const response = await fetchWithTimeout(`/api/device/activation/${encodeURIComponent(record.activation_id)}/status`, {
-    headers: { 'X-Activation-Poll-Secret':record.poll_secret }
-  }, 8_000);
-  if (response.status === 404 || response.status === 410) {
-    clearActivationRecord();
-    return { expired:true };
-  }
-  if (!response.ok) throw new Error('Не удалось проверить подключение ТВ');
-  return response.json();
-}
-
-async function finishActivation(record, status) {
-  stopActivationPolling();
-  saveDeviceKey(status.device_key);
-  const response = await fetchWithTimeout('/api/device/session', {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json' },
-    body:JSON.stringify({ activation_id:record.activation_id, device_key:status.device_key })
-  }, 8_000);
-  if (!response.ok) throw new Error('Не удалось завершить подключение ТВ');
-  clearActivationRecord();
-  window.location.replace('/player');
-}
-
-async function pollActivation(record) {
-  stopActivationPolling();
-  try {
-    const status = await fetchActivationStatus(record);
-    if (status.expired) {
-      setMessage('Код подключения истёк. Создайте новый.', true);
-      return;
-    }
-    if (status.status === 'approved' && status.device_key) {
-      await finishActivation(record, status);
-      return;
-    }
-    if (status.status === 'rejected') {
-      clearActivationRecord();
-      setMessage('Подключение отклонено администратором.', true);
-      return;
-    }
-    pollTimer = setTimeout(() => void pollActivation(record), 2_000);
-  } catch {
-    setMessage('Нет связи с сервером. Повторяем попытку…', true);
-    pollTimer = setTimeout(() => void pollActivation(record), 5_000);
-  }
-}
-
-function renderActivation(record) {
-  showPlayer(false);
-  pairing?.classList.remove('is-hidden');
-  if (qrContainer) {
-    qrContainer.replaceChildren();
-    const img = document.createElement('img');
-    img.src = record.qr_data_url;
-    img.alt = 'QR-код подключения';
-    qrContainer.append(img);
-  }
-  if (reserveCode) reserveCode.textContent = record.reserve_code || '';
-  startActivationExpiry(record.expires_at);
-  void pollActivation(record);
-}
-
-async function createActivation() {
-  if (activationRequestInFlight) return;
-  activationRequestInFlight = true;
-  setMessage('Создаём код подключения…');
-  try {
-    const response = await fetchWithTimeout('/api/device/activation', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body:JSON.stringify({ device_key:loadDeviceKey() || null })
-    }, 8_000);
-    if (response.status === 429) {
-      const retryAfter = Number(response.headers.get('Retry-After')) || 5;
-      setMessage(`Слишком много попыток. Повторите через ${retryAfter} сек.`, true);
-      return;
-    }
-    if (!response.ok) throw new Error('Не удалось создать подключение ТВ');
-    const record = await response.json();
-    saveActivationRecord(record);
-    renderActivation(record);
-  } catch {
-    setMessage('Не удалось получить код подключения. Проверьте сеть.', true);
-  } finally {
-    activationRequestInFlight = false;
-  }
-}
-
-async function checkDeviceSession() {
-  try {
-    const response = await fetchWithTimeout('/api/device/session', {}, 8_000);
-    if (response.ok) {
-      const payload = await response.json();
-      if (payload.device_key) saveDeviceKey(payload.device_key);
-      return true;
-    }
-    if (response.status === 401 || response.status === 403) return false;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function registerOfflinePlayer() {
-  if (!('serviceWorker' in navigator)) return null;
-  if (!offlinePlayerRegistrationPromise) {
-    offlinePlayerRegistrationPromise = navigator.serviceWorker.register('/player-sw.js', { scope:'/player' })
-      .then(async (registration) => {
-        await registration.update();
-        return registration;
-      })
-      .catch(() => null);
-  }
-  return offlinePlayerRegistrationPromise;
-}
-
-async function ensurePlayerStateSync() {
-  if (playerStateSync) return playerStateSync;
-  playerStateSync = createPlayerStateSync({
-    renderer:playerSceneRenderer,
-    onStateApplied: ({ state, changedNames }) => {
-      reconcilePlayerBuild(state, changedNames);
-      showPlayer(true);
-      if (!firstPlayerFramePresented) {
-        firstPlayerFramePresented = true;
-        window.dispatchEvent(new CustomEvent('mira:player-active'));
-        if (!firstFrameWorkScheduled) {
-          firstFrameWorkScheduled = true;
-          pendingPostFrameWork = setTimeout(() => {
-            pendingPostFrameWork = null;
-            void ensureBackgroundServices();
-          }, 0);
-        }
+    const result = await fetchDeviceSession();
+    if (!result.unauthorized) {
+      rememberDeviceKey(result.session?.device_key);
+      const started = await loadPlayer({ fallbackToActivation: false });
+      if (started) {
+        clearActivation();
+        return;
       }
+      const pending = activationFromStorage();
+      if (pending) {
+        rememberDeviceKey(pending.device_key);
+        showBootstrapUnavailable('Завершаем авторизацию телевизора…');
+        await pollActivation(pending, { revealPending: false });
+        return;
+      }
+      showBootstrapUnavailable('Проверяем привязку телевизора…');
+      scheduleBootstrapRetry();
+      return;
     }
-  });
-  return playerStateSync;
-}
 
-async function ensureBackgroundServices() {
-  if (backgroundServices) return backgroundServices;
-  if (backgroundServicesPromise) return backgroundServicesPromise;
-  backgroundServicesPromise = import('./player-background-services.js')
-    .then(({ createPlayerBackgroundServices }) => {
-      backgroundServices = createPlayerBackgroundServices({ playerStateSync });
-      backgroundServices.start();
-      return backgroundServices;
-    })
-    .catch(() => null)
-    .finally(() => { backgroundServicesPromise = null; });
-  return backgroundServicesPromise;
-}
-
-async function initialisePlayer() {
-  window.__miraPlayerBootReady = false;
-  void registerOfflinePlayer();
-  await ensurePlayerStateSync();
-  const restored = await playerStateSync.restoreLastKnownGood();
-  playerStateSync.note('player.boot', { restored, build:PLAYER_BUILD_VERSION });
-  if (restored) showPlayer(true);
-  finishPlayerBoot();
-
-  const session = await checkDeviceSession();
-  if (session === true) {
-    if (!await bootstrapPlayer()) scheduleBootstrapRetry();
-    return;
-  }
-  if (session === null && restored) {
+    await playerStateSync.reset();
+  } catch (error) {
+    console.warn('TV session bootstrap failed', error);
+    if (playerStateSync.hasContext) {
+      playerStateSync.start();
+      return;
+    }
+    const pending = activationFromStorage();
+    if (pending) {
+      rememberDeviceKey(pending.device_key);
+      keepNeutralBoot();
+      await pollActivation(pending, { revealPending: false });
+      return;
+    }
+    showBootstrapUnavailable();
     scheduleBootstrapRetry();
     return;
   }
 
-  const activation = loadActivationRecord();
-  if (activation) {
-    renderActivation(activation);
+  const pending = activationFromStorage();
+  if (pending) {
+    rememberDeviceKey(pending.device_key);
+    keepNeutralBoot();
+    await pollActivation(pending, { revealPending: false });
     return;
   }
-  showPlayer(false);
-  showActivationButton?.classList.remove('is-hidden');
-  setMessage('ТВ не подключён. Нажмите OK, чтобы получить код подключения.');
+  showPairingIntro();
 }
 
-showActivationButton?.addEventListener('click', () => void createActivation());
-showActivationButton?.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    void createActivation();
-  }
-});
+async function initialisePlayer() {
+  playerStateSync = createPlayerStateSync({
+    applyContext: applySyncedContext,
+    onUnauthorized: playerUnauthorized,
+    onConnectivity: playerConnectivityChanged
+  });
 
-window.addEventListener('beforeunload', () => {
-  clearTimeout(expiryTimer);
-  clearTimeout(rotationRetryTimer);
-  clearTimeout(bootstrapRetryTimer);
-  clearTimeout(playerBuildRetryTimer);
-  clearTimeout(pendingPostFrameWork);
-  stopActivationPolling();
-  backgroundServices?.stop();
-});
+  showActivationButton.addEventListener('click', () => void createActivation());
+  installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
+  if (!playerInstallSupportedPlatform() && installPlayerButton) setHidden(installPlayerButton, true);
+  if (playerRunsStandalone() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
+  syncPlayerPageVisibility();
+  document.addEventListener('visibilitychange', () => {
+    syncPlayerPageVisibility();
+    if (document.visibilityState === 'visible') void requestWakeLock();
+  });
+  window.addEventListener('pagehide', () => {
+    clearPlayerBuildRetry();
+    backgroundServices?.stop();
+  });
+  void navigator.storage?.persist?.().catch(() => undefined);
+  void registerOfflinePlayer();
+  const restored = await playerStateSync.restoreLastKnownGood();
+  playerStateSync.note('player.boot', { restored, build:PLAYER_BUILD_VERSION });
+  await bootstrapPlayer();
+}
 
-void initialisePlayer();
+void initialisePlayer().catch((error) => {
+  console.error('MIRA-TV Player boot failed', error);
+  showBootstrapUnavailable('Не удалось запустить Player. Повторяем запуск…');
+  scheduleBootstrapRetry(3000);
+});
