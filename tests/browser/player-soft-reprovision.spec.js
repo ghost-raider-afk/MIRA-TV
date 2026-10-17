@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 const staleShellCache = 'mira-tv-player-shell-v-stale-e2e';
-const activeShellCache = 'mira-tv-player-shell-v74';
+const activeShellCache = 'mira-tv-player-shell-v75';
 
 async function login(page) {
   await page.goto('/signin');
