@@ -24,6 +24,7 @@ import { createSettingsRouter } from './api/settings/routes.js';
 import { createNotificationsRouter } from './api/notifications/routes.js';
 import { createDiagnosticsRouter } from './api/diagnostics/routes.js';
 import { createCatalogRouter } from './api/catalog/routes.js';
+import { createCatalogChangeRequestRouter } from './api/catalog/change-request-routes.js';
 import { createLocationsRouter } from './api/locations/routes.js';
 import { createScreensRouter } from './api/screens/routes.js';
 import { createDevicePublicRouter } from './api/device/public-routes.js';
@@ -173,6 +174,7 @@ function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole)
 
   const requireAdministrator = requireApiRole('administrator');
   app.use('/api/admin/managers', requireAdministrator, createManagerAdminRouter(dependencies));
+  app.use('/api/catalog-change-requests', requireAdministrator, createCatalogChangeRequestRouter(dependencies));
   app.use('/api', requireAdministrator);
   app.use('/api', createOverviewRouter(dependencies));
   app.use('/api/settings', createSettingsRouter(dependencies));
