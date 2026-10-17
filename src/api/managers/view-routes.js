@@ -2,6 +2,13 @@ import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
+import {
+  catalogChangedFields,
+  catalogEntitySnapshot,
+  catalogProposalInput,
+  getCatalogEntity
+} from '../../services/catalog-change-service.js';
+import { activity, conflict, notFound } from '../helpers.js';
 
 async function savedVisibleScreen(store, id) {
   const screen = await store.getScreen(id);
@@ -11,7 +18,7 @@ async function savedVisibleScreen(store, id) {
   return screen;
 }
 
-export function createManagerViewRouter({ store, config, weatherService, realtime }) {
+export function createManagerViewRouter({ store, config, weatherService }) {
   const router = express.Router();
 
   router.use((_request, response, next) => {
@@ -42,18 +49,6 @@ export function createManagerViewRouter({ store, config, weatherService, realtim
     response.json(groups);
   });
 
-  router.get('/screens/:id/preview', async (request, response) => {
-    const id = positiveId(request.params.id, 'id');
-    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
-    const preview = realtime?.screenPreview?.(id) || null;
-    if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
-    response.setHeader('Cache-Control', 'private, no-cache');
-    response.setHeader('ETag', preview.etag);
-    response.setHeader('X-MIRA-Preview-Updated-At', preview.updatedAt);
-    response.type(preview.contentType);
-    return response.send(preview.buffer);
-  });
-
   router.get('/screens/:id/context', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
@@ -70,6 +65,51 @@ export function createManagerViewRouter({ store, config, weatherService, realtim
     if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
     const snapshot = await weatherService.getSnapshot(settings);
     response.json({ settings: { ...settings, screen_id: id }, snapshot });
+  });
+
+  router.get('/catalog', async (_request, response) => {
+    const [products, packaging] = await Promise.all([store.listProducts(), store.listPackaging()]);
+    response.json({ products, packaging });
+  });
+
+  router.get('/catalog/requests', async (request, response) => {
+    response.json(await store.listCatalogChangeRequests({ requesterUsername:request.session.sub, limit:200 }));
+  });
+
+  router.post('/catalog/requests', async (request, response) => {
+    const entityType = request.body?.entity_type === 'packaging' ? 'packaging' : request.body?.entity_type === 'product' ? 'product' : '';
+    if (!entityType) throw notFound('Тип записи каталога не найден.');
+    const entityId = positiveId(request.body?.entity_id, 'entity_id');
+    const current = await getCatalogEntity(store, entityType, entityId);
+    if (!current) throw notFound('Запись каталога не найдена.');
+    const before = catalogEntitySnapshot(entityType, current);
+    const proposed = catalogProposalInput(entityType, request.body?.proposed || {});
+    if (!catalogChangedFields(entityType, before, proposed).length) throw conflict('Изменений для согласования нет.');
+
+    let changeRequest;
+    try {
+      changeRequest = await store.createCatalogChangeRequest({
+        requesterUsername:request.session.sub,
+        entityType,
+        entityId,
+        operation:'update',
+        before,
+        proposed,
+        baseUpdatedAt:current.updated_at
+      });
+    } catch (error) {
+      if (error?.code !== '23505') throw error;
+      throw conflict('Для этой позиции уже есть ваше изменение, ожидающее согласования.');
+    }
+
+    await activity(store, request, {
+      action:'catalog.change.requested',
+      entity_type:`catalog_${entityType}`,
+      entity_id:entityId,
+      message:`Менеджер предложил изменение «${before.name || entityId}».`,
+      metadata:{ change_request_id:changeRequest.id }
+    });
+    response.status(201).json(changeRequest);
   });
 
   return router;
