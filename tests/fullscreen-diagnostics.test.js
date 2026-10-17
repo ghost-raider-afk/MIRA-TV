@@ -18,6 +18,10 @@ test('fullscreen diagnostics flow from Player telemetry to TV management', async
   assert.match(repository, /event_type = 'fullscreen\.state'/);
   assert.match(repository, /event_type <> 'fullscreen\.state'/);
   assert.match(admin, /player_fullscreen:/);
+  assert.match(screens, /Показ/);
   assert.match(screens, /Режим экрана/);
   assert.match(screens, /Fullscreen API/);
+  assert.match(screens, /Fullscreen телеметрия/);
+  assert.match(screens, /Ошибка fullscreen/);
+  assert.match(fullscreen, /last_error/);
 });
