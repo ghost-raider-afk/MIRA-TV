@@ -104,5 +104,5 @@ test('TV Player makes one compatible fullscreen attempt when the rendered Player
   assert.doesNotMatch(source, /request\.call\(root,\s*\{\s*navigationUI:/);
   assert.match(source, /function tryAutomaticFullscreen\(\)[\s\S]*automaticAttempted = true;[\s\S]*requestFullscreenCompat\(\)/s);
   assert.match(source, /mira:player-active[\s\S]*tryAutomaticFullscreen\(\);[\s\S]*reportRuntimeState\(\);/s);
-  assert.match(source, /else armGesture\(\);/);
+  assert.match(source, /else \{\s*armGesture\(\);\s*showFullscreenHint\(\);\s*\}/s);
 });

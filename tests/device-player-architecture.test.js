@@ -78,5 +78,7 @@ test('Player boot defers noncritical background work until a scene is rendered',
   assert.match(player, /ensureBackgroundServices/);
   assert.match(background, /publishPlayerPreview/);
   assert.match(background, /createPlayerMetricsCollector/);
-  assert.doesNotMatch(background, /setInterval|schedulePreview|previewCaptureIntervalMs/);
+  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);
+  assert.match(background, /previewTimer = setTimeout/);
+  assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);
 });

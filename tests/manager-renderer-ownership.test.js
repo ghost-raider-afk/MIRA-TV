@@ -21,5 +21,7 @@ test('Manager uses passive LKG TV snapshots instead of a second scene renderer',
   assert.match(client, /mira:player-preview-request/);
   assert.match(player, /mira:player-preview-request/);
   assert.match(background, /publishPlayerPreview/);
-  assert.doesNotMatch(background, /setInterval|schedulePreview/);
+  assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);
+  assert.match(background, /previewTimer = setTimeout/);
+  assert.doesNotMatch(background, /setInterval/);
 });
