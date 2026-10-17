@@ -33,10 +33,12 @@ function statusState(binding) {
 }
 
 function fullscreenCardState(binding) {
-  const mode = String(binding?.player_fullscreen?.metadata?.mode || '');
+  if (!binding) return { title:'—', key:'unknown' };
+  if (binding.online !== true) return { title:'Нет данных', key:'unknown' };
+  const mode = String(binding.player_fullscreen?.metadata?.mode || '');
   if (['fullscreen-api', 'display-fullscreen', 'standalone'].includes(mode)) return { title:'Fullscreen', key:'fullscreen' };
   if (mode === 'browser') return { title:'Окно', key:'window' };
-  return { title:binding ? 'Нет данных' : '—', key:'unknown' };
+  return { title:'Нет данных', key:'unknown' };
 }
 
 function cardMetaRows(_screen, binding) {
