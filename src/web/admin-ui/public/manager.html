@@ -15,17 +15,48 @@
         <div class="manager-header-actions"><span data-manager-user></span><button class="button button-secondary" id="manager-refresh" type="button">Обновить</button><button class="button button-secondary" id="manager-logout" type="button">Выйти</button></div>
       </header>
       <section class="manager-content" aria-labelledby="manager-title">
-        <div class="manager-heading"><div><p class="eyebrow">РЕЖИМ ПРОСМОТРА</p><h1 id="manager-title">Торговые точки и телевизоры</h1></div></div>
+        <div class="manager-heading"><div><p class="eyebrow">РАБОЧЕЕ МЕСТО МЕНЕДЖЕРА</p><h1 id="manager-title">Торговые точки и телевизоры</h1></div></div>
         <p class="form-message is-hidden" id="manager-message" role="status" aria-live="polite"></p>
         <div class="manager-locations" id="manager-locations" aria-live="polite"></div>
         <p class="empty-state is-hidden" id="manager-empty">Нет сохранённых телевизоров.</p>
+
+        <div class="manager-workspace-grid">
+          <section class="manager-workspace-card" aria-labelledby="manager-catalog-title">
+            <div class="manager-workspace-head">
+              <div><p class="eyebrow">КАТАЛОГ</p><h2 id="manager-catalog-title">Предложить изменение</h2></div>
+              <div class="manager-catalog-tabs" role="group" aria-label="Раздел каталога">
+                <button class="button button-secondary is-active" id="manager-tab-products" type="button">Продукция</button>
+                <button class="button button-secondary" id="manager-tab-packaging" type="button">Тара</button>
+              </div>
+            </div>
+            <p class="manager-workspace-note">Изменения не попадают на ТВ напрямую: сначала их подтверждает администратор.</p>
+            <div class="manager-catalog-list" id="manager-catalog-list" aria-live="polite"></div>
+            <p class="empty-state is-hidden" id="manager-catalog-empty">Каталог пуст.</p>
+          </section>
+
+          <section class="manager-workspace-card" aria-labelledby="manager-proposals-title">
+            <div class="manager-workspace-head"><div><p class="eyebrow">МОИ ИЗМЕНЕНИЯ</p><h2 id="manager-proposals-title">Статус предложений</h2></div></div>
+            <div class="manager-proposal-list" id="manager-proposal-list" aria-live="polite"></div>
+            <p class="empty-state is-hidden" id="manager-proposals-empty">Предложений пока нет.</p>
+          </section>
+        </div>
       </section>
     </main>
+
     <div class="manager-fullscreen is-hidden" id="manager-fullscreen" role="dialog" aria-modal="true" aria-label="Полноэкранный просмотр телевизора">
       <div class="manager-fullscreen-stage" id="manager-fullscreen-stage" data-player-stage></div>
       <button class="manager-fullscreen-nav manager-fullscreen-prev" id="manager-fullscreen-prev" type="button" aria-label="Предыдущий телевизор">‹</button>
       <button class="manager-fullscreen-nav manager-fullscreen-next" id="manager-fullscreen-next" type="button" aria-label="Следующий телевизор">›</button>
       <div class="manager-fullscreen-bar"><div><strong id="manager-fullscreen-title"></strong><span id="manager-fullscreen-subtitle"></span></div><button class="manager-fullscreen-close" id="manager-fullscreen-close" type="button" aria-label="Закрыть полноэкранный просмотр">×</button></div>
     </div>
+
+    <dialog class="manager-proposal-dialog" id="manager-proposal-dialog">
+      <form method="dialog" class="manager-proposal-form" id="manager-proposal-form">
+        <header><div><p class="eyebrow">ПРЕДЛОЖЕНИЕ ИЗМЕНЕНИЯ</p><h2 id="manager-proposal-title">Каталог</h2></div><button class="manager-dialog-close" value="cancel" aria-label="Закрыть" type="submit">×</button></header>
+        <div class="manager-proposal-fields" id="manager-proposal-fields"></div>
+        <p class="form-message is-hidden" id="manager-proposal-message" role="status" aria-live="polite"></p>
+        <footer><button class="button button-secondary" value="cancel" type="submit">Отмена</button><button class="button button-primary" id="manager-proposal-submit" type="button">Отправить на согласование</button></footer>
+      </form>
+    </dialog>
   </body>
 </html>
