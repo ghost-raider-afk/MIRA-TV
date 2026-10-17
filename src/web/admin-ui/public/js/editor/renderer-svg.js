@@ -229,8 +229,8 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
 function packagingMarkup(line, box, horizontal, palette, scale, typography, priceFontSizePt, themeId = 'legacy', themeStyle = {}, themeTypography = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const readable = themeStyle.table_style_mode === 'readable';
-  const gap = (readable ? 22 : 34) * horizontal.scaleX;
-  const cellWidth = (horizontal.tableWidth - gap) / 2;
+  const gap = (readable ? 0 : 34) * horizontal.scaleX;
+  const cellWidth = readable ? horizontal.tableWidth : (horizontal.tableWidth - gap) / 2;
   const baseline = box.top + (readable ? 43 : 35) * fontScale;
   const itemFont = themeTypography.item || typography;
   const priceFont = themeTypography.price || typography;
@@ -255,7 +255,7 @@ export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model
     const box = vertical.boxes[index];
     const lineHorizontal = layout.horizontals?.[index] || horizontal;
     if (line.kind === 'section') {
-      const sectionLine = readable ? { ...line, showPriceLabels:true } : line;
+      const sectionLine = readable ? { ...line, showPriceLabels:lineHorizontal.fullWidth !== true } : line;
       return sectionMarkup(sectionLine, box, lineHorizontal, palette, scale, themeTypography.section || typography, themeId, layout.styleId);
     }
     if (line.kind === 'packaging') return packagingMarkup(line, box, lineHorizontal, palette, scale, typography, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
