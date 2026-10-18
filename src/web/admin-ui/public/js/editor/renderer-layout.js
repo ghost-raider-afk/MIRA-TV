@@ -45,7 +45,7 @@ function hasSecondaryMetadata(line, readable) {
   const metadata = readable && typeof line.metadataReadable === 'string'
     ? line.metadataReadable
     : line.metadata;
-  return Boolean(String(metadata || '').trim());
+  return Boolean(String(metadata || '').trim() || (readable && String(line.strength || '').trim()));
 }
 
 function lineBaseHeight(line, readable) {

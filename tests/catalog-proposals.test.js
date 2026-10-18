@@ -51,7 +51,7 @@ function proposal(overrides = {}) {
 }
 
 function reviewStore({ current = product(), currentProposal = proposal() } = {}) {
-  const calls = { updates:0, resolves:[] };
+  const calls = { updates:0, resolves:[], locks:[] };
   const store = {
     calls,
     current,
@@ -59,7 +59,9 @@ function reviewStore({ current = product(), currentProposal = proposal() } = {})
     async transaction(run) { return run(this); },
     async getCatalogProposalForUpdate() { return this.currentProposal; },
     async getProduct() { return this.current; },
+    async getProductForUpdate() { calls.locks.push('product'); return this.current; },
     async getPackaging() { return null; },
+    async getPackagingForUpdate() { calls.locks.push('packaging'); return null; }
     async updateProduct(id, payload) {
       calls.updates += 1;
       this.current = { ...this.current, ...payload, id, updated_at:'2026-10-17T10:05:00.000Z' };
@@ -113,6 +115,7 @@ test('administrator approval applies proposal through existing catalog update th
 
   assert.equal(result.kind, 'approved');
   assert.equal(store.calls.updates, 1);
+  assert.deepEqual(store.calls.locks, ['product']);
   assert.equal(result.entity.price_primary, '220');
   assert.equal(result.entity.price_secondary, '330');
   assert.deepEqual(store.calls.resolves[0], {
@@ -149,4 +152,15 @@ test('stale proposal becomes conflict and cannot overwrite a newer catalog value
   assert.equal(store.calls.updates, 0);
   assert.equal(result.proposal.status, 'conflict');
   assert.equal(store.current.price_primary, '200');
+});
+
+test('catalog edit in the same millisecond conflicts instead of overwriting the newer price', async () => {
+  const store = reviewStore({ current:{ ...product(), price_primary:'205' } });
+  const result = await reviewCatalogChangeProposal(store, {
+    proposalId:10, decision:'approve', reviewerUsername:'admin'
+  });
+  assert.equal(result.kind, 'conflict');
+  assert.deepEqual(store.calls.locks, ['product']);
+  assert.equal(store.calls.updates, 0);
+  assert.equal(store.current.price_primary, '205');
 });

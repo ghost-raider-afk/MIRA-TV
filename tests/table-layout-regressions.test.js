@@ -102,3 +102,12 @@ test('classic and readable use the same lighter table surface', () => {
     assert.doesNotMatch(svg, /fill-opacity="\.82"/);
   }
 });
+
+test('readable strength prevents compacting', () => {
+  const { model, lines } = renderState('readable');
+  const rich = lines.map((line) => line.sourceRowId === 'beer-item' ? { ...line, metadataReadable:'' } : line);
+  const layout = buildRenderLayout(model, rich);
+  const i = rich.findIndex((line) => line.sourceRowId === 'beer-item');
+  const j = rich.findIndex((line) => line.sourceRowId === 'pet-item');
+  assert.ok(layout.vertical.boxes[i].height > layout.vertical.boxes[j].height);
+});

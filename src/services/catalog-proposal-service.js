@@ -47,8 +47,9 @@ function normaliseProposalPayload(entityType, payload) {
   return entityType === 'product' ? productInput(payload || {}) : packagingInput(payload || {});
 }
 
-async function currentEntity(store, entityType, entityId) {
-  return entityType === 'product' ? store.getProduct(entityId) : store.getPackaging(entityId);
+async function currentEntity(store, entityType, entityId, { forUpdate = false } = {}) {
+  if (entityType === 'product') return forUpdate ? store.getProductForUpdate(entityId) : store.getProduct(entityId);
+  return forUpdate ? store.getPackagingForUpdate(entityId) : store.getPackaging(entityId);
 }
 
 async function updateEntity(store, entityType, entityId, payload) {
@@ -88,10 +89,12 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
       return { kind:'rejected', proposal:resolved, entity:null };
     }
 
-    const current = await currentEntity(tx, proposal.entity_type, proposal.entity_id);
+    const current = await currentEntity(tx, proposal.entity_type, proposal.entity_id, { forUpdate:true });
     const baseTime = timestampMs(proposal.base_updated_at);
     const currentTime = timestampMs(current?.updated_at);
-    if (!current || !Number.isFinite(baseTime) || !Number.isFinite(currentTime) || baseTime !== currentTime) {
+    if (!current || !Number.isFinite(baseTime) || !Number.isFinite(currentTime) || baseTime !== currentTime
+      || Object.entries(proposal.base_payload || {}).some(([key, value]) =>
+        JSON.stringify(catalogEntityPayload(proposal.entity_type, current)?.[key]) !== JSON.stringify(value))) {
       const conflict = await tx.resolveCatalogProposal(proposalId, {
         status:'conflict', reviewerUsername, reviewComment
       });
