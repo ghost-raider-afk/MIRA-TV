@@ -405,23 +405,14 @@ export function createPlayerStateSync({
   }
 
   async function applyCandidate(context, metadata, changedNames, source) {
-    let degradedAssetError = null;
-    let stagedManifest = null;
+    let stagedManifest;
     try {
       stagedManifest = await stageCandidateAssets(context, metadata);
     } catch (error) {
-      if (active?.context) {
-        error.miraPhase = 'critical-assets';
-        throw error;
-      }
-      degradedAssetError = error;
-      console.warn('MIRA-TV first boot continues without fully staged critical assets', error);
-      reportDiagnostic('asset.preload.degraded', diagnosticData(error, {
-        source,
-        phase:'critical-assets',
-        failed_assets:Array.isArray(error?.failedAssets) ? error.failedAssets.length : undefined
-      }));
+      error.miraPhase = 'critical-assets';
+      throw error;
     }
+    if (revoked) return;
 
     try {
       await prepareAssets?.(context, changedNames);
@@ -447,8 +438,7 @@ export function createPlayerStateSync({
 
     try {
       await persistLastKnownGood();
-      if (stagedManifest && !degradedAssetError) await commitCandidateAssets(stagedManifest);
-      else publishActiveAssets(context);
+      await commitCandidateAssets(stagedManifest);
       onLastKnownGood?.(context);
     } catch (error) {
       console.warn('MIRA-TV could not persist Local-first Player state', error);
@@ -457,8 +447,7 @@ export function createPlayerStateSync({
     log('state.applied', {
       source,
       changed: changedNames.slice(0, 12),
-      degraded_assets: Boolean(degradedAssetError),
-      local_first: Boolean(stagedManifest && !degradedAssetError)
+      local_first: Boolean(stagedManifest)
     });
     void warmAssets?.(context, changedNames);
     if (source !== 'last-known-good' && changedNames.length > 0) {
