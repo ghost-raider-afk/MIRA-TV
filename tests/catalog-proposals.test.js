@@ -61,7 +61,7 @@ function reviewStore({ current = product(), currentProposal = proposal() } = {})
     async getProduct() { return this.current; },
     async getProductForUpdate() { calls.locks.push('product'); return this.current; },
     async getPackaging() { return null; },
-    async getPackagingForUpdate() { calls.locks.push('packaging'); return null; }
+    async getPackagingForUpdate() { calls.locks.push('packaging'); return null; },
     async updateProduct(id, payload) {
       calls.updates += 1;
       this.current = { ...this.current, ...payload, id, updated_at:'2026-10-17T10:05:00.000Z' };

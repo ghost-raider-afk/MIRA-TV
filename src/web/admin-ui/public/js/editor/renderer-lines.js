@@ -14,9 +14,9 @@ export function buildDisplayLines(model, options) {
   return Object.freeze(base.map((line) => {
     if (line.kind !== 'section') return line;
     const sectionType = sectionTypeFor(model, line);
-    let showPriceLabels = line.showPriceLabels === true;
+    let showPriceLabels = sectionType === 'products';
     if (!readable) {
-      showPriceLabels = sectionType === 'products' && !productHeaderSeen;
+      showPriceLabels = showPriceLabels && !productHeaderSeen;
       if (sectionType === 'products') productHeaderSeen = true;
     }
     return Object.freeze({ ...line, sectionType, showPriceLabels });

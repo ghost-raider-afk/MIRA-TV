@@ -81,16 +81,16 @@ test('second line is built from catalog producer, strength, color and filtration
   assert.equal(lines[1].metadata, 'ООО «Портал», п. Солнечный · 4,6% · светлое · нефильтрованное');
 });
 
-test('canonical SVG mirrors MIRA-TV 1 structure without vertical price separators', () => {
+test('canonical SVG keeps MIRA-TV 1 geometry with section-only price dividers', () => {
   const { svg, layout } = rendered();
   assert.match(svg, /viewBox="0 0 1920 1080"/);
   assert.equal(layout.horizontal.primaryPriceX, 1258);
   assert.equal(layout.horizontal.secondaryPriceX, 1405);
   assert.match(svg, /x1="65"[^>]*x2="1430"[^>]*class="separator"/);
-  assert.doesNotMatch(svg, /<line[^>]*x1="1258"[^>]*y2=/);
+  assert.equal((svg.match(/class="section-price-divider"/g) || []).length, 2);
   assert.doesNotMatch(svg, /<line[^>]*x1="1405"[^>]*y2=/);
-  assert.match(svg, /<text x="1209"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1 л<\/text>/);
-  assert.match(svg, /<text x="1356"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1,5 л<\/text>/);
+  assert.match(svg, /<text x="1184.5"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1 Л<\/text>/);
+  assert.match(svg, /<text x="1331.5"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1,5 Л<\/text>/);
   assert.match(svg, /class="table-section">\s*<rect[^>]*x="56"[^>]*width="1374"[^>]*rx="5"/);
   assert.match(svg, /class="item-name"[^>]*>БАВАРИЯ ПШЕНИЧНОЕ<\/text>/);
   assert.doesNotMatch(svg, /class="item-name"[^>]*4,6%/);
