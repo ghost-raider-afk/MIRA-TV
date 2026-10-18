@@ -267,6 +267,13 @@ export function createPlayerRealtime({ store }) {
     return disconnectIndexed(byScreen, id, 'binding revoked');
   }
 
+  function revokeScreen(screenId) {
+    for (const socket of [...(byScreen.get(Number(screenId)) || { sockets:new Set() }).sockets]) {
+      send(socket, { type:'device.revoked' });
+    }
+    return disconnectScreen(screenId);
+  }
+
   function disconnectDevice(deviceId) {
     return disconnectIndexed(byDevice, deviceId, 'device session replaced');
   }
@@ -376,6 +383,7 @@ export function createPlayerRealtime({ store }) {
     acknowledgeReprovision,
     requestScreenPreview,
     disconnectScreen,
+    revokeScreen,
     disconnectDevice,
     presenceForScreen,
     pingScreen,
