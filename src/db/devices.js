@@ -314,6 +314,20 @@ export function createDevicesRepository(pool) {
       return sessionRecord(rows[0]);
     },
 
+
+    async isRevokedDeviceSessionByHash(hash) {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM tv_device_sessions ds
+          WHERE ds.token_hash = $1 AND ds.revoked_at IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM tv_device_bindings b
+               WHERE b.device_id = ds.device_id AND b.active = TRUE
+            )
+          LIMIT 1`, [hash]
+      );
+      return rows.length > 0;
+    },
+
     async touchDeviceSession(sessionId, deviceId, observedAt, staleBefore, currentRemoteAddress = '') {
       await pool.query(
         `UPDATE tv_device_sessions SET last_seen_at = $1
