@@ -3,6 +3,8 @@ import { positiveId } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
+import { themeWeatherSettings } from '../../contracts/menu-theme.js';
+import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { activity, notFound } from '../helpers.js';
 
 async function savedVisibleScreen(store, id) {
@@ -83,10 +85,12 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     const id = positiveId(request.params.id, 'id');
     if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
     const draft = await store.getScreenDraft(id);
-    const settings = sceneWeatherSettings(draft?.scene, id);
-    if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
+    const settings = request.query.source === 'theme'
+      ? themeWeatherSettings(draft?.settings?.theme, draft?.scene)
+      : sceneWeatherSettings(draft?.scene, id);
+    if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
     const snapshot = await weatherService.getSnapshot(settings);
-    response.json({ settings: { ...settings, screen_id: id }, snapshot });
+    response.json({ settings, snapshot });
   });
 
   return router;

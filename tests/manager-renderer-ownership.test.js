@@ -46,3 +46,15 @@ test('Manager proposals and administrator approvals stay behind their existing r
   assert.match(adminRoutes, /\/proposals\/:id\/approve/);
   assert.match(adminRoutes, /\/proposals\/:id\/reject/);
 });
+
+test('Manager theme weather follows the same server-side configuration as the TV player', async () => {
+  const [manager, device] = await Promise.all([
+    read('src/api/managers/view-routes.js'),
+    read('src/api/device/public-routes.js')
+  ]);
+  for (const route of [manager, device]) {
+    assert.match(route, /request\.query\.source === 'theme'/);
+    assert.match(route, /themeWeatherSettings\(draft\?\.settings\?\.theme, draft\?\.scene\)/);
+    assert.match(route, /hasWeatherCoordinates\(settings\)/);
+  }
+});
