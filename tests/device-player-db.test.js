@@ -123,6 +123,7 @@ test('same physical TV moves between monitors without creating a parallel device
   assert.equal(moved.id, original.id, 'physical TV keeps one database identity');
   assert.equal(moved.screen_id, second.screenId);
   assert.equal(await repository.getActiveDeviceSessionByHash(oldTokenHash), null, 'old session is revoked atomically on rebind');
+  assert.equal(await repository.isRevokedDeviceSessionByHash(oldTokenHash), false, 'session rotation/rebind must never falsely purge the active TV');
   assert.equal(await repository.getActiveDeviceBindingByScreen(first.screenId), null);
   assert.equal((await repository.getActiveDeviceBindingByKey(deviceKey)).screen_id, second.screenId);
 });
@@ -165,6 +166,7 @@ test('unbinding revokes the session but preserves physical TV identity for later
   assert.equal(await repository.revokeDeviceByScreen(first.screenId), true);
   assert.equal(await repository.getActiveDeviceBindingByScreen(first.screenId), null);
   assert.equal(await repository.getActiveDeviceSessionByHash(tokenHash), null);
+  assert.equal(await repository.isRevokedDeviceSessionByHash(tokenHash), true, 'offline admin unbind must remain recognizable');
 
   const rebound = await repository.bindDevice({ deviceKey, screenId: second.screenId, label: 'ТВ', authorizedBy: 'admin' });
   assert.equal(rebound.id, device.id);
