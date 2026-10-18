@@ -1,11 +1,7 @@
 import express from 'express';
 import { positiveId } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
-import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
-import { themeWeatherSettings } from '../../contracts/menu-theme.js';
-import { hasWeatherCoordinates } from '../../services/weather-service.js';
-import { activity, notFound } from '../helpers.js';
 
 async function savedVisibleScreen(store, id) {
   const screen = await store.getScreen(id);
@@ -15,7 +11,7 @@ async function savedVisibleScreen(store, id) {
   return screen;
 }
 
-export function createManagerViewRouter({ store, config, weatherService }) {
+export function createManagerViewRouter({ store, config, weatherService, realtime }) {
   const router = express.Router();
 
   router.use((_request, response, next) => {
@@ -46,31 +42,16 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     response.json(groups);
   });
 
-  router.get('/catalog', async (_request, response) => {
-    const [products, packaging] = await Promise.all([store.listProducts(), store.listPackaging()]);
-    response.json({ products, packaging });
-  });
-
-  router.get('/proposals', async (request, response) => {
-    response.json(await store.listCatalogProposals({ managerUsername:request.session.sub }));
-  });
-
-  router.post('/proposals', async (request, response) => {
-    const entityId = positiveId(request.body?.entity_id, 'entity_id');
-    const proposal = await createCatalogChangeProposal(store, {
-      managerUsername:request.session.sub,
-      entityType:request.body?.entity_type,
-      entityId,
-      proposedPayload:request.body?.proposed
-    });
-    if (!proposal) throw notFound('Запись каталога не найдена.');
-    await activity(store, request, {
-      action:'catalog.proposal.created',
-      entity_type:'catalog_change_proposal',
-      entity_id:proposal.id,
-      message:`Менеджер предложил изменение ${proposal.entity_type === 'product' ? 'продукции' : 'тары'} #${proposal.entity_id}.`
-    });
-    response.status(201).json(proposal);
+  router.get('/screens/:id/preview', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
+    const preview = realtime?.screenPreview?.(id) || null;
+    if (!preview) return response.status(404).json({ error: 'Кадр TV Player ещё не получен.' });
+    response.setHeader('Cache-Control', 'private, no-cache');
+    response.setHeader('ETag', preview.etag);
+    response.setHeader('X-MIRA-Preview-Updated-At', preview.updatedAt);
+    response.type(preview.contentType);
+    return response.send(preview.buffer);
   });
 
   router.get('/screens/:id/context', async (request, response) => {
@@ -85,12 +66,10 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     const id = positiveId(request.params.id, 'id');
     if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
     const draft = await store.getScreenDraft(id);
-    const settings = request.query.source === 'theme'
-      ? themeWeatherSettings(draft?.settings?.theme, draft?.scene)
-      : sceneWeatherSettings(draft?.scene, id);
-    if (!settings?.enabled || !hasWeatherCoordinates(settings)) return response.status(204).end();
+    const settings = sceneWeatherSettings(draft?.scene, id);
+    if (!settings?.enabled || !Number.isFinite(Number(settings.latitude)) || !Number.isFinite(Number(settings.longitude))) return response.status(204).end();
     const snapshot = await weatherService.getSnapshot(settings);
-    response.json({ settings, snapshot });
+    response.json({ settings: { ...settings, screen_id: id }, snapshot });
   });
 
   return router;

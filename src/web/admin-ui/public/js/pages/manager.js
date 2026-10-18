@@ -3,100 +3,75 @@ import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
-import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 
-const previewRenderers = new Map();
-const screenContexts = new Map();
-const contextPromises = new Map();
-let fullscreenRenderer = null;
+const snapshotUrls = new Map();
+const snapshotPromises = new Map();
 let fullscreenScreenId = null;
 let fullscreenEntries = [];
 let fullscreenIndex = -1;
 let fullscreenRequestToken = 0;
-let catalog = { products:[], packaging:[] };
-let catalogMode = 'products';
-let proposalTarget = null;
-
-const FIELD_LABELS = Object.freeze({
-  name:'Название',
-  producer:'Производитель',
-  address:'Адрес',
-  characteristics:'Характеристики',
-  strength:'Крепость',
-  price_primary:'Цена 1 л',
-  price_secondary:'Цена 1,5 л',
-  alcoholic:'Алкогольная продукция',
-  beverage_color:'Цвет напитка',
-  filtration:'Фильтрация',
-  unit_price:'Цена тары',
-  active:'Активна'
-});
-
-const STATUS_LABELS = Object.freeze({
-  pending:'Ожидает согласования',
-  approved:'Принято',
-  rejected:'Отклонено',
-  conflict:'Конфликт'
-});
 
 function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
 }
 
-function clearPreviewRenderers() {
-  for (const renderer of previewRenderers.values()) renderer.destroy();
-  previewRenderers.clear();
-  screenContexts.clear();
-  contextPromises.clear();
+function clearSnapshots() {
+  for (const url of snapshotUrls.values()) URL.revokeObjectURL(url);
+  snapshotUrls.clear();
+  snapshotPromises.clear();
 }
 
-function destroyFullscreenRenderer() {
-  fullscreenRenderer?.destroy();
-  fullscreenRenderer = null;
-  document.getElementById('manager-fullscreen-stage')?.replaceChildren();
+function snapshotEndpoint(screenId) {
+  return `${API.managerBase}/screens/${screenId}/preview`;
 }
 
-function contextEndpoint(screenId) {
-  return `${API.managerBase}/screens/${screenId}/context`;
-}
-
-function weatherEndpoint(screenId) {
-  return `${API.managerBase}/screens/${screenId}/weather`;
-}
-
-async function fetchScreenContext(screenId) {
+async function fetchSnapshot(screenId) {
   const id = Number(screenId);
-  const cached = screenContexts.get(id);
+  const cached = snapshotUrls.get(id);
   if (cached) return cached;
-  const pending = contextPromises.get(id);
+  const pending = snapshotPromises.get(id);
   if (pending) return pending;
-  const task = api.get(contextEndpoint(id))
-    .then((context) => {
-      screenContexts.set(id, context);
-      return context;
-    })
-    .finally(() => contextPromises.delete(id));
-  contextPromises.set(id, task);
+
+  const task = (async () => {
+    const response = await fetch(snapshotEndpoint(id), {
+      credentials:'include',
+      cache:'no-store'
+    });
+    if (!response.ok) {
+      let message = 'Кадр TV Player недоступен.';
+      try {
+        const body = await response.json();
+        if (body?.error) message = body.error;
+      } catch {}
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const previous = snapshotUrls.get(id);
+    if (previous) URL.revokeObjectURL(previous);
+    const url = URL.createObjectURL(blob);
+    snapshotUrls.set(id, url);
+    return url;
+  })().finally(() => snapshotPromises.delete(id));
+
+  snapshotPromises.set(id, task);
   return task;
 }
 
-function canonicalStage(active = false) {
-  const stage = document.createElement('div');
-  stage.className = 'manager-canonical-stage';
-  if (active) stage.dataset.playerActive = 'true';
-  return stage;
+function snapshotImage(url, alt, fullscreen = false) {
+  const image = document.createElement('img');
+  image.className = fullscreen ? 'manager-screen-snapshot is-fullscreen' : 'manager-screen-snapshot';
+  image.src = url;
+  image.alt = alt;
+  image.decoding = 'async';
+  image.draggable = false;
+  return image;
 }
 
 async function hydratePreview(stage, screenId, loading) {
   try {
-    const context = await fetchScreenContext(screenId);
+    const url = await fetchSnapshot(screenId);
     if (!stage.isConnected) return;
-    previewRenderers.get(Number(screenId))?.destroy();
-    const canonical = canonicalStage(false);
-    stage.replaceChildren(canonical);
-    const renderer = new PlayerSceneRenderer(canonical, { weatherEndpoint:weatherEndpoint(screenId) });
-    previewRenderers.set(Number(screenId), renderer);
-    await renderer.render(context);
+    stage.replaceChildren(snapshotImage(url, 'Кадр телевизора'));
   } catch (error) {
     if (stage.isConnected) {
       stage.replaceChildren(Object.assign(document.createElement('p'), {
@@ -129,7 +104,7 @@ function screenCard(screen, location, orderIndex) {
   stage.className = 'manager-screen-stage';
   const loading = document.createElement('div');
   loading.className = 'manager-preview-loading';
-  loading.textContent = 'Загружаем актуальное состояние…';
+  loading.textContent = 'Получаем кадр телевизора…';
   shell.append(stage, loading);
 
   const copy = document.createElement('div');
@@ -150,7 +125,7 @@ function renderLocations(locations) {
   const root = document.getElementById('manager-locations');
   const empty = document.getElementById('manager-empty');
   if (!root || !empty) return;
-  clearPreviewRenderers();
+  clearSnapshots();
   root.replaceChildren();
   fullscreenEntries = locations.flatMap((location) =>
     location.screens.map((screen) => ({ screen, location }))
@@ -187,8 +162,17 @@ function renderLocations(locations) {
 }
 
 async function loadOverview() {
-  const locations = await api.get(API.managerOverview);
-  renderLocations(Array.isArray(locations) ? locations : []);
+  const button = document.getElementById('manager-refresh');
+  if (button) button.disabled = true;
+  try {
+    const locations = await api.get(API.managerOverview);
+    renderLocations(Array.isArray(locations) ? locations : []);
+    setMessage('manager-message', '');
+  } catch (error) {
+    setMessage('manager-message', error.message);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function updateFullscreenNavigation() {
@@ -221,10 +205,9 @@ async function openFullscreen(screen, location, orderIndex) {
   fullscreenScreenId = screen.id;
   fullscreenIndex = orderIndex;
   updateFullscreenNavigation();
-  destroyFullscreenRenderer();
   stage.replaceChildren(Object.assign(document.createElement('p'), {
     className:'manager-preview-empty is-fullscreen',
-    textContent:'Открываем актуальное состояние…'
+    textContent:'Открываем сохранённый кадр…'
   }));
   document.getElementById('manager-fullscreen-title').textContent = screen.name;
   document.getElementById('manager-fullscreen-subtitle').textContent = `${location.name} · ${screen.resolution}`;
@@ -235,12 +218,9 @@ async function openFullscreen(screen, location, orderIndex) {
   }
 
   try {
-    const context = await fetchScreenContext(screen.id);
+    const url = snapshotUrls.get(Number(screen.id)) || await fetchSnapshot(screen.id);
     if (requestToken !== fullscreenRequestToken || fullscreenScreenId !== screen.id || overlay.classList.contains('is-hidden')) return;
-    const canonical = canonicalStage(true);
-    stage.replaceChildren(canonical);
-    fullscreenRenderer = new PlayerSceneRenderer(canonical, { weatherEndpoint:weatherEndpoint(screen.id) });
-    await fullscreenRenderer.render(context);
+    stage.replaceChildren(snapshotImage(url, `Кадр ${screen.name}`, true));
   } catch (error) {
     if (requestToken !== fullscreenRequestToken) return;
     stage.replaceChildren(Object.assign(document.createElement('p'), {
@@ -255,250 +235,9 @@ async function closeFullscreen() {
   fullscreenScreenId = null;
   fullscreenIndex = -1;
   updateFullscreenNavigation();
-  destroyFullscreenRenderer();
   const overlay = document.getElementById('manager-fullscreen');
   overlay?.classList.add('is-hidden');
   if (document.fullscreenElement === overlay) await document.exitFullscreen().catch(() => undefined);
-}
-
-function formatPrice(value) {
-  const text = String(value ?? '').trim();
-  return text ? `${text.replace('.', ',')} ₽` : '—';
-}
-
-function catalogRecords() {
-  return catalogMode === 'packaging' ? catalog.packaging : catalog.products;
-}
-
-function catalogMeta(item) {
-  if (catalogMode === 'packaging') return formatPrice(item.unit_price);
-  const parts = [formatPrice(item.price_primary), item.producer, item.strength].filter(Boolean);
-  return parts.join(' · ');
-}
-
-function renderCatalog() {
-  const list = document.getElementById('manager-catalog-list');
-  const empty = document.getElementById('manager-catalog-empty');
-  if (!list || !empty) return;
-  list.replaceChildren();
-  const records = catalogRecords();
-  for (const item of records) {
-    const row = document.createElement('div');
-    row.className = 'manager-catalog-row';
-    const copy = document.createElement('div');
-    const title = document.createElement('strong');
-    title.textContent = item.name || 'Без названия';
-    const meta = document.createElement('span');
-    meta.textContent = catalogMeta(item);
-    copy.append(title, meta);
-    const propose = document.createElement('button');
-    propose.className = 'button button-secondary';
-    propose.type = 'button';
-    propose.textContent = 'Предложить';
-    propose.addEventListener('click', () => openProposal(catalogMode === 'packaging' ? 'packaging' : 'product', item));
-    row.append(copy, propose);
-    list.append(row);
-  }
-  empty.classList.toggle('is-hidden', records.length !== 0);
-  document.getElementById('manager-tab-products')?.classList.toggle('is-active', catalogMode === 'products');
-  document.getElementById('manager-tab-packaging')?.classList.toggle('is-active', catalogMode === 'packaging');
-}
-
-async function loadCatalog() {
-  const response = await api.get(API.managerCatalog);
-  catalog = {
-    products:Array.isArray(response?.products) ? response.products : [],
-    packaging:Array.isArray(response?.packaging) ? response.packaging : []
-  };
-  renderCatalog();
-}
-
-function formatValue(value) {
-  if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
-  if (value === undefined || value === null || value === '') return '—';
-  return String(value);
-}
-
-function proposalChanges(proposal) {
-  const base = proposal?.base_payload || {};
-  const proposed = proposal?.proposed_payload || {};
-  return Object.keys(proposed)
-    .filter((key) => JSON.stringify(base[key] ?? null) !== JSON.stringify(proposed[key] ?? null))
-    .map((key) => ({ key, label:FIELD_LABELS[key] || key, before:base[key], after:proposed[key] }));
-}
-
-function renderProposals(proposals) {
-  const list = document.getElementById('manager-proposal-list');
-  const empty = document.getElementById('manager-proposals-empty');
-  if (!list || !empty) return;
-  list.replaceChildren();
-  for (const proposal of proposals) {
-    const card = document.createElement('article');
-    card.className = `manager-proposal-card status-${proposal.status}`;
-    const head = document.createElement('header');
-    const title = document.createElement('strong');
-    title.textContent = proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
-    const status = document.createElement('span');
-    status.className = 'manager-proposal-status';
-    status.textContent = STATUS_LABELS[proposal.status] || proposal.status;
-    head.append(title, status);
-    const changes = document.createElement('div');
-    changes.className = 'manager-proposal-changes';
-    for (const change of proposalChanges(proposal)) {
-      const line = document.createElement('p');
-      line.textContent = `${change.label}: ${formatValue(change.before)} → ${formatValue(change.after)}`;
-      changes.append(line);
-    }
-    if (!changes.childElementCount) {
-      const line = document.createElement('p');
-      line.textContent = 'Значения не изменены.';
-      changes.append(line);
-    }
-    card.append(head, changes);
-    if (proposal.review_comment) {
-      const comment = document.createElement('p');
-      comment.className = 'manager-proposal-comment';
-      comment.textContent = `Комментарий администратора: ${proposal.review_comment}`;
-      card.append(comment);
-    }
-    list.append(card);
-  }
-  empty.classList.toggle('is-hidden', proposals.length !== 0);
-}
-
-async function loadProposals() {
-  const proposals = await api.get(API.managerProposals);
-  renderProposals(Array.isArray(proposals) ? proposals : []);
-}
-
-function textField(label, name, value = '', { type = 'text', maxLength = 180 } = {}) {
-  const field = document.createElement('label');
-  field.className = 'manager-proposal-field';
-  const caption = document.createElement('span');
-  caption.textContent = label;
-  const input = document.createElement('input');
-  input.name = name;
-  input.type = type;
-  input.maxLength = maxLength;
-  input.value = value ?? '';
-  field.append(caption, input);
-  return field;
-}
-
-function selectField(label, name, value, options) {
-  const field = document.createElement('label');
-  field.className = 'manager-proposal-field';
-  const caption = document.createElement('span');
-  caption.textContent = label;
-  const select = document.createElement('select');
-  select.name = name;
-  for (const [optionValue, optionLabel] of options) select.add(new Option(optionLabel, optionValue));
-  select.value = value || options[0]?.[0] || '';
-  field.append(caption, select);
-  return field;
-}
-
-function checkboxField(label, name, checked) {
-  const field = document.createElement('label');
-  field.className = 'manager-proposal-checkbox';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.name = name;
-  input.checked = checked === true;
-  const caption = document.createElement('span');
-  caption.textContent = label;
-  field.append(input, caption);
-  return field;
-}
-
-function openProposal(entityType, record) {
-  proposalTarget = { entityType, record };
-  const dialog = document.getElementById('manager-proposal-dialog');
-  const fields = document.getElementById('manager-proposal-fields');
-  if (!(dialog instanceof HTMLDialogElement) || !(fields instanceof HTMLElement)) return;
-  fields.replaceChildren();
-  document.getElementById('manager-proposal-title').textContent = record.name || 'Каталог';
-  setMessage('manager-proposal-message', '');
-
-  if (entityType === 'product') {
-    fields.append(
-      textField('Название', 'name', record.name, { maxLength:120 }),
-      textField('Цена за 1 л', 'price_primary', record.price_primary, { maxLength:16 }),
-      textField('Производитель', 'producer', record.producer, { maxLength:120 }),
-      textField('Адрес', 'address', record.address, { maxLength:180 }),
-      textField('Характеристики', 'characteristics', record.characteristics, { maxLength:180 }),
-      textField('Крепость', 'strength', record.strength, { maxLength:20 }),
-      selectField('Цвет напитка', 'beverage_color', record.beverage_color, [
-        ['none','Не задан'],['light','Светлое'],['dark','Тёмное'],['white','Белое'],['semi_dark','Полутёмное'],['amber','Янтарное'],['red','Красное']
-      ]),
-      selectField('Фильтрация', 'filtration', record.filtration, [['none','Не задана'],['filtered','Фильтрованное'],['unfiltered','Нефильтрованное']]),
-      checkboxField('Алкогольная продукция', 'alcoholic', record.alcoholic),
-      checkboxField('Активна', 'active', record.active !== false)
-    );
-  } else {
-    fields.append(
-      textField('Название', 'name', record.name, { maxLength:120 }),
-      textField('Цена тары', 'unit_price', record.unit_price, { maxLength:16 }),
-      checkboxField('Активна', 'active', record.active !== false)
-    );
-  }
-  dialog.showModal();
-}
-
-function proposalPayload() {
-  const fields = document.getElementById('manager-proposal-fields');
-  if (!(fields instanceof HTMLElement) || !proposalTarget) return null;
-  const value = (name) => fields.querySelector(`[name="${name}"]`)?.value ?? '';
-  const checked = (name) => fields.querySelector(`[name="${name}"]`)?.checked === true;
-  if (proposalTarget.entityType === 'product') {
-    return {
-      name:value('name'),
-      price_primary:value('price_primary'),
-      producer:value('producer'),
-      address:value('address'),
-      characteristics:value('characteristics'),
-      strength:value('strength'),
-      beverage_color:value('beverage_color'),
-      filtration:value('filtration'),
-      alcoholic:checked('alcoholic'),
-      active:checked('active')
-    };
-  }
-  return { name:value('name'), unit_price:value('unit_price'), active:checked('active') };
-}
-
-async function submitProposal() {
-  if (!proposalTarget) return;
-  const button = document.getElementById('manager-proposal-submit');
-  if (button) button.disabled = true;
-  try {
-    await api.post(API.managerProposals, {
-      entity_type:proposalTarget.entityType,
-      entity_id:proposalTarget.record.id,
-      proposed:proposalPayload()
-    });
-    document.getElementById('manager-proposal-dialog')?.close();
-    proposalTarget = null;
-    await loadProposals();
-    setMessage('manager-message', 'Предложение отправлено администратору.', 'success');
-  } catch (error) {
-    setMessage('manager-proposal-message', error.message);
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
-
-async function loadWorkspace() {
-  const button = document.getElementById('manager-refresh');
-  if (button) button.disabled = true;
-  try {
-    await Promise.all([loadOverview(), loadCatalog(), loadProposals()]);
-    setMessage('manager-message', '');
-  } catch (error) {
-    setMessage('manager-message', error.message);
-  } finally {
-    if (button) button.disabled = false;
-  }
 }
 
 async function logout() {
@@ -507,20 +246,16 @@ async function logout() {
 }
 
 export function initialiseManagerView() {
-  document.title = `${appName()} — Рабочее место менеджера`;
+  document.title = `${appName()} — Просмотр`;
   const app = document.querySelector('[data-manager-app-name]');
   const user = document.querySelector('[data-manager-user]');
   if (app) app.textContent = appName();
   if (user) user.textContent = state.session?.display_name || state.session?.username || '';
-  document.getElementById('manager-refresh')?.addEventListener('click', () => void loadWorkspace());
+  document.getElementById('manager-refresh')?.addEventListener('click', () => void loadOverview());
   document.getElementById('manager-logout')?.addEventListener('click', () => void logout());
   document.getElementById('manager-fullscreen-close')?.addEventListener('click', () => void closeFullscreen());
   document.getElementById('manager-fullscreen-prev')?.addEventListener('click', () => moveFullscreen(-1));
   document.getElementById('manager-fullscreen-next')?.addEventListener('click', () => moveFullscreen(1));
-  document.getElementById('manager-tab-products')?.addEventListener('click', () => { catalogMode = 'products'; renderCatalog(); });
-  document.getElementById('manager-tab-packaging')?.addEventListener('click', () => { catalogMode = 'packaging'; renderCatalog(); });
-  document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
-  document.getElementById('manager-proposal-dialog')?.addEventListener('close', () => { proposalTarget = null; });
   document.addEventListener('keydown', (event) => {
     const overlay = document.getElementById('manager-fullscreen');
     if (!overlay || overlay.classList.contains('is-hidden')) return;
@@ -543,9 +278,6 @@ export function initialiseManagerView() {
     const overlay = document.getElementById('manager-fullscreen');
     if (!document.fullscreenElement && overlay && !overlay.classList.contains('is-hidden')) void closeFullscreen();
   });
-  window.addEventListener('pagehide', () => {
-    clearPreviewRenderers();
-    destroyFullscreenRenderer();
-  }, { once:true });
-  void loadWorkspace();
+  window.addEventListener('pagehide', clearSnapshots, { once:true });
+  void loadOverview();
 }

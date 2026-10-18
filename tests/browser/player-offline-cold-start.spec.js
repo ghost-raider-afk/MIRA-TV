@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 
 const currentAppVersion = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
-const currentShellCache = 'mira-tv-player-shell-v77';
+const currentShellCache = 'mira-tv-player-shell-v76';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 
 function offlineContext() {

@@ -76,8 +76,8 @@ test('overflow reduces one shared scale while price anchors stay right aligned',
   assert.equal(layout.vertical.fits, true);
   const svg = buildTableSvg(model, lines, layout);
   assert.match(svg, /text-anchor="end"/);
-  assert.match(svg, />1 Л<\/text>/);
-  assert.match(svg, />1,5 Л<\/text>/);
+  assert.match(svg, />1 л<\/text>/);
+  assert.match(svg, />1,5 л<\/text>/);
   assert.doesNotMatch(svg, /°/);
   assert.doesNotMatch(svg, /<line[^>]*x1="1405"/);
 });

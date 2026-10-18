@@ -1,79 +1,15 @@
 import express from 'express';
-import { optionalText, positiveId } from '../../contracts/input.js';
 import { managerUsernameInput } from '../../contracts/users.js';
-import { notifyCatalogEntityChanged } from '../../services/catalog-render-notifier.js';
-import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
-
-const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict']);
 
 function activeInput(value) {
   if (typeof value !== 'boolean') throw Object.assign(new Error('Поле active должно быть логическим значением.'), { status: 400 });
   return value;
 }
 
-function proposalStatus(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const status = String(value);
-  if (!PROPOSAL_STATUSES.has(status)) throw Object.assign(new Error('Статус заявки выбран неверно.'), { status:400 });
-  return status;
-}
-
-async function reviewProposal({ store, realtime, request, response, decision }) {
-  const id = positiveId(request.params.id, 'id');
-  const reviewComment = optionalText(request.body?.comment, 'Комментарий', { max:500 });
-  let result;
-  try {
-    result = await reviewCatalogChangeProposal(store, {
-      proposalId:id,
-      decision,
-      reviewerUsername:request.session.sub,
-      reviewComment
-    });
-  } catch (error) {
-    if (error?.code === '23505') throw conflict('Предложенное название уже используется в каталоге.');
-    throw error;
-  }
-  if (result.kind === 'missing') throw notFound('Заявка не найдена.');
-  if (result.kind === 'resolved') throw conflict('Заявка уже обработана.', result.proposal);
-  if (result.kind === 'conflict') {
-    await activity(store, request, {
-      action:'catalog.proposal.conflict',
-      entity_type:'catalog_change_proposal',
-      entity_id:id,
-      message:`Заявка #${id} не применена: исходная запись каталога уже изменилась.`
-    });
-    return response.status(409).json({ error:'Исходная запись каталога уже изменилась. Создайте новое предложение.', proposal:result.proposal, current:result.entity });
-  }
-  if (result.kind === 'approved') {
-    await notifyCatalogEntityChanged(
-      store,
-      realtime,
-      result.proposal.entity_type,
-      result.proposal.entity_id,
-      'catalog.proposal.approved',
-      request.session.sub
-    );
-  }
-  await activity(store, request, {
-    action:`catalog.proposal.${result.kind}`,
-    entity_type:'catalog_change_proposal',
-    entity_id:id,
-    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : 'отклонена'}.`
-  });
-  return response.json(result);
-}
-
-export function createManagerAdminRouter({ store, config, realtime }) {
+export function createManagerAdminRouter({ store, config }) {
   const router = express.Router();
-
-  router.get('/proposals', async (request, response) => {
-    response.json(await store.listCatalogProposals({ status:proposalStatus(request.query?.status) }));
-  });
-
-  router.post('/proposals/:id/approve', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'approve' }));
-  router.post('/proposals/:id/reject', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'reject' }));
 
   router.get('/', async (_request, response) => {
     response.json(await store.listManagers());

@@ -13,12 +13,12 @@ async function listByIds(pool, table, ids) {
 }
 
 export function createCatalogRepository(pool) {
-  async function getProduct(id, { forUpdate = false } = {}) {
-    const { rows } = await pool.query(`SELECT * FROM catalog_products WHERE id = $1${forUpdate ? ' FOR UPDATE' : ''}`, [id]);
+  async function getProduct(id) {
+    const { rows } = await pool.query('SELECT * FROM catalog_products WHERE id = $1', [id]);
     return normaliseRow(rows[0]);
   }
-  async function getPackaging(id, { forUpdate = false } = {}) {
-    const { rows } = await pool.query(`SELECT * FROM catalog_packaging WHERE id = $1${forUpdate ? ' FOR UPDATE' : ''}`, [id]);
+  async function getPackaging(id) {
+    const { rows } = await pool.query('SELECT * FROM catalog_packaging WHERE id = $1', [id]);
     return normaliseRow(rows[0]);
   }
 
@@ -31,7 +31,6 @@ export function createCatalogRepository(pool) {
       return listByIds(pool, 'catalog_products', ids);
     },
     getProduct,
-    getProductForUpdate(id) { return getProduct(id, { forUpdate:true }); },
     async createProduct(product) {
       const now = isoNow();
       const { rows } = await pool.query(
@@ -66,7 +65,6 @@ export function createCatalogRepository(pool) {
       return listByIds(pool, 'catalog_packaging', ids);
     },
     getPackaging,
-    getPackagingForUpdate(id) { return getPackaging(id, { forUpdate:true }); },
     async createPackaging(packaging) {
       const now = isoNow();
       const { rows } = await pool.query(

@@ -26,8 +26,6 @@ export function normaliseRow(row) {
 
 export function jsonValue(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
-  // PostgreSQL JSON/JSONB fields are already decoded by the pg driver.
-  if (typeof value === 'object') return value;
   try { return JSON.parse(value); }
   catch { return fallback; }
 }

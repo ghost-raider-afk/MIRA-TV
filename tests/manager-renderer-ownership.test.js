@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Manager preview uses the canonical PlayerSceneRenderer without physical TV capture loops', async () => {
+test('Manager uses passive LKG TV snapshots instead of a second scene renderer', async () => {
   const [manager, routes, realtime, client, player, background] = await Promise.all([
     read('src/web/admin-ui/public/js/pages/manager.js'),
     read('src/api/managers/view-routes.js'),
@@ -13,16 +13,10 @@ test('Manager preview uses the canonical PlayerSceneRenderer without physical TV
     read('src/web/admin-ui/public/js/player/player.js'),
     read('src/web/admin-ui/public/js/player/player-background-services.js')
   ]);
-
-  assert.match(manager, /PlayerSceneRenderer/);
-  assert.match(manager, /previewRenderers/);
-  assert.match(manager, /fullscreenRenderer/);
-  assert.match(manager, /\/screens\/\$\{screenId\}\/context/);
-  assert.doesNotMatch(manager, /URL\.createObjectURL|\/preview|setInterval/);
-  assert.match(routes, /\/screens\/:id\/context/);
-  assert.doesNotMatch(routes, /screenPreview|\/screens\/:id\/preview|requestScreenPreview/);
-
-  // Physical screenshots remain an administrator/player diagnostic path, not Manager Preview.
+  assert.doesNotMatch(manager, /PlayerSceneRenderer|previewRenderers|fullscreenRenderer/);
+  assert.match(manager, /URL\.createObjectURL/);
+  assert.match(routes, /screenPreview/);
+  assert.doesNotMatch(routes, /requestScreenPreview/);
   assert.match(realtime, /type:'preview\.request'/);
   assert.match(client, /mira:player-preview-request/);
   assert.match(player, /mira:player-preview-request/);
@@ -30,31 +24,4 @@ test('Manager preview uses the canonical PlayerSceneRenderer without physical TV
   assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);
   assert.match(background, /previewTimer = setTimeout/);
   assert.doesNotMatch(background, /setInterval/);
-});
-
-test('Manager proposals and administrator approvals stay behind their existing role boundaries', async () => {
-  const [server, managerRoutes, adminRoutes] = await Promise.all([
-    read('src/server.js'),
-    read('src/api/managers/view-routes.js'),
-    read('src/api/managers/admin-routes.js')
-  ]);
-
-  assert.match(server, /app\.use\('\/api\/manager', requireApiRole\('manager'\), createManagerViewRouter\(dependencies\)\)/);
-  assert.match(server, /app\.use\('\/api\/admin\/managers', requireAdministrator, createManagerAdminRouter\(dependencies\)\)/);
-  assert.match(managerRoutes, /router\.post\('\/proposals'/);
-  assert.match(managerRoutes, /managerUsername:request\.session\.sub/);
-  assert.match(adminRoutes, /\/proposals\/:id\/approve/);
-  assert.match(adminRoutes, /\/proposals\/:id\/reject/);
-});
-
-test('Manager theme weather follows the same server-side configuration as the TV player', async () => {
-  const [manager, device] = await Promise.all([
-    read('src/api/managers/view-routes.js'),
-    read('src/api/device/public-routes.js')
-  ]);
-  for (const route of [manager, device]) {
-    assert.match(route, /request\.query\.source === 'theme'/);
-    assert.match(route, /themeWeatherSettings\(draft\?\.settings\?\.theme, draft\?\.scene\)/);
-    assert.match(route, /hasWeatherCoordinates\(settings\)/);
-  }
 });

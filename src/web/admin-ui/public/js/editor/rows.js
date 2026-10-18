@@ -10,7 +10,7 @@ export function createEditorRow(kind) {
     column:'left',
     enabled: true,
     ...(kind === 'section'
-      ? { name: 'Новый раздел', section_type:'products' }
+      ? { name: 'Новый раздел' }
       : kind === 'item'
         ? { product_id: '', promotion: false, promotion_text: '' }
         : { packaging_id: '' })
@@ -293,19 +293,6 @@ function sectionInlineControl(editorState, row, options) {
     options.onVisualChange?.();
   });
 
-  const type = document.createElement('select');
-  type.className = 'editor-preview-section-type';
-  type.setAttribute('aria-label', `Тип раздела ${row.name || ''}`);
-  type.add(new Option('Продукция', 'products'));
-  type.add(new Option('Тара', 'packaging'));
-  type.value = row.section_type === 'packaging' ? 'packaging' : 'products';
-  type.addEventListener('focus', () => activateRow(editorState, row.id, options));
-  type.addEventListener('change', () => {
-    options.onBeforeMutate?.();
-    updateRow(editorState, row.id, { section_type:type.value });
-    options.onVisualChange?.();
-  });
-
   const sort = button('А→Я', 'Сортировать раздел по алфавиту', () => {
     activateRow(editorState, row.id, options);
     structuralChange(options, () => sortSectionItems(
@@ -315,7 +302,7 @@ function sectionInlineControl(editorState, row, options) {
     ));
   });
   sort.classList.add('editor-preview-sort');
-  shell.append(input, type, sort);
+  shell.append(input, sort);
   return shell;
 }
 

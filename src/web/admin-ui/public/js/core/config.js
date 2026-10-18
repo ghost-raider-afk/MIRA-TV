@@ -21,11 +21,8 @@ export const API = Object.freeze({
   productsExport: '/api/catalog/products/export.csv',
   packaging: '/api/catalog/packaging',
   managers: '/api/admin/managers',
-  adminManagerProposals: '/api/admin/managers/proposals',
   managerBase: '/api/manager',
   managerOverview: '/api/manager/overview',
-  managerCatalog: '/api/manager/catalog',
-  managerProposals: '/api/manager/proposals'
 });
 
 export function pageName() {

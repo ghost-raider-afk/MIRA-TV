@@ -6,7 +6,6 @@ import {
 } from './renderer-model.js';
 
 const READABLE_ROW_HEIGHT = 66;
-const COMPACT_ROW_RATIO = .72;
 const READABLE_COLUMN_GAP = 24;
 const MIN_TWO_COLUMN_WIDTH = 900;
 
@@ -40,91 +39,30 @@ function rounded(value) {
   return Math.round(value * 10) / 10;
 }
 
-function hasSecondaryMetadata(line, readable) {
-  if (line?.kind !== 'item') return true;
-  const metadata = readable && typeof line.metadataReadable === 'string'
-    ? line.metadataReadable
-    : line.metadata;
-  return Boolean(String(metadata || '').trim() || (readable && String(line.strength || '').trim()));
-}
-
-function lineBaseHeight(line, readable) {
-  const normal = readable ? READABLE_ROW_HEIGHT : MENU_REFERENCE.rowHeight;
-  if (line?.kind === 'item' && !hasSecondaryMetadata(line, readable)) return normal * COMPACT_ROW_RATIO;
-  return normal;
-}
-
-function variableLegacyLayout(model, lines, legacy) {
-  const baseHeights = lines.map((line) => lineBaseHeight(line, false));
-  const baseHeight = Math.max(1, baseHeights.reduce((sum, value) => sum + value, 0));
-  const available = legacy.frame.height;
-  const requestedPercent = requestedFontScalePercent(model.settings);
-  const fitPercent = (available / baseHeight) * 100;
-  const effectivePercent = Math.max(MENU_REFERENCE.fontScaleMinPercent, Math.min(requestedPercent, fitPercent));
-  const scale = effectivePercent / 100;
-  let cursor = legacy.frame.y;
-  const boxes = baseHeights.map((height) => {
-    const scaledHeight = height * scale;
-    const box = Object.freeze({
-      top:cursor,
-      height:scaledHeight,
-      bottom:cursor + scaledHeight,
-      gapBefore:0
-    });
-    cursor += scaledHeight;
-    return box;
-  });
-
-  return Object.freeze({
-    ...legacy,
-    styleId:'legacy',
-    horizontals:null,
-    columns:Object.freeze([legacy.horizontal]),
-    vertical:Object.freeze({
-      ...legacy.vertical,
-      baseContentHeight:baseHeight,
-      requestedPercent:rounded(requestedPercent),
-      fitPercent:rounded(fitPercent),
-      effectivePercent:rounded(effectivePercent),
-      scale,
-      rowHeight:MENU_REFERENCE.rowHeight * scale,
-      usedHeight:baseHeight * scale,
-      fits:baseHeight * scale <= available + .5,
-      autoReduced:effectivePercent + .05 < requestedPercent,
-      boxes:Object.freeze(boxes)
-    })
-  });
-}
-
 function manualReadablePositions(lines, twoColumns) {
   if (!twoColumns) {
-    let cursor = 0;
-    const positions = lines.map((line) => {
-      const height = lineBaseHeight(line, true);
-      const position = { top:cursor, height, column:0, full:false };
-      cursor += height;
-      return position;
-    });
-    return { positions, baseHeight:Math.max(1, cursor) };
+    return {
+      positions:lines.map((_line, index) => ({ row:index, column:0, full:false })),
+      maxRows:Math.max(1, lines.length)
+    };
   }
 
   const cursors = [0, 0];
   const positions = lines.map((line) => {
-    const height = lineBaseHeight(line, true);
     const full = line?.kind === 'section' && line?.column === 'full';
     if (full) {
-      const top = Math.max(...cursors);
-      cursors[0] = top + height;
-      cursors[1] = top + height;
-      return { top, height, column:0, full:true };
+      const row = Math.max(...cursors);
+      cursors[0] = row + 1;
+      cursors[1] = row + 1;
+      return { row, column:0, full:true };
     }
     const column = line?.column === 'right' ? 1 : 0;
-    const top = cursors[column];
-    cursors[column] += height;
-    return { top, height, column, full:false };
+    const row = cursors[column];
+    cursors[column] += 1;
+    return { row, column, full:false };
   });
 
-  return { positions, baseHeight:Math.max(1, ...cursors) };
+  return { positions, maxRows:Math.max(1, ...cursors) };
 }
 
 function readableLayout(model, lines, legacy) {
@@ -139,22 +77,23 @@ function readableLayout(model, lines, legacy) {
     ? readableHorizontal(frame.x, frame.width, { fullWidth:true })
     : columns[0];
 
-  const { positions, baseHeight } = manualReadablePositions(lines, twoColumns);
+  const { positions, maxRows } = manualReadablePositions(lines, twoColumns);
   const available = frame.height;
+  const baseHeight = maxRows * READABLE_ROW_HEIGHT;
   const requestedPercent = requestedFontScalePercent(model.settings);
-  const fitPercent = (available / baseHeight) * 100;
+  const fitPercent = (available / Math.max(1, baseHeight)) * 100;
   const effectivePercent = Math.max(MENU_REFERENCE.fontScaleMinPercent, Math.min(requestedPercent, fitPercent));
   const scale = effectivePercent / 100;
+  const rowHeight = READABLE_ROW_HEIGHT * scale;
   const boxes = new Array(lines.length);
   const horizontals = new Array(lines.length);
 
   positions.forEach((position, lineIndex) => {
-    const top = frame.y + position.top * scale;
-    const height = position.height * scale;
+    const top = frame.y + position.row * rowHeight;
     boxes[lineIndex] = Object.freeze({
       top,
-      height,
-      bottom:top + height,
+      height:rowHeight,
+      bottom:top + rowHeight,
       gapBefore:0,
       column:position.full ? 'full' : position.column
     });
@@ -188,8 +127,8 @@ function readableLayout(model, lines, legacy) {
       fitPercent:rounded(fitPercent),
       effectivePercent:rounded(effectivePercent),
       scale,
-      rowHeight:READABLE_ROW_HEIGHT * scale,
-      usedHeight:baseHeight * scale,
+      rowHeight,
+      usedHeight:maxRows * rowHeight,
       fits:baseHeight * scale <= available + .5,
       autoReduced:effectivePercent + .05 < requestedPercent,
       boxes:Object.freeze(boxes)
@@ -203,5 +142,5 @@ export function buildMenuRenderLayout(model, lines) {
   const legacy = buildLegacyRenderLayout(model, lines);
   return String(model?.settings?.table_style || 'legacy') === 'readable'
     ? readableLayout(model, lines, legacy)
-    : variableLegacyLayout(model, lines, legacy);
+    : Object.freeze({ ...legacy, styleId:'legacy', horizontals:null, columns:Object.freeze([legacy.horizontal]) });
 }
