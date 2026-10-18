@@ -5,6 +5,7 @@
  * @property {string} id
  * @property {'section'} kind
  * @property {string} name
+ * @property {'products'|'packaging'} section_type
  * @property {'left'|'right'|'full'} column
  * @property {boolean} enabled
  *

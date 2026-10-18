@@ -1,6 +1,7 @@
 import express from 'express';
 import { packagingInput, positiveId, productInput } from '../../contracts/input.js';
 import { applyProductsImport, importProductsCsv, previewProductsImport, productsToCsv } from '../../services/catalog-csv-service.js';
+import { markCatalogScreensChanged, notifyCatalogEntityChanged } from '../../services/catalog-render-notifier.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 async function catalogWrite(operation, entity, name) {
@@ -9,10 +10,6 @@ async function catalogWrite(operation, entity, name) {
     if (error?.code !== '23505') throw error;
     throw conflict(`${entity} «${name}» уже существует.`);
   }
-}
-
-function screenIds(rows) {
-  return [...new Set((rows || []).map((row) => Number(row.screen_id)).filter(Number.isSafeInteger))];
 }
 
 function trackedProductImportStore(store, updatedIds) {
@@ -35,18 +32,10 @@ function trackedProductImportStore(store, updatedIds) {
   };
 }
 
-async function markAndNotify(store, realtime, affected, reason, actor) {
-  const ids = screenIds(affected);
-  if (!ids.length) return [];
-  const revisions = await store.markScreenRenderChanged(ids, ['menu'], reason, actor);
-  for (const item of revisions) realtime?.notifyScreen(item.screen_id, item.revision);
-  return revisions;
-}
-
 async function notifyProductImportScreens(store, realtime, updatedIds, actor) {
   if (updatedIds.size === 0) return;
   const affected = await store.screensUsingCatalogIds('product', [...updatedIds]);
-  await markAndNotify(store, realtime, affected, 'catalog.products.imported', actor);
+  await markCatalogScreensChanged(store, realtime, affected, 'catalog.products.imported', actor);
 }
 
 export function createCatalogRouter({ store, realtime }) {
@@ -87,9 +76,8 @@ export function createCatalogRouter({ store, realtime }) {
     const input = productInput(request.body);
     const product = await catalogWrite(() => store.updateProduct(id, input), 'Продукция', input.name);
     if (!product) throw notFound();
-    const affected = await store.screensUsingCatalog('product', id);
     await activity(store, request, { action: 'catalog.product.updated', entity_type: 'catalog_product', entity_id: product.id, message: `Обновлена продукция «${product.name}».` });
-    await markAndNotify(store, realtime, affected, 'catalog.product.updated', request.session.sub);
+    await notifyCatalogEntityChanged(store, realtime, 'product', id, 'catalog.product.updated', request.session.sub);
     response.json(product);
   });
   router.delete('/products/:id', async (request, response) => {
@@ -115,9 +103,8 @@ export function createCatalogRouter({ store, realtime }) {
     const input = packagingInput(request.body);
     const packaging = await catalogWrite(() => store.updatePackaging(id, input), 'Тара', input.name);
     if (!packaging) throw notFound();
-    const affected = await store.screensUsingCatalog('packaging', id);
     await activity(store, request, { action: 'catalog.packaging.updated', entity_type: 'catalog_packaging', entity_id: packaging.id, message: `Обновлена тара «${packaging.name}».` });
-    await markAndNotify(store, realtime, affected, 'catalog.packaging.updated', request.session.sub);
+    await notifyCatalogEntityChanged(store, realtime, 'packaging', id, 'catalog.packaging.updated', request.session.sub);
     response.json(packaging);
   });
   router.delete('/packaging/:id', async (request, response) => {

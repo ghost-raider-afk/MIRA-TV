@@ -13,7 +13,7 @@ function product(id, name, primary, secondary) {
   return { id, name, price_primary:primary, price_secondary:secondary, producer:'Производитель', strength:'4,5%' };
 }
 
-const TABLE_SURFACE_PATTERN = /<rect x="[^"]+" y="[^"]+" width="[^"]+" height="[^"]+" rx="10" fill="#090C10" fill-opacity="\.82" stroke="#FFFFFF" stroke-opacity="\.12" stroke-width="1"\/>/g;
+const TABLE_SURFACE_PATTERN = /<rect x="[^"]+" y="[^"]+" width="[^"]+" height="[^"]+" rx="10" fill="#090C10" fill-opacity="\.76" stroke="#FFFFFF" stroke-opacity="\.12" stroke-width="1"\/>/g;
 
 test('legacy menus stay legacy while readable settings use the new defaults', () => {
   const legacy = menuSettingsInput({});
@@ -62,8 +62,8 @@ test('readable layout follows persisted manual columns without automatic balanci
   const svg = buildTableSvg(model, lines, layout);
   assert.match(svg, /readable-table-surfaces/);
   assert.equal((svg.match(TABLE_SURFACE_PATTERN) || []).length, 2);
-  assert.equal((svg.match(/>1 л<\/text>/g) || []).length, 2);
-  assert.equal((svg.match(/>1,5 л<\/text>/g) || []).length, 0);
+  assert.equal((svg.match(/>1 Л<\/text>/g) || []).length, 2);
+  assert.equal((svg.match(/>1,5 Л<\/text>/g) || []).length, 0);
   assert.match(svg, />Алтунин</);
   assert.match(svg, />Бавария</);
 });
