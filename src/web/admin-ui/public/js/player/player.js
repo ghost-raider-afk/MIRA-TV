@@ -618,7 +618,8 @@ async function playerRevoked() {
   try { sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY); } catch {}
   try { sessionStorage.removeItem('mira-tv.player-boot-recovery.v1'); } catch {}
   // A confirmed server response also expires the HttpOnly TV session cookie.
-  await fetch('/api/device/session', { credentials:'include', cache:'no-store' }).catch(() => undefined);
+  await fetchWithTimeout('/api/device/session', { credentials:'include', cache:'no-store' }, 3500)
+    .catch(() => undefined);
   await purgePlayerStore().catch((error) => console.warn('Player local data cleanup failed', error));
   if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
     const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
