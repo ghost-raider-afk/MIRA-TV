@@ -32,6 +32,8 @@ RUN apt-get update \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
+# Pin the vendor APK in the image: TVs download only from our own server, never GitHub.
+ADD --checksum=sha256:462cc87ae09620dfce9d7a7ec1005fa6fffef7f4b72c14b51599e83a423e8559 https://github.com/screenlite/android-web-kiosk/releases/download/v0.0.11/screenlite-web-kiosk-v0-0-11.apk /app/src/web/admin-ui/public/downloads/screenlite-web-kiosk-v0-0-11.apk
 RUN chown -R mira-tv:mira-tv-assets /app
 USER mira-tv
 EXPOSE 8080
