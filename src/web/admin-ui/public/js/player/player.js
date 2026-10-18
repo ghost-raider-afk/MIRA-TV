@@ -608,7 +608,13 @@ async function playerRevoked() {
   playerStateSync?.stop();
   showBootstrapUnavailable('Привязка телевизора отменена администратором. Удаляем локальные данные…');
   clearActivation();
-  try { localStorage.removeItem(DEVICE_KEY_STORAGE_KEY); } catch {}
+  try {
+    localStorage.removeItem(DEVICE_KEY_STORAGE_KEY);
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('mira-tv.weather.')) localStorage.removeItem(key);
+    }
+  } catch {}
   try { sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY); } catch {}
   try { sessionStorage.removeItem('mira-tv.player-boot-recovery.v1'); } catch {}
   // A confirmed server response also expires the HttpOnly TV session cookie.
