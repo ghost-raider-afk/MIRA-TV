@@ -632,7 +632,19 @@ async function playerRevoked() {
     await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-'))
       .map((name) => caches.delete(name).catch(() => false)));
   }
+  offlinePlayerRegistrationPromise = null;
+  playerStateSync = newPlayerStateSync();
+  revocationCleanupStarted = false;
   showPairingIntro();
+}
+
+function newPlayerStateSync() {
+  return createPlayerStateSync({
+    applyContext: applySyncedContext,
+    onUnauthorized: playerUnauthorized,
+    onRevoked: playerRevoked,
+    onConnectivity: playerConnectivityChanged
+  });
 }
 
 function playerUnauthorized() {
@@ -883,12 +895,7 @@ async function bootstrapPlayer() {
 }
 
 async function initialisePlayer() {
-  playerStateSync = createPlayerStateSync({
-    applyContext: applySyncedContext,
-    onUnauthorized: playerUnauthorized,
-    onRevoked: playerRevoked,
-    onConnectivity: playerConnectivityChanged
-  });
+  playerStateSync = newPlayerStateSync();
 
   showActivationButton.addEventListener('click', () => void createActivation());
   installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
