@@ -1,6 +1,7 @@
 import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
 import { fetchWithTimeout } from './fetch-timeout.js';
+import { purgePlayerStore } from './player-store.js';
 
 window.__miraPlayerModuleStarted = true;
 
@@ -597,6 +598,37 @@ function playerConnectivityChanged(state) {
   }
 }
 
+let revocationCleanupStarted = false;
+
+async function playerRevoked() {
+  if (revocationCleanupStarted) return;
+  revocationCleanupStarted = true;
+  clearPlayerBuildRetry();
+  backgroundServices?.stop();
+  playerStateSync?.stop();
+  showBootstrapUnavailable('Привязка телевизора отменена администратором. Удаляем локальные данные…');
+  clearActivation();
+  try { localStorage.removeItem(DEVICE_KEY_STORAGE_KEY); } catch {}
+  try { sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY); } catch {}
+  try { sessionStorage.removeItem('mira-tv.player-boot-recovery.v1'); } catch {}
+  // A confirmed server response also expires the HttpOnly TV session cookie.
+  await fetch('/api/device/session', { credentials:'include', cache:'no-store' }).catch(() => undefined);
+  await purgePlayerStore().catch((error) => console.warn('Player local data cleanup failed', error));
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
+    await Promise.all(registrations.filter((registration) => {
+      try { return new URL(registration.scope).pathname.startsWith('/player'); }
+      catch { return false; }
+    }).map((registration) => registration.unregister().catch(() => false)));
+  }
+  if ('caches' in globalThis) {
+    const names = await caches.keys().catch(() => []);
+    await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-'))
+      .map((name) => caches.delete(name).catch(() => false)));
+  }
+  showPairingIntro();
+}
+
 function playerUnauthorized() {
   backgroundServices?.stop();
   if (activationFromStorage()) {
@@ -617,7 +649,10 @@ async function fetchDeviceSession(timeoutMs = 3500) {
     credentials: 'include',
     headers
   }, timeoutMs);
-  if (response.status === 401 || response.status === 403) return { unauthorized: true };
+  if (response.status === 401 || response.status === 403) return {
+    unauthorized: true,
+    revoked: response.headers.get('x-mira-device-revoked') === '1'
+  };
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return { session: await response.json().catch(() => null) };
 }
@@ -805,7 +840,14 @@ async function bootstrapPlayer() {
       return;
     }
 
-    await playerStateSync.reset();
+    if (result.revoked) {
+      await playerRevoked();
+      return;
+    }
+    if (playerStateSync.hasContext) {
+      playerStateSync.start();
+      return;
+    }
   } catch (error) {
     console.warn('TV session bootstrap failed', error);
     if (playerStateSync.hasContext) {
@@ -838,6 +880,7 @@ async function initialisePlayer() {
   playerStateSync = createPlayerStateSync({
     applyContext: applySyncedContext,
     onUnauthorized: playerUnauthorized,
+    onRevoked: playerRevoked,
     onConnectivity: playerConnectivityChanged
   });
 
