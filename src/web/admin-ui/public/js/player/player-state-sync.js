@@ -429,6 +429,7 @@ export function createPlayerStateSync({
       error.miraPhase = 'render';
       throw error;
     }
+    if (revoked) return;
 
     active = {
       schema_version: metadata.schema_version,
