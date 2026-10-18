@@ -34,6 +34,7 @@ import { migrateLegacySceneOwnership } from './migrations/scene-element-ownershi
 import { retireLegacySceneOwnership } from './migrations/scene-ownership-cleanup.js';
 import { removeLegacySceneElements } from './migrations/scene-legacy-elements-cleanup.js';
 import { migrateReadableManualColumns } from './migrations/readable-manual-columns.js';
+import { migrateCatalogChangeProposals } from './migrations/catalog-change-proposals.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -44,6 +45,7 @@ import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
+import { createCatalogProposalsRepository } from './catalog-proposals.js';
 import { createDevicesRepository } from './devices.js';
 import { createDeviceSessionRotationRepository } from './device-session-rotation.js';
 import { createLoginRateLimitsRepository } from './login-rate-limits.js';
@@ -88,7 +90,8 @@ const MIGRATIONS = Object.freeze([
   { name: '032-device-session-rotation', run: migrateDeviceSessionRotation },
   { name: '033-login-rate-limits', run: migrateLoginRateLimits },
   { name: '034-catalog-product-address', run: migrateCatalogProductAddress },
-  { name: '035-readable-manual-columns', run: migrateReadableManualColumns }
+  { name: '035-readable-manual-columns', run: migrateReadableManualColumns },
+  { name: '036-catalog-change-proposals', run: migrateCatalogChangeProposals }
 ]);
 
 function createRepositories(queryable) {
@@ -103,6 +106,7 @@ function createRepositories(queryable) {
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
     createCatalogUsageRepository(queryable),
+    createCatalogProposalsRepository(queryable),
     createDevicesRepository(queryable),
     createDeviceSessionRotationRepository(queryable),
     createLoginRateLimitsRepository(queryable),

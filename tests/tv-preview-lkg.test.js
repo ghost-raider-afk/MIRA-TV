@@ -15,7 +15,8 @@ test('admin preview GET stays passive while explicit POST requests a new frame',
   assert.match(deviceAdmin, /preview_available:Boolean\(preview\)/);
   assert.match(deviceAdmin, /screenPreview\?\.\(screenId\)/);
   assert.doesNotMatch(manager, /requestedPreview|requestScreenPreview/);
-  assert.match(manager, /screenPreview\?\.\(id\)/);
+  assert.doesNotMatch(manager, /screenPreview\?\.\(id\)/);
+  assert.match(manager, /fullPlayerContext\(state\)/);
 });
 
 test('TV preview exposes manual screenshot refresh, capture time and uncropped frame', async () => {

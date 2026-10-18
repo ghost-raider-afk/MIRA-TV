@@ -4,6 +4,7 @@ import { sceneInput } from './scene.js';
 const VALID_STATUSES = new Set(['draft', 'ready', 'published']);
 const VALID_THEMES = new Set(['system', 'light', 'dark']);
 const VALID_DATE_FORMATS = new Set(['DD.MM.YYYY', 'YYYY-MM-DD']);
+const VALID_SECTION_TYPES = new Set(['products', 'packaging']);
 
 export function requireText(value, field, { max = 120 } = {}) {
   if (typeof value !== 'string' || value.trim().length === 0 || value.trim().length > max) {
@@ -105,6 +106,12 @@ function menuRowColumn(row, kind) {
   throw new ValidationError('Колонка строки меню выбрана неверно.');
 }
 
+function menuSectionType(row) {
+  const value = row?.section_type ?? row?.sectionType ?? 'products';
+  if (!VALID_SECTION_TYPES.has(value)) throw new ValidationError('Тип раздела меню выбран неверно.');
+  return value;
+}
+
 export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, maxHeight = 1080 } = {}) {
   if (!Array.isArray(body.rows)) throw new ValidationError('Меню должно содержать список строк.');
   const products = new Map((await store.listProducts()).map((item) => [item.id, item]));
@@ -117,7 +124,14 @@ export async function menuDraftInput(body, store, maxBytes, { maxWidth = 1920, m
     usedIds.add(candidateId);
     const id = candidateId;
     const column = menuRowColumn(row, kind);
-    if (kind === 'section') return { id, kind, name: requireText(row.name, 'Название раздела', { max: 100 }), column, enabled: row.enabled !== false };
+    if (kind === 'section') return {
+      id,
+      kind,
+      name: requireText(row.name, 'Название раздела', { max: 100 }),
+      section_type: menuSectionType(row),
+      column,
+      enabled: row.enabled !== false
+    };
     if (kind === 'item') {
       const product = products.get(positiveId(row.product_id ?? row.productId, 'Продукция'));
       if (!product || !product.active) throw new UnprocessableEntityError('Каждая позиция меню должна быть связана с активной продукцией общей базы.');
