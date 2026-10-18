@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { jsonValue } from '../src/db/helpers.js';
 import {
   createCatalogChangeProposal,
   reviewCatalogChangeProposal
@@ -163,4 +164,12 @@ test('catalog edit in the same millisecond conflicts instead of overwriting the 
   assert.deepEqual(store.calls.locks, ['product']);
   assert.equal(store.calls.updates, 0);
   assert.equal(store.current.price_primary, '205');
+});
+
+test('PostgreSQL JSONB snapshots stay intact after decoding instead of becoming empty proposals', () => {
+  const payload = { name:'Пиво', price_primary:'200', active:true };
+  assert.deepEqual(jsonValue(payload, {}), payload);
+  assert.deepEqual(jsonValue(JSON.stringify(payload), {}), payload);
+  assert.deepEqual(jsonValue([payload], []), [payload]);
+  assert.deepEqual(jsonValue('invalid json', {}), {});
 });
