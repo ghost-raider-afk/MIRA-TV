@@ -215,7 +215,7 @@ export function createDeviceAdminRouter({ store, realtime }) {
     if (!screen) throw notFound();
     const revoked = await store.revokeDeviceByScreen(screenId);
     if (revoked) {
-      realtime?.disconnectScreen(screenId);
+      realtime?.revokeScreen(screenId);
       await activity(store, request, {
         action: 'device.revoked',
         entity_type: 'screen',
