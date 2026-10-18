@@ -268,9 +268,8 @@ export function createPlayerRealtime({ store }) {
   }
 
   function revokeScreen(screenId) {
-    for (const socket of [...(byScreen.get(Number(screenId)) || { sockets:new Set() }).sockets]) {
-      send(socket, { type:'device.revoked' });
-    }
+    const sockets = byScreen.get(Number(screenId));
+    for (const socket of sockets ? [...sockets] : []) send(socket, { type:'device.revoked' });
     return disconnectScreen(screenId);
   }
 
