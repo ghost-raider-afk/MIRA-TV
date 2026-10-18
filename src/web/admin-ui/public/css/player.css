@@ -85,6 +85,8 @@ button { font: inherit; }
 .activation-install-link:hover { color: #ffe16a; }
 .activation-install-link:focus-visible { outline: 3px solid rgba(246, 201, 14, 0.34); outline-offset: 3px; border-radius: 6px; }
 .activation-install-hint { max-width: 560px; margin: 2px 0 0; color: #98a2b3; font-size: clamp(11px, 1vw, 14px); line-height: 1.35; }
+.activation-screenlite { display: grid; justify-items: center; gap: 3px; margin: 0 0 clamp(8px, 1.3vh, 14px); }
+.activation-screenlite small { max-width: 530px; color: #98a2b3; font-size: clamp(11px, 1vw, 13px); line-height: 1.3; }
 .activation-button { min-width: min(100%, 320px); padding: 13px 24px; border: 0; border-radius: 14px; background: #f6c90e; color: #101317; font-weight: 800; cursor: pointer; }
 .activation-button:focus-visible { outline: 4px solid rgba(246, 201, 14, 0.35); outline-offset: 4px; }
 .activation-pairing { display: grid; justify-items: center; gap: clamp(8px, 1.15vh, 14px); margin-top: clamp(12px, 1.8vh, 20px); }
