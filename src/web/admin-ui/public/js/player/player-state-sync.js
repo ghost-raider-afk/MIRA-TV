@@ -106,6 +106,8 @@ function activeAssetManifest(context, revision = '') {
   const sceneAssets = enabledSceneMedia(context).map((element) => element.media.source_url);
   const assets = [
     context?.draft?.settings?.background_image_url,
+    context?.draft?.settings?.theme?.brand?.logo_url,
+    context?.draft?.settings?.theme?.decor?.source_url,
     ...sceneAssets
   ].map(localAsset).filter(Boolean);
   return {
