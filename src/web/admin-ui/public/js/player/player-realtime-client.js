@@ -17,7 +17,7 @@ function recoveryUrl(commandId) {
   return url.href;
 }
 
-export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected } = {}) {
+export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected, onRevoked } = {}) {
   let socket = null;
   let retryTimer = null;
   let attempt = 0;
@@ -84,6 +84,9 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
             return;
           }
           onChanged?.(message);
+        } else if (message?.type === 'device.revoked') {
+          stop();
+          onRevoked?.();
         } else if (message?.type === 'preview.request') {
           window.dispatchEvent(new CustomEvent('mira:player-preview-request'));
         }

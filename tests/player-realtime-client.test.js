@@ -73,3 +73,39 @@ test('Player realtime treats browser online state as advisory and keeps transpor
     for (const undo of restore.reverse()) undo();
   }
 });
+
+test('confirmed server revocation stops the connected Player without a reconnect loop', () => {
+  const sockets = [];
+  class FakeWebSocket extends EventTarget {
+    static OPEN = 1;
+    constructor() {
+      super();
+      this.readyState = FakeWebSocket.OPEN;
+      sockets.push(this);
+    }
+    close() { this.readyState = 3; this.dispatchEvent(new Event('close')); }
+  }
+  const restore = [
+    replaceGlobal('navigator', { onLine:true }),
+    replaceGlobal('location', { protocol:'https:', host:'mira.example.test' }),
+    replaceGlobal('window', new EventTarget()),
+    replaceGlobal('WebSocket', FakeWebSocket),
+    replaceGlobal('CustomEvent', globalThis.CustomEvent || class CustomEvent extends Event {
+      constructor(type, options = {}) { super(type); this.detail = options.detail; }
+    })
+  ];
+  let revoked = 0;
+  const client = createPlayerRealtimeClient({ onRevoked:() => { revoked += 1; } });
+  try {
+    client.start();
+    sockets[0].dispatchEvent(new MessageEvent('message', {
+      data:JSON.stringify({ type:'device.revoked' })
+    }));
+    assert.equal(revoked, 1);
+    assert.equal(client.connected, false);
+    assert.equal(sockets.length, 1, 'revocation must not reconnect the TV');
+  } finally {
+    client.stop();
+    for (const undo of restore.reverse()) undo();
+  }
+});

@@ -136,6 +136,15 @@ export async function commitAssetManifest(manifest) {
   return loadAssetManifests();
 }
 
+export async function purgePlayerStore() {
+  const db = await openPlayerStore();
+  if (!db) return;
+  const tx = db.transaction([STATE_STORE, LOG_STORE], 'readwrite');
+  tx.objectStore(STATE_STORE).clear();
+  tx.objectStore(LOG_STORE).clear();
+  await transactionDone(tx);
+}
+
 export async function clearAssetManifests() {
   const db = await openPlayerStore();
   if (!db) return;

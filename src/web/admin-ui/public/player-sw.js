@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v76';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v77';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v77';
+const SHELL_CACHE = 'mira-tv-player-shell-v78';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
 // Source revision: shared table fixes and manager catalog proposals.
@@ -78,7 +78,13 @@ async function cacheShellAsset(cache, path, required) {
   try {
     const request = new Request(path, { method:'GET', credentials:'same-origin', cache:'reload' });
     const response = await fetch(request);
-    if (!response.ok) throw new Error(`Player shell asset unavailable: ${path} HTTP ${response.status}`);
+    const type = response.headers.get('content-type') || '';
+    const executable = path.endsWith('.js') || path.endsWith('.css') || path.endsWith('.html');
+    const expectedType = path.endsWith('.js') ? /javascript|ecmascript/
+      : path.endsWith('.css') ? /text\/css/ : /text\/html/;
+    if (!response.ok || (executable && !expectedType.test(type))) {
+      throw new Error(`Player shell asset unavailable or invalid: ${path} HTTP ${response.status}`);
+    }
     await cache.put(path, response.clone());
     return true;
   } catch (error) {
@@ -96,29 +102,16 @@ self.addEventListener('install', (event) => {
   })());
 });
 
-async function refreshUpgradedPlayerClients() {
-  const clients = await self.clients.matchAll({ type:'window', includeUncontrolled:true });
-  await Promise.all(clients.map(async (client) => {
-    try {
-      const url = new URL(client.url);
-      if (url.origin !== self.location.origin || url.pathname !== '/player') return;
-      await client.navigate(url.href);
-    } catch {}
-  }));
-}
-
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const names = await caches.keys();
-    const upgraded = names.some((name) => name.startsWith('mira-tv-player-shell-') && name !== SHELL_CACHE);
-    await Promise.all([
-      caches.delete(RETIRED_SHELL_CACHE),
-      caches.delete(LEGACY_SHELL_CACHE)
-    ]);
-    const keep = new Set([SHELL_CACHE, DATA_CACHE]);
-    await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-') && !keep.has(name)).map((name) => caches.delete(name)));
+    const older = names.filter((name) => /^mira-tv-player-shell-v\d+$/.test(name) && name !== SHELL_CACHE)
+      .sort((a, b) => Number(b.split('-v').pop()) - Number(a.split('-v').pop()));
+    // Retain one previous complete shell for offline rollback, and never navigate a live screen.
+    const keep = new Set([SHELL_CACHE, DATA_CACHE, older[0]]);
+    await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-shell-') && !keep.has(name))
+      .map((name) => caches.delete(name)));
     await self.clients.claim();
-    if (upgraded) await refreshUpgradedPlayerClients();
   })());
 });
 
@@ -242,6 +235,15 @@ async function cachedShell(request, fallbackPath = null) {
   const cache = await caches.open(SHELL_CACHE);
   const cached = await cache.match(request) || (fallbackPath ? await cache.match(fallbackPath) : null);
   if (cached) return cached;
+  // An incomplete upgrade must not strand offline TVs without CSS/JS.
+  const names = (await caches.keys()).filter((name) =>
+    /^mira-tv-player-shell-v\d+$/.test(name) && name !== SHELL_CACHE
+  ).sort((a, b) => Number(b.split('-v').pop()) - Number(a.split('-v').pop()));
+  for (const name of names) {
+    const previous = await caches.open(name);
+    const response = await previous.match(request) || (fallbackPath ? await previous.match(fallbackPath) : null);
+    if (response) return response;
+  }
   try {
     const response = await networkWithTimeout(request, 4000);
     if (response.ok) await cache.put(request, response.clone());

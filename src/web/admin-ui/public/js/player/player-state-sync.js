@@ -106,6 +106,8 @@ function activeAssetManifest(context, revision = '') {
   const sceneAssets = enabledSceneMedia(context).map((element) => element.media.source_url);
   const assets = [
     context?.draft?.settings?.background_image_url,
+    context?.draft?.settings?.theme?.brand?.logo_url,
+    context?.draft?.settings?.theme?.decor?.source_url,
     ...sceneAssets
   ].map(localAsset).filter(Boolean);
   return {
@@ -227,6 +229,7 @@ export function createPlayerStateSync({
   warmAssets,
   onLastKnownGood,
   onUnauthorized,
+  onRevoked,
   onConnectivity
 } = {}) {
   if (typeof applyContext !== 'function') throw new TypeError('applyContext is required');
@@ -242,6 +245,10 @@ export function createPlayerStateSync({
   let sequence = 0;
   let diagnosticSequence = 0;
   let websocketConnected = false;
+  let syncRetryTimer = null;
+  let syncRetryDelayMs = 5000;
+  let syncFailed = false;
+  let revoked = false;
   const currentBootId = bootId();
   const diagnosticBootId = `${currentBootId.slice(0, 57)}-diag`;
   let runtime = {
@@ -330,6 +337,24 @@ export function createPlayerStateSync({
     }, runtime.fallbackPollMs);
   }
 
+  function clearSyncRetry() {
+    if (syncRetryTimer) clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    syncRetryDelayMs = 5000;
+    syncFailed = false;
+  }
+
+  function scheduleSyncRetry() {
+    syncFailed = true;
+    if (!started || !active?.context || syncRetryTimer || revoked) return;
+    const delay = syncRetryDelayMs;
+    syncRetryDelayMs = Math.min(300_000, delay * 2);
+    syncRetryTimer = setTimeout(() => {
+      syncRetryTimer = null;
+      void syncNow('retry');
+    }, delay);
+  }
+
   function scheduleLogFlush(delay = 1500) {
     clearLogFlushTimer();
     if (!started || !navigator.onLine || !logFlushNeeded) return;
@@ -382,23 +407,14 @@ export function createPlayerStateSync({
   }
 
   async function applyCandidate(context, metadata, changedNames, source) {
-    let degradedAssetError = null;
-    let stagedManifest = null;
+    let stagedManifest;
     try {
       stagedManifest = await stageCandidateAssets(context, metadata);
     } catch (error) {
-      if (active?.context) {
-        error.miraPhase = 'critical-assets';
-        throw error;
-      }
-      degradedAssetError = error;
-      console.warn('MIRA-TV first boot continues without fully staged critical assets', error);
-      reportDiagnostic('asset.preload.degraded', diagnosticData(error, {
-        source,
-        phase:'critical-assets',
-        failed_assets:Array.isArray(error?.failedAssets) ? error.failedAssets.length : undefined
-      }));
+      error.miraPhase = 'critical-assets';
+      throw error;
     }
+    if (revoked) return;
 
     try {
       await prepareAssets?.(context, changedNames);
@@ -413,6 +429,7 @@ export function createPlayerStateSync({
       error.miraPhase = 'render';
       throw error;
     }
+    if (revoked) return;
 
     active = {
       schema_version: metadata.schema_version,
@@ -424,8 +441,7 @@ export function createPlayerStateSync({
 
     try {
       await persistLastKnownGood();
-      if (stagedManifest && !degradedAssetError) await commitCandidateAssets(stagedManifest);
-      else publishActiveAssets(context);
+      await commitCandidateAssets(stagedManifest);
       onLastKnownGood?.(context);
     } catch (error) {
       console.warn('MIRA-TV could not persist Local-first Player state', error);
@@ -434,8 +450,7 @@ export function createPlayerStateSync({
     log('state.applied', {
       source,
       changed: changedNames.slice(0, 12),
-      degraded_assets: Boolean(degradedAssetError),
-      local_first: Boolean(stagedManifest && !degradedAssetError)
+      local_first: Boolean(stagedManifest)
     });
     void warmAssets?.(context, changedNames);
     if (source !== 'last-known-good' && changedNames.length > 0) {
@@ -454,21 +469,31 @@ export function createPlayerStateSync({
         hashes: forceFullSnapshot ? {} : active?.hashes || {}
       })
     }, 5000);
-    if (response.status === 401 || response.status === 403) return { unauthorized: true };
+    if (response.status === 401 || response.status === 403) return {
+      unauthorized: true,
+      revoked: response.headers.get('x-mira-device-revoked') === '1'
+    };
     if (!response.ok) throw new Error(`Player delta failed: HTTP ${response.status}`);
     return { body: await response.json() };
   }
 
   async function performSync(reason) {
+    if (revoked) return { ok:false, unauthorized:true, revoked:true, hasContext:false };
     try {
       const result = await fetchDelta(reason === 'reprovision');
+      if (revoked) return { ok:false, unauthorized:true, revoked:true, hasContext:false };
       if (result.unauthorized) {
-        stop();
-        await clearLastKnownGood().catch(() => undefined);
-        await clearAssetManifests().catch(() => undefined);
-        active = null;
-        onUnauthorized?.();
-        return { ok: false, unauthorized: true, hasContext: false };
+        if (result.revoked) {
+          revoked = true;
+          stop();
+          active = null;
+          void onRevoked?.();
+          return { ok:false, unauthorized:true, revoked:true, hasContext:false };
+        }
+        // Expired sessions and transient authorization failures never erase the LKG.
+        if (!active?.context) onUnauthorized?.();
+        else onConnectivity?.('degraded');
+        return { ok:false, unauthorized:true, revoked:false, hasContext:Boolean(active?.context) };
       }
 
       const body = result.body || {};
@@ -516,11 +541,16 @@ export function createPlayerStateSync({
   }
 
   async function syncNow(reason = 'manual') {
+    if (revoked) return { ok:false, unauthorized:true, revoked:true, hasContext:false };
     if (syncPromise) {
       syncQueued = true;
       return syncPromise;
     }
-    syncPromise = performSync(reason).finally(() => {
+    syncPromise = performSync(reason).then((result) => {
+      if (result.ok) clearSyncRetry();
+      else if (!result.revoked && active?.context) scheduleSyncRetry();
+      return result;
+    }).finally(() => {
       syncPromise = null;
       if (syncQueued) {
         syncQueued = false;
@@ -543,6 +573,13 @@ export function createPlayerStateSync({
       onConnectivity?.('online');
       void syncNow('websocket-reconcile');
       void flushLogs();
+    },
+    onRevoked() {
+      if (revoked) return;
+      revoked = true;
+      stop();
+      active = null;
+      void onRevoked?.();
     },
     onDisconnected() {
       const wasConnected = websocketConnected;
@@ -602,6 +639,7 @@ export function createPlayerStateSync({
     realtime.start();
     scheduleFallbackPoll();
     scheduleLogFlush(250);
+    if (syncFailed) scheduleSyncRetry();
   }
 
   function stop() {
@@ -610,6 +648,7 @@ export function createPlayerStateSync({
     websocketConnected = false;
     clearFallbackTimer();
     clearLogFlushTimer();
+    clearSyncRetry();
     realtime.stop();
   }
 

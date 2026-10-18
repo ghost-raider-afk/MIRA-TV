@@ -39,3 +39,26 @@ test('Player content manifest deduplicates shared assets and keeps content ident
     await rm(root, { recursive:true, force:true });
   }
 });
+
+test('theme logo and decor are required Local-first resources', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'mira-player-theme-'));
+  try {
+    const logo = '/site-assets/scene/theme-logo.png';
+    const decor = '/site-assets/screens/theme-decor.png';
+    await mkdir(path.join(root, 'scene'), { recursive:true });
+    await mkdir(path.join(root, 'screens'), { recursive:true });
+    await writeFile(path.join(root, 'scene', 'theme-logo.png'), Buffer.from('logo'));
+    await writeFile(path.join(root, 'screens', 'theme-decor.png'), Buffer.from('decor'));
+    const manifest = await buildPlayerContentManifest({
+      renderRevision:43,
+      config:{ siteAssetsRoot:root },
+      draft:{ settings:{ theme:{ brand:{ logo_url:logo }, decor:{ source_url:decor } } } },
+      scene:{ version:1, elements:[] }
+    });
+    assert.deepEqual(manifest.assets.map((item) => [item.url, item.roles, item.required]), [
+      [logo, ['theme-logo'], true], [decor, ['theme-decor'], true]
+    ]);
+  } finally {
+    await rm(root, { recursive:true, force:true });
+  }
+});

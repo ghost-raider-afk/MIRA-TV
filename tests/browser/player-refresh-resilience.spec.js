@@ -86,14 +86,32 @@ test('Last Known Good renders before a slow or unavailable server session check'
   await expect(page.locator('[data-player-message]')).toContainText(/последнему рабочему состоянию|Нет связи/);
 });
 
-test('positive unauthorized response clears Last Known Good and returns to pairing', async ({ page }) => {
+test('generic unauthorized response preserves the stored scene until administrative revocation is confirmed', async ({ page }) => {
+  const cached = playerContext();
+  await seedLastKnownGood(page, cached);
+  await installFailingWebSocket(page);
+  await page.route('**/api/device/session', (route) => route.fulfill({
+    status:401, contentType:'application/json', body:JSON.stringify({ error:'unauthorized' })
+  }));
+  await page.goto('/player');
+  await expect(menuVector(page)).toHaveCount(1);
+  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
+  const lkg = await page.evaluate(async () => (await import('/js/player/player-store.js')).loadLastKnownGood());
+  expect(lkg?.revision).toBe(cached.revision);
+});
+
+test('confirmed revoked TV session clears Last Known Good and returns to pairing', async ({ page }) => {
   await seedLastKnownGood(page, playerContext());
   await installFailingWebSocket(page);
-  await page.route('**/api/device/session', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'unauthorized' }) }));
+  await page.route('**/api/device/session', (route) => route.fulfill({
+    status:401, contentType:'application/json',
+    headers:{ 'X-MIRA-Device-Revoked':'1' },
+    body:JSON.stringify({ error:'device revoked' })
+  }));
   await page.goto('/player');
   await expect(page.locator('[data-activation-view]')).not.toHaveClass(/is-hidden/);
-  await expect(page.getByRole('button', { name: 'Показать QR-код' })).toBeVisible();
-  const lkg = await page.evaluate(async () => { const store = await import('/js/player/player-store.js'); return store.loadLastKnownGood(); });
+  await expect(page.getByRole('button', { name:'Показать QR-код' })).toBeVisible();
+  const lkg = await page.evaluate(async () => (await import('/js/player/player-store.js')).loadLastKnownGood());
   expect(lkg).toBeNull();
 });
 
@@ -160,7 +178,7 @@ test('menu-only delta does not recreate an unchanged generic scene media node', 
   await expect.poll(() => deltaRequests, { timeout: 4000 }).toBeGreaterThanOrEqual(2);
   await expect(page.locator('[data-scene-element-id="stable-media"] img[data-identity-probe="same-media"]')).toHaveCount(1);
 });
-test('first boot renders available scene content when a critical background is unavailable', async ({ page }) => {
+test('first boot keeps LKG empty until critical background recovers', async ({ page }) => {
   await installFailingWebSocket(page);
   await page.route('**/api/device/session', (route) => route.fulfill({
     status: 200,
@@ -174,7 +192,13 @@ test('first boot renders available scene content when a critical background is u
   context.content_manifest = contentManifest(context.revision, context.draft, context.scene);
 
   const diagnostics = [];
-  await page.route('**/site-assets/backgrounds/critical-missing.png', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+  let backgroundReady = false;
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  await page.route('**/site-assets/backgrounds/critical-missing.png', (route) =>
+    backgroundReady
+      ? route.fulfill({ status:200, contentType:'image/png', body:png })
+      : route.fulfill({ status:503, body:'unavailable' })
+  );
   await page.route('**/api/device/player-delta', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -187,11 +211,19 @@ test('first boot renders available scene content when a critical background is u
   });
 
   await page.goto('/player');
+  await expect.poll(() => diagnostics.some((event) =>
+    event.type === 'sync.failed' && event.data?.phase === 'critical-assets'
+  ), { timeout:10000 }).toBe(true);
+  await expect(menuVector(page)).toHaveCount(0);
+  expect(await page.evaluate(async () => (await import('/js/player/player-store.js')).loadLastKnownGood())).toBeNull();
 
-  await expect(menuVector(page)).toHaveCount(1);
-  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
+  backgroundReady = true;
+  await expect(menuVector(page)).toHaveCount(1, { timeout:12000 });
   await expect(page.locator('[data-player-stage]')).toHaveCSS('background-color', 'rgb(38, 70, 83)');
-  await expect.poll(() => diagnostics.some((event) => event.type === 'asset.preload.degraded')).toBe(true);
+  await expect.poll(() => page.evaluate(async () => {
+    const lkg = await (await import('/js/player/player-store.js')).loadLastKnownGood();
+    return lkg?.revision || '';
+  })).toBe(context.revision);
 });
 
 test('failed critical background never replaces the previous Last Known Good state', async ({ page }) => {

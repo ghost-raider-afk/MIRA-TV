@@ -198,6 +198,9 @@ async function resolveDeviceSession(store, config, request, response) {
   if (!rawToken) return null;
   const session = await store.getActiveDeviceSessionByHash(tokenHash(rawToken));
   if (!session) {
+    if (await store.isRevokedDeviceSessionByHash(tokenHash(rawToken))) {
+      response.setHeader('X-MIRA-Device-Revoked', '1');
+    }
     response.setHeader('Set-Cookie', deviceSessionCookie('', config, 0));
     return null;
   }

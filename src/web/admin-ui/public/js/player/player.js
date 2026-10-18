@@ -1,13 +1,14 @@
 import { createPlayerStateSync } from './player-state-sync.js';
 import { ALL_PLAYER_COMPONENTS, PlayerSceneRenderer } from './player-scene-renderer.js';
 import { fetchWithTimeout } from './fetch-timeout.js';
+import { purgePlayerStore } from './player-store.js';
 
 window.__miraPlayerModuleStarted = true;
 
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.16';
+const PLAYER_BUILD_VERSION = '1.18.17';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
 const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
@@ -597,6 +598,56 @@ function playerConnectivityChanged(state) {
   }
 }
 
+let revocationCleanupStarted = false;
+
+async function playerRevoked() {
+  if (revocationCleanupStarted) return;
+  revocationCleanupStarted = true;
+  clearPlayerBuildRetry();
+  backgroundServices?.stop();
+  playerStateSync?.stop();
+  showBootstrapUnavailable('Привязка телевизора отменена администратором. Удаляем локальные данные…');
+  clearActivation();
+  try {
+    localStorage.removeItem(DEVICE_KEY_STORAGE_KEY);
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('mira-tv.weather.')) localStorage.removeItem(key);
+    }
+  } catch {}
+  try { sessionStorage.removeItem(PLAYER_RELOAD_VERSION_KEY); } catch {}
+  try { sessionStorage.removeItem('mira-tv.player-boot-recovery.v1'); } catch {}
+  // A confirmed server response also expires the HttpOnly TV session cookie.
+  await fetchWithTimeout('/api/device/session', { credentials:'include', cache:'no-store' }, 3500)
+    .catch(() => undefined);
+  await purgePlayerStore().catch((error) => console.warn('Player local data cleanup failed', error));
+  if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
+    const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
+    await Promise.all(registrations.filter((registration) => {
+      try { return new URL(registration.scope).pathname.startsWith('/player'); }
+      catch { return false; }
+    }).map((registration) => registration.unregister().catch(() => false)));
+  }
+  if ('caches' in globalThis) {
+    const names = await caches.keys().catch(() => []);
+    await Promise.all(names.filter((name) => name.startsWith('mira-tv-player-'))
+      .map((name) => caches.delete(name).catch(() => false)));
+  }
+  offlinePlayerRegistrationPromise = null;
+  playerStateSync = newPlayerStateSync();
+  revocationCleanupStarted = false;
+  showPairingIntro();
+}
+
+function newPlayerStateSync() {
+  return createPlayerStateSync({
+    applyContext: applySyncedContext,
+    onUnauthorized: playerUnauthorized,
+    onRevoked: playerRevoked,
+    onConnectivity: playerConnectivityChanged
+  });
+}
+
 function playerUnauthorized() {
   backgroundServices?.stop();
   if (activationFromStorage()) {
@@ -617,7 +668,10 @@ async function fetchDeviceSession(timeoutMs = 3500) {
     credentials: 'include',
     headers
   }, timeoutMs);
-  if (response.status === 401 || response.status === 403) return { unauthorized: true };
+  if (response.status === 401 || response.status === 403) return {
+    unauthorized: true,
+    revoked: response.headers.get('x-mira-device-revoked') === '1'
+  };
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return { session: await response.json().catch(() => null) };
 }
@@ -805,7 +859,14 @@ async function bootstrapPlayer() {
       return;
     }
 
-    await playerStateSync.reset();
+    if (result.revoked) {
+      await playerRevoked();
+      return;
+    }
+    if (playerStateSync.hasContext) {
+      playerStateSync.start();
+      return;
+    }
   } catch (error) {
     console.warn('TV session bootstrap failed', error);
     if (playerStateSync.hasContext) {
@@ -835,11 +896,7 @@ async function bootstrapPlayer() {
 }
 
 async function initialisePlayer() {
-  playerStateSync = createPlayerStateSync({
-    applyContext: applySyncedContext,
-    onUnauthorized: playerUnauthorized,
-    onConnectivity: playerConnectivityChanged
-  });
+  playerStateSync = newPlayerStateSync();
 
   showActivationButton.addEventListener('click', () => void createActivation());
   installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());

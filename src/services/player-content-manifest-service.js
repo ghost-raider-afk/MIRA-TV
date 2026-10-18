@@ -55,6 +55,8 @@ function collectAssetReferences(draft, scene) {
   };
 
   add(draft?.settings?.background_image_url, 'background');
+  add(draft?.settings?.theme?.brand?.logo_url, 'theme-logo');
+  add(draft?.settings?.theme?.decor?.source_url, 'theme-decor');
   for (const element of Array.isArray(scene?.elements) ? scene.elements : []) {
     if (element?.enabled === false || !['image', 'logo'].includes(element?.type)) continue;
     add(element?.media?.source_url, element.type);
