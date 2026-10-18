@@ -16,6 +16,7 @@ function populateSiteForm(site) {
   element('site-date-format').value = site.date_format;
   element('site-refresh-seconds').value = String(site.dashboard_refresh_seconds);
   element('site-default-resolution').value = site.default_screen_resolution;
+  element('site-screenlite-download').checked = site.show_screenlite_download_link === true;
   element('site-session-ttl').textContent = `${site.session_ttl_hours} ч`;
 }
 
@@ -170,7 +171,8 @@ export function initialiseSettings() {
         timezone: element('site-timezone').value,
         date_format: element('site-date-format').value,
         dashboard_refresh_seconds: Number(element('site-refresh-seconds').value),
-        default_screen_resolution: element('site-default-resolution').value
+        default_screen_resolution: element('site-default-resolution').value,
+        show_screenlite_download_link: element('site-screenlite-download').checked
       });
       applySiteSettings(site);
       startNotificationPolling();

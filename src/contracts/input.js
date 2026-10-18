@@ -217,6 +217,10 @@ export function siteSettingsInput(body, config) {
     maxWidth: config.screenMaxWidth,
     maxHeight: config.screenMaxHeight
   });
+  const show_screenlite_download_link = body.show_screenlite_download_link;
+  if (show_screenlite_download_link !== undefined && typeof show_screenlite_download_link !== 'boolean') {
+    throw new ValidationError('Показ ссылки Screenlite должен быть включён или выключен.');
+  }
   return {
     application_name,
     accent_color: accent_color.toUpperCase(),
@@ -225,6 +229,7 @@ export function siteSettingsInput(body, config) {
     dashboard_refresh_seconds,
     default_screen_resolution,
     signin_logo_size: logoSize(body.signin_logo_size ?? 1),
-    ui_scale_percent: uiScalePercent(body.ui_scale_percent)
+    ui_scale_percent: uiScalePercent(body.ui_scale_percent),
+    show_screenlite_download_link: show_screenlite_download_link ?? null
   };
 }

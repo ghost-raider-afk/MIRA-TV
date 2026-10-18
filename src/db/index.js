@@ -20,6 +20,7 @@ import { migratePlayerMetrics } from './migrations/player-metrics.js';
 import { migrateDeviceIdentification } from './migrations/device-identification.js';
 import { migrateWeatherSnapshots } from './migrations/weather-snapshots.js';
 import { migrateSiteUiScale } from './migrations/site-ui-scale.js';
+import { migrateScreenliteDownloadLink } from './migrations/screenlite-download-link.js';
 import { migrateBakedScenes } from './migrations/baked-scenes.js';
 import { migrateMenuThemeTemplates } from './migrations/menu-theme-templates.js';
 import { migrateWebSessions } from './migrations/web-sessions.js';
@@ -91,7 +92,8 @@ const MIGRATIONS = Object.freeze([
   { name: '033-login-rate-limits', run: migrateLoginRateLimits },
   { name: '034-catalog-product-address', run: migrateCatalogProductAddress },
   { name: '035-readable-manual-columns', run: migrateReadableManualColumns },
-  { name: '036-catalog-change-proposals', run: migrateCatalogChangeProposals }
+  { name: '036-catalog-change-proposals', run: migrateCatalogChangeProposals },
+  { name: '037-screenlite-download-link', run: migrateScreenliteDownloadLink }
 ]);
 
 function createRepositories(queryable) {

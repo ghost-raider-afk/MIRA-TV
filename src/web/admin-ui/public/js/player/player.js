@@ -22,6 +22,8 @@ const activationStatus = document.querySelector('[data-activation-status]');
 const activationLead = document.querySelector('.activation-lead');
 const installPlayerButton = document.querySelector('[data-install-player]');
 const installPlayerHint = document.querySelector('[data-install-player-hint]');
+const screenliteDownload = document.querySelector('[data-screenlite-download]');
+const screenliteDownloadLink = document.querySelector('[data-screenlite-download-link]');
 const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
@@ -46,6 +48,7 @@ let playerInstallPrompt = null;
 let firstPlayerFramePresented = false;
 let firstFrameWorkScheduled = false;
 let pendingPostFrameWork = null;
+let screenliteConfigRequested = false;
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -303,7 +306,22 @@ function prepareTvDisplay() {
   void requestWakeLock();
 }
 
+function updateScreenliteDownloadLink() {
+  if (screenliteConfigRequested || !screenliteDownloadLink) return;
+  screenliteConfigRequested = true;
+  void fetchWithTimeout('/api/public/config', { cache:'no-store' }, 3500)
+    .then(async (response) => {
+      if (!response.ok) return;
+      const settings = await response.json();
+      const url = String(settings?.screenlite_download_url || '');
+      if (!/^\/downloads\/screenlite-web-kiosk-v[0-9-]+\.apk$/.test(url)) return;
+      screenliteDownloadLink.href = url;
+      setHidden(screenliteDownload, false);
+    }).catch(() => undefined);
+}
+
 function showActivationScreen() {
+  updateScreenliteDownloadLink();
   finishPlayerBoot();
   backgroundServices?.stop();
   playerStateSync?.stop();

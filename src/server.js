@@ -12,6 +12,7 @@ import { createDeviceSessionRotationMiddleware } from './middleware/device-sessi
 import { hashPassword } from './services/password-service.js';
 import { createSessionResolver } from './services/session-service.js';
 import { siteSettingsResponse } from './services/site-assets-service.js';
+import { SCREENLITE_APK_FILENAME, SCREENLITE_APK_URL } from './services/screenlite-distribution.js';
 import { migrateLegacyBackgroundAssets } from './services/legacy-background-migration.js';
 import { cleanupUnreferencedSceneAssets } from './services/scene-assets-service.js';
 import { createWeatherService } from './services/weather-service.js';
@@ -157,7 +158,8 @@ function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
   app.use('/fonts', express.static(miraFontDir, { etag: true, maxAge: '30d', immutable: true }));
   app.get('/api/public/config', async (_request, response) => {
     const site = siteSettingsResponse(await store.getSiteSettings(), config);
-    response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
+    response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size,
+      screenlite_download_url: site.show_screenlite_download_link === true ? SCREENLITE_APK_URL : '' });
   });
   const rotateDeviceSession = createDeviceSessionRotationMiddleware({ store, config });
   app.use(['/api/device/session', '/api/device/metrics'], rotateDeviceSession);
@@ -195,6 +197,11 @@ function isBrowserNavigation(request) {
 }
 
 function mountFrontend(app, requirePageSession, requirePageRole) {
+  app.get(SCREENLITE_APK_URL, (_request, response) => {
+    response.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    response.type('application/vnd.android.package-archive');
+    return response.download(path.join(publicDir, 'downloads', SCREENLITE_APK_FILENAME), SCREENLITE_APK_FILENAME);
+  });
   for (const [legacy, canonical] of LEGACY_PAGE_REDIRECTS) app.get(legacy, (request, response) => response.redirect(308, canonicalRedirectTarget(request, canonical)));
   app.get('/player.html', (request, response, next) => {
     if (isBrowserNavigation(request)) return response.redirect(308, canonicalRedirectTarget(request, '/player'));
