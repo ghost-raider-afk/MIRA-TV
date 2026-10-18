@@ -227,6 +227,7 @@ export function createPlayerStateSync({
   warmAssets,
   onLastKnownGood,
   onUnauthorized,
+  onRevoked,
   onConnectivity
 } = {}) {
   if (typeof applyContext !== 'function') throw new TypeError('applyContext is required');
@@ -242,6 +243,10 @@ export function createPlayerStateSync({
   let sequence = 0;
   let diagnosticSequence = 0;
   let websocketConnected = false;
+  let syncRetryTimer = null;
+  let syncRetryDelayMs = 5000;
+  let syncFailed = false;
+  let revoked = false;
   const currentBootId = bootId();
   const diagnosticBootId = `${currentBootId.slice(0, 57)}-diag`;
   let runtime = {
@@ -328,6 +333,24 @@ export function createPlayerStateSync({
       await syncNow('fallback').catch(() => undefined);
       scheduleFallbackPoll();
     }, runtime.fallbackPollMs);
+  }
+
+  function clearSyncRetry() {
+    if (syncRetryTimer) clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    syncRetryDelayMs = 5000;
+    syncFailed = false;
+  }
+
+  function scheduleSyncRetry() {
+    syncFailed = true;
+    if (!started || !active?.context || syncRetryTimer || revoked) return;
+    const delay = syncRetryDelayMs;
+    syncRetryDelayMs = Math.min(300_000, delay * 2);
+    syncRetryTimer = setTimeout(() => {
+      syncRetryTimer = null;
+      void syncNow('retry');
+    }, delay);
   }
 
   function scheduleLogFlush(delay = 1500) {
@@ -454,21 +477,31 @@ export function createPlayerStateSync({
         hashes: forceFullSnapshot ? {} : active?.hashes || {}
       })
     }, 5000);
-    if (response.status === 401 || response.status === 403) return { unauthorized: true };
+    if (response.status === 401 || response.status === 403) return {
+      unauthorized: true,
+      revoked: response.headers.get('x-mira-device-revoked') === '1'
+    };
     if (!response.ok) throw new Error(`Player delta failed: HTTP ${response.status}`);
     return { body: await response.json() };
   }
 
   async function performSync(reason) {
+    if (revoked) return { ok:false, unauthorized:true, revoked:true, hasContext:false };
     try {
       const result = await fetchDelta(reason === 'reprovision');
+      if (revoked) return { ok:false, unauthorized:true, revoked:true, hasContext:false };
       if (result.unauthorized) {
-        stop();
-        await clearLastKnownGood().catch(() => undefined);
-        await clearAssetManifests().catch(() => undefined);
-        active = null;
-        onUnauthorized?.();
-        return { ok: false, unauthorized: true, hasContext: false };
+        if (result.revoked) {
+          revoked = true;
+          stop();
+          active = null;
+          void onRevoked?.();
+          return { ok:false, unauthorized:true, revoked:true, hasContext:false };
+        }
+        // Expired sessions and transient authorization failures never erase the LKG.
+        if (!active?.context) onUnauthorized?.();
+        else onConnectivity?.('degraded');
+        return { ok:false, unauthorized:true, revoked:false, hasContext:Boolean(active?.context) };
       }
 
       const body = result.body || {};
@@ -516,11 +549,16 @@ export function createPlayerStateSync({
   }
 
   async function syncNow(reason = 'manual') {
+    if (revoked) return { ok:false, unauthorized:true, revoked:true, hasContext:false };
     if (syncPromise) {
       syncQueued = true;
       return syncPromise;
     }
-    syncPromise = performSync(reason).finally(() => {
+    syncPromise = performSync(reason).then((result) => {
+      if (result.ok) clearSyncRetry();
+      else if (!result.revoked && active?.context) scheduleSyncRetry();
+      return result;
+    }).finally(() => {
       syncPromise = null;
       if (syncQueued) {
         syncQueued = false;
@@ -543,6 +581,13 @@ export function createPlayerStateSync({
       onConnectivity?.('online');
       void syncNow('websocket-reconcile');
       void flushLogs();
+    },
+    onRevoked() {
+      if (revoked) return;
+      revoked = true;
+      stop();
+      active = null;
+      void onRevoked?.();
     },
     onDisconnected() {
       const wasConnected = websocketConnected;
@@ -602,6 +647,7 @@ export function createPlayerStateSync({
     realtime.start();
     scheduleFallbackPoll();
     scheduleLogFlush(250);
+    if (syncFailed) scheduleSyncRetry();
   }
 
   function stop() {
@@ -610,6 +656,7 @@ export function createPlayerStateSync({
     websocketConnected = false;
     clearFallbackTimer();
     clearLogFlushTimer();
+    clearSyncRetry();
     realtime.stop();
   }
 
