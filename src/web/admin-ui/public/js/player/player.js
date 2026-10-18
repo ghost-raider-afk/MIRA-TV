@@ -614,7 +614,7 @@ async function playerRevoked() {
   // A confirmed server response also expires the HttpOnly TV session cookie.
   await fetch('/api/device/session', { credentials:'include', cache:'no-store' }).catch(() => undefined);
   await purgePlayerStore().catch((error) => console.warn('Player local data cleanup failed', error));
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
     const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
     await Promise.all(registrations.filter((registration) => {
       try { return new URL(registration.scope).pathname.startsWith('/player'); }
