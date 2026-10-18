@@ -118,7 +118,8 @@ test('offline boot never deletes the last working shell after an interrupted sta
   assert.match(shell, /older\[0\]/);
   assert.match(sync, /function scheduleSyncRetry\(\)/);
   assert.match(sync, /if \(result\.revoked\)/);
-  assert.doesNotMatch(sync, /await clearLastKnownGood\(\)\.catch\(\(\) => undefined\);\s*await clearAssetManifests/);
+  const normalUnauthorized = sync.match(/if \(result\.unauthorized\) \{[\s\S]*?const body = result\.body/)?.[0] || '';
+  assert.doesNotMatch(normalUnauthorized, /clearLastKnownGood|clearAssetManifests/);
 });
 
 test('confirmed administrative unbind clears the Player but generic 401 retains LKG', async () => {
@@ -129,7 +130,7 @@ test('confirmed administrative unbind clears the Player but generic 401 retains 
     readFile(new URL('../src/realtime/player-realtime.js', import.meta.url), 'utf8')
   ]);
   assert.match(player, /async function playerRevoked\(\)/);
-  assert.match(player, /await purgePlayerStore\(\)/);
+  assert.match(player, /await purgePlayerStore\(\)\.catch/);
   assert.match(player, /caches\.delete\(name\)/);
   assert.match(sync, /revoked: response\.headers\.get\('x-mira-device-revoked'\) === '1'/);
   assert.match(routes, /X-MIRA-Device-Revoked/);
