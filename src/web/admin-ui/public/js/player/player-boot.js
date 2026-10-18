@@ -40,63 +40,31 @@
     return 'noModule' in script;
   }
 
-  function unregisterPlayerWorkers() {
-    if (!navigator.serviceWorker || typeof navigator.serviceWorker.getRegistrations !== 'function') {
-      return Promise.resolve();
-    }
-    return navigator.serviceWorker.getRegistrations().then(function (registrations) {
-      return Promise.all(registrations.map(function (registration) {
-        var scriptUrl = '';
-        var worker = registration.active || registration.waiting || registration.installing;
-        if (worker && worker.scriptURL) scriptUrl = worker.scriptURL;
-        try {
-          var script = new URL(scriptUrl, window.location.origin);
-          var scope = new URL(registration.scope || '', window.location.origin);
-          if (script.origin !== window.location.origin || script.pathname !== '/player-sw.js') return false;
-          if (scope.origin !== window.location.origin || scope.pathname.indexOf('/player') !== 0) return false;
-          return registration.unregister();
-        } catch (_error) {
-          return false;
-        }
-      }));
-    });
-  }
-
-  function clearPlayerShellCaches() {
-    if (!window.caches || typeof window.caches.keys !== 'function') return Promise.resolve();
-    return window.caches.keys().then(function (names) {
-      return Promise.all(names.map(function (name) {
-        if (name.indexOf('mira-tv-player-shell-') !== 0) return false;
-        return window.caches.delete(name);
-      }));
-    });
-  }
-
   function showCompatibilityFailure() {
     setStatus('MIRA-TV Player не запустился. Обновите браузер Chrome / Android System WebView на телевизоре и перезапустите страницу.');
   }
 
   function recoverPlayerShell() {
-    if (sessionValue(RECOVERY_KEY) === '1') {
-      showCompatibilityFailure();
-      return;
+    // Never remove a working offline shell during a server outage.
+    // An explicit administrator Apply remains the opt-in destructive recovery.
+    setStatus('MIRA-TV Player не запустился. Сохранённый кэш не удалён. Проверяем восстановление сервера…');
+    var delay = 15000;
+    function checkServer() {
+      if (window.__miraPlayerModuleStarted === true) return;
+      var url = '/js/player/player.js?mira_boot_check=' + Date.now();
+      fetch(url, { cache:'no-store', credentials:'same-origin' }).then(function (response) {
+        if (!response.ok || !/javascript|ecmascript/.test(response.headers.get('content-type') || '')) {
+          throw new Error('Player source unavailable');
+        }
+        if (sessionValue(RECOVERY_KEY) === '1') return;
+        setSessionValue(RECOVERY_KEY, '1');
+        window.location.reload();
+      }).catch(function () {
+        delay = Math.min(300000, delay * 2);
+        window.setTimeout(checkServer, delay);
+      });
     }
-    if (typeof Promise !== 'function') {
-      showCompatibilityFailure();
-      return;
-    }
-
-    setSessionValue(RECOVERY_KEY, '1');
-    setStatus('Восстанавливаем локальный MIRA-TV Player…');
-
-    Promise.all([
-      unregisterPlayerWorkers(),
-      clearPlayerShellCaches()
-    ]).then(function () {
-      window.location.reload();
-    }).catch(function () {
-      window.location.reload();
-    });
+    window.setTimeout(checkServer, delay);
   }
 
   function inspectBoot() {
