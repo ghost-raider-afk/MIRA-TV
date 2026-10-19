@@ -16,7 +16,7 @@ test('mobile UI is one canonical shell layer rather than page-by-page patches', 
 
   assert.match(index, /@import url\('\.\/mobile\.css'\);\s*$/);
   assert.match(mobile, /@media\(max-width:960px\)/);
-  assert.match(mobile, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(mobile, /grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
   assert.match(mobile, /bottom:calc\(76px \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(mobile, /font-size:16px/);
   assert.match(mobile, /min-height:44px/);
