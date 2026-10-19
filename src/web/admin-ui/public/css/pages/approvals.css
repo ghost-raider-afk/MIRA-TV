@@ -1,0 +1,73 @@
+/* Administrator requests: one workflow, shared styles for cards and history. */
+body[data-page="approvals"] .catalog-approvals-card{margin-bottom:14px}
+body[data-page="approvals"] .catalog-approvals-list{display:grid;gap:8px;margin-top:10px}
+body[data-page="approvals"] .catalog-approval-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 11px;border:1px solid var(--ui-border);border-left:3px solid var(--ui-warning);border-radius:9px;background:var(--ui-panel-raised)}
+body[data-page="approvals"] .catalog-approval-card-copy{display:grid;min-width:0;gap:5px}
+body[data-page="approvals"] .catalog-approval-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+body[data-page="approvals"] .catalog-approval-card-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="approvals"] .catalog-approval-card-head span{flex:0 0 auto;color:var(--ui-text-muted);font-size:var(--ui-font-md)}
+body[data-page="approvals"] .catalog-approval-card p{margin:0;overflow:hidden;color:var(--ui-text-muted);font-size:var(--ui-font-md);line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="approvals"] .catalog-approval-dialog{width:min(760px,94vw);max-height:88dvh;padding:0;overflow:auto;border:1px solid var(--ui-border);border-radius:16px;background:var(--ui-panel);color:var(--ui-text);box-shadow:0 30px 90px rgba(0,0,0,.48)}
+body[data-page="approvals"] .catalog-approval-dialog::backdrop{background:rgba(4,7,12,.68);backdrop-filter:blur(5px)}
+body[data-page="approvals"] .catalog-approval-panel{display:grid;gap:14px;padding:18px}
+body[data-page="approvals"] .catalog-approval-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+body[data-page="approvals"] .catalog-approval-head h2{margin:2px 0 0}
+body[data-page="approvals"] .catalog-approval-head p:last-child{margin:4px 0 0;color:var(--ui-text-muted);font-size:var(--ui-font-lg)}
+body[data-page="approvals"] .catalog-approval-close{display:grid;width:36px;height:36px;flex:0 0 36px;place-items:center;padding:0;border:1px solid var(--ui-border);border-radius:50%;background:var(--ui-panel-raised);color:var(--ui-text);font-size:24px;cursor:pointer}
+body[data-page="approvals"] .catalog-approval-diff{display:grid;gap:5px}
+body[data-page="approvals"] .catalog-approval-diff-row{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,1fr) 28px minmax(0,1fr);align-items:center;gap:7px;padding:8px 9px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);font-size:var(--ui-font-lg)}
+body[data-page="approvals"] .catalog-approval-diff-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="approvals"] .catalog-approval-before,body[data-page="approvals"] .catalog-approval-after{min-width:0;overflow-wrap:anywhere}
+body[data-page="approvals"] .catalog-approval-before{color:var(--ui-text-muted);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--ui-danger) 58%,transparent)}
+body[data-page="approvals"] .catalog-approval-after{color:var(--ui-text);font-weight:700}
+body[data-page="approvals"] .catalog-approval-arrow{text-align:center;color:var(--ui-text-muted)}
+body[data-page="approvals"] .catalog-approval-no-changes{margin:0;padding:10px;border:1px solid var(--ui-border);border-radius:8px;color:var(--ui-text-muted)}
+body[data-page="approvals"] .catalog-approval-panel textarea{width:100%;min-height:78px;resize:vertical;padding:8px 10px;border:1px solid var(--ui-border-strong);border-radius:8px;background:var(--ui-input);color:var(--ui-text);font:inherit}
+body[data-page="approvals"] .catalog-approval-actions{display:flex;justify-content:flex-end;gap:8px}
+body[data-page="approvals"] .catalog-approvals-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+body[data-page="approvals"] .catalog-approvals-controls label{font-size:12px;color:var(--ui-text-muted)}
+body[data-page="approvals"] .catalog-approvals-controls select{min-height:40px;max-width:100%;padding:6px 10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);font:inherit}
+body[data-page="approvals"] .catalog-approval-status{font-size:12px;color:var(--ui-text-muted);font-weight:700}
+body[data-page="approvals"] .catalog-approval-history-detail{margin:0;padding:10px 12px;border:1px solid var(--ui-border);border-radius:8px;overflow-wrap:anywhere}
+body[data-page="approvals"] .catalog-approval-actions .button[hidden],
+body[data-page="approvals"] #catalog-approval-comment-field[hidden],
+body[data-page="approvals"] #catalog-approval-history-detail[hidden]{display:none}
+body[data-page="approvals"] .catalog-approval-card-head span{min-width:0;max-width:100%;overflow-wrap:anywhere}
+body[data-page="approvals"] .catalog-approvals-card{min-width:0}
+body[data-page="approvals"] .catalog-approval-card-copy{min-width:0}
+body[data-page="approvals"] .catalog-approval-card-head{flex-wrap:wrap}
+body[data-page="approvals"] .catalog-approval-card-head span{flex:0 1 auto}
+body[data-page="approvals"] .catalog-approval-preview{display:grid;gap:6px;min-width:0}
+body[data-page="approvals"] .catalog-approval-diff-row{grid-template-columns:minmax(100px,.7fr) minmax(0,1fr) minmax(0,1fr);gap:10px}
+body[data-page="approvals"] .catalog-approval-diff-row.is-compact{padding:7px 8px;font-size:13px}
+body[data-page="approvals"] .catalog-approval-field-name{min-width:0;white-space:normal;overflow-wrap:anywhere}
+body[data-page="approvals"] .catalog-approval-value-cell{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
+body[data-page="approvals"] .catalog-approval-value-cell small{font-size:11px;font-weight:650;color:var(--ui-text-muted)}
+body[data-page="approvals"] .catalog-approval-before{color:var(--ui-danger);font-weight:650;text-decoration:line-through;text-decoration-color:currentColor;text-decoration-thickness:1.25px;text-decoration-skip-ink:auto}
+body[data-page="approvals"] .catalog-approval-after{color:var(--ui-success);font-weight:750;text-decoration:none}
+body[data-page="approvals"] .catalog-approval-dialog{max-width:calc(100vw - 12px)}
+@media(max-width:700px){
+body[data-page="approvals"] .catalog-approval-diff-row{grid-template-columns:1fr 1fr;gap:4px}
+body[data-page="approvals"] .catalog-approval-diff-row strong{grid-column:1/-1}
+body[data-page="approvals"] .catalog-approval-arrow{display:none}
+body[data-page="approvals"] .catalog-approval-diff-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+body[data-page="approvals"] .catalog-approval-diff-row .catalog-approval-field-name{grid-column:1/-1;white-space:normal}
+}
+@media(max-width:560px){
+body[data-page="approvals"] .catalog-approval-card{grid-template-columns:1fr}
+body[data-page="approvals"] .catalog-approval-card .button{width:100%}
+body[data-page="approvals"] .catalog-approval-card-head{align-items:flex-start;flex-direction:column;gap:2px}
+body[data-page="approvals"] .catalog-approval-card p{white-space:normal}
+body[data-page="approvals"] .catalog-approval-actions{align-items:stretch;flex-direction:column}
+body[data-page="approvals"] .catalog-approval-actions .button{width:100%}
+body[data-page="approvals"] .catalog-approvals-controls{width:100%}
+body[data-page="approvals"] .catalog-approvals-controls select{flex:1;min-width:0}
+body[data-page="approvals"] .catalog-approvals-controls .button{flex:0 0 auto}
+body[data-page="approvals"] .catalog-approvals-controls{width:100%}
+body[data-page="approvals"] .catalog-approval-card{grid-template-columns:minmax(0,1fr)}
+body[data-page="approvals"] .catalog-approval-card .button{width:100%}
+body[data-page="approvals"] .catalog-approval-card-head{align-items:flex-start;flex-direction:column;gap:3px}
+body[data-page="approvals"] .catalog-approval-panel{padding:14px}
+body[data-page="approvals"] .catalog-approval-actions{flex-direction:column}
+body[data-page="approvals"] .catalog-approval-actions .button{min-height:44px;width:100%}
+}
