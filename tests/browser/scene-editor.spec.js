@@ -636,7 +636,7 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await expect(page.locator('.scene-editor-properties-panel')).toBeHidden();
   await page.getByRole('button', { name:/Слои/ }).click();
   await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
-  await page.locator('[data-scene-panel-backdrop]').click({ position:{ x:340, y:25 } });
+  await page.getByRole('button', { name:'Закрыть слои' }).click();
   await expect(page.locator('.scene-editor-layers-panel')).toBeHidden();
 
   await addConstructorElement(page, 'Текстовое поле');
