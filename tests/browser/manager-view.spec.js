@@ -168,6 +168,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerPage.keyboard.press('ArrowRight');
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
     expect(screenshotRequests).toBe(0);
+    await managerPage.locator('#manager-fullscreen-close').click();
     await locationGroup.getByRole('button', { name:/свернуть/i }).click();
     await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
     await expect(managerPage.locator('.manager-screen-stage img')).toHaveCount(0);
