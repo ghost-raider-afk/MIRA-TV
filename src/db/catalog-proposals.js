@@ -5,7 +5,8 @@ function normaliseProposal(row) {
   if (!proposal) return null;
   return {
     ...proposal,
-    entity_id:Number(proposal.entity_id),
+    entity_id:proposal.entity_id === null ? null : Number(proposal.entity_id),
+    location_id:proposal.location_id === null ? null : (proposal.location_id === undefined ? null : Number(proposal.location_id)),
     base_payload:jsonValue(proposal.base_payload, {}),
     proposed_payload:jsonValue(proposal.proposed_payload, {})
   };
@@ -13,19 +14,23 @@ function normaliseProposal(row) {
 
 export function createCatalogProposalsRepository(pool) {
   return Object.freeze({
-    async listCatalogProposals({ managerUsername = null, status = null } = {}) {
+    async listCatalogProposals({ managerUsername = null, status = null, entityType = null } = {}) {
       const clauses = [];
       const values = [];
       if (managerUsername) {
         values.push(managerUsername);
-        clauses.push(`manager_username = $${values.length}`);
+        clauses.push('p.manager_username = ' + String.fromCharCode(36) + values.length);
       }
       if (status) {
         values.push(status);
-        clauses.push(`status = $${values.length}`);
+        clauses.push('p.status = ' + String.fromCharCode(36) + values.length);
+      }
+      if (entityType) {
+        values.push(entityType);
+        clauses.push('p.entity_type = ' + String.fromCharCode(36) + values.length);
       }
       const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
-      const { rows } = await pool.query(`SELECT * FROM catalog_change_proposals${where} ORDER BY created_at DESC, id DESC`, values);
+      const { rows } = await pool.query(`SELECT p.*, l.name AS location_name FROM catalog_change_proposals p LEFT JOIN locations l ON l.id=p.location_id${where} ORDER BY p.created_at DESC, p.id DESC`, values);
       return rows.map(normaliseProposal);
     },
 
@@ -39,13 +44,25 @@ export function createCatalogProposalsRepository(pool) {
       return normaliseProposal(rows[0]);
     },
 
-    async createCatalogProposal({ managerUsername, entityType, entityId, baseUpdatedAt, basePayload, proposedPayload }) {
+    async createCatalogProposal({ managerUsername, entityType, entityId, baseUpdatedAt, basePayload, proposedPayload, description = '' }) {
       const now = isoNow();
       const { rows } = await pool.query(
         `INSERT INTO catalog_change_proposals
-          (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,status,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$7) RETURNING *`,
-        [managerUsername, entityType, entityId, baseUpdatedAt, JSON.stringify(basePayload), JSON.stringify(proposedPayload), now]
+          (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,description,status,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$8) RETURNING *`,
+        [managerUsername, entityType, entityId, baseUpdatedAt, JSON.stringify(basePayload), JSON.stringify(proposedPayload), description, now]
+      );
+      return normaliseProposal(rows[0]);
+    },
+
+    async createMessageCard({ managerUsername, title, description, locationId = null }) {
+      const now = isoNow();
+      const { rows } = await pool.query(
+        `INSERT INTO catalog_change_proposals
+          (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,title,description,location_id,status,created_at,updated_at)
+         VALUES ($1,'message',NULL,NULL,'{}'::jsonb,'{}'::jsonb,$2,$3,$4,'pending',$5,$5)
+         RETURNING *`,
+        [managerUsername,title,description,locationId,now]
       );
       return normaliseProposal(rows[0]);
     },

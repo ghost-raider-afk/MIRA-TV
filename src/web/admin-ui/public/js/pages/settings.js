@@ -47,7 +47,7 @@ function managerEndpoint(username, action = '') {
   return action ? `${base}/${action}` : base;
 }
 
-function managerRow(manager) {
+function managerRow(manager, locations) {
   const row = document.createElement('div');
   row.className = 'manager-admin-row';
   row.dataset.managerUsername = manager.username;
@@ -109,7 +109,58 @@ function managerRow(manager) {
     }
   });
 
-  row.append(identity, status, password, passwordButton, activeButton, remove);
+  const actions=document.createElement('div');
+  actions.className='manager-admin-actions';
+  actions.append(identity,status,password,passwordButton,activeButton,remove);
+  const access=document.createElement('div');
+  access.className='manager-access-settings';
+  const heading=document.createElement('strong');
+  heading.textContent='Права доступа';
+  const catalogLabel=document.createElement('label');
+  const catalogInput=document.createElement('input');
+  catalogInput.type='checkbox';
+  catalogInput.checked=manager.catalog_enabled === true;
+  catalogLabel.append(catalogInput,' Показывать каталог продукции и тары');
+  const allLabel=document.createElement('label');
+  const allInput=document.createElement('input');
+  allInput.type='checkbox';
+  allInput.checked=manager.all_locations === true;
+  allLabel.append(allInput,' Все торговые точки');
+  const locationList=document.createElement('div');
+  locationList.className='manager-access-locations';
+  const locationInputs=locations.map((location) => {
+    const label=document.createElement('label');
+    const input=document.createElement('input');
+    input.type='checkbox';
+    input.value=String(location.id);
+    input.checked=manager.location_ids.includes(Number(location.id));
+    label.append(input,' ',location.name);
+    locationList.append(label);
+    return input;
+  });
+  const syncLocations=() => { locationList.hidden=allInput.checked; };
+  allInput.addEventListener('change',syncLocations);
+  syncLocations();
+  const save=document.createElement('button');
+  save.type='button';
+  save.className='button button-primary';
+  save.textContent='Сохранить доступ';
+  save.addEventListener('click',async () => {
+    save.disabled=true;
+    try {
+      await api.put(managerEndpoint(manager.username,'access'),{
+        all_locations:allInput.checked,
+        catalog_enabled:catalogInput.checked,
+        location_ids:locationInputs.filter((input) => input.checked).map((input) => Number(input.value))
+      });
+      setMessage('manager-settings-message',`Доступ менеджера «${manager.username}» сохранён.`,'success');
+      await loadManagers();
+    } catch (error) {
+      setMessage('manager-settings-message',error.message);
+    } finally { save.disabled=false; }
+  });
+  access.append(heading,catalogLabel,allLabel,locationList,save);
+  row.append(actions,access);
   return row;
 }
 
@@ -117,8 +168,8 @@ async function loadManagers() {
   const root = element('manager-admin-list');
   const empty = element('manager-admin-empty');
   if (!root || !empty) return;
-  const managers = await api.get(API.managers);
-  root.replaceChildren(...managers.map(managerRow));
+  const [managers,locations]=await Promise.all([api.get(API.managers),api.get(API.locations)]);
+  root.replaceChildren(...managers.map((manager) => managerRow(manager,locations)));
   empty.classList.toggle('is-hidden', managers.length !== 0);
 }
 

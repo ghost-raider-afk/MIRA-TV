@@ -15,6 +15,7 @@ let fullscreenIndex = -1;
 let fullscreenRequestToken = 0;
 let catalog = { products:[], packaging:[] };
 let catalogMode = 'products';
+let catalogSearchText = '';
 let proposalTarget = null;
 
 const FIELD_LABELS = Object.freeze({
@@ -36,7 +37,8 @@ const STATUS_LABELS = Object.freeze({
   pending:'Ожидает согласования',
   approved:'Принято',
   rejected:'Отклонено',
-  conflict:'Конфликт'
+  conflict:'Конфликт',
+  resolved:'Обработано'
 });
 
 function appName() {
@@ -142,8 +144,17 @@ function screenCard(screen, location, orderIndex) {
   copy.append(name, meta);
   card.append(shell, copy);
   card.addEventListener('click', () => void openFullscreenAt(orderIndex));
-  void hydratePreview(stage, screen.id, loading);
   return card;
+}
+
+function discardLocationPreviews(location) {
+  for (const screen of location.screens) {
+    const id = Number(screen.id);
+    previewRenderers.get(id)?.destroy();
+    previewRenderers.delete(id);
+    screenContexts.delete(id);
+    contextPromises.delete(id);
+  }
 }
 
 function renderLocations(locations) {
@@ -158,6 +169,11 @@ function renderLocations(locations) {
   const orderIndexByScreenId = new Map(
     fullscreenEntries.map((entry, index) => [Number(entry.screen.id), index])
   );
+  const selector = document.getElementById('manager-message-location');
+  if (selector) {
+    selector.replaceChildren(new Option('Общее обращение', ''));
+    for (const location of locations) selector.add(new Option(location.name, String(location.id)));
+  }
   for (const location of locations) {
     const group = document.createElement('article');
     group.className = 'manager-location';
@@ -172,14 +188,46 @@ function renderLocations(locations) {
     const count = document.createElement('span');
     count.className = 'manager-location-count';
     count.textContent = formatRussianCount(location.screens.length, ['телевизор','телевизора','телевизоров']);
-    head.append(identity, count);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'manager-location-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
     const grid = document.createElement('div');
     grid.className = 'manager-screen-grid';
-    location.screens.forEach((screen) => grid.append(screenCard(
-      screen,
-      location,
-      orderIndexByScreenId.get(Number(screen.id))
-    )));
+    grid.id = `manager-location-screens-${location.id}`;
+    grid.hidden = true;
+    toggle.setAttribute('aria-controls', grid.id);
+    const label = document.createElement('span');
+    label.className = 'manager-location-toggle-label';
+    label.textContent = 'Развернуть';
+    const arrow = document.createElement('span');
+    arrow.className = 'manager-location-chevron';
+    arrow.setAttribute('aria-hidden', 'true');
+    toggle.append(identity, count, label, arrow);
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(expanded));
+      label.textContent = expanded ? 'Свернуть' : 'Развернуть';
+      if (expanded) {
+        grid.hidden = false;
+        if (!location.screens.length) {
+          const note = document.createElement('p');
+          note.className = 'manager-no-screens';
+          note.textContent = 'На торговой точке пока нет телевизоров.';
+          grid.append(note);
+        }
+        location.screens.forEach((screen) => {
+          const card = screenCard(screen, location, orderIndexByScreenId.get(Number(screen.id)));
+          grid.append(card);
+          void hydratePreview(card.querySelector('.manager-screen-stage'), screen.id, card.querySelector('.manager-preview-loading'));
+        });
+      } else {
+        grid.hidden = true;
+        discardLocationPreviews(location);
+        grid.replaceChildren();
+      }
+    });
+    head.append(toggle);
     group.append(head, grid);
     root.append(group);
   }
@@ -281,7 +329,15 @@ function renderCatalog() {
   const empty = document.getElementById('manager-catalog-empty');
   if (!list || !empty) return;
   list.replaceChildren();
-  const records = catalogRecords();
+  const records = catalogRecords().filter((item) => {
+    const query = catalogSearchText.trim().toLocaleLowerCase('ru');
+    if (!query) return true;
+    return [item.name, ...(catalogMode === 'products' ? [item.producer] : [])]
+      .some((value) => String(value || '').toLocaleLowerCase('ru').includes(query));
+  });
+  const count = document.getElementById('manager-catalog-count');
+  if (count) count.textContent = `${records.length} из ${catalogRecords().length}`;
+  empty.textContent = catalogSearchText.trim() ? 'Ничего не найдено.' : 'Каталог пуст.';
   for (const item of records) {
     const row = document.createElement('div');
     row.className = 'manager-catalog-row';
@@ -294,7 +350,7 @@ function renderCatalog() {
     const propose = document.createElement('button');
     propose.className = 'button button-secondary';
     propose.type = 'button';
-    propose.textContent = 'Предложить';
+    propose.textContent = 'Изменить';
     propose.addEventListener('click', () => openProposal(catalogMode === 'packaging' ? 'packaging' : 'product', item));
     row.append(copy, propose);
     list.append(row);
@@ -337,13 +393,21 @@ function renderProposals(proposals) {
     card.className = `manager-proposal-card status-${proposal.status}`;
     const head = document.createElement('header');
     const title = document.createElement('strong');
-    title.textContent = proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
+    title.textContent = proposal.entity_type === 'message'
+      ? proposal.title || `Обращение #${proposal.id}`
+      : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
     const status = document.createElement('span');
     status.className = 'manager-proposal-status';
-    status.textContent = STATUS_LABELS[proposal.status] || proposal.status;
+    status.textContent = proposal.entity_type === 'message' && proposal.status === 'pending'
+      ? 'Ожидает ответа' : STATUS_LABELS[proposal.status] || proposal.status;
     head.append(title, status);
     const changes = document.createElement('div');
     changes.className = 'manager-proposal-changes';
+    if (proposal.description) {
+      const description = document.createElement('p');
+      description.textContent = proposal.description;
+      changes.append(description);
+    }
     for (const change of proposalChanges(proposal)) {
       const line = document.createElement('p');
       line.textContent = `${change.label}: ${formatValue(change.before)} → ${formatValue(change.after)}`;
@@ -351,10 +415,15 @@ function renderProposals(proposals) {
     }
     if (!changes.childElementCount) {
       const line = document.createElement('p');
-      line.textContent = 'Значения не изменены.';
+      line.textContent = 'Без изменений данных.';
       changes.append(line);
     }
-    card.append(head, changes);
+    const meta = document.createElement('p');
+    meta.className = 'manager-proposal-meta';
+    const created = new Date(proposal.created_at);
+    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
+    meta.textContent = [`№${proposal.id}`, date, proposal.location_name].filter(Boolean).join(' · ');
+    card.append(head, meta, changes);
     if (proposal.review_comment) {
       const comment = document.createElement('p');
       comment.className = 'manager-proposal-comment';
@@ -419,6 +488,8 @@ function openProposal(entityType, record) {
   fields.replaceChildren();
   document.getElementById('manager-proposal-title').textContent = record.name || 'Каталог';
   setMessage('manager-proposal-message', '');
+  const comment=document.getElementById('manager-proposal-description');
+  if (comment) comment.value='';
 
   if (entityType === 'product') {
     fields.append(
@@ -475,7 +546,8 @@ async function submitProposal() {
     await api.post(API.managerProposals, {
       entity_type:proposalTarget.entityType,
       entity_id:proposalTarget.record.id,
-      proposed:proposalPayload()
+      proposed:proposalPayload(),
+      description:document.getElementById('manager-proposal-description')?.value || ''
     });
     document.getElementById('manager-proposal-dialog')?.close();
     proposalTarget = null;
@@ -488,11 +560,42 @@ async function submitProposal() {
   }
 }
 
+async function submitMessageCard() {
+  const button=document.getElementById('manager-message-submit');
+  if (button) button.disabled=true;
+  try {
+    const subject=document.getElementById('manager-message-subject');
+    const description=document.getElementById('manager-message-body');
+    if (!subject?.value.trim() || !description?.value.trim()) {
+      setMessage('manager-message-error', 'Заполните тему и текст обращения.');
+      return;
+    }
+    const value=document.getElementById('manager-message-location')?.value;
+    await api.post(`${API.managerProposals}/message`,{
+      title:subject.value,
+      description:description.value,
+      location_id:value ? Number(value) : null
+    });
+    document.getElementById('manager-message-dialog')?.close();
+    document.getElementById('manager-message-form')?.reset();
+    setMessage('manager-message-error','');
+    await loadProposals();
+    setMessage('manager-message','Обращение отправлено администратору.','success');
+  } catch (error) {
+    setMessage('manager-message-error',error.message);
+  } finally {
+    if (button) button.disabled=false;
+  }
+}
+
 async function loadWorkspace() {
   const button = document.getElementById('manager-refresh');
   if (button) button.disabled = true;
   try {
-    await Promise.all([loadOverview(), loadCatalog(), loadProposals()]);
+    const access=await api.get(`${API.managerBase}/access`);
+    const catalogCard=document.querySelector('[aria-labelledby="manager-catalog-title"]');
+    if (catalogCard) catalogCard.hidden=!access.catalog_enabled;
+    await Promise.all([loadOverview(),access.catalog_enabled ? loadCatalog() : Promise.resolve(),loadProposals()]);
     setMessage('manager-message', '');
   } catch (error) {
     setMessage('manager-message', error.message);
@@ -517,9 +620,26 @@ export function initialiseManagerView() {
   document.getElementById('manager-fullscreen-close')?.addEventListener('click', () => void closeFullscreen());
   document.getElementById('manager-fullscreen-prev')?.addEventListener('click', () => moveFullscreen(-1));
   document.getElementById('manager-fullscreen-next')?.addEventListener('click', () => moveFullscreen(1));
-  document.getElementById('manager-tab-products')?.addEventListener('click', () => { catalogMode = 'products'; renderCatalog(); });
-  document.getElementById('manager-tab-packaging')?.addEventListener('click', () => { catalogMode = 'packaging'; renderCatalog(); });
+  const search = document.getElementById('manager-catalog-search');
+  const setMode = (mode) => {
+    catalogMode = mode;
+    catalogSearchText = '';
+    if (search) {
+      search.value = '';
+      search.placeholder = mode === 'products' ? 'Поиск по названию или производителю' : 'Поиск тары по названию';
+      search.setAttribute('aria-label', search.placeholder);
+    }
+    renderCatalog();
+  };
+  search?.addEventListener('input', () => { catalogSearchText = search.value; renderCatalog(); });
+  document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
+  document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
+  document.getElementById('manager-new-message')?.addEventListener('click', () => {
+    setMessage('manager-message-error','');
+    document.getElementById('manager-message-dialog')?.showModal();
+  });
+  document.getElementById('manager-message-submit')?.addEventListener('click', () => void submitMessageCard());
   document.getElementById('manager-proposal-dialog')?.addEventListener('close', () => { proposalTarget = null; });
   document.addEventListener('keydown', (event) => {
     const overlay = document.getElementById('manager-fullscreen');

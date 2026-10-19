@@ -58,7 +58,7 @@ async function updateEntity(store, entityType, entityId, payload) {
     : store.updatePackaging(entityId, payload);
 }
 
-export async function createCatalogChangeProposal(store, { managerUsername, entityType, entityId, proposedPayload }) {
+export async function createCatalogChangeProposal(store, { managerUsername, entityType, entityId, proposedPayload, description = '' }) {
   const type = requireEntityType(entityType);
   const current = await currentEntity(store, type, entityId);
   if (!current) return null;
@@ -69,7 +69,8 @@ export async function createCatalogChangeProposal(store, { managerUsername, enti
     entityId,
     baseUpdatedAt:current.updated_at,
     basePayload:catalogEntityPayload(type, current),
-    proposedPayload:proposed
+    proposedPayload:proposed,
+    description
   });
 }
 
@@ -81,6 +82,13 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
     const proposal = await tx.getCatalogProposalForUpdate(proposalId);
     if (!proposal) return { kind:'missing', proposal:null, entity:null };
     if (proposal.status !== 'pending') return { kind:'resolved', proposal, entity:null };
+
+    if (proposal.entity_type === 'message' && status === 'approved') {
+      const handled = await tx.resolveCatalogProposal(proposalId, {
+        status:'resolved', reviewerUsername, reviewComment
+      });
+      return { kind:'handled', proposal:handled, entity:null };
+    }
 
     if (status === 'rejected') {
       const resolved = await tx.resolveCatalogProposal(proposalId, {

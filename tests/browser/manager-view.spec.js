@@ -105,6 +105,20 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await expect(adminPage.locator('#manager-settings-message')).toContainText('Активные сессии завершены');
 
     await login(managerPage, managerUsername, managerPassword, '/manager');
+    const defaultAccess=await managerPage.request.get('/api/manager/access');
+    expect(defaultAccess.ok()).toBeTruthy();
+    expect(await defaultAccess.json()).toMatchObject({
+      all_locations:false, catalog_enabled:false, location_ids:[]
+    });
+    expect(await (await managerPage.request.get('/api/manager/overview')).json()).toEqual([]);
+    expect((await managerPage.request.get('/api/manager/catalog')).status()).toBe(403);
+    expect((await managerPage.request.get(`/api/manager/screens/${published.id}/context`)).status()).toBe(404);
+
+    await managerRow.getByText('Все торговые точки').click();
+    await managerRow.getByText('Показывать каталог продукции и тары').click();
+    await managerRow.getByRole('button', { name:'Сохранить доступ' }).click();
+    await expect(adminPage.locator('#manager-settings-message')).toContainText('сохранён');
+    await managerPage.reload();
 
     await expect(managerPage.locator('.ui-rail')).toHaveCount(0);
     await expect(managerPage.locator('.ui-context')).toHaveCount(0);
@@ -115,6 +129,11 @@ test('manager uses the common sign-in and can inspect every saved active screen 
 
     const locationGroup = managerPage.locator('.manager-location').filter({ hasText: location.name });
     await expect(locationGroup).toHaveCount(1);
+    const toggle = locationGroup.locator('.manager-location-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const cards = locationGroup.locator('[data-manager-screen-id]');
     await expect(cards).toHaveCount(2);
     await expect(locationGroup.locator('.manager-location-count')).toHaveText('2 телевизора');
@@ -138,6 +157,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerPage.goto('/settings');
     await expect(managerPage).toHaveURL(/\/manager$/);
     await expect(managerPage.locator('#manager-create-form')).toHaveCount(0);
+    await locationGroup.locator('.manager-location-toggle').click();
 
     await managerPage.locator(`[data-manager-screen-id="${published.id}"]`).click();
     const fullscreen = managerPage.locator('#manager-fullscreen');
@@ -159,7 +179,31 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerPage.keyboard.press('ArrowRight');
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
     expect(screenshotRequests).toBe(0);
+    await managerPage.locator('#manager-fullscreen-close').click();
+    await locationGroup.getByRole('button', { name:/свернуть/i }).click();
+    await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
     await expect(managerPage.locator('.manager-screen-stage img')).toHaveCount(0);
+
+    await managerPage.setViewportSize({ width:390, height:844 });
+    await locationGroup.locator('.manager-location-toggle').click();
+    await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(2);
+    const horizontalOverflow=await managerPage.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth + 1
+    );
+    expect(horizontalOverflow).toBe(false);
+    await locationGroup.locator('.manager-location-toggle').click();
+
+    const restrict=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
+      data:{ all_locations:false,catalog_enabled:false,location_ids:[] }
+    });
+    expect(restrict.ok()).toBeTruthy();
+    await managerPage.reload();
+    await expect(managerPage.locator('.manager-location')).toHaveCount(0);
+    await expect(managerPage.locator('#manager-catalog-list')).toBeHidden();
+    expect((await managerPage.request.get('/api/manager/catalog')).status()).toBe(403);
+    expect((await managerPage.request.get(`/api/manager/screens/${published.id}/context`)).status()).toBe(404);
+    expect((await managerPage.request.get(`/api/manager/screens/${draft.id}/weather`)).status()).toBe(404);
+    expect((await managerPage.request.get('/api/manager/proposals')).status()).toBe(200);
   } finally {
     await managerContext.close();
     if (adminPage.isClosed() === false) {

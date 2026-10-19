@@ -6,7 +6,7 @@ import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-ser
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
-const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict']);
+const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict','resolved']);
 
 function activeInput(value) {
   if (typeof value !== 'boolean') throw Object.assign(new Error('Поле active должно быть логическим значением.'), { status: 400 });
@@ -60,7 +60,7 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
     action:`catalog.proposal.${result.kind}`,
     entity_type:'catalog_change_proposal',
     entity_id:id,
-    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : 'отклонена'}.`
+    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : 'отклонена'}.`
   });
   return response.json(result);
 }
@@ -74,6 +74,30 @@ export function createManagerAdminRouter({ store, config, realtime }) {
 
   router.post('/proposals/:id/approve', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'approve' }));
   router.post('/proposals/:id/reject', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'reject' }));
+
+  router.put('/:username/access', async (request, response) => {
+    const username=managerUsernameInput(request.params.username);
+    const { all_locations,catalog_enabled,location_ids }=request.body || {};
+    if (typeof all_locations !== 'boolean' || typeof catalog_enabled !== 'boolean'
+      || !Array.isArray(location_ids) || location_ids.length > 500
+      || location_ids.some((id) => !Number.isSafeInteger(id) || id <= 0))
+      return response.status(400).json({ error:'Некорректные права доступа менеджера.' });
+    const ids=[...new Set(location_ids)];
+    if (!all_locations) {
+      const locations=await Promise.all(ids.map((id) => store.getLocation(id)));
+      if (locations.some((location) => !location))
+        return response.status(400).json({ error:'Торговая точка не найдена.' });
+    }
+    const access=await store.transaction((tx) => tx.setManagerAccess(username, {
+      all_locations,catalog_enabled,location_ids:all_locations ? [] : ids
+    }));
+    if (!access) throw notFound('Менеджер не найден.');
+    await activity(store,request,{
+      action:'manager.access.updated',entity_type:'user',entity_id:username,
+      message:`Права доступа менеджера «${username}» обновлены.`
+    });
+    response.json(access);
+  });
 
   router.get('/', async (_request, response) => {
     response.json(await store.listManagers());

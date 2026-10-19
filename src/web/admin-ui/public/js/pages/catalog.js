@@ -113,15 +113,21 @@ function renderApprovals(proposals) {
     const head = document.createElement('div');
     head.className = 'catalog-approval-card-head';
     const title = document.createElement('strong');
-    title.textContent = proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
+    title.textContent = proposal.entity_type === 'message'
+      ? proposal.title || `Обращение #${proposal.id}`
+      : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
     const manager = document.createElement('span');
-    manager.textContent = `Менеджер: ${proposal.manager_username}`;
+    const created = new Date(proposal.created_at);
+    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
+    manager.textContent = [`№${proposal.id}`, `Менеджер: ${proposal.manager_username}`, date, proposal.location_name].filter(Boolean).join(' · ');
     head.append(title, manager);
     const changes = proposalChanges(proposal);
     const summary = document.createElement('p');
-    summary.textContent = changes.length
-      ? changes.slice(0, 3).map((change) => `${change.label}: ${approvalValue(change.before)} → ${approvalValue(change.after)}`).join(' · ')
-      : 'Значения не изменены';
+    summary.textContent = proposal.entity_type === 'message'
+      ? proposal.description || ''
+      : changes.length
+        ? changes.slice(0, 3).map((change) => `${change.label}: ${approvalValue(change.before)} → ${approvalValue(change.after)}`).join(' · ')
+        : proposal.description || 'Значения не изменены';
     copy.append(head, summary);
     const review = makeButton('Рассмотреть', '', () => openApproval(proposal));
     card.append(copy, review);
@@ -149,16 +155,27 @@ function openApproval(proposal) {
   const dialog = catalogDialog('catalog-approval-dialog');
   const diff = element('catalog-approval-diff');
   if (!dialog || !diff) return;
-  element('catalog-approval-title').textContent = proposal.base_payload?.name || 'Предложение менеджера';
-  element('catalog-approval-meta').textContent = `Менеджер ${proposal.manager_username} · ${proposal.entity_type === 'product' ? 'продукция' : 'тара'}`;
+  const isMessage=proposal.entity_type === 'message';
+  element('catalog-approval-title').textContent = isMessage
+    ? proposal.title || 'Обращение менеджера'
+    : proposal.base_payload?.name || 'Предложение менеджера';
+  element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
+    isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
+  element('catalog-approval-approve').textContent = isMessage ? 'Отметить обработанным' : 'Принять изменение';
   element('catalog-approval-comment').value = '';
   clearMessage('catalog-approval-message');
   diff.replaceChildren();
   const changes = proposalChanges(proposal);
-  if (!changes.length) {
+  if (proposal.description) {
+    const message=document.createElement('p');
+    message.className='catalog-approval-no-changes';
+    message.textContent=proposal.description;
+    diff.append(message);
+  }
+  if (!changes.length && !proposal.description) {
     const empty = document.createElement('p');
     empty.className = 'catalog-approval-no-changes';
-    empty.textContent = 'Предложение не изменяет значения.';
+    empty.textContent = 'Без изменений данных.';
     diff.append(empty);
   } else {
     for (const change of changes) {
@@ -199,7 +216,9 @@ async function decideApproval(decision) {
     await api.post(`${API.adminManagerProposals}/${approvalTarget.id}/${decision}`, { comment });
     closeApproval();
     await Promise.all([loadApprovals(), loadCatalog(), loadNotifications()]);
-    setMessage('catalog-approvals-message', decision === 'approve' ? 'Изменение подтверждено и применено.' : 'Предложение отклонено.', 'success');
+    setMessage('catalog-approvals-message', decision === 'approve'
+      ? 'Карточка обработана. Изменения каталога применены, если они были.'
+      : 'Карточка отклонена.', 'success');
   } catch (error) {
     setMessage('catalog-approval-message', error.message);
     if (error?.status === 409) await loadApprovals();

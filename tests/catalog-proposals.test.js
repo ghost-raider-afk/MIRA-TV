@@ -173,3 +173,34 @@ test('PostgreSQL JSONB snapshots stay intact after decoding instead of becoming 
   assert.deepEqual(jsonValue([payload], []), [payload]);
   assert.deepEqual(jsonValue('invalid json', {}), {});
 });
+
+test('message cards resolve without updating catalog values', async () => {
+  const store=reviewStore({ currentProposal:proposal({
+    entity_type:'message', entity_id:null, base_updated_at:null,
+    base_payload:{}, proposed_payload:{}, title:'Проверить ТВ',
+    description:'В торговой точке не совпадает название'
+  }) });
+  const result=await reviewCatalogChangeProposal(store,{
+    proposalId:10, decision:'approve', reviewerUsername:'admin', reviewComment:'Исправили'
+  });
+  assert.equal(result.kind,'handled');
+  assert.equal(result.proposal.status,'resolved');
+  assert.equal(store.calls.updates,0);
+  assert.deepEqual(store.calls.locks,[]);
+});
+
+// Card listing must bind every SQL parameter; otherwise scope/status filters silently fail.
+test('card listing scopes manager, status and type with SQL parameters', async () => {
+  let statement;
+  const { createCatalogProposalsRepository } = await import('../src/db/catalog-proposals.js');
+  const repository = createCatalogProposalsRepository({
+    async query(sql, args) { statement = { sql, args }; return { rows:[] }; }
+  });
+  assert.deepEqual(await repository.listCatalogProposals({
+    managerUsername:'manager', status:'pending', entityType:'message'
+  }), []);
+  assert.match(statement.sql, /p\.manager_username = \$1/);
+  assert.match(statement.sql, /p\.status = \$2/);
+  assert.match(statement.sql, /p\.entity_type = \$3/);
+  assert.deepEqual(statement.args, ['manager','pending','message']);
+});
