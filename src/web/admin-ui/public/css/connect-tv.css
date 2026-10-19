@@ -2,6 +2,9 @@
 
 /* Three connection steps must fit narrow phones without clipping the last label. */
 @media(max-width:360px){
+  .connect-tv-flow{grid-template-columns:minmax(0,1fr)}
+  .connect-tv-progress,.connect-tv-card{min-width:0}
+  .connect-tv-code-toggle{width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere}
   .connect-tv-progress{gap:4px}
   .connect-tv-progress span{min-width:0;gap:4px;padding:5px 3px}
   .connect-tv-progress b{width:20px;height:20px}
