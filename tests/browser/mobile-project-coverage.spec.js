@@ -25,18 +25,39 @@ for (const width of [320,360,430,768]) {
     test.setTimeout(100_000);
     await page.setViewportSize({ width, height:844 });
     await login(page);
-    const routes = [
-      '/', '/screens', '/locations', '/catalog', '/settings',
-      '/events', '/connect-tv', '/profile', '/scene', '/screen-editor'
-    ];
-    const errors = [];
-    page.on('pageerror', error => errors.push(String(error.message || error)));
-    for (const route of routes) {
-      await page.goto(route);
+    const locationResponse = await page.request.post('/api/locations', {
+      data:{ name:'Responsive '+width+' '+Date.now(), address:'Mobile test', active:true }
+    });
+    expect(locationResponse.status()).toBe(201);
+    const location = await locationResponse.json();
+    try {
+      const screenResponse = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+      expect(screenResponse.status()).toBe(201);
+      const screen = await screenResponse.json();
+      const routes = [
+        '/', '/screens', '/locations', '/catalog', '/settings',
+        '/events', '/connect-tv', '/profile', `/scene?screen=${screen.id}`
+      ];
+      const errors = [];
+      page.on('pageerror', error => errors.push(String(error.message || error)));
+      for (const route of routes) {
+        await page.goto(route);
+        await expect(page.locator('.app-header')).toBeVisible();
+        if (route.startsWith('/scene')) await expect(page.locator('#scene-editor-stage-shell')).toBeVisible();
+        await noOverflow(page, route, width);
+        if (route === '/connect-tv') {
+          await expect(page.locator('.connect-tv-progress em').last()).toBeInViewport();
+        }
+      }
+      // Legacy monitor editor intentionally redirects to TV management.
+      await page.goto(`/screen-editor?id=${screen.id}`);
+      await expect(page).toHaveURL(new RegExp(`/screens\\?manage=${screen.id}`));
       await expect(page.locator('.app-header')).toBeVisible();
-      await noOverflow(page, route, width);
+      await noOverflow(page, '/screen-editor redirect', width);
+      expect(errors).toEqual([]);
+    } finally {
+      await page.request.delete(`/api/locations/${location.id}`).catch(() => undefined);
     }
-    expect(errors).toEqual([]);
   });
 }
 
