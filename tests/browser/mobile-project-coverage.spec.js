@@ -14,9 +14,18 @@ async function noOverflow(page, route, width) {
   const geometry = await page.evaluate(() => ({
     viewport:document.documentElement.clientWidth,
     html:document.documentElement.scrollWidth,
-    body:document.body.scrollWidth
+    body:document.body.scrollWidth,
+    offenders:[...document.querySelectorAll('main *')]
+      .filter((node) => {
+        const rect = node.getBoundingClientRect();
+        return rect.width > 1 && rect.right > document.documentElement.clientWidth + 1;
+      })
+      .slice(0, 8)
+      .map((node) => ({ tag:node.tagName, className:String(node.className).slice(0, 80),
+        right:Math.round(node.getBoundingClientRect().right) }))
   }));
-  expect(geometry.html, route + ' overflows at ' + width).toBeLessThanOrEqual(geometry.viewport + 1);
+  const details = ' / ' + JSON.stringify(geometry.offenders);
+  expect(geometry.html, route + ' overflows at ' + width + details).toBeLessThanOrEqual(geometry.viewport + 1);
   expect(geometry.body, route + ' body overflows at ' + width).toBeLessThanOrEqual(geometry.viewport + 1);
 }
 
@@ -42,8 +51,13 @@ for (const width of [320,360,430,768]) {
       page.on('pageerror', error => errors.push(String(error.message || error)));
       for (const route of routes) {
         await page.goto(route);
-        await expect(page.locator('.app-header')).toBeVisible();
-        if (route.startsWith('/scene')) await expect(page.locator('#scene-editor-stage-shell')).toBeVisible();
+        if (route.startsWith('/scene')) {
+          // The Scene Editor intentionally uses a dedicated full-screen command bar.
+          await expect(page.locator('#scene-editor-stage-shell')).toBeVisible();
+          await expect(page.locator('.scene-editor-commandbar')).toBeVisible();
+        } else {
+          await expect(page.locator('.app-header')).toBeVisible();
+        }
         await noOverflow(page, route, width);
         if (route === '/connect-tv') {
           await expect(page.locator('.connect-tv-progress em').last()).toBeInViewport();
