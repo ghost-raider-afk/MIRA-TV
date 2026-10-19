@@ -82,18 +82,18 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   for (const layer of [backgroundLayer, promotionLayer, tableLayer]) {
     await expect(layer).toBeVisible();
     await expect(layer.locator('svg')).toHaveCount(1);
-    expect((await layer.boundingBox())?.height).toBeLessThanOrEqual(28);
+    expect((await layer.boundingBox())?.height).toBeGreaterThanOrEqual(36);
   }
   await expect(page.locator('#scene-editor-properties-title')).toHaveText('Элемент не выбран');
   const inspectorWidth1600 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
-  expect(inspectorWidth1600).toBeGreaterThanOrEqual(296);
-  expect(inspectorWidth1600).toBeLessThanOrEqual(312);
+  expect(inspectorWidth1600).toBeGreaterThanOrEqual(370);
+  expect(inspectorWidth1600).toBeLessThanOrEqual(400);
   const previewWidth1600 = (await page.locator('#scene-editor-stage-shell').boundingBox())?.width || 0;
   expect(previewWidth1600).toBeGreaterThan(650);
   await page.setViewportSize({ width:1920, height:1080 });
   const inspectorWidth1920 = (await page.locator('.scene-editor-properties-panel').boundingBox())?.width || 0;
-  expect(inspectorWidth1920).toBeGreaterThanOrEqual(296);
-  expect(inspectorWidth1920).toBeLessThanOrEqual(312);
+  expect(inspectorWidth1920).toBeGreaterThanOrEqual(370);
+  expect(inspectorWidth1920).toBeLessThanOrEqual(400);
   await page.setViewportSize({ width:1600, height:900 });
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('#scene-editor-undo')).toBeDisabled();
@@ -201,8 +201,8 @@ test('Scene editor keeps layers, shared Player preview and contextual properties
   expect(geometry.documentScroll).toBeLessThanOrEqual(geometry.documentClient + 2);
   expect(geometry.layersScroll).toBeLessThanOrEqual(geometry.layersClient + 2);
   expect(geometry.propertiesScroll).toBeLessThanOrEqual(geometry.propertiesClient + 2);
-  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(296);
-  expect(geometry.propertiesWidth).toBeLessThanOrEqual(312);
+  expect(geometry.propertiesWidth).toBeGreaterThanOrEqual(370);
+  expect(geometry.propertiesWidth).toBeLessThanOrEqual(400);
 
   const shellBox = await page.locator('#scene-editor-stage-shell').boundingBox();
   expect(shellBox).not.toBeNull();
@@ -620,6 +620,24 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await page.locator('.scene-table-editor-close').click();
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
+  await expect(page.locator('[data-scene-panel-backdrop]')).toBeVisible();
+  const propertySheet = await page.locator('.scene-editor-properties-panel').boundingBox();
+  expect(propertySheet.width).toBeGreaterThanOrEqual(370);
+  const propertyLabels = await page.locator('.scene-editor-properties .field>span').all();
+  expect(propertyLabels.length).toBeGreaterThan(0);
+  expect(await propertyLabels[0].evaluate((node) => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(14);
+  const closeProperties = page.getByRole('button', { name:'Закрыть свойства' });
+  await closeProperties.click();
+  await expect(page.locator('.scene-editor-properties-panel')).toBeHidden();
+  await expect(page.locator('[data-scene-panel-backdrop]')).toBeHidden();
+  await page.getByRole('button', { name:/Свойства/ }).click();
+  await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.scene-editor-properties-panel')).toBeHidden();
+  await page.getByRole('button', { name:/Слои/ }).click();
+  await expect(page.locator('.scene-editor-layers-panel')).toBeVisible();
+  await page.locator('[data-scene-panel-backdrop]').click({ position:{ x:340, y:25 } });
+  await expect(page.locator('.scene-editor-layers-panel')).toBeHidden();
 
   await addConstructorElement(page, 'Текстовое поле');
   await expect(page.locator('.scene-editor-selection-box')).toHaveCount(1);
@@ -950,4 +968,47 @@ test('Scene weather uses same-origin preview even when navigator reports offline
   await expect(weather.locator('.weather-widget-location')).toHaveText('Комсомольск-на-Амуре', { timeout:5000 });
   await expect(weather.locator('.weather-widget-temperature')).toHaveText('9°');
   expect(previewRequests).toBeGreaterThanOrEqual(1);
+});
+
+test('Scene editor stays readable at desktop and small phone widths without changing TV geometry', async ({ page }) => {
+  await page.setViewportSize({ width:1366, height:768 });
+  await login(page);
+  const { screen } = await fixture(page);
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-table-layer').click();
+
+  for (const width of [1366, 1920]) {
+    await page.setViewportSize({ width, height:900 });
+    const props = page.locator('.scene-editor-properties-panel');
+    const bounds = await props.boundingBox();
+    expect(bounds.width).toBeGreaterThanOrEqual(335);
+    const input = page.locator('#scene-editor-properties input').first();
+    if (await input.count()) {
+      expect(await input.evaluate((node) => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(13);
+      expect((await input.boundingBox()).height).toBeGreaterThanOrEqual(36);
+    }
+  }
+
+  for (const width of [320, 360, 390, 430, 768]) {
+    await page.setViewportSize({ width, height:800 });
+    await page.getByRole('button', { name:/Свойства/ }).click();
+    const panel = page.locator('.scene-editor-properties-panel');
+    await expect(panel).toBeVisible();
+    const box = await panel.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    const input = page.locator('#scene-editor-properties input').first();
+    if (await input.count()) {
+      expect(await input.evaluate((node) => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(16);
+      expect((await input.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+    const stageGeometry = await page.locator('#scene-editor-stage').evaluate((el) => ({
+      width:el.dataset.sceneViewportWidth,
+      height:el.dataset.sceneViewportHeight
+    }));
+    expect(stageGeometry).toEqual({ width:'1920', height:'1080' });
+    await page.getByRole('button', { name:'Закрыть свойства' }).click();
+    await expect(panel).toBeHidden();
+  }
 });
