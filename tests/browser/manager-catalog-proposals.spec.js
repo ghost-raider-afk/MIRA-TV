@@ -76,6 +76,26 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(screenCard.locator('.manager-screen-stage svg.menu-table-svg')).toHaveCount(1, { timeout:5000 });
     await expect(managerPage.locator('.manager-screen-stage img')).toHaveCount(0);
 
+    for (const width of [320, 360, 390, 430, 768]) {
+      await managerPage.setViewportSize({ width, height:844 });
+      const geometry = await managerPage.evaluate(() => ({
+        width:document.documentElement.clientWidth,
+        html:document.documentElement.scrollWidth,
+        body:document.body.scrollWidth
+      }));
+      expect(geometry.html, 'manager overflow at '+width).toBeLessThanOrEqual(geometry.width+1);
+      expect(geometry.body, 'manager body overflow at '+width).toBeLessThanOrEqual(geometry.width+1);
+      await managerPage.locator('#manager-new-message').click();
+      const modal = managerPage.locator('#manager-message-dialog');
+      await expect(modal).toBeVisible();
+      const box = await modal.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width).toBeLessThanOrEqual(width+1);
+      await modal.getByRole('button', { name:'Отмена' }).click();
+      await expect(modal).not.toBeVisible();
+    }
+    await managerPage.setViewportSize({ width:1280, height:720 });
+
     const productRow = managerPage.locator('.manager-catalog-row', { hasText:`Менеджер E2E ${stamp}` });
     await expect(productRow).toBeVisible();
     const search = managerPage.getByRole('searchbox', { name:'Поиск по названию или производителю' });
