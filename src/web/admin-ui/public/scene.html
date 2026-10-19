@@ -41,6 +41,7 @@
             </div>
 
             <div class="scene-editor-workspace">
+              <button class="scene-editor-panel-backdrop" type="button" data-scene-panel-backdrop hidden aria-label="Закрыть панель редактора"></button>
               <aside class="scene-editor-panel scene-editor-layers-panel" aria-label="Слои сцены">
                 <div class="scene-editor-panel-head">
                   <div><span class="scene-editor-kicker">СЛОИ</span><strong>Элементы</strong></div>
@@ -53,6 +54,7 @@
                       <button type="button" role="menuitem" data-scene-element-type="weather"><span class="scene-editor-type-icon" aria-hidden="true">☁</span><span class="scene-editor-add-copy"><strong>Погода</strong><small>Один виджет на сцену</small></span></button>
                     </div>
                   </div>
+                  <button class="scene-editor-panel-close" type="button" data-scene-panel-close aria-label="Закрыть слои">×</button>
                 </div>
                 <div class="scene-editor-system-layers" aria-label="Основные слои сцены">
                   <button id="scene-editor-theme-layer" class="scene-editor-system-layer" type="button" data-scene-owner="theme" title="Тема меню · пресет, бренд и информационный слот" disabled>
@@ -108,6 +110,7 @@
                 <div class="scene-editor-panel-head scene-editor-properties-head">
                   <div><span class="scene-editor-kicker">СВОЙСТВА</span><strong id="scene-editor-properties-title">Элемент не выбран</strong></div>
                   <span id="scene-editor-properties-kind" class="scene-editor-properties-kind" role="img" tabindex="0" aria-label="Тип элемента не выбран">—</span>
+                  <button class="scene-editor-panel-close" type="button" data-scene-panel-close aria-label="Закрыть свойства">×</button>
                 </div>
                 <div id="scene-editor-properties" class="scene-editor-properties">
                   <p class="scene-editor-empty">Выберите элемент слева или на рабочем экране.</p>

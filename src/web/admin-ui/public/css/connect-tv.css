@@ -10,3 +10,5 @@
   .connect-tv-progress b{width:20px;height:20px}
   .connect-tv-progress em{min-width:0;font-size:11px;letter-spacing:0}
 }
+
+.connect-tv-scan-button .connect-tv-scan-icon{display:block;width:23px;height:23px;flex:0 0 23px;color:inherit}

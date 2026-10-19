@@ -42,7 +42,7 @@
   .ui-rail-button:hover,.ui-rail-button:focus-visible{border:0;background:var(--ui-chrome-hover);outline:none}
   .ui-rail-button.active{border:0;background:color-mix(in srgb,var(--ui-accent) 11%,var(--ui-rail));color:var(--ui-accent-on-chrome)}
   .ui-rail-icon{width:24px;height:24px;font-size:19px}
-  .ui-rail-icon svg{width:22px;height:22px;stroke-width:1.8}
+  .ui-rail-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .ui-rail-label{display:block;max-width:none;overflow:visible;font-size:10px;font-weight:850;line-height:1.1;text-overflow:clip;white-space:nowrap}
 
   .ui-context-backdrop{position:fixed;z-index:55;top:calc(58px + env(safe-area-inset-top));right:0;bottom:calc(68px + env(safe-area-inset-bottom));left:0;display:block;padding:0;border:0;background:color-mix(in srgb,var(--ui-overlay) 48%,transparent);opacity:0;pointer-events:none;}

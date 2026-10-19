@@ -155,6 +155,9 @@ export function initialiseSceneEditor() {
   const promotionLayer = element('scene-editor-promotion-layer');
   const tableLayer = element('scene-editor-table-layer');
   const mobileToolbar = form.querySelector('.scene-editor-mobile-toolbar');
+  const mobileBackdrop = form.querySelector('[data-scene-panel-backdrop]');
+  const layersPanel = form.querySelector('.scene-editor-layers-panel');
+  const propertiesPanel = form.querySelector('.scene-editor-properties-panel');
   const undoButton = element('scene-editor-undo');
   const redoButton = element('scene-editor-redo');
   const screenSelect = element('scene-editor-screen');
@@ -193,6 +196,33 @@ export function initialiseSceneEditor() {
   const history = createEditorHistory(state);
 
   const active = () => !disposed && token === generation && document.body.dataset.page === 'scene';
+
+  function setMobilePanel(panel = '') {
+    const mobile = window.matchMedia('(max-width: 1100px)').matches;
+    const selected = mobile && (panel === 'layers' || panel === 'properties') ? panel : '';
+    document.body.dataset.sceneMobilePanel = selected;
+    if (mobileBackdrop) mobileBackdrop.hidden = !selected;
+    for (const [name, target] of [['layers', layersPanel], ['properties', propertiesPanel]]) {
+      if (!target) continue;
+      target.toggleAttribute('inert', mobile && selected !== name);
+      if (mobile) target.setAttribute('aria-hidden', String(selected !== name));
+      else target.removeAttribute('aria-hidden');
+    }
+    mobileToolbar?.querySelectorAll('[data-scene-mobile-panel]').forEach((button) => {
+      const isSelected = button.dataset.sceneMobilePanel === selected;
+      button.setAttribute('aria-expanded', String(isSelected));
+      button.classList.toggle('is-active', isSelected);
+    });
+  }
+  setMobilePanel('');
+  let wasMobileLayout = window.matchMedia('(max-width: 1100px)').matches;
+  const onMobileViewportChange = () => {
+    const mobile = window.matchMedia('(max-width: 1100px)').matches;
+    if (mobile === wasMobileLayout) return;
+    wasMobileLayout = mobile;
+    setMobilePanel('');
+  };
+  window.addEventListener('resize', onMobileViewportChange, { passive:true });
 
   function setDirty() {
     const target = element('scene-editor-dirty-state');
@@ -293,7 +323,7 @@ export function initialiseSceneEditor() {
     renderInspector();
     syncOverlaySelection();
     if (window.matchMedia('(max-width: 1100px)').matches && owner !== 'element') {
-      document.body.dataset.sceneMobilePanel = 'properties';
+      setMobilePanel('properties');
     }
   }
 
@@ -837,7 +867,7 @@ export function initialiseSceneEditor() {
           setDirty();
           scheduleSceneRender();
           renderSelectionOwners();
-          if(window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel='properties';
+          if(window.matchMedia('(max-width: 1100px)').matches) setMobilePanel('properties');
         });
         actions.append(button);
       }
@@ -1824,7 +1854,7 @@ export function initialiseSceneEditor() {
       onSelect: () => {
         selectedOwner = 'element';
         renderSelectionOwners();
-        if (window.matchMedia('(max-width: 1100px)').matches) document.body.dataset.sceneMobilePanel = 'properties';
+        if (window.matchMedia('(max-width: 1100px)').matches) setMobilePanel('properties');
       }
     });
   }
@@ -2039,6 +2069,12 @@ export function initialiseSceneEditor() {
       if (history.redo()) syncAfterHistory();
       return;
     }
+    if (event.key === 'Escape' && document.body.dataset.sceneMobilePanel) {
+      event.preventDefault();
+      setAddMenuOpen(false);
+      setMobilePanel('');
+      return;
+    }
     if (editing) return;
     if ((event.key === 'Delete' || event.key === 'Backspace') && selectedOwner === 'element' && state.selectedElementId) {
       const removeButton = propertiesRoot.querySelector('.editor-element-delete');
@@ -2059,11 +2095,19 @@ export function initialiseSceneEditor() {
     button.addEventListener('click', () => {
       const panel = button.dataset.sceneMobilePanel;
       if (panel === 'add') {
-        document.body.dataset.sceneMobilePanel = 'layers';
+        setMobilePanel('layers');
         setAddMenuOpen(true);
         return;
       }
-      document.body.dataset.sceneMobilePanel = document.body.dataset.sceneMobilePanel === panel ? '' : panel;
+      setMobilePanel(document.body.dataset.sceneMobilePanel === panel ? '' : panel);
+    });
+  });
+  mobileBackdrop?.addEventListener('click', () => setMobilePanel(''));
+  form.querySelectorAll('[data-scene-panel-close]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setAddMenuOpen(false);
+      setMobilePanel('');
+      mobileToolbar?.querySelector('[data-scene-mobile-panel="properties"]')?.focus({ preventScroll:true });
     });
   });
 
@@ -2165,6 +2209,8 @@ export function initialiseSceneEditor() {
       tableEditLayer.replaceChildren();
       document.body.classList.remove('scene-table-editor-open');
       window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('resize', onMobileViewportChange);
+      setMobilePanel('');
       form.removeEventListener('keydown', onEditorKeydown);
       delete document.body.dataset.sceneMobilePanel;
     }
