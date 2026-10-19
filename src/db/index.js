@@ -36,6 +36,7 @@ import { removeLegacySceneElements } from './migrations/scene-legacy-elements-cl
 import { migrateReadableManualColumns } from './migrations/readable-manual-columns.js';
 import { migrateCatalogChangeProposals } from './migrations/catalog-change-proposals.js';
 import { migrateManagerAccess } from './migrations/manager-access.js';
+import { migrateManagerCrmCards } from './migrations/manager-crm-cards.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -93,7 +94,8 @@ const MIGRATIONS = Object.freeze([
   { name: '034-catalog-product-address', run: migrateCatalogProductAddress },
   { name: '035-readable-manual-columns', run: migrateReadableManualColumns },
   { name: '036-catalog-change-proposals', run: migrateCatalogChangeProposals },
-  { name: '037-manager-access', run: migrateManagerAccess }
+  { name: '037-manager-access', run: migrateManagerAccess },
+  { name: '038-manager-crm-cards', run: migrateManagerCrmCards }
 ]);
 
 function createRepositories(queryable) {
