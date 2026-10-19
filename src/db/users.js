@@ -87,10 +87,43 @@ export function createUsersRepository(pool) {
 
     async listManagers() {
       const { rows } = await pool.query(
-        `SELECT username, role, active, session_version, password_changed_at, created_at, updated_at
-         FROM web_users WHERE role = 'manager' ORDER BY username`
+        `SELECT u.username,u.role,u.active,u.session_version,u.password_changed_at,u.created_at,u.updated_at,
+                COALESCE(a.all_locations,FALSE) AS all_locations,
+                COALESCE(a.catalog_enabled,FALSE) AS catalog_enabled,
+                COALESCE((SELECT array_agg(l.location_id ORDER BY l.location_id)
+                          FROM manager_location_access l WHERE l.username=u.username), '{}'::bigint[]) AS location_ids
+         FROM web_users u LEFT JOIN manager_access a ON a.username=u.username
+         WHERE u.role='manager' ORDER BY u.username`
       );
-      return rows.map(normaliseRow);
+      return rows.map((row) => ({ ...normaliseRow(row), location_ids:row.location_ids.map(Number) }));
+    },
+
+    async getManagerAccess(username) {
+      const { rows } = await pool.query(
+        `SELECT a.all_locations,a.catalog_enabled,
+                COALESCE((SELECT array_agg(l.location_id ORDER BY l.location_id)
+                          FROM manager_location_access l WHERE l.username=a.username), '{}'::bigint[]) AS location_ids
+         FROM manager_access a WHERE a.username=$1`, [username]
+      );
+      const row=rows[0];
+      return row ? { all_locations:row.all_locations,catalog_enabled:row.catalog_enabled,
+        location_ids:row.location_ids.map(Number) } : { all_locations:false,catalog_enabled:false,location_ids:[] };
+    },
+
+    async setManagerAccess(username, { all_locations,catalog_enabled,location_ids }) {
+      const { rows } = await pool.query(
+        `INSERT INTO manager_access (username,all_locations,catalog_enabled)
+         SELECT username,$2,$3 FROM web_users WHERE username=$1 AND role='manager'
+         ON CONFLICT (username) DO UPDATE SET all_locations=EXCLUDED.all_locations,catalog_enabled=EXCLUDED.catalog_enabled
+         RETURNING username`, [username,all_locations,catalog_enabled]
+      );
+      if (!rows.length) return null;
+      await pool.query('DELETE FROM manager_location_access WHERE username=$1', [username]);
+      if (!all_locations && location_ids.length) await pool.query(
+        `INSERT INTO manager_location_access (username,location_id)
+         SELECT $1,id FROM locations WHERE id=ANY($2::bigint[])`, [username,location_ids]
+      );
+      return this.getManagerAccess(username);
     },
 
     async createManager({ username, passwordHash }) {
@@ -101,6 +134,7 @@ export function createUsersRepository(pool) {
          RETURNING username, role, active, session_version, password_changed_at, created_at, updated_at`,
         [username, passwordHash, now]
       );
+      await pool.query('INSERT INTO manager_access(username) VALUES ($1)', [username]);
       await getUserPreferences(username);
       return normaliseRow(rows[0]);
     },

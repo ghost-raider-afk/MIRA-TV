@@ -7,11 +7,13 @@ import { themeWeatherSettings } from '../../contracts/menu-theme.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
 import { activity, notFound } from '../helpers.js';
 
-async function savedVisibleScreen(store, id) {
+async function savedVisibleScreen(store, id, username) {
   const screen = await store.getScreen(id);
   if (!screen || screen.active === false) return null;
   const location = await store.getLocation(screen.location_id);
   if (!location || location.active === false) return null;
+  const access=await store.getManagerAccess(username);
+  if (!access.all_locations && !access.location_ids.includes(Number(location.id))) return null;
   return screen;
 }
 
@@ -23,11 +25,17 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     next();
   });
 
-  router.get('/overview', async (_request, response) => {
-    const [locations, screens] = await Promise.all([store.listLocations(), store.listScreens()]);
+  router.get('/access', async (request, response) => {
+    response.json(await store.getManagerAccess(request.session.sub));
+  });
+
+  router.get('/overview', async (request, response) => {
+    const [locations,screens,access]=await Promise.all([
+      store.listLocations(),store.listScreens(),store.getManagerAccess(request.session.sub)
+    ]);
     const visibleScreens = screens.filter((screen) => screen.active !== false);
     const groups = locations
-      .filter((location) => location.active !== false)
+      .filter((location) => location.active !== false && (access.all_locations || access.location_ids.includes(Number(location.id))))
       .map((location) => ({
         id: location.id,
         name: location.name,
@@ -46,7 +54,9 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     response.json(groups);
   });
 
-  router.get('/catalog', async (_request, response) => {
+  router.get('/catalog', async (request, response) => {
+    const access=await store.getManagerAccess(request.session.sub);
+    if (!access.catalog_enabled) return response.status(403).json({ error:'Доступ к каталогу отключён.' });
     const [products, packaging] = await Promise.all([store.listProducts(), store.listPackaging()]);
     response.json({ products, packaging });
   });
@@ -56,6 +66,8 @@ export function createManagerViewRouter({ store, config, weatherService }) {
   });
 
   router.post('/proposals', async (request, response) => {
+    const access=await store.getManagerAccess(request.session.sub);
+    if (!access.catalog_enabled) return response.status(403).json({ error:'Доступ к каталогу отключён.' });
     const entityId = positiveId(request.body?.entity_id, 'entity_id');
     const proposal = await createCatalogChangeProposal(store, {
       managerUsername:request.session.sub,
@@ -75,7 +87,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
 
   router.get('/screens/:id/context', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
-    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
+    if (!await savedVisibleScreen(store, id, request.session.sub)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
     const state = await buildPlayerState(store, { screen_id: id }, config);
     if (!state) return response.status(404).json({ error: 'Телевизор недоступен.' });
     response.json(fullPlayerContext(state));
@@ -83,7 +95,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
 
   router.get('/screens/:id/weather', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
-    if (!await savedVisibleScreen(store, id)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
+    if (!await savedVisibleScreen(store, id, request.session.sub)) return response.status(404).json({ error: 'Сохранённый телевизор не найден.' });
     const draft = await store.getScreenDraft(id);
     const settings = request.query.source === 'theme'
       ? themeWeatherSettings(draft?.settings?.theme, draft?.scene)
