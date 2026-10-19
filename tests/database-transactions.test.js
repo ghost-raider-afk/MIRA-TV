@@ -50,3 +50,29 @@ test('transaction always rolls back and releases the same client after a later f
   assert.equal(harness.queries.at(-1).sql, 'ROLLBACK');
   assert.equal(harness.released(), 1);
 });
+
+test('manager creation transaction rolls back if access provisioning fails', async () => {
+  const harness = transactionHarness();
+  const store = new MiraTvStore({}, { pool:harness.pool });
+  const client = await harness.pool.connect();
+  const query = client.query;
+  client.query = async (sql, params = []) => {
+    if (String(sql).includes('INSERT INTO web_users')) {
+      harness.queries.push({ sql:String(sql), params });
+      return { rowCount:1, rows:[{ username:'manager-test', role:'manager', active:true }] };
+    }
+    if (String(sql).includes('INSERT INTO manager_access')) {
+      harness.queries.push({ sql:String(sql), params });
+      throw new Error('injected permissions failure');
+    }
+    return query(sql, params);
+  };
+  await assert.rejects(store.transaction((tx) =>
+    tx.createManager({ username:'manager-test', passwordHash:'hash' })
+  ), /injected permissions failure/);
+  assert.equal(harness.queries[0].sql, 'BEGIN');
+  assert.ok(harness.queries.some(({ sql }) => sql.includes('INSERT INTO web_users')));
+  assert.ok(harness.queries.some(({ sql }) => sql.includes('INSERT INTO manager_access')));
+  assert.equal(harness.queries.at(-1).sql, 'ROLLBACK');
+  assert.equal(harness.released(), 1);
+});
