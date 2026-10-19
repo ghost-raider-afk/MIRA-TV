@@ -215,7 +215,13 @@ export function initialiseSceneEditor() {
     });
   }
   setMobilePanel('');
-  const onMobileViewportChange = () => setMobilePanel('');
+  let wasMobileLayout = window.matchMedia('(max-width: 1100px)').matches;
+  const onMobileViewportChange = () => {
+    const mobile = window.matchMedia('(max-width: 1100px)').matches;
+    if (mobile === wasMobileLayout) return;
+    wasMobileLayout = mobile;
+    setMobilePanel('');
+  };
   window.addEventListener('resize', onMobileViewportChange, { passive:true });
 
   function setDirty() {
