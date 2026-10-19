@@ -132,27 +132,30 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(before).toHaveCSS('text-decoration-line', 'line-through');
     await expect(after).toHaveCSS('text-decoration-line', 'none');
     const colors=await approvalDialog.evaluate((dialog) => {
-      const rgb=(selector) => getComputedStyle(dialog.querySelector(selector)).color;
-      return {
-        previous:rgb('.catalog-approval-before'),
-        proposed:rgb('.catalog-approval-after'),
-        danger:getComputedStyle(document.documentElement).getPropertyValue('--ui-danger').trim(),
-        success:getComputedStyle(document.documentElement).getPropertyValue('--ui-success').trim()
-      };
+      const probe=document.createElement('span');
+      dialog.append(probe);
+      probe.style.color='var(--ui-danger)';
+      const danger=getComputedStyle(probe).color;
+      probe.style.color='var(--ui-success)';
+      const success=getComputedStyle(probe).color;
+      probe.remove();
+      const rows=[...dialog.querySelectorAll('.catalog-approval-diff-row')];
+      return { danger, success, rows:rows.map((row) => ({
+        previous:getComputedStyle(row.querySelector('.catalog-approval-before')).color,
+        proposed:getComputedStyle(row.querySelector('.catalog-approval-after')).color,
+        oldDecoration:getComputedStyle(row.querySelector('.catalog-approval-before')).textDecorationLine,
+        newDecoration:getComputedStyle(row.querySelector('.catalog-approval-after')).textDecorationLine,
+        labels:[...row.querySelectorAll('small')].map((label) => label.textContent)
+      })) };
     });
-    // Computed color is resolved from current light/dark theme tokens.
-    const testColor=await approvalDialog.locator('.catalog-approval-before').evaluate((el) => {
-      const probe=document.createElement('span'); probe.style.color='var(--ui-danger)';
-      el.append(probe); const color=getComputedStyle(probe).color; probe.remove(); return color;
-    });
-    const newColor=await approvalDialog.locator('.catalog-approval-after').evaluate((el) => {
-      const probe=document.createElement('span'); probe.style.color='var(--ui-success)';
-      el.append(probe); const color=getComputedStyle(probe).color; probe.remove(); return color;
-    });
-    expect(colors.previous).toBe(testColor);
-    expect(colors.proposed).toBe(newColor);
-    await expect(approvalDialog.getByText('Было')).toBeVisible();
-    await expect(approvalDialog.getByText('Стало')).toBeVisible();
+    expect(colors.rows.length).toBeGreaterThan(0);
+    for (const row of colors.rows) {
+      expect(row.previous).toBe(colors.danger);
+      expect(row.proposed).toBe(colors.success);
+      expect(row.oldDecoration).toBe('line-through');
+      expect(row.newDecoration).toBe('none');
+      expect(row.labels).toEqual(['Было','Стало']);
+    }
     await approvalDialog.getByLabel('Комментарий менеджеру').fill('Цена подтверждена');
     await approvalDialog.getByRole('button', { name:'Принять изменение' }).click();
     await expect(approvalDialog).not.toBeVisible();
