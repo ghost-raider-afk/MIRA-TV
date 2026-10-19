@@ -114,6 +114,24 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await managerPage.getByRole('button', { name:'Обновить' }).click();
     await expect(managerProposal).toContainText('Принято');
     await expect(managerProposal).toContainText('Цена подтверждена');
+
+    await managerPage.locator('#manager-new-message').click();
+    await managerPage.locator('#manager-message-subject').fill(`Вопрос по точке ${stamp}`);
+    await managerPage.locator('#manager-message-location').selectOption(String(locationId));
+    await managerPage.locator('#manager-message-body').fill('Проверьте оборудование на точке.');
+    await managerPage.locator('#manager-message-submit').click();
+    const card=managerPage.locator('.manager-proposal-card', { hasText:`Вопрос по точке ${stamp}` });
+    await expect(card).toContainText('Ожидает согласования');
+
+    await adminPage.locator('#refresh-catalog-approvals').click();
+    const incoming=adminPage.locator('.catalog-approval-card', { hasText:`Вопрос по точке ${stamp}` });
+    await expect(incoming).toBeVisible();
+    await incoming.getByRole('button', { name:'Рассмотреть' }).click();
+    await expect(approvalDialog).toContainText('Проверьте оборудование на точке.');
+    await approvalDialog.getByRole('button', { name:'Отметить обработанным' }).click();
+    await expect(approvalDialog).not.toBeVisible();
+    await managerPage.getByRole('button', { name:'Обновить' }).click();
+    await expect(card).toContainText('Обработано');
   } finally {
     if (locationId) await adminPage.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
     if (productId) await adminPage.request.delete(`/api/catalog/products/${productId}`).catch(() => undefined);

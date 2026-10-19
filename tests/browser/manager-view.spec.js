@@ -171,6 +171,18 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await locationGroup.getByRole('button', { name:/свернуть/i }).click();
     await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
     await expect(managerPage.locator('.manager-screen-stage img')).toHaveCount(0);
+
+    const restrict=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
+      data:{ all_locations:false,catalog_enabled:false,location_ids:[] }
+    });
+    expect(restrict.ok()).toBeTruthy();
+    await managerPage.reload();
+    await expect(managerPage.locator('.manager-location')).toHaveCount(0);
+    await expect(managerPage.locator('#manager-catalog-list')).toBeHidden();
+    expect((await managerPage.request.get('/api/manager/catalog')).status()).toBe(403);
+    expect((await managerPage.request.get(`/api/manager/screens/${published.id}/context`)).status()).toBe(404);
+    expect((await managerPage.request.get(`/api/manager/screens/${draft.id}/weather`)).status()).toBe(404);
+    expect((await managerPage.request.get('/api/manager/proposals')).status()).toBe(200);
   } finally {
     await managerContext.close();
     if (adminPage.isClosed() === false) {
