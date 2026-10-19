@@ -32,7 +32,7 @@
 .manager-location-toggle>div{min-width:0;flex:1}
 .manager-location-toggle:focus-visible{outline:2px solid var(--ui-accent);outline-offset:5px;border-radius:4px}
 .manager-location-count{margin-left:auto}
-.manager-location-toggle-label{font-size:13px;font-weight:700;color:var(--ui-accent);white-space:nowrap}
+.manager-location-toggle-label{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:5px 10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);font-size:13px;font-weight:700;color:var(--ui-accent);white-space:nowrap}
 .manager-location-chevron{width:9px;height:9px;flex:none;border-right:2px solid var(--ui-accent);border-bottom:2px solid var(--ui-accent);transform:translateY(-2px) rotate(45deg);transition:transform 220ms ease}
 .manager-location-toggle[aria-expanded="true"] .manager-location-chevron{transform:translateY(3px) rotate(225deg)}
 .manager-screen-grid[hidden]{display:none}
@@ -64,3 +64,6 @@
 .manager-proposal-field textarea{width:100%;min-width:0;min-height:86px;padding:10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);font:inherit;resize:vertical}
 .manager-workspace-card[hidden]{display:none}
 .manager-workspace-grid:has(> .manager-workspace-card[hidden]){grid-template-columns:minmax(0,1fr)}
+
+.manager-no-screens{grid-column:1/-1;margin:0;padding:10px;color:var(--ui-text-muted);font-size:13px}
+.manager-proposal-meta{margin:0;color:var(--ui-text-muted);font-size:12px;line-height:1.3}

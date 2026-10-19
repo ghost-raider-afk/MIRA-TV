@@ -184,6 +184,15 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
     await expect(managerPage.locator('.manager-screen-stage img')).toHaveCount(0);
 
+    await managerPage.setViewportSize({ width:390, height:844 });
+    await locationGroup.locator('.manager-location-toggle').click();
+    await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(2);
+    const horizontalOverflow=await managerPage.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth + 1
+    );
+    expect(horizontalOverflow).toBe(false);
+    await locationGroup.locator('.manager-location-toggle').click();
+
     const restrict=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
       data:{ all_locations:false,catalog_enabled:false,location_ids:[] }
     });

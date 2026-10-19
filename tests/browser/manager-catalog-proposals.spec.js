@@ -79,6 +79,8 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     const productRow = managerPage.locator('.manager-catalog-row', { hasText:`Менеджер E2E ${stamp}` });
     await expect(productRow).toBeVisible();
     const search = managerPage.getByRole('searchbox', { name:'Поиск по названию или производителю' });
+    await search.fill(`Менеджер E2E ${stamp}`);
+    await expect(productRow).toBeVisible();
     await search.fill('тестовый завод');
     await expect(productRow).toBeVisible();
     await productRow.getByRole('button', { name:'Изменить' }).click();
