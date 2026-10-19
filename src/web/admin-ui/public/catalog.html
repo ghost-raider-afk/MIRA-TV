@@ -14,13 +14,6 @@
         <main class="main-content workspace-content">
           <div class="page-heading"><p class="eyebrow">КАТАЛОГ</p><h1>Продукция и тара</h1><p>Позиции каталога используются редакторами всех мониторов.</p></div>
 
-          <section class="settings-card catalog-approvals-card" aria-labelledby="catalog-approvals-title">
-            <div class="card-heading"><div><p class="eyebrow">СОГЛАСОВАНИЯ</p><h2 id="catalog-approvals-title">Карточки менеджеров</h2><p class="card-description">Изменения каталога и обращения. Изменения цен применяются только после подтверждения.</p></div><div class="catalog-approvals-controls"><label for="catalog-approvals-filter">Карточки</label><select id="catalog-approvals-filter" aria-label="Статус карточек"><option value="pending">На рассмотрении</option><option value="history">История</option></select><button class="button button-secondary" id="refresh-catalog-approvals" type="button">Обновить</button></div></div>
-            <p class="form-message is-hidden" id="catalog-approvals-message" role="status" aria-live="polite"></p>
-            <div class="catalog-approvals-list" id="catalog-approvals-list" aria-live="polite"></div>
-            <p class="empty-state is-hidden" id="catalog-approvals-empty">Новых предложений нет.</p>
-          </section>
-
           <div class="workspace-grid catalog-grid">
             <dialog class="catalog-editor-dialog" id="product-dialog" aria-labelledby="product-form-title">
             <section class="settings-card catalog-editor-card" id="products">
@@ -76,14 +69,6 @@
       </div>
     </div>
 
-    <dialog class="catalog-approval-dialog" id="catalog-approval-dialog" aria-labelledby="catalog-approval-title">
-      <section class="catalog-approval-panel">
-        <header class="catalog-approval-head"><div><p class="eyebrow">СОГЛАСОВАНИЕ</p><h2 id="catalog-approval-title">Предложение менеджера</h2><p id="catalog-approval-meta"></p></div><button class="catalog-approval-close" id="catalog-approval-close" type="button" aria-label="Закрыть">×</button></header>
-        <div class="catalog-approval-diff" id="catalog-approval-diff"></div>
-        <label class="field" id="catalog-approval-comment-field"><span>Комментарий менеджеру</span><textarea id="catalog-approval-comment" maxlength="500" rows="3" placeholder="Необязательно"></textarea></label><p class="catalog-approval-history-detail" id="catalog-approval-history-detail" hidden></p>
-        <p class="form-message is-hidden" id="catalog-approval-message" role="status" aria-live="polite"></p>
-        <footer class="catalog-approval-actions"><button class="button button-secondary" id="catalog-approval-reject" type="button">Отклонить</button><button class="button button-primary" id="catalog-approval-approve" type="button">Принять изменение</button></footer>
-      </section>
-    </dialog>
+
   </body>
 </html>
