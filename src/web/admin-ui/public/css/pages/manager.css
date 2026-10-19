@@ -60,3 +60,7 @@
 .manager-access-locations{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 14px}
 .manager-access-locations[hidden]{display:none}
 @media(max-width:900px){.manager-admin-actions{display:grid;grid-template-columns:1fr}.manager-admin-actions>input{max-width:none}}
+
+.manager-proposal-field textarea{width:100%;min-width:0;min-height:86px;padding:10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);font:inherit;resize:vertical}
+.manager-workspace-card[hidden]{display:none}
+.manager-workspace-grid:has(> .manager-workspace-card[hidden]){grid-template-columns:minmax(0,1fr)}

@@ -37,7 +37,8 @@ const STATUS_LABELS = Object.freeze({
   pending:'Ожидает согласования',
   approved:'Принято',
   rejected:'Отклонено',
-  conflict:'Конфликт'
+  conflict:'Конфликт',
+  resolved:'Обработано'
 });
 
 function appName() {
@@ -168,6 +169,11 @@ function renderLocations(locations) {
   const orderIndexByScreenId = new Map(
     fullscreenEntries.map((entry, index) => [Number(entry.screen.id), index])
   );
+  const selector = document.getElementById('manager-message-location');
+  if (selector) {
+    selector.replaceChildren(new Option('Общее обращение', ''));
+    for (const location of locations) selector.add(new Option(location.name, String(location.id)));
+  }
   for (const location of locations) {
     const group = document.createElement('article');
     group.className = 'manager-location';
@@ -381,13 +387,20 @@ function renderProposals(proposals) {
     card.className = `manager-proposal-card status-${proposal.status}`;
     const head = document.createElement('header');
     const title = document.createElement('strong');
-    title.textContent = proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
+    title.textContent = proposal.entity_type === 'message'
+      ? proposal.title || `Обращение #${proposal.id}`
+      : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
     const status = document.createElement('span');
     status.className = 'manager-proposal-status';
     status.textContent = STATUS_LABELS[proposal.status] || proposal.status;
     head.append(title, status);
     const changes = document.createElement('div');
     changes.className = 'manager-proposal-changes';
+    if (proposal.description) {
+      const description = document.createElement('p');
+      description.textContent = proposal.description;
+      changes.append(description);
+    }
     for (const change of proposalChanges(proposal)) {
       const line = document.createElement('p');
       line.textContent = `${change.label}: ${formatValue(change.before)} → ${formatValue(change.after)}`;
@@ -395,7 +408,7 @@ function renderProposals(proposals) {
     }
     if (!changes.childElementCount) {
       const line = document.createElement('p');
-      line.textContent = 'Значения не изменены.';
+      line.textContent = 'Без изменений данных.';
       changes.append(line);
     }
     card.append(head, changes);
@@ -463,6 +476,8 @@ function openProposal(entityType, record) {
   fields.replaceChildren();
   document.getElementById('manager-proposal-title').textContent = record.name || 'Каталог';
   setMessage('manager-proposal-message', '');
+  const comment=document.getElementById('manager-proposal-description');
+  if (comment) comment.value='';
 
   if (entityType === 'product') {
     fields.append(
@@ -519,7 +534,8 @@ async function submitProposal() {
     await api.post(API.managerProposals, {
       entity_type:proposalTarget.entityType,
       entity_id:proposalTarget.record.id,
-      proposed:proposalPayload()
+      proposed:proposalPayload(),
+      description:document.getElementById('manager-proposal-description')?.value || ''
     });
     document.getElementById('manager-proposal-dialog')?.close();
     proposalTarget = null;
@@ -529,6 +545,34 @@ async function submitProposal() {
     setMessage('manager-proposal-message', error.message);
   } finally {
     if (button) button.disabled = false;
+  }
+}
+
+async function submitMessageCard() {
+  const button=document.getElementById('manager-message-submit');
+  if (button) button.disabled=true;
+  try {
+    const subject=document.getElementById('manager-message-subject');
+    const description=document.getElementById('manager-message-body');
+    if (!subject?.value.trim() || !description?.value.trim()) {
+      setMessage('manager-message-error', 'Заполните тему и текст обращения.');
+      return;
+    }
+    const value=document.getElementById('manager-message-location')?.value;
+    await api.post(`${API.managerProposals}/message`,{
+      title:subject.value,
+      description:description.value,
+      location_id:value ? Number(value) : null
+    });
+    document.getElementById('manager-message-dialog')?.close();
+    document.getElementById('manager-message-form')?.reset();
+    setMessage('manager-message-error','');
+    await loadProposals();
+    setMessage('manager-message','Обращение отправлено администратору.','success');
+  } catch (error) {
+    setMessage('manager-message-error',error.message);
+  } finally {
+    if (button) button.disabled=false;
   }
 }
 
@@ -579,6 +623,11 @@ export function initialiseManagerView() {
   document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
   document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
+  document.getElementById('manager-new-message')?.addEventListener('click', () => {
+    setMessage('manager-message-error','');
+    document.getElementById('manager-message-dialog')?.showModal();
+  });
+  document.getElementById('manager-message-submit')?.addEventListener('click', () => void submitMessageCard());
   document.getElementById('manager-proposal-dialog')?.addEventListener('close', () => { proposalTarget = null; });
   document.addEventListener('keydown', (event) => {
     const overlay = document.getElementById('manager-fullscreen');
