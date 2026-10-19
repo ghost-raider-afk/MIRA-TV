@@ -142,7 +142,8 @@ function renderApprovals(proposals) {
       : changes.length
         ? changes.slice(0, 3).map((change) => `${change.label}: ${approvalValue(change.before)} → ${approvalValue(change.after)}`).join(' · ')
         : proposal.description || 'Значения не изменены';
-    copy.append(head, summary);
+    copy.prepend(head);
+    copy.append(summary);
     const review = makeButton(proposal.status === 'pending' ? 'Рассмотреть' : 'Просмотреть', '', () => openApproval(proposal));
     card.append(copy, review);
     list.append(card);
