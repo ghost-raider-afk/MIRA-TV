@@ -131,7 +131,7 @@ test('mobile navigation outline icons remain visible in light and dark themes', 
         };
       });
     });
-    expect(inspected).toHaveLength(4);
+    expect(inspected).toHaveLength(5);
     for (const icon of inspected) {
       expect(icon.fill, icon.label + ' should not be a solid black silhouette').toBe('none');
       expect(icon.stroke, icon.label + ' stroke must follow theme text color').toBe(icon.color);
