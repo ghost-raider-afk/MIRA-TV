@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 const staleShellCache = 'mira-tv-player-shell-v-stale-e2e';
-const activeShellCache = 'mira-tv-player-shell-v78';
+const activeShellCache = readFileSync(new URL('../../src/web/admin-ui/public/player-sw.js', import.meta.url), 'utf8').match(/^const SHELL_CACHE = '([^']+)';/m)?.[1];
+if (!activeShellCache) throw new Error('Offline Player shell cache identifier is missing');
 
 async function login(page) {
   await page.goto('/signin');
