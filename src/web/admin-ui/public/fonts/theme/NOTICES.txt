@@ -1,0 +1,46 @@
+MIRA-TV — bundled theme font notices
+
+These fonts are distributed locally with MIRA-TV. All eight families below are
+licensed under the SIL Open Font License, Version 1.1. The full license text is
+included alongside this file as OFL-1.1.txt.
+
+Font family: Montserrat (2 Cyrillic WOFF2 weights)
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+Upstream license: https://github.com/google/fonts/blob/main/ofl/montserrat/OFL.txt
+
+Font family: Roboto Condensed (2 Cyrillic WOFF2 weights)
+Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic)
+Upstream license: https://github.com/google/fonts/blob/main/ofl/robotocondensed/OFL.txt
+
+Font family: Oswald (1 Cyrillic WOFF2 weight)
+Copyright 2016 The Oswald Project Authors (https://github.com/googlefonts/OswaldFont)
+Upstream license: https://github.com/google/fonts/blob/main/ofl/oswald/OFL.txt
+
+Font family: Russo One (1 Cyrillic WOFF2 weight)
+Copyright (c) 2011-2012, Jovanny Lemonad (jovanny.ru), with Reserved Font Name "Russo"
+Upstream license: https://github.com/google/fonts/blob/main/ofl/russoone/OFL.txt
+
+Font family: Neucha (1 Cyrillic WOFF2 weight)
+Copyright (c) 2008-2010 by Jovanny Lemonad (http://www.jovanny.ru)
+Upstream license: https://github.com/google/fonts/blob/main/ofl/neucha/OFL.txt
+
+Font family: PT Sans Narrow (2 Cyrillic WOFF2 weights)
+Copyright (c) 2010, ParaType Ltd. (http://www.paratype.com/public),
+with Reserved Font Names "PT Sans" and "ParaType".
+Upstream license: https://github.com/google/fonts/blob/main/ofl/ptsansnarrow/OFL.txt
+
+Font family: Yanone Kaffeesatz (2 Cyrillic WOFF2 weights)
+Copyright 2010 The Yanone Kaffeesatz Project Authors (https://github.com/yanone/kaffeesatz)
+Upstream license: https://github.com/google/fonts/blob/main/ofl/yanonekaffeesatz/OFL.txt
+
+Font family: Underdog (1 Cyrillic WOFF2 weight)
+Copyright (c) 2012, Sergey Steblina (sergey@steblina.com), Jovanny Lemonad (lemonad@jovanny.ru), with Reserved Font Name 'Underdog'
+Upstream license: https://github.com/google/fonts/blob/main/ofl/underdog/OFL.txt
+
+The DejaVu TrueType fonts served at /fonts/DejaVu*.ttf are supplied by Debian
+packages fonts-dejavu-core and fonts-dejavu-extra. Their license and author
+notices are shipped by Debian at /usr/share/doc/fonts-dejavu-*/copyright.
+
+The notices above identify upstream font families. If a bundled WOFF2 font is
+replaced, its specific version and embedded copyright metadata must be checked
+against the updated upstream license before distribution.
