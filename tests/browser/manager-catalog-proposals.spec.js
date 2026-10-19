@@ -63,6 +63,10 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     expect(screenResponse.status()).toBe(201);
     const screen = await screenResponse.json();
 
+    const accessResponse=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
+      data:{ all_locations:true,catalog_enabled:true,location_ids:[] }
+    });
+    expect(accessResponse.ok()).toBeTruthy();
     await login(managerPage, managerUsername, managerPassword, '/manager');
 
     await managerPage.getByRole('button', { name:/развернуть/i }).first().click();

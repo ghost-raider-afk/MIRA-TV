@@ -48,3 +48,15 @@
 .manager-catalog-row .button{min-height:34px;padding:5px 10px}
 @media(max-width:900px){.manager-location-toggle{flex-wrap:wrap;gap:8px}.manager-location-toggle>div{flex-basis:100%}.manager-location-count{margin-left:0}.manager-location-toggle-label{margin-left:auto}}
 @media(prefers-reduced-motion:reduce){.manager-location-chevron{transition:none}.manager-screen-grid:not([hidden]){animation:none}}
+
+/* Manager access controls. */
+.manager-admin-row{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.manager-admin-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.manager-admin-actions>strong{margin-right:auto}
+.manager-admin-actions>input{flex:1;min-width:150px;max-width:260px}
+.manager-access-settings{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--ui-border)}
+.manager-access-settings>label,.manager-access-locations>label{display:flex;align-items:center;gap:8px}
+.manager-access-settings>.button{justify-self:start}
+.manager-access-locations{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 14px}
+.manager-access-locations[hidden]{display:none}
+@media(max-width:900px){.manager-admin-actions{display:grid;grid-template-columns:1fr}.manager-admin-actions>input{max-width:none}}

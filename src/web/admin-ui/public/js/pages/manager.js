@@ -536,7 +536,10 @@ async function loadWorkspace() {
   const button = document.getElementById('manager-refresh');
   if (button) button.disabled = true;
   try {
-    await Promise.all([loadOverview(), loadCatalog(), loadProposals()]);
+    const access=await api.get(`${API.managerBase}/access`);
+    const catalogCard=document.querySelector('[aria-labelledby="manager-catalog-title"]');
+    if (catalogCard) catalogCard.hidden=!access.catalog_enabled;
+    await Promise.all([loadOverview(),access.catalog_enabled ? loadCatalog() : Promise.resolve(),loadProposals()]);
     setMessage('manager-message', '');
   } catch (error) {
     setMessage('manager-message', error.message);

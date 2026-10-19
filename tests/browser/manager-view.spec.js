@@ -104,6 +104,10 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerRow.getByRole('button', { name: 'Сменить пароль' }).click();
     await expect(adminPage.locator('#manager-settings-message')).toContainText('Активные сессии завершены');
 
+    const accessResponse=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
+      data:{ all_locations:true,catalog_enabled:true,location_ids:[] }
+    });
+    expect(accessResponse.ok()).toBeTruthy();
     await login(managerPage, managerUsername, managerPassword, '/manager');
 
     await expect(managerPage.locator('.ui-rail')).toHaveCount(0);
