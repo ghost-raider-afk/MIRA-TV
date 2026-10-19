@@ -210,6 +210,12 @@ function renderLocations(locations) {
       label.textContent = expanded ? 'Свернуть' : 'Развернуть';
       if (expanded) {
         grid.hidden = false;
+        if (!location.screens.length) {
+          const note = document.createElement('p');
+          note.className = 'manager-no-screens';
+          note.textContent = 'На торговой точке пока нет телевизоров.';
+          grid.append(note);
+        }
         location.screens.forEach((screen) => {
           const card = screenCard(screen, location, orderIndexByScreenId.get(Number(screen.id)));
           grid.append(card);

@@ -104,11 +104,21 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerRow.getByRole('button', { name: 'Сменить пароль' }).click();
     await expect(adminPage.locator('#manager-settings-message')).toContainText('Активные сессии завершены');
 
-    const accessResponse=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
-      data:{ all_locations:true,catalog_enabled:true,location_ids:[] }
-    });
-    expect(accessResponse.ok()).toBeTruthy();
     await login(managerPage, managerUsername, managerPassword, '/manager');
+    const defaultAccess=await managerPage.request.get('/api/manager/access');
+    expect(defaultAccess.ok()).toBeTruthy();
+    expect(await defaultAccess.json()).toMatchObject({
+      all_locations:false, catalog_enabled:false, location_ids:[]
+    });
+    expect(await (await managerPage.request.get('/api/manager/overview')).json()).toEqual([]);
+    expect((await managerPage.request.get('/api/manager/catalog')).status()).toBe(403);
+    expect((await managerPage.request.get(`/api/manager/screens/${published.id}/context`)).status()).toBe(404);
+
+    await managerRow.getByText('Все торговые точки').click();
+    await managerRow.getByText('Показывать каталог продукции и тары').click();
+    await managerRow.getByRole('button', { name:'Сохранить доступ' }).click();
+    await expect(adminPage.locator('#manager-settings-message')).toContainText('сохранён');
+    await managerPage.reload();
 
     await expect(managerPage.locator('.ui-rail')).toHaveCount(0);
     await expect(managerPage.locator('.ui-context')).toHaveCount(0);

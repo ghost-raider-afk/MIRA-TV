@@ -122,7 +122,7 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await managerPage.locator('#manager-message-body').fill('Проверьте оборудование на точке.');
     await managerPage.locator('#manager-message-submit').click();
     const card=managerPage.locator('.manager-proposal-card', { hasText:`Вопрос по точке ${stamp}` });
-    await expect(card).toContainText('Ожидает согласования');
+    await expect(card).toContainText('Ожидает ответа');
 
     await adminPage.locator('#refresh-catalog-approvals').click();
     const incoming=adminPage.locator('.catalog-approval-card', { hasText:`Вопрос по точке ${stamp}` });
@@ -133,6 +133,29 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(approvalDialog).not.toBeVisible();
     await managerPage.getByRole('button', { name:'Обновить' }).click();
     await expect(card).toContainText('Обработано');
+    await expect(card).toContainText('№');
+
+    const revoke=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`, {
+      data:{ all_locations:true, catalog_enabled:false, location_ids:[] }
+    });
+    expect(revoke.ok()).toBeTruthy();
+    expect((await managerPage.request.get('/api/manager/catalog')).status()).toBe(403);
+    const restrictedProposals=await managerPage.request.get('/api/manager/proposals');
+    expect(restrictedProposals.ok()).toBeTruthy();
+    const restrictedRows=await restrictedProposals.json();
+    expect(restrictedRows.length).toBeGreaterThanOrEqual(1);
+    expect(restrictedRows.every((proposal) => proposal.entity_type === 'message')).toBeTruthy();
+    expect((await managerPage.request.post('/api/manager/proposals', {
+      data:{ entity_type:'product', entity_id:productId, proposed:{} }
+    })).status()).toBe(403);
+    const messageAllowed=await managerPage.request.post('/api/manager/proposals/message', {
+      data:{ title:'Обращение без каталога', description:'Текстовое обращение независимо от каталога.' }
+    });
+    expect(messageAllowed.status()).toBe(201);
+    await managerPage.reload();
+    await expect(managerPage.locator('#manager-catalog-list')).toBeHidden();
+    await expect(managerPage.locator('.manager-proposal-card', { hasText:'Обращение без каталога' })).toBeVisible();
+    await expect(managerPage.locator('.manager-proposal-card', { hasText:`Менеджер E2E ${stamp}` })).toHaveCount(0);
   } finally {
     if (locationId) await adminPage.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
     if (productId) await adminPage.request.delete(`/api/catalog/products/${productId}`).catch(() => undefined);

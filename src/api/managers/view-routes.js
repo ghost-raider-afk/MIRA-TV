@@ -49,8 +49,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
             location_number: screen.location_number,
             status: screen.status
           }))
-      }))
-      .filter((location) => location.screens.length > 0);
+      }));
     response.json(groups);
   });
 
