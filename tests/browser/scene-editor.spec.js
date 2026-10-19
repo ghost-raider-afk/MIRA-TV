@@ -621,6 +621,11 @@ test('Scene editor stays a single-page touch workspace on mobile', async ({ page
   await expect(page.locator('#scene-editor-table-edit-layer')).toBeHidden();
   await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
   await expect(page.locator('[data-scene-panel-backdrop]')).toBeVisible();
+  await expect(page.getByRole('button', { name:/Свойства/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.scene-editor-layers-panel')).toHaveAttribute('inert', '');
+  await page.setViewportSize({ width:390, height:650 }); // Simulates reduced visual height while typing.
+  await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
+  await page.setViewportSize({ width:390, height:844 });
   const propertySheet = await page.locator('.scene-editor-properties-panel').boundingBox();
   expect(propertySheet.width).toBeGreaterThanOrEqual(370);
   const propertyLabels = await page.locator('.scene-editor-properties .field>span').all();
