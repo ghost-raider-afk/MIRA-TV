@@ -69,7 +69,8 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     expect(accessResponse.ok()).toBeTruthy();
     await login(managerPage, managerUsername, managerPassword, '/manager');
 
-    await managerPage.getByRole('button', { name:/развернуть/i }).first().click();
+    const group=managerPage.locator('.manager-location').filter({ hasText:location.name });
+    await group.locator('.manager-location-toggle').click();
     const screenCard = managerPage.locator(`[data-manager-screen-id="${screen.id}"]`);
     await expect(screenCard).toBeVisible();
     await expect(screenCard.locator('.manager-screen-stage svg.menu-table-svg')).toHaveCount(1, { timeout:5000 });

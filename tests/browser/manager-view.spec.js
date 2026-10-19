@@ -119,7 +119,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
 
     const locationGroup = managerPage.locator('.manager-location').filter({ hasText: location.name });
     await expect(locationGroup).toHaveCount(1);
-    const toggle = locationGroup.getByRole('button', { name:/развернуть/i });
+    const toggle = locationGroup.locator('.manager-location-toggle');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
     await toggle.click();
@@ -147,6 +147,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerPage.goto('/settings');
     await expect(managerPage).toHaveURL(/\/manager$/);
     await expect(managerPage.locator('#manager-create-form')).toHaveCount(0);
+    await locationGroup.locator('.manager-location-toggle').click();
 
     await managerPage.locator(`[data-manager-screen-id="${published.id}"]`).click();
     const fullscreen = managerPage.locator('#manager-fullscreen');

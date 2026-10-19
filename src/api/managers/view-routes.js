@@ -62,7 +62,11 @@ export function createManagerViewRouter({ store, config, weatherService }) {
   });
 
   router.get('/proposals', async (request, response) => {
-    response.json(await store.listCatalogProposals({ managerUsername:request.session.sub }));
+    const access=await store.getManagerAccess(request.session.sub);
+    response.json(await store.listCatalogProposals({
+      managerUsername:request.session.sub,
+      entityType:access.catalog_enabled ? null : 'message'
+    }));
   });
 
   router.post('/proposals', async (request, response) => {

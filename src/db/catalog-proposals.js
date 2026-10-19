@@ -14,7 +14,7 @@ function normaliseProposal(row) {
 
 export function createCatalogProposalsRepository(pool) {
   return Object.freeze({
-    async listCatalogProposals({ managerUsername = null, status = null } = {}) {
+    async listCatalogProposals({ managerUsername = null, status = null, entityType = null } = {}) {
       const clauses = [];
       const values = [];
       if (managerUsername) {
@@ -23,7 +23,11 @@ export function createCatalogProposalsRepository(pool) {
       }
       if (status) {
         values.push(status);
-        clauses.push(`status = $${values.length}`);
+        clauses.push(`status = ${values.length}`);
+      }
+      if (entityType) {
+        values.push(entityType);
+        clauses.push(`entity_type = ${values.length}`);
       }
       const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
       const { rows } = await pool.query(`SELECT * FROM catalog_change_proposals${where} ORDER BY created_at DESC, id DESC`, values);
