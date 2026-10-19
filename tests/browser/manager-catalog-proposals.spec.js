@@ -116,6 +116,10 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(managerProposal).toContainText('220');
 
     await adminPage.goto('/catalog');
+    // SPA navigation is critical: the old approval dialog lived outside the mounted main.
+    await adminPage.locator('.app-header-nav-link[data-header-section="approvals"]').click();
+    await expect(adminPage).toHaveURL(/\/approvals$/);
+    await expect(adminPage.locator('main #catalog-approval-dialog')).toHaveCount(1);
     const approval = adminPage.locator('.catalog-approval-card', { hasText:`Менеджер E2E ${stamp}` });
     await expect(approval).toBeVisible();
     await approval.getByRole('button', { name:'Рассмотреть' }).click();
@@ -123,6 +127,35 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(approvalDialog).toBeVisible();
     await expect(approvalDialog).toContainText('200');
     await expect(approvalDialog).toContainText('220');
+    const before=approvalDialog.locator('.catalog-approval-before', { hasText:'200' });
+    const after=approvalDialog.locator('.catalog-approval-after', { hasText:'220' });
+    await expect(before).toHaveCSS('text-decoration-line', 'line-through');
+    await expect(after).toHaveCSS('text-decoration-line', 'none');
+    const colors=await approvalDialog.evaluate((dialog) => {
+      const probe=document.createElement('span');
+      dialog.append(probe);
+      probe.style.color='var(--ui-danger)';
+      const danger=getComputedStyle(probe).color;
+      probe.style.color='var(--ui-success)';
+      const success=getComputedStyle(probe).color;
+      probe.remove();
+      const rows=[...dialog.querySelectorAll('.catalog-approval-diff-row')];
+      return { danger, success, rows:rows.map((row) => ({
+        previous:getComputedStyle(row.querySelector('.catalog-approval-before')).color,
+        proposed:getComputedStyle(row.querySelector('.catalog-approval-after')).color,
+        oldDecoration:getComputedStyle(row.querySelector('.catalog-approval-before')).textDecorationLine,
+        newDecoration:getComputedStyle(row.querySelector('.catalog-approval-after')).textDecorationLine,
+        labels:[...row.querySelectorAll('small')].map((label) => label.textContent)
+      })) };
+    });
+    expect(colors.rows.length).toBeGreaterThan(0);
+    for (const row of colors.rows) {
+      expect(row.previous).toBe(colors.danger);
+      expect(row.proposed).toBe(colors.success);
+      expect(row.oldDecoration).toBe('line-through');
+      expect(row.newDecoration).toBe('none');
+      expect(row.labels).toEqual(['Было','Стало']);
+    }
     await approvalDialog.getByLabel('Комментарий менеджеру').fill('Цена подтверждена');
     await approvalDialog.getByRole('button', { name:'Принять изменение' }).click();
     await expect(approvalDialog).not.toBeVisible();

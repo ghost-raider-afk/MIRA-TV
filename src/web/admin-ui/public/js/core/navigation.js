@@ -8,6 +8,7 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Настройки монитора', prefetch: true }),
   Object.freeze({ path: '/scene', page: 'scene', section: 'scene', title: 'Редактор сцены', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
+  Object.freeze({ path: '/approvals', page: 'approvals', section: 'approvals', title: 'Заявки', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
   Object.freeze({ path: '/events', page: 'events', section: 'settings', title: 'Журнал событий', prefetch: true }),
   Object.freeze({ path: '/profile', page: 'profile', section: 'settings', title: 'Профиль', prefetch: true })
@@ -40,6 +41,7 @@ const CONTEXT_LINKS = Object.freeze({
   monitors: Object.freeze([['Мониторы', '/screens'], ['Торговые точки', '/locations'], ['Подключить ТВ', '/connect-tv']]),
   scene: Object.freeze([]),
   catalog: Object.freeze([]),
+  approvals: Object.freeze([]),
   settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
 });
 
@@ -52,6 +54,7 @@ export const DESKTOP_PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens' }),
   Object.freeze({ key: 'scene', label: 'Редактор сцены', href: '/scene' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog' }),
+  Object.freeze({ key: 'approvals', label: 'Заявки', href: '/approvals' }),
   Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings' })
 ]);
 
@@ -59,6 +62,7 @@ export const PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens', icon: 'monitor' }),
   Object.freeze({ key: 'scene', label: 'Редактор сцены', mobileLabel: 'Сцена', href: '/scene', icon: 'scene' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog', icon: 'catalog' }),
+  Object.freeze({ key: 'approvals', label: 'Заявки', href: '/approvals', icon: 'approvals' }),
   Object.freeze({ key: 'settings', label: 'Настройки', href: '/settings', icon: 'settings' })
 ]);
 

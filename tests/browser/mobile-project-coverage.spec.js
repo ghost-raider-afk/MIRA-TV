@@ -44,7 +44,7 @@ for (const width of [320,360,430,768]) {
       expect(screenResponse.status()).toBe(201);
       const screen = await screenResponse.json();
       const routes = [
-        '/', '/screens', '/locations', '/catalog', '/settings',
+        '/', '/screens', '/locations', '/catalog', '/approvals', '/settings',
         '/events', '/connect-tv', '/profile', `/scene?screen=${screen.id}`
       ];
       const errors = [];

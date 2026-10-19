@@ -28,7 +28,7 @@ test.describe('mobile application shell', () => {
 
     const rail = page.locator('.ui-rail');
     await expect(rail).toBeVisible();
-    await expect(rail.locator('.ui-rail-button')).toHaveCount(4);
+    await expect(rail.locator('.ui-rail-button')).toHaveCount(5);
     await expect(rail.getByLabel('Дашборд')).toHaveCount(0);
     await expect(page.locator('.app-header-home')).toBeVisible();
     await expect(page.locator('.app-header-home')).toHaveAttribute('aria-label', /Дашборд/);
@@ -131,7 +131,7 @@ test('mobile navigation outline icons remain visible in light and dark themes', 
         };
       });
     });
-    expect(inspected).toHaveLength(4);
+    expect(inspected).toHaveLength(5);
     for (const icon of inspected) {
       expect(icon.fill, icon.label + ' should not be a solid black silhouette').toBe('none');
       expect(icon.stroke, icon.label + ' stroke must follow theme text color').toBe(icon.color);
@@ -160,7 +160,7 @@ test('mobile navigation outline icons remain visible in light and dark themes', 
 test('mobile shell remains usable at 360px width', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
-  await expect(page.locator('.ui-rail-button')).toHaveCount(4);
+  await expect(page.locator('.ui-rail-button')).toHaveCount(5);
   await expectNoPageOverflow(page);
   await page.locator('.ui-rail-button[aria-label="Каталог"]').click();
   await expect(page).toHaveURL(/\/catalog$/);
