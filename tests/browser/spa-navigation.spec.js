@@ -44,6 +44,12 @@ test('main menu and integrated desktop dropdowns navigate inside one persistent 
   expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
   await expect(page.locator('.ui-context')).toBeHidden();
 
+  await page.locator('.app-header-nav-link[data-header-section="approvals"]').click();
+  await expect(page).toHaveURL(/\/approvals$/);
+  await expect(page.locator('#catalog-approvals-list')).toBeVisible();
+  await expect(page.locator('main #catalog-approval-dialog')).toHaveCount(1);
+  expect(await page.evaluate(() => window.__miraTvSpaSentinel)).toBe(sentinel);
+
   const settings = page.locator('.app-header-nav-item[data-header-nav-group="settings"]');
   await settings.locator('.app-header-nav-link').click();
   await expect(page).toHaveURL(/\/settings$/);
