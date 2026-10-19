@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v77';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v78';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v78';
+const SHELL_CACHE = 'mira-tv-player-shell-v79';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
 // Source revision: shared table fixes and manager catalog proposals.
