@@ -35,7 +35,11 @@ test('mobile TV pairing is styled after SPA navigation and keeps one active step
   await expect(scanStep).toBeVisible();
   await expect(locationStep).toBeHidden();
   await expect(screenStep).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Сканировать QR-код' })).toBeVisible();
+  const scanButton = page.getByRole('button', { name:'Сканировать QR-код' });
+  await expect(scanButton).toBeVisible();
+  await expect(scanButton.locator('svg.connect-tv-scan-icon')).toBeVisible();
+  await expect(scanButton.locator('svg.connect-tv-scan-icon path')).toHaveCount(2);
+  await expect(scanButton).not.toContainText('⌗');
   await expect(scanStep).toHaveCSS('background-color', /rgb\(/);
   expect(await scanStep.evaluate((node) => getComputedStyle(node).borderRadius)).not.toBe('0px');
   expect(await page.locator('.connect-tv-progress').evaluate((node) => getComputedStyle(node).display)).toBe('grid');
