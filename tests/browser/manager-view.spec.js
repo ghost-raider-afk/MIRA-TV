@@ -193,6 +193,45 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     expect(horizontalOverflow).toBe(false);
     await locationGroup.locator('.manager-location-toggle').click();
 
+    // A late response from an earlier expansion must not overwrite the new preview cache.
+    let releaseOld;
+    let markOldStarted;
+    const oldStarted = new Promise((resolve) => { markOldStarted = resolve; });
+    const oldGate = new Promise((resolve) => { releaseOld = resolve; });
+    let contextRequests = 0;
+    const contextPattern = `**/api/manager/screens/${draft.id}/context`;
+    await managerPage.route(contextPattern, async (route) => {
+      contextRequests += 1;
+      if (contextRequests === 1) {
+        const original = await route.fetch();
+        const stale = await original.json();
+        stale.screen.resolution = '640×480';
+        markOldStarted();
+        await oldGate;
+        await route.fulfill({ response:original, json:stale });
+      } else {
+        await route.continue();
+      }
+    });
+    await locationGroup.locator('.manager-location-toggle').click();
+    await oldStarted;
+    await locationGroup.locator('.manager-location-toggle').click();
+    await locationGroup.locator('.manager-location-toggle').click();
+    await expect(locationGroup.locator(`[data-manager-screen-id="${draft.id}"] svg.menu-table-svg`)).toHaveCount(1);
+    const lateResponse = managerPage.waitForResponse((response) =>
+      response.url().includes(`/api/manager/screens/${draft.id}/context`) && response.ok()
+    );
+    releaseOld();
+    await lateResponse;
+    await managerPage.waitForTimeout(30);
+    await locationGroup.locator(`[data-manager-screen-id="${draft.id}"]`).click();
+    const originalWidth = Number(String(draft.resolution).match(/\d+/)?.[0]) || 1920;
+    await expect(managerPage.locator('#manager-fullscreen-stage .player-scene-stage'))
+      .toHaveAttribute('data-scene-viewport-width', String(originalWidth));
+    await managerPage.locator('#manager-fullscreen-close').click();
+    await locationGroup.locator('.manager-location-toggle').click();
+    await managerPage.unroute(contextPattern);
+
     const restrict=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
       data:{ all_locations:false,catalog_enabled:false,location_ids:[] }
     });

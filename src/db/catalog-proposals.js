@@ -21,7 +21,9 @@ export function createCatalogProposalsRepository(pool) {
         values.push(managerUsername);
         clauses.push('p.manager_username = ' + String.fromCharCode(36) + values.length);
       }
-      if (status) {
+      if (status === 'history') {
+        clauses.push("p.status <> 'pending'");
+      } else if (status) {
         values.push(status);
         clauses.push('p.status = ' + String.fromCharCode(36) + values.length);
       }

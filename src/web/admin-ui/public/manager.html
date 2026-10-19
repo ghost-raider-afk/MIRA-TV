@@ -53,22 +53,22 @@
 
     <dialog class="manager-proposal-dialog" id="manager-message-dialog" aria-labelledby="manager-message-title">
       <form method="dialog" class="manager-proposal-form" id="manager-message-form">
-        <header><div><p class="eyebrow">КАРТОЧКА ИЗМЕНЕНИЙ</p><h2 id="manager-message-title">Новое обращение</h2></div><button class="manager-dialog-close" type="submit" value="cancel" aria-label="Закрыть">×</button></header>
+        <header><div><p class="eyebrow">КАРТОЧКА ИЗМЕНЕНИЙ</p><h2 id="manager-message-title">Новое обращение</h2></div><button class="manager-dialog-close" type="submit" value="cancel" formnovalidate aria-label="Закрыть">×</button></header>
         <label class="manager-proposal-field"><span>Тема обращения</span><input id="manager-message-subject" maxlength="120" required /></label>
         <label class="manager-proposal-field"><span>Торговая точка (необязательно)</span><select id="manager-message-location"><option value="">Общее обращение</option></select></label>
         <label class="manager-proposal-field"><span>Сообщение администратору</span><textarea id="manager-message-body" rows="5" maxlength="2000" required></textarea></label>
         <p class="form-message is-hidden" id="manager-message-error" role="status" aria-live="polite"></p>
-        <footer><button class="button button-secondary" type="submit" value="cancel">Отмена</button><button class="button button-primary" id="manager-message-submit" type="button">Отправить</button></footer>
+        <footer><button class="button button-secondary" type="submit" value="cancel" formnovalidate>Отмена</button><button class="button button-primary" id="manager-message-submit" type="button">Отправить</button></footer>
       </form>
     </dialog>
 
     <dialog class="manager-proposal-dialog" id="manager-proposal-dialog">
       <form method="dialog" class="manager-proposal-form" id="manager-proposal-form">
-        <header><div><p class="eyebrow">ПРЕДЛОЖЕНИЕ ИЗМЕНЕНИЯ</p><h2 id="manager-proposal-title">Каталог</h2></div><button class="manager-dialog-close" value="cancel" aria-label="Закрыть" type="submit">×</button></header>
+        <header><div><p class="eyebrow">ПРЕДЛОЖЕНИЕ ИЗМЕНЕНИЯ</p><h2 id="manager-proposal-title">Каталог</h2></div><button class="manager-dialog-close" value="cancel" aria-label="Закрыть" type="submit" formnovalidate>×</button></header>
         <div class="manager-proposal-fields" id="manager-proposal-fields"></div>
         <label class="manager-proposal-field"><span>Комментарий администратору (необязательно)</span><textarea id="manager-proposal-description" rows="3" maxlength="2000"></textarea></label>
         <p class="form-message is-hidden" id="manager-proposal-message" role="status" aria-live="polite"></p>
-        <footer><button class="button button-secondary" value="cancel" type="submit">Отмена</button><button class="button button-primary" id="manager-proposal-submit" type="button">Отправить на согласование</button></footer>
+        <footer><button class="button button-secondary" value="cancel" type="submit" formnovalidate>Отмена</button><button class="button button-primary" id="manager-proposal-submit" type="button">Отправить на согласование</button></footer>
       </form>
     </dialog>
   </body>

@@ -22,6 +22,14 @@ const APPROVAL_FIELD_LABELS = Object.freeze({
 
 let approvalTarget = null;
 
+const CARD_STATUSES = Object.freeze({
+  pending:'На рассмотрении',
+  approved:'Принято',
+  rejected:'Отклонено',
+  conflict:'Конфликт',
+  resolved:'Обработано'
+});
+
 function normalizedQuery(id) {
   return String(element(id)?.value || '').trim().toLocaleLowerCase('ru-RU');
 }
@@ -121,6 +129,12 @@ function renderApprovals(proposals) {
     const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
     manager.textContent = [`№${proposal.id}`, `Менеджер: ${proposal.manager_username}`, date, proposal.location_name].filter(Boolean).join(' · ');
     head.append(title, manager);
+    if (proposal.status !== 'pending') {
+      const badge = document.createElement('span');
+      badge.className = 'catalog-approval-status';
+      badge.textContent = CARD_STATUSES[proposal.status] || proposal.status;
+      copy.append(badge);
+    }
     const changes = proposalChanges(proposal);
     const summary = document.createElement('p');
     summary.textContent = proposal.entity_type === 'message'
@@ -128,11 +142,14 @@ function renderApprovals(proposals) {
       : changes.length
         ? changes.slice(0, 3).map((change) => `${change.label}: ${approvalValue(change.before)} → ${approvalValue(change.after)}`).join(' · ')
         : proposal.description || 'Значения не изменены';
-    copy.append(head, summary);
-    const review = makeButton('Рассмотреть', '', () => openApproval(proposal));
+    copy.prepend(head);
+    copy.append(summary);
+    const review = makeButton(proposal.status === 'pending' ? 'Рассмотреть' : 'Просмотреть', '', () => openApproval(proposal));
     card.append(copy, review);
     list.append(card);
   }
+  empty.textContent = element('catalog-approvals-filter')?.value === 'history'
+    ? 'Завершённых карточек пока нет.' : 'Новых предложений нет.';
   empty.classList.toggle('is-hidden', proposals.length !== 0);
 }
 
@@ -140,7 +157,8 @@ async function loadApprovals() {
   const button = element('refresh-catalog-approvals');
   if (button) setPending(button, true, 'Обновляем…');
   try {
-    const proposals = await api.get(`${API.adminManagerProposals}?status=pending`);
+    const filter = element('catalog-approvals-filter')?.value === 'history' ? 'history' : 'pending';
+    const proposals = await api.get(`${API.adminManagerProposals}?status=${filter}`);
     renderApprovals(Array.isArray(proposals) ? proposals : []);
     clearMessage('catalog-approvals-message');
   } catch (error) {
@@ -161,7 +179,19 @@ function openApproval(proposal) {
     : proposal.base_payload?.name || 'Предложение менеджера';
   element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
     isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
+  const historical = proposal.status !== 'pending';
   element('catalog-approval-approve').textContent = isMessage ? 'Отметить обработанным' : 'Принять изменение';
+  element('catalog-approval-approve').hidden = historical;
+  element('catalog-approval-reject').hidden = historical;
+  element('catalog-approval-comment-field').hidden = historical;
+  const historyDetail = element('catalog-approval-history-detail');
+  historyDetail.hidden = !historical;
+  historyDetail.textContent = historical
+    ? [CARD_STATUSES[proposal.status] || proposal.status,
+      proposal.reviewer_username ? `Администратор: ${proposal.reviewer_username}` : '',
+      proposal.review_comment ? `Ответ: ${proposal.review_comment}` : ''
+    ].filter(Boolean).join(' · ')
+    : '';
   element('catalog-approval-comment').value = '';
   clearMessage('catalog-approval-message');
   diff.replaceChildren();
@@ -362,6 +392,7 @@ export function initialiseCatalog() {
     if (event.target === event.currentTarget) closeApproval();
   });
   element('catalog-approval-close')?.addEventListener('click', closeApproval);
+  element('catalog-approvals-filter')?.addEventListener('change', () => { void loadApprovals(); });
   element('catalog-approval-approve')?.addEventListener('click', () => { void decideApproval('approve'); });
   element('catalog-approval-reject')?.addEventListener('click', () => { void decideApproval('reject'); });
   element('product-export')?.addEventListener('click', () => { void exportProducts(); });

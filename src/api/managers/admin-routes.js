@@ -6,7 +6,7 @@ import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-ser
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
-const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict','resolved']);
+const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict','resolved','history']);
 
 function activeInput(value) {
   if (typeof value !== 'boolean') throw Object.assign(new Error('Поле active должно быть логическим значением.'), { status: 400 });
@@ -108,7 +108,8 @@ export function createManagerAdminRouter({ store, config, realtime }) {
     const password = validateNewPassword(request.body?.password, config, 'Пароль менеджера');
     let manager;
     try {
-      manager = await store.createManager({ username, passwordHash: await hashPassword(password) });
+      const passwordHash = await hashPassword(password);
+      manager = await store.transaction((tx) => tx.createManager({ username, passwordHash }));
     } catch (error) {
       if (error?.code === '23505') throw conflict('Пользователь с таким логином уже существует.');
       throw error;

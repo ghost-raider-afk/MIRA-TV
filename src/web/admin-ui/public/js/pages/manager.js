@@ -74,10 +74,13 @@ async function fetchScreenContext(screenId) {
   if (pending) return pending;
   const task = api.get(contextEndpoint(id))
     .then((context) => {
-      screenContexts.set(id, context);
+      // Ignore responses from an earlier expand cycle or an obsolete overview.
+      if (contextPromises.get(id) === task) screenContexts.set(id, context);
       return context;
     })
-    .finally(() => contextPromises.delete(id));
+    .finally(() => {
+      if (contextPromises.get(id) === task) contextPromises.delete(id);
+    });
   contextPromises.set(id, task);
   return task;
 }
@@ -636,6 +639,7 @@ export function initialiseManagerView() {
   document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
   document.getElementById('manager-new-message')?.addEventListener('click', () => {
+    document.getElementById('manager-message-form')?.reset();
     setMessage('manager-message-error','');
     document.getElementById('manager-message-dialog')?.showModal();
   });
