@@ -139,7 +139,7 @@ test('mobile navigation outline icons remain visible in light and dark themes', 
       const rgb = (value) => {
         const hex = String(value).match(/^#([0-9a-f]{6})$/i);
         if (hex) return [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16));
-        const parts = String(value).match(/\\d+(?:\\.\\d+)?/g);
+        const parts = String(value).match(/[0-9]+(?:[.][0-9]+)?/g);
         return parts?.slice(0, 3).map(Number) || [];
       };
       const luminance = (value) => {
