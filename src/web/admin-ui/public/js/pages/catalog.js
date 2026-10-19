@@ -117,7 +117,9 @@ function renderApprovals(proposals) {
       ? proposal.title || `Обращение #${proposal.id}`
       : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
     const manager = document.createElement('span');
-    manager.textContent = `Менеджер: ${proposal.manager_username}`;
+    const created = new Date(proposal.created_at);
+    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
+    manager.textContent = [`№${proposal.id}`, `Менеджер: ${proposal.manager_username}`, date, proposal.location_name].filter(Boolean).join(' · ');
     head.append(title, manager);
     const changes = proposalChanges(proposal);
     const summary = document.createElement('p');
@@ -157,7 +159,8 @@ function openApproval(proposal) {
   element('catalog-approval-title').textContent = isMessage
     ? proposal.title || 'Обращение менеджера'
     : proposal.base_payload?.name || 'Предложение менеджера';
-  element('catalog-approval-meta').textContent = `Менеджер ${proposal.manager_username} · ${isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара'}`;
+  element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
+    isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
   element('catalog-approval-approve').textContent = isMessage ? 'Отметить обработанным' : 'Принять изменение';
   element('catalog-approval-comment').value = '';
   clearMessage('catalog-approval-message');

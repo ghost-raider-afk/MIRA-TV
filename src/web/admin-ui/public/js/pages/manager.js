@@ -392,7 +392,8 @@ function renderProposals(proposals) {
       : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
     const status = document.createElement('span');
     status.className = 'manager-proposal-status';
-    status.textContent = STATUS_LABELS[proposal.status] || proposal.status;
+    status.textContent = proposal.entity_type === 'message' && proposal.status === 'pending'
+      ? 'Ожидает ответа' : STATUS_LABELS[proposal.status] || proposal.status;
     head.append(title, status);
     const changes = document.createElement('div');
     changes.className = 'manager-proposal-changes';
@@ -411,7 +412,12 @@ function renderProposals(proposals) {
       line.textContent = 'Без изменений данных.';
       changes.append(line);
     }
-    card.append(head, changes);
+    const meta = document.createElement('p');
+    meta.className = 'manager-proposal-meta';
+    const created = new Date(proposal.created_at);
+    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
+    meta.textContent = [`№${proposal.id}`, date, proposal.location_name].filter(Boolean).join(' · ');
+    card.append(head, meta, changes);
     if (proposal.review_comment) {
       const comment = document.createElement('p');
       comment.className = 'manager-proposal-comment';

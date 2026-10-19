@@ -19,18 +19,18 @@ export function createCatalogProposalsRepository(pool) {
       const values = [];
       if (managerUsername) {
         values.push(managerUsername);
-        clauses.push(`manager_username = $${values.length}`);
+        clauses.push(`p.manager_username = ${values.length}`);
       }
       if (status) {
         values.push(status);
-        clauses.push(`status = ${values.length}`);
+        clauses.push(`p.status = ${values.length}`);
       }
       if (entityType) {
         values.push(entityType);
-        clauses.push(`entity_type = ${values.length}`);
+        clauses.push(`p.entity_type = ${values.length}`);
       }
       const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
-      const { rows } = await pool.query(`SELECT * FROM catalog_change_proposals${where} ORDER BY created_at DESC, id DESC`, values);
+      const { rows } = await pool.query(`SELECT p.*, l.name AS location_name FROM catalog_change_proposals p LEFT JOIN locations l ON l.id=p.location_id${where} ORDER BY p.created_at DESC, p.id DESC`, values);
       return rows.map(normaliseProposal);
     },
 

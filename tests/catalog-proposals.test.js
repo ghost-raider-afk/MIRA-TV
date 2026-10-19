@@ -188,3 +188,19 @@ test('message cards resolve without updating catalog values', async () => {
   assert.equal(store.calls.updates,0);
   assert.deepEqual(store.calls.locks,[]);
 });
+
+// Card listing must bind every SQL parameter; otherwise scope/status filters silently fail.
+test('card listing scopes manager, status and type with SQL parameters', async () => {
+  let statement;
+  const { createCatalogProposalsRepository } = await import('../src/db/catalog-proposals.js');
+  const repository = createCatalogProposalsRepository({
+    async query(sql, args) { statement = { sql, args }; return { rows:[] }; }
+  });
+  assert.deepEqual(await repository.listCatalogProposals({
+    managerUsername:'manager', status:'pending', entityType:'message'
+  }), []);
+  assert.match(statement.sql, /p\.manager_username = \$1/);
+  assert.match(statement.sql, /p\.status = \$2/);
+  assert.match(statement.sql, /p\.entity_type = \$3/);
+  assert.deepEqual(statement.args, ['manager','pending','message']);
+});
