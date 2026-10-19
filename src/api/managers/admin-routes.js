@@ -6,7 +6,7 @@ import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-ser
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
-const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict']);
+const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict','resolved']);
 
 function activeInput(value) {
   if (typeof value !== 'boolean') throw Object.assign(new Error('Поле active должно быть логическим значением.'), { status: 400 });
@@ -60,7 +60,7 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
     action:`catalog.proposal.${result.kind}`,
     entity_type:'catalog_change_proposal',
     entity_id:id,
-    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : 'отклонена'}.`
+    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : 'отклонена'}.`
   });
   return response.json(result);
 }

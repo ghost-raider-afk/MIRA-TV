@@ -1,5 +1,5 @@
 import express from 'express';
-import { positiveId } from '../../contracts/input.js';
+import { optionalText, positiveId, requireText } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
@@ -73,7 +73,8 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       managerUsername:request.session.sub,
       entityType:request.body?.entity_type,
       entityId,
-      proposedPayload:request.body?.proposed
+      proposedPayload:request.body?.proposed,
+      description:optionalText(request.body?.description, 'Комментарий', { max:2000 })
     });
     if (!proposal) throw notFound('Запись каталога не найдена.');
     await activity(store, request, {
@@ -83,6 +84,27 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       message:`Менеджер предложил изменение ${proposal.entity_type === 'product' ? 'продукции' : 'тары'} #${proposal.entity_id}.`
     });
     response.status(201).json(proposal);
+  });
+
+  router.post('/proposals/message', async (request, response) => {
+    const title=requireText(request.body?.title, 'Тема обращения', { max:120 });
+    const description=requireText(request.body?.description, 'Текст обращения', { max:2000 });
+    const locationId=request.body?.location_id === null || request.body?.location_id === undefined || request.body?.location_id === ''
+      ? null : positiveId(request.body.location_id, 'Торговая точка');
+    if (locationId !== null) {
+      const access=await store.getManagerAccess(request.session.sub);
+      const location=await store.getLocation(locationId);
+      if (!location || location.active === false || (!access.all_locations && !access.location_ids.includes(locationId)))
+        return response.status(403).json({ error:'Торговая точка недоступна.' });
+    }
+    const card=await store.createMessageCard({
+      managerUsername:request.session.sub,title,description,locationId
+    });
+    await activity(store,request,{
+      action:'manager.card.created',entity_type:'catalog_change_proposal',entity_id:card.id,
+      message:`Менеджер создал обращение #${card.id}.`
+    });
+    response.status(201).json(card);
   });
 
   router.get('/screens/:id/context', async (request, response) => {

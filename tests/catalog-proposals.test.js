@@ -173,3 +173,18 @@ test('PostgreSQL JSONB snapshots stay intact after decoding instead of becoming 
   assert.deepEqual(jsonValue([payload], []), [payload]);
   assert.deepEqual(jsonValue('invalid json', {}), {});
 });
+
+test('message cards resolve without updating catalog values', async () => {
+  const store=reviewStore({ currentProposal:proposal({
+    entity_type:'message', entity_id:null, base_updated_at:null,
+    base_payload:{}, proposed_payload:{}, title:'Проверить ТВ',
+    description:'В торговой точке не совпадает название'
+  }) });
+  const result=await reviewCatalogChangeProposal(store,{
+    proposalId:10, decision:'approve', reviewerUsername:'admin', reviewComment:'Исправили'
+  });
+  assert.equal(result.kind,'handled');
+  assert.equal(result.proposal.status,'resolved');
+  assert.equal(store.calls.updates,0);
+  assert.deepEqual(store.calls.locks,[]);
+});
