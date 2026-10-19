@@ -18,7 +18,7 @@ test('production image bundles all DejaVu faces required by the shared Preview/T
   const end = dockerfile.indexOf('; do', start);
   assert.ok(start >= 0 && end > start, 'Dockerfile must validate required font files');
   const loop = dockerfile.slice(start, end);
-  const bundledFiles = [...new Set(loop[1].match(/DejaVu[\w-]+\.ttf/g) || [])].sort();
+  const bundledFiles = [...new Set(loop.match(/DejaVu[\w-]+\.ttf/g) || [])].sort();
   assert.deepEqual(bundledFiles, cssFiles, 'Docker image validation must cover every referenced DejaVu face');
   assert.match(dockerfile, /test -s "\/usr\/share\/fonts\/truetype\/dejavu\/\$font"/);
 });
