@@ -15,6 +15,7 @@ let fullscreenIndex = -1;
 let fullscreenRequestToken = 0;
 let catalog = { products:[], packaging:[] };
 let catalogMode = 'products';
+let catalogSearchText = '';
 let proposalTarget = null;
 
 const FIELD_LABELS = Object.freeze({
@@ -142,8 +143,17 @@ function screenCard(screen, location, orderIndex) {
   copy.append(name, meta);
   card.append(shell, copy);
   card.addEventListener('click', () => void openFullscreenAt(orderIndex));
-  void hydratePreview(stage, screen.id, loading);
   return card;
+}
+
+function discardLocationPreviews(location) {
+  for (const screen of location.screens) {
+    const id = Number(screen.id);
+    previewRenderers.get(id)?.destroy();
+    previewRenderers.delete(id);
+    screenContexts.delete(id);
+    contextPromises.delete(id);
+  }
 }
 
 function renderLocations(locations) {
@@ -172,14 +182,40 @@ function renderLocations(locations) {
     const count = document.createElement('span');
     count.className = 'manager-location-count';
     count.textContent = formatRussianCount(location.screens.length, ['телевизор','телевизора','телевизоров']);
-    head.append(identity, count);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'manager-location-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
     const grid = document.createElement('div');
     grid.className = 'manager-screen-grid';
-    location.screens.forEach((screen) => grid.append(screenCard(
-      screen,
-      location,
-      orderIndexByScreenId.get(Number(screen.id))
-    )));
+    grid.id = `manager-location-screens-${location.id}`;
+    grid.hidden = true;
+    toggle.setAttribute('aria-controls', grid.id);
+    const label = document.createElement('span');
+    label.className = 'manager-location-toggle-label';
+    label.textContent = 'Развернуть';
+    const arrow = document.createElement('span');
+    arrow.className = 'manager-location-chevron';
+    arrow.setAttribute('aria-hidden', 'true');
+    toggle.append(identity, count, label, arrow);
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(expanded));
+      label.textContent = expanded ? 'Свернуть' : 'Развернуть';
+      if (expanded) {
+        grid.hidden = false;
+        location.screens.forEach((screen) => {
+          const card = screenCard(screen, location, orderIndexByScreenId.get(Number(screen.id)));
+          grid.append(card);
+          void hydratePreview(card.querySelector('.manager-screen-stage'), screen.id, card.querySelector('.manager-preview-loading'));
+        });
+      } else {
+        grid.hidden = true;
+        discardLocationPreviews(location);
+        grid.replaceChildren();
+      }
+    });
+    head.append(toggle);
     group.append(head, grid);
     root.append(group);
   }
@@ -281,7 +317,15 @@ function renderCatalog() {
   const empty = document.getElementById('manager-catalog-empty');
   if (!list || !empty) return;
   list.replaceChildren();
-  const records = catalogRecords();
+  const records = catalogRecords().filter((item) => {
+    const query = catalogSearchText.trim().toLocaleLowerCase('ru');
+    if (!query) return true;
+    return [item.name, ...(catalogMode === 'products' ? [item.producer] : [])]
+      .some((value) => String(value || '').toLocaleLowerCase('ru').includes(query));
+  });
+  const count = document.getElementById('manager-catalog-count');
+  if (count) count.textContent = `${records.length} из ${catalogRecords().length}`;
+  empty.textContent = catalogSearchText.trim() ? 'Ничего не найдено.' : 'Каталог пуст.';
   for (const item of records) {
     const row = document.createElement('div');
     row.className = 'manager-catalog-row';
@@ -294,7 +338,7 @@ function renderCatalog() {
     const propose = document.createElement('button');
     propose.className = 'button button-secondary';
     propose.type = 'button';
-    propose.textContent = 'Предложить';
+    propose.textContent = 'Изменить';
     propose.addEventListener('click', () => openProposal(catalogMode === 'packaging' ? 'packaging' : 'product', item));
     row.append(copy, propose);
     list.append(row);
@@ -517,8 +561,20 @@ export function initialiseManagerView() {
   document.getElementById('manager-fullscreen-close')?.addEventListener('click', () => void closeFullscreen());
   document.getElementById('manager-fullscreen-prev')?.addEventListener('click', () => moveFullscreen(-1));
   document.getElementById('manager-fullscreen-next')?.addEventListener('click', () => moveFullscreen(1));
-  document.getElementById('manager-tab-products')?.addEventListener('click', () => { catalogMode = 'products'; renderCatalog(); });
-  document.getElementById('manager-tab-packaging')?.addEventListener('click', () => { catalogMode = 'packaging'; renderCatalog(); });
+  const search = document.getElementById('manager-catalog-search');
+  const setMode = (mode) => {
+    catalogMode = mode;
+    catalogSearchText = '';
+    if (search) {
+      search.value = '';
+      search.placeholder = mode === 'products' ? 'Поиск по названию или производителю' : 'Поиск тары по названию';
+      search.setAttribute('aria-label', search.placeholder);
+    }
+    renderCatalog();
+  };
+  search?.addEventListener('input', () => { catalogSearchText = search.value; renderCatalog(); });
+  document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
+  document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
   document.getElementById('manager-proposal-dialog')?.addEventListener('close', () => { proposalTarget = null; });
   document.addEventListener('keydown', (event) => {

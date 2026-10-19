@@ -115,6 +115,11 @@ test('manager uses the common sign-in and can inspect every saved active screen 
 
     const locationGroup = managerPage.locator('.manager-location').filter({ hasText: location.name });
     await expect(locationGroup).toHaveCount(1);
+    const toggle = locationGroup.getByRole('button', { name:/развернуть/i });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const cards = locationGroup.locator('[data-manager-screen-id]');
     await expect(cards).toHaveCount(2);
     await expect(locationGroup.locator('.manager-location-count')).toHaveText('2 телевизора');
@@ -159,6 +164,8 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerPage.keyboard.press('ArrowRight');
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
     expect(screenshotRequests).toBe(0);
+    await locationGroup.getByRole('button', { name:/свернуть/i }).click();
+    await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
     await expect(managerPage.locator('.manager-screen-stage img')).toHaveCount(0);
   } finally {
     await managerContext.close();

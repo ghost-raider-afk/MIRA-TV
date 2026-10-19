@@ -65,6 +65,7 @@ test('manager canonical preview and catalog proposal approval workflow', async (
 
     await login(managerPage, managerUsername, managerPassword, '/manager');
 
+    await managerPage.getByRole('button', { name:/развернуть/i }).first().click();
     const screenCard = managerPage.locator(`[data-manager-screen-id="${screen.id}"]`);
     await expect(screenCard).toBeVisible();
     await expect(screenCard.locator('.manager-screen-stage svg.menu-table-svg')).toHaveCount(1, { timeout:5000 });
@@ -72,7 +73,10 @@ test('manager canonical preview and catalog proposal approval workflow', async (
 
     const productRow = managerPage.locator('.manager-catalog-row', { hasText:`Менеджер E2E ${stamp}` });
     await expect(productRow).toBeVisible();
-    await productRow.getByRole('button', { name:'Предложить' }).click();
+    const search = managerPage.getByRole('searchbox', { name:'Поиск по названию или производителю' });
+    await search.fill('тестовый завод');
+    await expect(productRow).toBeVisible();
+    await productRow.getByRole('button', { name:'Изменить' }).click();
     const proposalDialog = managerPage.locator('#manager-proposal-dialog');
     await expect(proposalDialog).toBeVisible();
     await proposalDialog.getByLabel('Цена за 1 л').fill('220');
