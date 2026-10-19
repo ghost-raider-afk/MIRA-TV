@@ -110,6 +110,53 @@ test.describe('mobile application shell', () => {
   });
 });
 
+test('mobile navigation outline icons remain visible in light and dark themes', async ({ page }) => {
+  await page.setViewportSize({ width:390, height:844 });
+  await login(page);
+
+  for (const theme of ['light', 'dark']) {
+    await page.locator('html').evaluate((html, value) => { html.dataset.theme = value; }, theme);
+    const inspected = await page.locator('.ui-rail-button').evaluateAll((buttons) => {
+      const rail = document.querySelector('.ui-rail');
+      const railColor = getComputedStyle(rail).getPropertyValue('--ui-rail').trim();
+      return buttons.map((button) => {
+        const svg = button.querySelector('.ui-rail-icon svg');
+        const style = getComputedStyle(svg);
+        return {
+          label:button.getAttribute('aria-label'),
+          fill:style.fill,
+          stroke:style.stroke,
+          color:getComputedStyle(button).color,
+          railColor
+        };
+      });
+    });
+    expect(inspected).toHaveLength(4);
+    for (const icon of inspected) {
+      expect(icon.fill, icon.label + ' should not be a solid black silhouette').toBe('none');
+      expect(icon.stroke, icon.label + ' stroke must follow theme text color').toBe(icon.color);
+      // Use real computed colors (not a screenshot-only check) for both themes.
+      const rgb = (value) => {
+        const hex = String(value).match(/^#([0-9a-f]{6})$/i);
+        if (hex) return [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16));
+        const parts = String(value).match(/\\d+(?:\\.\\d+)?/g);
+        return parts?.slice(0, 3).map(Number) || [];
+      };
+      const luminance = (value) => {
+        const channels = rgb(value).map((x) => {
+          const s = x / 255;
+          return s <= .04045 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4;
+        });
+        expect(channels).toHaveLength(3);
+        return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+      };
+      const a = luminance(icon.color), b = luminance(icon.railColor);
+      const ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+      expect(ratio, icon.label + ' icon contrast in ' + theme + ' theme').toBeGreaterThanOrEqual(3);
+    }
+  }
+});
+
 test('mobile shell remains usable at 360px width', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
