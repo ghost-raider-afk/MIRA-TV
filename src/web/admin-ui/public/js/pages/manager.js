@@ -431,6 +431,54 @@ function openManagerRequest(proposal) {
     p.textContent = line;
     body.append(p);
   }
+  if (proposal.entity_type === 'message' && proposal.status === 'rework') {
+    const subject=document.createElement('input');
+    subject.value=proposal.title||'';
+    subject.maxLength=120;
+    const description=document.createElement('textarea');
+    description.value=proposal.description||'';
+    description.maxLength=2000;
+    description.rows=5;
+    const location=document.createElement('select');
+    location.add(new Option('Общее обращение',''));
+    const label=(text,control)=>{
+      const wrapper=document.createElement('label');
+      wrapper.className='manager-proposal-field';
+      const caption=document.createElement('span');
+      caption.textContent=text;
+      wrapper.append(caption,control);
+      return wrapper;
+    };
+    const box=document.createElement('div');
+    box.className='crm-message-rework';
+    box.append(label('Тема обращения',subject),label('Сообщение',description),label('Торговая точка',location));
+    body.append(box);
+    void api.get(API.managerOverview).then((points)=>{
+      if (!Array.isArray(points)) return;
+      for (const point of points) location.add(new Option(point.name,String(point.id)));
+      location.value=String(proposal.location_id||'');
+    }).catch(()=>{});
+    const save=document.createElement('button');
+    save.type='button';
+    save.className='button button-primary';
+    save.textContent='Отправить исправления';
+    save.addEventListener('click',async()=>{
+      save.disabled=true;
+      try {
+        await api.put(API.managerProposals+'/'+proposal.id+'/message-rework',{
+          title:subject.value,description:description.value,
+          location_id:location.value ? Number(location.value) : null
+        });
+        dialog.close();
+        await loadProposals();
+      } catch(error) {
+        const note=document.createElement('p');
+        note.textContent=error.message;
+        body.append(note);
+      } finally {save.disabled=false;}
+    });
+    body.append(save);
+  }
   dialog.showModal();
 }
 
