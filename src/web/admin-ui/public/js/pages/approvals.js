@@ -117,6 +117,14 @@ function openApproval(proposal) {
     isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
   const historical = proposal.status !== 'pending';
   element('catalog-approval-approve').textContent = isMessage ? 'Завершить заявку' : 'Принять изменение';
+  const commentField = element('catalog-approval-comment-field');
+  const commentInput = element('catalog-approval-comment');
+  const commentLabel = commentField?.querySelector('span');
+  if (commentLabel) commentLabel.textContent = isMessage ? 'Ответ менеджеру' : 'Комментарий менеджеру';
+  if (commentInput) {
+    commentInput.required = isMessage;
+    commentInput.placeholder = isMessage ? 'Напишите ответ менеджеру' : 'Необязательно';
+  }
   element('catalog-approval-approve').hidden = historical;
   element('catalog-approval-reject').hidden = historical;
   element('catalog-approval-comment-field').hidden = historical;
@@ -162,7 +170,11 @@ async function decideApproval(decision) {
   approve.disabled = true;
   reject.disabled = true;
   try {
-    const comment = String(element('catalog-approval-comment')?.value || '');
+    const comment = String(element('catalog-approval-comment')?.value || '').trim();
+    if (decision === 'approve' && approvalTarget.entity_type === 'message' && !comment) {
+      setMessage('catalog-approval-message', 'Перед завершением заявки напишите ответ менеджеру.');
+      return;
+    }
     await api.post(`${API.adminManagerProposals}/${approvalTarget.id}/${decision}`, { comment });
     closeApproval();
     await Promise.all([loadApprovals(), loadNotifications()]);
