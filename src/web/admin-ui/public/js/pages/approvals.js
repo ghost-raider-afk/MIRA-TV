@@ -153,6 +153,15 @@ function openApproval(proposal) {
   } else {
     for (const change of changes) diff.append(makeDiffRow(change));
   }
+  if (isMessage && !historical) {
+    const reworkButton=document.createElement('button');
+    reworkButton.type='button';
+    reworkButton.className='button button-secondary';
+    reworkButton.textContent='На доработку';
+    reworkButton.dataset.crmDynamicAction='true';
+    reworkButton.addEventListener('click',()=>{void decideApproval('rework');});
+    document.querySelector('.catalog-approval-actions')?.append(reworkButton);
+  }
   const removeButton=document.createElement('button');
   removeButton.type='button';
   removeButton.className='button button-secondary';
@@ -186,6 +195,10 @@ async function decideApproval(decision) {
   reject.disabled = true;
   try {
     const comment = String(element('catalog-approval-comment')?.value || '').trim();
+    if (decision === 'rework' && comment.length < 10) {
+      setMessage('catalog-approval-message', 'Комментарий для доработки должен содержать минимум 10 символов.');
+      return;
+    }
     if (decision === 'approve' && approvalTarget.entity_type === 'message' && !comment) {
       setMessage('catalog-approval-message', 'Перед завершением заявки напишите ответ менеджеру.');
       return;
@@ -194,8 +207,8 @@ async function decideApproval(decision) {
     closeApproval();
     await Promise.all([loadApprovals(), loadNotifications()]);
     setMessage('catalog-approvals-message', decision === 'approve'
-      ? 'Карточка обработана. Изменения каталога применены, если они были.'
-      : 'Карточка отклонена.', 'success');
+      ? (approvalTarget?.entity_type === 'message' ? 'Обращение завершено. Ответ сохранён.' : 'Изменения применены.')
+      : decision === 'rework' ? 'Заявка возвращена менеджеру на доработку.' : 'Заявка отклонена.', 'success');
   } catch (error) {
     setMessage('catalog-approval-message', error.message);
     if (error?.status === 409) await loadApprovals();
