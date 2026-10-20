@@ -275,7 +275,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await adminPage.goto('/settings');
     const permissions=adminPage.locator(`[data-manager-username="${managerUsername}"]`);
     await expect(permissions.getByText('Какие торговые точки показывать менеджеру')).toBeVisible();
-    await permissions.getByText('Все торговые точки').click();
+    await permissions.getByRole('checkbox',{ name:'Все торговые точки',exact:true }).uncheck();
     const assigned=permissions.locator('.manager-access-locations label').filter({ hasText:location.name });
     const excluded=permissions.locator('.manager-access-locations label').filter({ hasText:excludedLocation.name });
     await assigned.locator('input[type="checkbox"]').check();
