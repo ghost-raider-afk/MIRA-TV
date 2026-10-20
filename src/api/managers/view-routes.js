@@ -2,6 +2,7 @@ import express from 'express';
 import { optionalText, positiveId, requireText } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
+import { prepareWorkflowRequest, reviseWorkflowRequest } from '../../services/crm-request-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 import { themeWeatherSettings } from '../../contracts/menu-theme.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
@@ -87,6 +88,51 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       message:`Менеджер предложил изменение ${proposal.entity_type === 'product' ? 'продукции' : 'тары'} #${proposal.entity_id}.`
     });
     response.status(201).json(proposal);
+  });
+
+
+  router.post('/proposals/request', async (request,response) => {
+    const access = await store.getManagerAccess(request.session.sub);
+    const proposal = await prepareWorkflowRequest(store,{
+      managerUsername:request.session.sub,
+      requestType:request.body?.request_type,
+      rawItems:request.body?.items,
+      access,
+      description:optionalText(request.body?.description,'Комментарий',{max:2000})
+    });
+    await activity(store,request,{
+      action:'crm.request.created',entity_type:'catalog_change_proposal',entity_id:proposal.id,
+      message:'Создана заявка №'+proposal.id+'.'
+    });
+    response.status(201).json(proposal);
+  });
+
+  router.put('/proposals/:id/rework', async (request,response) => {
+    const proposal = await reviseWorkflowRequest(store,{
+      proposalId:positiveId(request.params.id,'id'),
+      managerUsername:request.session.sub,
+      edits:request.body?.edits
+    });
+    response.json(proposal);
+  });
+
+  router.get('/proposals/:id/history', async (request,response) => {
+    const id = positiveId(request.params.id,'id');
+    const proposal = await store.getCatalogProposal(id);
+    if (!proposal || proposal.manager_username !== request.session.sub) throw notFound('Заявка недоступна.');
+    response.json(await store.listProposalEvents(id));
+  });
+
+  router.delete('/proposals/:id', async (request,response) => {
+    const id = positiveId(request.params.id,'id');
+    const deleted = await store.transaction(async (tx) => {
+      const proposal = await tx.getCatalogProposalForUpdate(id);
+      if (!proposal || proposal.manager_username !== request.session.sub || proposal.status !== 'pending') return false;
+      await tx.recordProposalEvent(id,request.session.sub,'deleted',{ status:proposal.status });
+      return tx.deleteOwnPendingProposal(id,request.session.sub);
+    });
+    if (!deleted) return response.status(409).json({error:'Можно удалить только свою заявку на рассмотрении.'});
+    response.status(204).end();
   });
 
   router.post('/proposals/message', async (request, response) => {
