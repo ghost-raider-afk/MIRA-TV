@@ -84,3 +84,5 @@ body[data-page="approvals"] .catalog-approval-head #catalog-approval-close{posit
 .crm-tv-preview::backdrop{background:rgba(0,0,0,.72)}
 .crm-tv-preview>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
 .crm-tv-preview-stage{width:100%;aspect-ratio:16/9;min-height:180px}
+
+.manager-view .mobile-context-trigger[hidden]{display:none!important}
