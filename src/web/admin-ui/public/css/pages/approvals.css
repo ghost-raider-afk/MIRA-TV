@@ -1,7 +1,7 @@
 /* Administrator requests: one workflow, shared styles for cards and history. */
 body[data-page="approvals"] .catalog-approvals-card{margin-bottom:14px}
 body[data-page="approvals"] .catalog-approvals-list{display:grid;gap:8px;margin-top:10px}
-body[data-page="approvals"] .catalog-approval-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 11px;border:1px solid var(--ui-border);border-left:3px solid var(--ui-warning);border-radius:9px;background:var(--ui-panel-raised)}
+body[data-page="approvals"] .catalog-approval-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 11px;border:1px solid var(--ui-border);border-left:3px solid var(--crm-status-tone,var(--ui-warning));border-radius:9px;background:var(--ui-panel-raised)}
 body[data-page="approvals"] .catalog-approval-card-copy{display:grid;min-width:0;gap:5px}
 body[data-page="approvals"] .catalog-approval-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
 body[data-page="approvals"] .catalog-approval-card-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
