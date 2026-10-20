@@ -1,18 +1,15 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { REQUEST_TOPICS } from '../core/requests.js';
+import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
 
-const FIELDS = Object.freeze({
-  name:'Название',producer:'Производитель',address:'Адрес',
-  characteristics:'Характеристики',strength:'Крепость',beverage_color:'Цвет напитка',
-  filtration:'Фильтрация',alcoholic:'Алкогольная продукция',active:'Активна'
-});
-const COLORS = Object.freeze([
-  ['none','Не задан'],['light','Светлое'],['dark','Тёмное'],['white','Белое'],
-  ['semi_dark','Полутёмное'],['amber','Янтарное'],['red','Красное']
-]);
-const FILTERS = Object.freeze([['none','Не задана'],['filtered','Фильтрованное'],['unfiltered','Нефильтрованное']]);
-const BOOLEAN = Object.freeze([['true','Да'],['false','Нет']]);
+const FIELDS = Object.freeze(Object.fromEntries(
+  ['name','producer','address','characteristics','strength','beverage_color','filtration','alcoholic','active']
+    .map((key)=>[key,CATALOG_FIELD_LABELS[key]])
+));
+const COLORS = CATALOG_OPTIONS.beverage_color;
+const FILTERS = CATALOG_OPTIONS.filtration;
+const BOOLEAN = CATALOG_OPTIONS.alcoholic;
 
 let managerDialog = null;
 let managerCatalog = [];
@@ -155,7 +152,7 @@ function renderRow(item) {
         const productData=productById(product.value);
         const key=property.value;
         const currentValue=productData?.[key];
-        current.textContent = 'Сейчас: ' + (currentValue === true ? 'Да' : currentValue === false ? 'Нет' : currentValue ?? '—');
+        current.textContent = 'Сейчас: ' + catalogValueLabel(key,currentValue);
       }
       property.addEventListener('change',()=>{
         const updated=field('Новое значение',valueInput(property.value,productById(product.value)?.[property.value]));
@@ -312,12 +309,12 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
     const heading=node('strong','',item.name||item.payload?.name||('Позиция '+item.key));
     wrapper.append(heading);
     if (item.property) {
-      const p=node('p','',String(FIELDS[item.property]||item.property)+': '+(item.before??'—')+' → '+(item.final_value??item.value??'—'));
+      const p=node('p','',String(FIELDS[item.property]||item.property)+': '+catalogValueLabel(item.property,item.before)+' → '+catalogValueLabel(item.property,item.final_value??item.value));
       wrapper.append(p);
     } else if (type==='menu_add') wrapper.append(node('p','','Торговая точка №'+item.location_id));
     else if (type==='menu_remove') wrapper.append(node('p','','ТВ №'+item.screen_id+' · позиция '+item.row_id));
     else if (type==='product_create') {
-      for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(FIELDS[key]||key)+': '+value));
+      for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(CATALOG_FIELD_LABELS[key]||key)+': '+catalogValueLabel(key,value)));
       wrapper.append(node('p','','Торговые точки: '+(item.location_ids||[]).join(', ')));
     }
     const status=item.decision==='rework' ? 'На доработку'
