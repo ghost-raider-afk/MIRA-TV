@@ -5,6 +5,7 @@ import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
 import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow } from '../core/requests.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
+import { createHeader, initialiseHeader, refreshHeaderRoute } from '../components/header.js';
 
 const previewRenderers = new Map();
 const screenContexts = new Map();
@@ -599,6 +600,9 @@ async function logout() {
 }
 
 export function initialiseManagerView() {
+  document.querySelector('.manager-header')?.replaceWith(createHeader());
+  initialiseHeader();
+  window.addEventListener('hashchange', () => refreshHeaderRoute());
   document.title = `${appName()} — Рабочее место менеджера`;
   const app = document.querySelector('[data-manager-app-name]');
   const user = document.querySelector('[data-manager-user]');
