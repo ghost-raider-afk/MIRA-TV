@@ -36,7 +36,7 @@
           </section>
 
           <section class="manager-workspace-card" aria-labelledby="manager-proposals-title">
-            <div class="manager-workspace-head"><div><p class="eyebrow">CRM</p><h2 id="manager-proposals-title">Мои карточки</h2></div><button class="button button-primary" id="manager-new-message" type="button">+ Обращение</button></div>
+            <div class="manager-workspace-head"><div><p class="eyebrow">CRM</p><h2 id="manager-proposals-title">Мои заявки</h2></div><button class="button button-primary" id="manager-new-message" type="button">+ Обращение</button></div>
             <div class="manager-proposal-list" id="manager-proposal-list" aria-live="polite"></div>
             <p class="empty-state is-hidden" id="manager-proposals-empty">Предложений пока нет.</p>
           </section>
@@ -71,5 +71,13 @@
         <footer><button class="button button-secondary" value="cancel" type="submit" formnovalidate>Отмена</button><button class="button button-primary" id="manager-proposal-submit" type="button">Отправить на согласование</button></footer>
       </form>
     </dialog>
-  </body>
+  <dialog class="manager-request-detail" id="manager-request-detail" aria-labelledby="manager-request-title">
+  <header>
+    <button class="manager-dialog-close" id="manager-request-close" aria-label="Закрыть" type="button">×</button>
+    <h2 class="crm-request-title" id="manager-request-title">ТЕМА ЗАЯВКИ</h2>
+  </header>
+  <p class="request-detail-meta" id="manager-request-meta"></p>
+  <div class="request-detail-body" id="manager-request-body"></div>
+</dialog>
+</body>
 </html>
