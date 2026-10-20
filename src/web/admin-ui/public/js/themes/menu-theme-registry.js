@@ -159,7 +159,7 @@ const PRESETS = Object.freeze([
     kind:'preset',
     label:'Меловая',
     description:'Готовый меловой пресет по утверждённому макету: chalkboard, меловые линии, отдельная типографика, рисованная кружка и свой погодный блок.',
-    preset_version:2,
+    preset_version:3,
     default_utility_mode:'weather',
     settings:Object.freeze({
       ...BASE,
@@ -181,12 +181,12 @@ const PRESETS = Object.freeze([
       brandColor:'#E5B62E',
       brandText:'БИР ФИШ',
       brandCaption:'Хорошее пиво рядом!',
-      brandDivider:'none',
-      brandNameFontFamily:'montserrat',
-      brandNameFontSizePx:108,
-      brandNameFontWeight:900,
+      brandDivider:'chalk-line',
+      brandNameFontFamily:'underdog',
+      brandNameFontSizePx:94,
+      brandNameFontWeight:400,
       brandCaptionFontFamily:'neucha',
-      brandCaptionFontSizePx:34,
+      brandCaptionFontSizePx:32,
       brandCaptionFontWeight:400,
       utilityFontFamily:'montserrat',
       utilityFontSizePx:27,
@@ -370,12 +370,30 @@ function migrateChalkV1(source) {
   };
 }
 
+function migrateChalkV2(source) {
+  const brand=source.brand && typeof source.brand === 'object' ? source.brand : {};
+  return {
+    ...source,
+    preset_version:3,
+    brand:{
+      ...brand,
+      name_font_family:migratedDefault(brand.name_font_family,'montserrat','underdog'),
+      name_font_size_px:migratedDefault(brand.name_font_size_px,108,94),
+      name_font_weight:migratedDefault(brand.name_font_weight,900,400),
+      caption_font_size_px:migratedDefault(brand.caption_font_size_px,34,32)
+    }
+  };
+}
+
 export function migrateMenuThemePresetSource(value = {}) {
   const source=value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const id=String(source.preset_id || 'legacy') === 'constructor' ? 'legacy' : String(source.preset_id || 'legacy');
   const version=Number(source.preset_version) || 1;
-  if(id === 'chalk' && version < 2) return migrateChalkV1(source);
-  return source;
+  if(id !== 'chalk') return source;
+  let migrated=source;
+  if(version < 2) migrated=migrateChalkV1(migrated);
+  if(version < 3) migrated=migrateChalkV2(migrated);
+  return migrated;
 }
 
 export function resolveMenuThemeSettings(settings = {}) {
