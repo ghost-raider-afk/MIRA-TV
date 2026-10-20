@@ -84,7 +84,7 @@ function renderApprovals(proposals) {
   list.replaceChildren();
   for (const proposal of proposals) {
     const card = document.createElement('article');
-    card.className = 'catalog-approval-card';
+    card.className = `catalog-approval-card crm-request-card status-${proposal.status}`;
     const copy = document.createElement('div');
     copy.className = 'catalog-approval-card-copy';
     const head = document.createElement('div');
@@ -98,12 +98,10 @@ function renderApprovals(proposals) {
     const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
     manager.textContent = [`№${proposal.id}`, `Менеджер: ${proposal.manager_username}`, date, proposal.location_name].filter(Boolean).join(' · ');
     head.append(title, manager);
-    if (proposal.status !== 'pending') {
-      const badge = document.createElement('span');
-      badge.className = 'catalog-approval-status';
-      badge.textContent = CARD_STATUSES[proposal.status] || proposal.status;
-      copy.append(badge);
-    }
+    const badge = document.createElement('span');
+    badge.className = 'catalog-approval-status crm-status';
+    badge.textContent = CARD_STATUSES[proposal.status] || proposal.status;
+    copy.append(badge);
     const changes = proposalChanges(proposal);
     copy.prepend(head);
     if (proposal.entity_type !== 'message' && changes.length) {
