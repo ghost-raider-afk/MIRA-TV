@@ -84,6 +84,9 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
     if (proposal.status !== 'pending') return { kind:'resolved', proposal, entity:null };
 
     if (proposal.entity_type === 'message' && status === 'approved') {
+      if (!String(reviewComment || '').trim()) {
+        throw Object.assign(new Error('Напишите ответ менеджеру перед завершением заявки.'), { status:400 });
+      }
       const handled = await tx.resolveCatalogProposal(proposalId, {
         status:'resolved', reviewerUsername, reviewComment
       });
