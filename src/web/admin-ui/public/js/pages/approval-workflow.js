@@ -1,33 +1,18 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { requestStatus } from '../core/requests.js';
+import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
 
 const ACTIONS = Object.freeze([
   ['approved','Согласовать'],['rework','Отправить на доработку'],['rejected','Отклонить']
 ]);
-const FIELD_LABELS = Object.freeze({
-  name:'Название',producer:'Производитель',address:'Адрес',characteristics:'Характеристики',
-  strength:'Крепость',price_primary:'Цена за 1 л',beverage_color:'Цвет',
-  filtration:'Фильтрация',alcoholic:'Алкогольная продукция',active:'Активна'
-});
-const CHOICES = Object.freeze({
-  beverage_color:[['none','Не задан'],['light','Светлое'],['dark','Тёмное'],['white','Белое'],['semi_dark','Полутёмное'],['amber','Янтарное'],['red','Красное']],
-  filtration:[['none','Не задана'],['filtered','Фильтрованное'],['unfiltered','Нефильтрованное']],
-  alcoholic:[['true','Да'],['false','Нет']],active:[['true','Да'],['false','Нет']]
-});
+const FIELD_LABELS = CATALOG_FIELD_LABELS;
+const CHOICES = CATALOG_OPTIONS;
 function el(type,cls='',value='') {
   const node=document.createElement(type);
   if (cls) node.className=cls;
   if (value) node.textContent=value;
   return node;
-}
-function valueLabel(property,value) {
-  if (value === undefined || value === null) return '—';
-  if (CHOICES[property]) {
-    const found=CHOICES[property].find(([key])=>key===String(value));
-    return found?.[1] || String(value);
-  }
-  return String(value);
 }
 function itemName(item,type) {
   if (type === 'product_create') return item.payload?.name || 'Новый товар';
@@ -40,7 +25,7 @@ function readOnlyItem(item,type) {
   if (type==='menu_add') row.append(smallInfo('Точка №'+item.location_id));
   else if(type==='menu_remove') row.append(smallInfo('ТВ №'+item.screen_id+' · строка '+item.row_id));
   else row.append(smallInfo((FIELD_LABELS[item.property] || item.property)+': '+
-    valueLabel(item.property,item.before)+' → '+valueLabel(item.property,item.final_value ?? item.value)));
+    catalogValueLabel(item.property,item.before)+' → '+catalogValueLabel(item.property,item.final_value ?? item.value)));
   return row;
 }
 function valueControl(property,value) {
