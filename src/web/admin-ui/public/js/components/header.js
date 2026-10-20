@@ -248,12 +248,13 @@ export function refreshHeaderRoute(root = document) {
 }
 
 export function createHeader() {
-  const { title, section } = navigationState();
+  const manager = state.session?.role === 'manager';
+  const { title, section } = manager ? { title:'Рабочее место менеджера', section:'manager-locations' } : navigationState();
   document.title = `${appName()} — ${title}`;
   const header = document.createElement('header');
   header.className = 'app-header';
   header.innerHTML = `<button class="mobile-context-trigger" data-mobile-context-trigger type="button" aria-expanded="false" aria-controls="app-context-panel" aria-label="Открыть меню раздела: ${title}"></button><div class="app-header-title"><strong data-app-name></strong><span></span></div><div class="app-header-actions"></div>`;
-  header.prepend(homeControl(), primaryNavigation(section));
+  header.prepend(homeControl(), primaryNavigation(section, manager ? MANAGER_PRIMARY_ROUTES : DESKTOP_PRIMARY_ROUTES));
   setIcon(header.querySelector('[data-mobile-context-trigger]'), 'menu');
   header.querySelector('[data-app-name]').textContent = appName();
   header.querySelector('.app-header-title span').textContent = title;
