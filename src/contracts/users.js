@@ -11,7 +11,7 @@ export function managerUsernameInput(value) {
 export function managerDisplayNameInput(value) {
   if (typeof value !== 'string') throw new ValidationError('Имя пользователя должно содержать от 1 до 80 символов.');
   const name = value.trim().replace(/\s+/g, ' ');
-  if (name.length < 1 || name.length > 80 || /[\u0000-\u001f\u007f]/.test(value.replace(/\s/g, ''))) {
+  if (name.length < 1 || name.length > 80 || /[\u0000-\u001f\u007f]/.test(value)) {
     throw new ValidationError('Имя пользователя должно содержать от 1 до 80 символов без управляющих символов.');
   }
   return name;
