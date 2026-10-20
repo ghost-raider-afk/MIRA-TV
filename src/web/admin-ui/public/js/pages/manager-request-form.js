@@ -59,7 +59,6 @@ function valueInput(property,value = '') {
   return input('value',value);
 }
 function productById(id) { return managerCatalog.find((p)=>Number(p.id) === Number(id)); }
-function locationById(id) { return managerLocations.find((p)=>Number(p.id) === Number(id)); }
 function rowValue(item, name) {
   const root = document.querySelector('[data-crm-key="' + item.key + '"]');
   return root?.querySelector('[name="' + name + '"]')?.value ?? '';
