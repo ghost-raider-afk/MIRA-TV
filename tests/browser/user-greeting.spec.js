@@ -29,6 +29,15 @@ test('administrator can name a manager and greeting appears only once after logi
     await card.getByRole('textbox', { name:'Имя пользователя ' + username }).fill('Анастасия');
     await card.getByRole('button', { name:'Сохранить имя' }).click();
     await expect(card.locator('.manager-user-identity strong')).toHaveText('Анастасия');
+    const managerContext = await browser.newContext();
+    try {
+      const managerPage = await managerContext.newPage();
+      await login(managerPage, username, 'Manager-Create1!', '/manager');
+      await expect(managerPage.locator('[data-manager-user]')).toHaveText('Анастасия');
+      await expect(managerPage.locator('.login-greeting')).toContainText('Анастасия!');
+      await managerPage.reload();
+      await expect(managerPage.locator('.login-greeting')).toHaveCount(0);
+    } finally { await managerContext.close(); }
   } finally {
     await page.request.delete('/api/admin/managers/' + username).catch(() => {});
     await context.close();
