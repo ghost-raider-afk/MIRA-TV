@@ -86,3 +86,6 @@ body[data-page="approvals"] .catalog-approval-head #catalog-approval-close{posit
 .crm-tv-preview-stage{width:100%;aspect-ratio:16/9;min-height:180px}
 
 .manager-view .mobile-context-trigger[hidden]{display:none!important}
+
+.crm-message-rework{display:grid;gap:10px;margin-top:12px}
+.crm-message-rework textarea,.crm-message-rework input,.crm-message-rework select{width:100%;min-width:0;padding:9px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text)}
