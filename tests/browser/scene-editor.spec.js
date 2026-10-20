@@ -1017,3 +1017,58 @@ test('Scene editor stays readable at desktop and small phone widths without chan
     await expect(panel).toBeHidden();
   }
 });
+
+test('apply to monitors keeps readable independent rows and uses a single scroll area', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const { screen, location } = await fixture(page);
+  for (let i = 0; i < 6; i += 1) {
+    const response = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+    expect(response.status()).toBe(201);
+  }
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-background-layer').click();
+  const multiApply = page.locator('.scene-editor-multi-apply');
+  await multiApply.locator('summary').click();
+  const list = multiApply.locator('.scene-editor-multi-apply-list');
+  const rows = list.locator('.scene-editor-multi-apply-target').filter({ hasText:location.name });
+  await expect(rows).toHaveCount(6);
+  for (const width of [1600, 390, 320]) {
+    await page.setViewportSize({ width, height:760 });
+    if (width <= 1100) {
+      await page.getByRole('button', { name:/Свойства/ }).click();
+      await expect(page.locator('.scene-editor-properties-panel')).toBeVisible();
+    }
+    const measurements = await rows.evaluateAll((targets) => targets.map((row) => {
+      const check = row.querySelector('input[type="checkbox"]');
+      const name = row.querySelector('span');
+      const r = row.getBoundingClientRect(), c = check.getBoundingClientRect();
+      return {
+        rowHeight:r.height, checkboxHeight:c.height, checkboxWidth:c.width,
+        font:parseFloat(getComputedStyle(name).fontSize),
+        contained:c.top >= r.top - 1 && c.bottom <= r.bottom + 1,
+        nameWrap:getComputedStyle(name).whiteSpace
+      };
+    }));
+    for (const item of measurements) {
+      expect(item.rowHeight).toBeGreaterThanOrEqual(width <= 1100 ? 48 : 44);
+      expect(item.checkboxHeight).toBeGreaterThanOrEqual(19);
+      expect(item.checkboxHeight).toBeLessThanOrEqual(22);
+      expect(item.checkboxWidth).toBeGreaterThanOrEqual(19);
+      expect(item.contained).toBe(true);
+      expect(item.font).toBeGreaterThanOrEqual(width <= 1100 ? 15 : 13);
+      expect(item.nameWrap).toBe('normal');
+    }
+    expect(await list.evaluate((node) => getComputedStyle(node).overflowY)).toBe('visible');
+    const apply = multiApply.getByRole('button', { name:'Применить к выбранным' });
+    await expect(apply).toBeDisabled();
+    expect((await apply.boundingBox()).height).toBeGreaterThanOrEqual(width <= 1100 ? 48 : 44);
+    if (width <= 1100) {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+      await page.getByRole('button', { name:'Закрыть свойства' }).click();
+    }
+  }
+  await page.setViewportSize({ width:1600, height:900 });
+  await rows.first().getByRole('checkbox').check();
+  await expect(multiApply.getByRole('button', { name:'Применить к выбранным' })).toBeEnabled();
+});

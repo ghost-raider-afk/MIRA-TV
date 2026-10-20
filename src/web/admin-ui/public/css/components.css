@@ -56,6 +56,22 @@
   .app-header-nav-indicator,.app-header-nav-link,.app-header-nav-caret,.app-header-dropdown,.app-header-dropdown-link,.app-header-home,.header-search,.header-search-form,.app-header-actions>.icon-button,.app-header-actions .header-account-trigger{transition:none!important}
 }
 
+/* Compact, uniform status treatments in manager/admin CRM. */
+.crm-request-card.status-pending{--crm-status-tone:#2563a6}
+:root[data-theme="dark"] .crm-request-card.status-pending{--crm-status-tone:#93c5fd}
+.crm-request-card.status-approved{--crm-status-tone:var(--ui-success)}
+.crm-request-card.status-rejected{--crm-status-tone:var(--ui-danger)}
+.crm-request-card.status-conflict{--crm-status-tone:var(--ui-warning)}
+.crm-request-card.status-resolved{--crm-status-tone:var(--ui-text-muted)}
+.crm-request-card .crm-status{
+  display:inline-flex;align-items:center;justify-content:center;justify-self:start;
+  width:max-content;max-width:100%;min-height:0;padding:2px 5px;
+  border:1px solid currentColor;border-radius:5px;
+  background:color-mix(in srgb,var(--crm-status-tone,var(--ui-text-muted)) 8%,transparent);
+  color:var(--crm-status-tone,var(--ui-text-muted));font-size:14px;font-weight:700;
+  line-height:1.2;white-space:normal;overflow-wrap:anywhere;text-align:center;
+}
+
 /* One-time, locally timed greeting after an explicit successful sign-in. */
 .login-greeting{position:fixed;z-index:200;top:78px;right:16px;display:flex;align-items:center;gap:12px;max-width:min(410px,calc(100vw - 24px));padding:12px 14px;border:1px solid var(--ui-border);border-left:3px solid var(--ui-accent);border-radius:12px;background:var(--ui-panel);color:var(--ui-text);box-shadow:0 8px 28px rgba(0,0,0,.15);font-size:15px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
 .login-greeting>span{min-width:0;flex:1}

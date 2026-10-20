@@ -1,7 +1,7 @@
 /* Administrator requests: one workflow, shared styles for cards and history. */
 body[data-page="approvals"] .catalog-approvals-card{margin-bottom:14px}
 body[data-page="approvals"] .catalog-approvals-list{display:grid;gap:8px;margin-top:10px}
-body[data-page="approvals"] .catalog-approval-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 11px;border:1px solid var(--ui-border);border-left:3px solid var(--ui-warning);border-radius:9px;background:var(--ui-panel-raised)}
+body[data-page="approvals"] .catalog-approval-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 11px;border:1px solid var(--ui-border);border-left:3px solid var(--crm-status-tone,var(--ui-warning));border-radius:9px;background:var(--ui-panel-raised)}
 body[data-page="approvals"] .catalog-approval-card-copy{display:grid;min-width:0;gap:5px}
 body[data-page="approvals"] .catalog-approval-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
 body[data-page="approvals"] .catalog-approval-card-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -27,7 +27,7 @@ body[data-page="approvals"] .catalog-approval-actions{display:flex;justify-conte
 body[data-page="approvals"] .catalog-approvals-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 body[data-page="approvals"] .catalog-approvals-controls label{font-size:12px;color:var(--ui-text-muted)}
 body[data-page="approvals"] .catalog-approvals-controls select{min-height:40px;max-width:100%;padding:6px 10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);font:inherit}
-body[data-page="approvals"] .catalog-approval-status{font-size:12px;color:var(--ui-text-muted);font-weight:700}
+
 body[data-page="approvals"] .catalog-approval-history-detail{margin:0;padding:10px 12px;border:1px solid var(--ui-border);border-radius:8px;overflow-wrap:anywhere}
 body[data-page="approvals"] .catalog-approval-actions .button[hidden],
 body[data-page="approvals"] #catalog-approval-comment-field[hidden],

@@ -15,6 +15,38 @@ async function login(page, username, password, expectedPath) {
   ]);
 }
 
+async function expectCompactStatus(card, label) {
+  const badge=card.locator('.crm-status');
+  await expect(badge).toHaveText(label);
+  const geometry=await badge.evaluate((el) => {
+    const style=getComputedStyle(el);
+    const rect=el.getBoundingClientRect();
+    const card=el.closest('.crm-request-card');
+    const cardStyle=getComputedStyle(card);
+    return {
+      size:style.fontSize, weight:style.fontWeight,
+      paddingX:style.paddingLeft, paddingY:style.paddingTop,
+      textColor:style.color, frameColor:style.borderTopColor,
+      leftStripe:cardStyle.borderLeftColor, height:rect.height,
+      lineHeight:parseFloat(style.lineHeight),
+      verticalInsets:parseFloat(style.paddingTop)+parseFloat(style.paddingBottom)
+        +parseFloat(style.borderTopWidth)+parseFloat(style.borderBottomWidth),
+      overflow:rect.right > card.getBoundingClientRect().right+1
+    };
+  });
+  expect(geometry.size).toBe('14px');
+  expect(geometry.weight).toBe('700');
+  expect(geometry.paddingX).toBe('5px');
+  expect(geometry.paddingY).toBe('2px');
+  expect(geometry.textColor).toBe(geometry.frameColor);
+  expect(geometry.leftStripe).toBe(geometry.textColor);
+  const lines=Math.round((geometry.height-geometry.verticalInsets)/geometry.lineHeight);
+  expect(lines).toBeGreaterThanOrEqual(1);
+  expect(lines).toBeLessThanOrEqual(3); // Long statuses may wrap on narrow cards.
+  expect(Math.abs(geometry.height - (lines*geometry.lineHeight + geometry.verticalInsets))).toBeLessThan(2);
+  expect(geometry.overflow).toBe(false);
+}
+
 test('manager canonical preview and catalog proposal approval workflow', async ({ browser }) => {
   const adminContext = await browser.newContext({ baseURL });
   const managerContext = await browser.newContext({ baseURL });
@@ -111,7 +143,7 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(proposalDialog).not.toBeVisible();
 
     const managerProposal = managerPage.locator('.manager-proposal-card', { hasText:`Менеджер E2E ${stamp}` });
-    await expect(managerProposal).toContainText('Ожидает согласования');
+    await expectCompactStatus(managerProposal, 'Ожидает согласования');
     await expect(managerProposal).toContainText('200');
     await expect(managerProposal).toContainText('220');
 
@@ -122,6 +154,7 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await expect(adminPage.locator('main #catalog-approval-dialog')).toHaveCount(1);
     const approval = adminPage.locator('.catalog-approval-card', { hasText:`Менеджер E2E ${stamp}` });
     await expect(approval).toBeVisible();
+    await expectCompactStatus(approval, 'На рассмотрении');
     await approval.getByRole('button', { name:'Рассмотреть' }).click();
     const approvalDialog = adminPage.locator('#catalog-approval-dialog');
     await expect(approvalDialog).toBeVisible();
@@ -168,7 +201,7 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     expect(updated.price_secondary).toBe('330');
 
     await managerPage.getByRole('button', { name:'Обновить' }).click();
-    await expect(managerProposal).toContainText('Принято');
+    await expectCompactStatus(managerProposal, 'Принято');
     await expect(managerProposal).toContainText('Цена подтверждена');
 
     // Mandatory fields must not block cancelling a new card, even when partially filled.
@@ -196,13 +229,13 @@ test('manager canonical preview and catalog proposal approval workflow', async (
     await approvalDialog.getByRole('button', { name:'Отметить обработанным' }).click();
     await expect(approvalDialog).not.toBeVisible();
     await managerPage.getByRole('button', { name:'Обновить' }).click();
-    await expect(card).toContainText('Обработано');
+    await expectCompactStatus(card, 'Обработано');
     await expect(card).toContainText('№');
 
     const historyFilter = adminPage.locator('#catalog-approvals-filter');
     await historyFilter.selectOption('history');
     const historyCard = adminPage.locator('.catalog-approval-card', { hasText:`Вопрос по точке ${stamp}` });
-    await expect(historyCard).toContainText('Обработано');
+    await expectCompactStatus(historyCard, 'Обработано');
     await historyCard.getByRole('button', { name:'Просмотреть' }).click();
     await expect(approvalDialog).toContainText('Проверьте оборудование на точке.');
     await expect(approvalDialog.locator('#catalog-approval-approve')).toBeHidden();

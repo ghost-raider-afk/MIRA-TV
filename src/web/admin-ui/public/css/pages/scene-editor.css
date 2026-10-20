@@ -107,14 +107,16 @@
 .scene-editor-inspector-actions{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .scene-editor-inspector-actions .button{min-height:25px;padding:3px 5px;font-size:8px}
 .scene-editor-background-state{display:block;color:var(--ui-text-muted);font-size:7px;line-height:1.3}
-.scene-editor-multi-apply-panel{gap:5px}
-.scene-editor-multi-apply-note,.scene-editor-multi-apply-empty{display:block;color:var(--ui-text-muted);font-size:7px;line-height:1.35}
-.scene-editor-multi-apply-list{display:grid;max-height:142px;gap:2px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
-.scene-editor-multi-apply-target{display:grid;grid-template-columns:16px minmax(0,1fr);align-items:center;gap:5px;min-height:25px;padding:3px 5px;border:1px solid var(--ui-border);border-radius:5px;background:var(--ui-panel-raised);color:var(--ui-text);cursor:pointer}
+.scene-editor-multi-apply-panel{gap:10px}
+.scene-editor-multi-apply-note,.scene-editor-multi-apply-empty{display:block;color:var(--ui-text-muted);font-size:12px;line-height:1.5}
+.scene-editor-multi-apply-list{display:grid;align-content:start;gap:6px;min-width:0;max-height:none;overflow:visible}
+.scene-editor-multi-apply-target{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:10px;min-height:44px;padding:8px 10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);cursor:pointer}
 .scene-editor-multi-apply-target:hover{border-color:color-mix(in srgb,var(--ui-accent) 38%,var(--ui-border))}
-.scene-editor-multi-apply-target input{width:14px;height:14px;min-height:0;margin:0}
-.scene-editor-multi-apply-target span{min-width:0;overflow:hidden;font-size:7px;font-weight:750;text-overflow:ellipsis;white-space:nowrap}
-.scene-editor-multi-apply-button{width:100%;min-height:27px!important;padding:3px 6px!important;font-size:8px!important}
+.scene-editor-multi-apply-target input{width:20px;height:20px;min-height:20px;margin:0;padding:0;accent-color:var(--ui-accent)}
+.scene-editor-multi-apply-target span{min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:700;line-height:1.35;white-space:normal}
+/* The generic inspector input rule must never resize native multi-screen checkboxes. */
+body[data-page="scene"] .scene-editor-properties .scene-editor-multi-apply-target input[type="checkbox"]{box-sizing:border-box;appearance:auto;width:20px;height:20px;min-height:20px;max-height:20px;padding:0;margin:0;flex:none;accent-color:var(--ui-accent)}
+.scene-editor-multi-apply-button{width:100%;min-height:44px!important;padding:9px 12px!important;font-size:14px!important}
 
 .scene-editor-mobile-toolbar{display:none}
 
@@ -148,9 +150,9 @@
   body[data-page="scene"][data-scene-mobile-panel="properties"] .scene-editor-properties-panel{transform:translateX(0);opacity:1}
   body[data-page="scene"] .scene-editor-properties{overflow:auto}
   body[data-page="scene"] .scene-editor-layers{overflow:auto}
-  body[data-page="scene"] .scene-editor-multi-apply-target{min-height:38px}
-  body[data-page="scene"] .scene-editor-multi-apply-target span{font-size:10px}
-  body[data-page="scene"] .scene-editor-multi-apply-button{min-height:38px!important;font-size:10px!important}
+  body[data-page="scene"] .scene-editor-multi-apply-target{min-height:48px}
+  body[data-page="scene"] .scene-editor-multi-apply-target span{font-size:15px}
+  body[data-page="scene"] .scene-editor-multi-apply-button{min-height:48px!important;font-size:15px!important}
   body[data-page="scene"] .scene-editor-mobile-toolbar{display:grid;grid-template-columns:repeat(3,1fr);flex:0 0 auto;gap:4px;padding:4px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel)}
   body[data-page="scene"] .scene-editor-mobile-toolbar button{display:grid;min-height:44px;place-items:center;gap:1px;border:0;border-radius:6px;background:transparent;color:var(--ui-text);font:inherit;font-size:15px;cursor:pointer}
   body[data-page="scene"] .scene-editor-mobile-toolbar button span{font-size:8px;font-weight:800}
@@ -565,7 +567,7 @@ body[data-page="scene"] .scene-editor-properties .scene-theme-description,
 body[data-page="scene"] .scene-editor-properties .scene-theme-overrides small,
 body[data-page="scene"] .scene-editor-background-state,
 body[data-page="scene"] .scene-editor-multi-apply-note,
-body[data-page="scene"] .scene-editor-multi-apply-empty{font-size:11px;line-height:1.45}
+body[data-page="scene"] .scene-editor-multi-apply-empty{font-size:12px;line-height:1.45}
 body[data-page="scene"] .scene-editor-inspector-actions .button,
 body[data-page="scene"] .scene-theme-overrides .button,
 body[data-page="scene"] .scene-theme-point-button,
