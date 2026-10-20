@@ -3,10 +3,11 @@ import { optionalText, positiveId } from '../../contracts/input.js';
 import { managerDisplayNameInput, managerUsernameInput } from '../../contracts/users.js';
 import { notifyCatalogEntityChanged } from '../../services/catalog-render-notifier.js';
 import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
+import { reviewWorkflowRequest, completeManualRequest, saveNewProductFromRequest, returnOrRejectWorkflowRequest } from '../../services/crm-request-service.js';
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
-const PROPOSAL_STATUSES = new Set(['pending','approved','rejected','conflict','resolved','history']);
+const PROPOSAL_STATUSES = new Set(['pending','rework','approved','rejected','conflict','resolved','history']);
 
 function activeInput(value) {
   if (typeof value !== 'boolean') throw Object.assign(new Error('Поле active должно быть логическим значением.'), { status: 400 });
@@ -74,6 +75,56 @@ export function createManagerAdminRouter({ store, config, realtime }) {
 
   router.post('/proposals/:id/approve', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'approve' }));
   router.post('/proposals/:id/reject', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'reject' }));
+
+
+  router.get('/proposals/:id/history', async (request,response) => {
+    const id = positiveId(request.params.id,'id');
+    if (!await store.getCatalogProposal(id)) throw notFound('Заявка не найдена.');
+    response.json(await store.listProposalEvents(id));
+  });
+
+  router.post('/proposals/:id/workflow', async (request,response) => {
+    const proposalId = positiveId(request.params.id,'id');
+    const reviewerUsername = request.session.sub;
+    const action = String(request.body?.action || '');
+    let result;
+    if (action === 'review') {
+      result = await reviewWorkflowRequest(store,{
+        proposalId,reviewerUsername,decisions:request.body?.decisions
+      });
+      for (const item of result.revisions || []) realtime?.notifyScreen(item.screen_id,item.revision);
+    } else if (action === 'save_product') {
+      result = await saveNewProductFromRequest(store,{
+        proposalId,reviewerUsername,correctedPayload:request.body?.product
+      });
+    } else if (action === 'complete') {
+      result = await completeManualRequest(store,{proposalId,reviewerUsername});
+    } else if (action === 'rework' || action === 'rejected') {
+      result = await returnOrRejectWorkflowRequest(store,{
+        proposalId,reviewerUsername,action,
+        comment:optionalText(request.body?.comment,'Комментарий',{max:2000})
+      });
+    } else {
+      return response.status(400).json({error:'Неизвестное действие с заявкой.'});
+    }
+    await activity(store,request,{
+      action:'crm.request.'+action,entity_type:'catalog_change_proposal',entity_id:proposalId,
+      message:'Обработка заявки №'+proposalId+': '+action+'.'
+    });
+    response.json(result);
+  });
+
+  router.delete('/proposals/:id', async (request,response) => {
+    const id = positiveId(request.params.id,'id');
+    const removed = await store.transaction(async (tx) => {
+      const proposal = await tx.getCatalogProposalForUpdate(id);
+      if (!proposal) return false;
+      await tx.recordProposalEvent(id,request.session.sub,'deleted',{status:proposal.status});
+      return tx.deleteProposal(id);
+    });
+    if (!removed) throw notFound('Заявка не найдена.');
+    response.status(204).end();
+  });
 
   router.put('/:username/access', async (request, response) => {
     const username=managerUsernameInput(request.params.username);
