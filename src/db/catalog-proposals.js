@@ -8,7 +8,8 @@ function normaliseProposal(row) {
     entity_id:proposal.entity_id === null ? null : Number(proposal.entity_id),
     location_id:proposal.location_id === null ? null : (proposal.location_id === undefined ? null : Number(proposal.location_id)),
     base_payload:jsonValue(proposal.base_payload, {}),
-    proposed_payload:jsonValue(proposal.proposed_payload, {})
+    proposed_payload:jsonValue(proposal.proposed_payload, {}),
+    items:jsonValue(proposal.items_json, [])
   };
 }
 
@@ -73,7 +74,7 @@ export function createCatalogProposalsRepository(pool) {
       const now = isoNow();
       const { rows } = await pool.query(
         `UPDATE catalog_change_proposals
-         SET status=$1, reviewer_username=$2, review_comment=$3, updated_at=$4, decided_at=$4
+         SET status=$1, reviewer_username=$2, review_comment=$3, updated_at=$4, decided_at=$4, status_changed_at=$4
          WHERE id=$5 AND status='pending' RETURNING *`,
         [status, reviewerUsername, reviewComment, now, id]
       );
