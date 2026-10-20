@@ -88,11 +88,13 @@ export function createUsersRepository(pool) {
     async listManagers() {
       const { rows } = await pool.query(
         `SELECT u.username,u.role,u.active,u.session_version,u.password_changed_at,u.created_at,u.updated_at,
+                COALESCE(p.display_name,u.username) AS display_name,
                 COALESCE(a.all_locations,FALSE) AS all_locations,
                 COALESCE(a.catalog_enabled,FALSE) AS catalog_enabled,
                 COALESCE((SELECT array_agg(l.location_id ORDER BY l.location_id)
                           FROM manager_location_access l WHERE l.username=u.username), '{}'::bigint[]) AS location_ids
          FROM web_users u LEFT JOIN manager_access a ON a.username=u.username
+         LEFT JOIN user_preferences p ON p.username=u.username
          WHERE u.role='manager' ORDER BY u.username`
       );
       return rows.map((row) => ({ ...normaliseRow(row), location_ids:row.location_ids.map(Number) }));
@@ -126,7 +128,7 @@ export function createUsersRepository(pool) {
       return this.getManagerAccess(username);
     },
 
-    async createManager({ username, passwordHash }) {
+    async createManager({ username, passwordHash, displayName = username }) {
       const now = isoNow();
       const { rows } = await pool.query(
         `INSERT INTO web_users (username, password_hash, role, active, session_version, password_changed_at, created_at, updated_at)
@@ -136,6 +138,21 @@ export function createUsersRepository(pool) {
       );
       await pool.query('INSERT INTO manager_access(username) VALUES ($1)', [username]);
       await getUserPreferences(username);
+      if (displayName !== username) await pool.query(
+        'UPDATE user_preferences SET display_name=$2, updated_at=$3 WHERE username=$1',
+        [username, displayName, now]
+      );
+      return { ...normaliseRow(rows[0]), display_name:displayName };
+    },
+
+    async setManagerDisplayName(username, displayName) {
+      const { rows } = await pool.query(
+        `INSERT INTO user_preferences (username,display_name,created_at,updated_at)
+         SELECT username,$2,$3,$3 FROM web_users WHERE username=$1 AND role='manager'
+         ON CONFLICT (username) DO UPDATE SET display_name=EXCLUDED.display_name,updated_at=EXCLUDED.updated_at
+         RETURNING display_name`,
+        [username, displayName, isoNow()]
+      );
       return normaliseRow(rows[0]);
     },
 

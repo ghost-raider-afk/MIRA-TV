@@ -31,3 +31,10 @@ body[data-page="settings"] .activity-list{margin-top:6px;max-height:65dvh;overfl
 
 body[data-page="profile"] .profile-sections{display:grid;gap:10px}
 body[data-page="profile"] .profile-card{width:100%;margin:0!important}
+
+/* Names in existing user cards; no second user management layout. */
+body[data-page="settings"] .manager-user-identity{display:grid;gap:2px;min-width:0;margin-right:auto}
+body[data-page="settings"] .manager-user-identity strong{font-size:15px;overflow-wrap:anywhere}
+body[data-page="settings"] .manager-user-identity small{color:var(--ui-text-muted);font-size:12px}
+body[data-page="settings"] .manager-admin-actions input[aria-label^="Имя пользователя"]{min-width:140px;max-width:220px}
+@media(max-width:700px){body[data-page="settings"] .manager-admin-actions input[aria-label^="Имя пользователя"]{max-width:none}}

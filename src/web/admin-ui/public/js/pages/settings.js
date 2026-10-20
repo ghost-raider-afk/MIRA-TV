@@ -52,8 +52,34 @@ function managerRow(manager, locations) {
   row.className = 'manager-admin-row';
   row.dataset.managerUsername = manager.username;
 
-  const identity = document.createElement('strong');
-  identity.textContent = manager.username;
+  const identity = document.createElement('div');
+  identity.className = 'manager-user-identity';
+  const personName = document.createElement('strong');
+  personName.textContent = manager.display_name || manager.username;
+  const loginName = document.createElement('small');
+  loginName.textContent = `Логин: ${manager.username}`;
+  identity.append(personName, loginName);
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.autocomplete = 'off';
+  nameInput.maxLength = 80;
+  nameInput.value = manager.display_name || manager.username;
+  nameInput.setAttribute('aria-label', `Имя пользователя ${manager.username}`);
+  const nameSave = document.createElement('button');
+  nameSave.type = 'button';
+  nameSave.className = 'button button-secondary';
+  nameSave.textContent = 'Сохранить имя';
+  nameSave.addEventListener('click', async () => {
+    nameSave.disabled = true;
+    try {
+      const updated = await api.put(managerEndpoint(manager.username, 'name'), { display_name:nameInput.value });
+      personName.textContent = updated.display_name;
+      nameInput.value = updated.display_name;
+      setMessage('manager-settings-message', `Имя пользователя «${manager.username}» сохранено.`, 'success');
+    } catch (error) {
+      setMessage('manager-settings-message', error.message);
+    } finally { nameSave.disabled = false; }
+  });
 
   const status = document.createElement('span');
   status.className = `manager-admin-status${manager.active ? ' is-active' : ''}`;
@@ -111,7 +137,7 @@ function managerRow(manager, locations) {
 
   const actions=document.createElement('div');
   actions.className='manager-admin-actions';
-  actions.append(identity,status,password,passwordButton,activeButton,remove);
+  actions.append(identity,status,nameInput,nameSave,password,passwordButton,activeButton,remove);
   const access=document.createElement('div');
   access.className='manager-access-settings';
   const heading=document.createElement('strong');
@@ -196,6 +222,7 @@ function initialiseManagers() {
     try {
       await api.post(API.managers, {
         username: element('manager-create-username').value.trim(),
+        display_name: element('manager-create-name').value.trim(),
         password: element('manager-create-password').value
       });
       const username = element('manager-create-username').value.trim();
