@@ -261,7 +261,17 @@ export function createHeader() {
   header.querySelector('[data-app-name]').textContent = appName();
   header.querySelector('.app-header-title span').textContent = title;
   const actions = header.querySelector('.app-header-actions');
-  actions.append(searchControl(), createNotificationsControl());
+  if (manager) {
+    const refresh = document.createElement('button');
+    refresh.id = 'manager-refresh';
+    refresh.className = 'icon-button';
+    refresh.type = 'button';
+    refresh.textContent = '↻';
+    refresh.setAttribute('aria-label', 'Обновить');
+    actions.append(refresh);
+  } else {
+    actions.append(searchControl(), createNotificationsControl());
+  }
   const theme = document.createElement('button');
   theme.className = 'icon-button';
   theme.id = 'theme-toggle';
