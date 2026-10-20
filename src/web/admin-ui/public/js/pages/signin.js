@@ -31,6 +31,7 @@ export function initialiseSignIn() {
         password: element('password').value
       });
       const session = await api.get(API.session);
+      try { window.sessionStorage.setItem('mira-login-greeting', session.username); } catch { /* Storage may be blocked. */ }
       window.location.replace(homeForSession(session));
     } catch (error) {
       setMessage('signin-message', error.message);
