@@ -393,14 +393,14 @@ function renderProposals(proposals) {
   list.replaceChildren();
   for (const proposal of proposals) {
     const card = document.createElement('article');
-    card.className = `manager-proposal-card status-${proposal.status}`;
+    card.className = `manager-proposal-card crm-request-card status-${proposal.status}`;
     const head = document.createElement('header');
     const title = document.createElement('strong');
     title.textContent = proposal.entity_type === 'message'
       ? proposal.title || `Обращение #${proposal.id}`
       : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
     const status = document.createElement('span');
-    status.className = 'manager-proposal-status';
+    status.className = 'manager-proposal-status crm-status';
     status.textContent = proposal.entity_type === 'message' && proposal.status === 'pending'
       ? 'Ожидает ответа' : STATUS_LABELS[proposal.status] || proposal.status;
     head.append(title, status);
