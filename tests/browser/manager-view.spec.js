@@ -169,9 +169,9 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(published.name);
     await expect(previous).toBeVisible();
     await expect(next).toBeVisible();
-    // Both arrows retain the same glyph/font size; only the control box shrinks.
-    for (const width of [1440, 390]) {
-      await managerPage.setViewportSize({ width, height:844 });
+    // Check actual fullscreen controls at each viewport size without resizing
+    // a fullscreen browser window (Chromium rejects Browser.setWindowBounds).
+    const checkArrowGeometry=async (width) => {
       for (const [button, glyph] of [[previous, '‹'], [next, '›']]) {
         await expect(button.locator('span')).toHaveText(glyph);
         const geometry=await button.evaluate((control) => {
@@ -191,8 +191,8 @@ test('manager uses the common sign-in and can inspect every saved active screen 
         expect(geometry.offsetY).toBeLessThan(-3);
         expect(geometry.offsetY).toBeGreaterThan(-8);
       }
-    }
-    await managerPage.setViewportSize({ width:1440, height:900 });
+    };
+    await checkArrowGeometry(1440);
 
     await next.click();
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
@@ -204,6 +204,11 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await managerPage.keyboard.press('ArrowRight');
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
     expect(screenshotRequests).toBe(0);
+    await managerPage.locator('#manager-fullscreen-close').click();
+    await managerPage.setViewportSize({ width:390, height:844 });
+    await managerPage.locator(`[data-manager-screen-id="${published.id}"]`).click();
+    await expect(fullscreen).not.toHaveClass(/is-hidden/);
+    await checkArrowGeometry(390);
     await managerPage.locator('#manager-fullscreen-close').click();
     await locationGroup.getByRole('button', { name:/свернуть/i }).click();
     await expect(locationGroup.locator('[data-manager-screen-id]')).toHaveCount(0);
