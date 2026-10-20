@@ -165,6 +165,22 @@ function openApproval(proposal) {
   } else {
     for (const change of changes) diff.append(makeDiffRow(change));
   }
+  const removeButton=document.createElement('button');
+  removeButton.type='button';
+  removeButton.className='button button-secondary';
+  removeButton.textContent='Удалить заявку';
+  removeButton.dataset.crmDynamicAction='true';
+  removeButton.addEventListener('click',async()=>{
+    if (!window.confirm('Удалить заявку №'+proposal.id+'?')) return;
+    try {
+      await api.delete(API.adminManagerProposals+'/'+proposal.id);
+      closeApproval();
+      await loadApprovals();
+    } catch(error) {
+      setMessage('catalog-approval-message',error.message);
+    }
+  });
+  document.querySelector('.catalog-approval-actions')?.append(removeButton);
   if (!dialog.open) dialog.showModal();
 }
 
