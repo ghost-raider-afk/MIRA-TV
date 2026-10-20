@@ -1,6 +1,6 @@
 import express from 'express';
 import { optionalText, positiveId } from '../../contracts/input.js';
-import { managerUsernameInput } from '../../contracts/users.js';
+import { managerDisplayNameInput, managerUsernameInput } from '../../contracts/users.js';
 import { notifyCatalogEntityChanged } from '../../services/catalog-render-notifier.js';
 import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
@@ -105,11 +105,13 @@ export function createManagerAdminRouter({ store, config, realtime }) {
 
   router.post('/', async (request, response) => {
     const username = managerUsernameInput(request.body?.username);
+    const displayName = request.body?.display_name == null || request.body.display_name === ''
+      ? username : managerDisplayNameInput(request.body.display_name);
     const password = validateNewPassword(request.body?.password, config, 'Пароль менеджера');
     let manager;
     try {
       const passwordHash = await hashPassword(password);
-      manager = await store.transaction((tx) => tx.createManager({ username, passwordHash }));
+      manager = await store.transaction((tx) => tx.createManager({ username, passwordHash, displayName }));
     } catch (error) {
       if (error?.code === '23505') throw conflict('Пользователь с таким логином уже существует.');
       throw error;
@@ -121,6 +123,18 @@ export function createManagerAdminRouter({ store, config, realtime }) {
       message: `Создан менеджер «${username}».`
     });
     response.status(201).json(manager);
+  });
+
+  router.put('/:username/name', async (request, response) => {
+    const username=managerUsernameInput(request.params.username);
+    const displayName=managerDisplayNameInput(request.body?.display_name);
+    const updated=await store.setManagerDisplayName(username, displayName);
+    if (!updated) throw notFound('Менеджер не найден.');
+    await activity(store,request,{
+      action:'manager.display_name_updated',entity_type:'user',entity_id:username,
+      message:`Обновлено имя менеджера «${username}».`
+    });
+    response.json(updated);
   });
 
   router.put('/:username/password', async (request, response) => {
