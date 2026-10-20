@@ -7,6 +7,7 @@ import { requestStatus, requestTopic, requestDate, requestJournalHeader, request
 import { openManagerRequestForm, renderManagerWorkflow } from './manager-request-form.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 import { createHeader, initialiseHeader, refreshHeaderRoute } from '../components/header.js';
+import { CATALOG_FIELD_LABELS, catalogValueLabel } from '../core/catalog-presentation.js';
 
 const previewRenderers = new Map();
 const screenContexts = new Map();
@@ -43,22 +44,7 @@ function syncManagerTabs() {
 }
 
 
-const FIELD_LABELS = Object.freeze({
-  name:'Название',
-  producer:'Производитель',
-  address:'Адрес',
-  characteristics:'Характеристики',
-  strength:'Крепость',
-  price_primary:'Цена 1 л',
-  price_secondary:'Цена 1,5 л',
-  alcoholic:'Алкогольная продукция',
-  beverage_color:'Цвет напитка',
-  filtration:'Фильтрация',
-  unit_price:'Цена тары',
-  active:'Активна'
-});
-
-
+const FIELD_LABELS = CATALOG_FIELD_LABELS;
 
 function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
