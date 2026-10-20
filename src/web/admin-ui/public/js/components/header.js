@@ -98,7 +98,9 @@ function initialiseNavigationMotion(header) {
 }
 
 function syncHeaderNavigation(root = document) {
-  const { section } = navigationState();
+  const section = state.session?.role === 'manager'
+    ? (MANAGER_PRIMARY_ROUTES.find((route) => route.href.endsWith(location.hash))?.key || 'manager-locations')
+    : navigationState().section;
   const currentPath = canonicalRoutePath(window.location.pathname);
   root.querySelectorAll('.app-header-nav-link[data-header-section]').forEach((link) => {
     const active = link.dataset.headerSection === section;
