@@ -79,3 +79,8 @@ body[data-page="approvals"] .catalog-approval-head #catalog-approval-close{posit
 .crm-workflow-history{margin-top:12px;color:var(--ui-text-muted)}
 .crm-workflow-history p{margin:6px 0;font-size:var(--ui-font-sm)}
 @media(max-width:640px){.crm-workflow-product{grid-template-columns:1fr}}
+
+.crm-tv-preview{width:min(960px,calc(100vw - 20px));max-height:92dvh;padding:12px;border:1px solid var(--ui-border);border-radius:12px;background:var(--ui-panel);color:var(--ui-text)}
+.crm-tv-preview::backdrop{background:rgba(0,0,0,.72)}
+.crm-tv-preview>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.crm-tv-preview-stage{width:100%;aspect-ratio:16/9;min-height:180px}
