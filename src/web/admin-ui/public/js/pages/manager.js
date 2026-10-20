@@ -3,6 +3,7 @@ import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
+import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow } from '../core/requests.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 
 const previewRenderers = new Map();
@@ -33,13 +34,7 @@ const FIELD_LABELS = Object.freeze({
   active:'Активна'
 });
 
-const STATUS_LABELS = Object.freeze({
-  pending:'Ожидает согласования',
-  approved:'Принято',
-  rejected:'Отклонено',
-  conflict:'Конфликт',
-  resolved:'Обработано'
-});
+
 
 function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
@@ -386,55 +381,46 @@ function proposalChanges(proposal) {
     .map((key) => ({ key, label:FIELD_LABELS[key] || key, before:base[key], after:proposed[key] }));
 }
 
+function openManagerRequest(proposal) {
+  const dialog = document.getElementById('manager-request-detail');
+  if (!(dialog instanceof HTMLDialogElement)) return;
+  document.getElementById('manager-request-title').textContent = requestTopic(proposal);
+  document.getElementById('manager-request-meta').textContent = [
+    '№' + proposal.id,
+    'Создана: ' + requestDate(proposal.created_at),
+    requestStatus(proposal),
+    'Дата: ' + requestDate(proposal.status_changed_at || proposal.decided_at || proposal.updated_at || proposal.created_at),
+    proposal.location_name
+  ].filter(Boolean).join(' · ');
+  const body = document.getElementById('manager-request-body');
+  body.replaceChildren();
+  const lines = [];
+  if (proposal.description) lines.push(proposal.description);
+  for (const change of proposalChanges(proposal)) {
+    lines.push(change.label + ': ' + formatValue(change.before) + ' → ' + formatValue(change.after));
+  }
+  if (proposal.review_comment) lines.push('Комментарий администратора: ' + proposal.review_comment);
+  if (!lines.length) lines.push('Без изменений данных.');
+  for (const line of lines) {
+    const p = document.createElement('p');
+    p.textContent = line;
+    body.append(p);
+  }
+  dialog.showModal();
+}
+
 function renderProposals(proposals) {
   const list = document.getElementById('manager-proposal-list');
   const empty = document.getElementById('manager-proposals-empty');
   if (!list || !empty) return;
-  list.replaceChildren();
-  for (const proposal of proposals) {
-    const card = document.createElement('article');
-    card.className = `manager-proposal-card crm-request-card status-${proposal.status}`;
-    const head = document.createElement('header');
-    const title = document.createElement('strong');
-    title.textContent = proposal.entity_type === 'message'
-      ? proposal.title || `Обращение #${proposal.id}`
-      : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
-    const status = document.createElement('span');
-    status.className = 'manager-proposal-status crm-status';
-    status.textContent = proposal.entity_type === 'message' && proposal.status === 'pending'
-      ? 'Ожидает ответа' : STATUS_LABELS[proposal.status] || proposal.status;
-    head.append(title, status);
-    const changes = document.createElement('div');
-    changes.className = 'manager-proposal-changes';
-    if (proposal.description) {
-      const description = document.createElement('p');
-      description.textContent = proposal.description;
-      changes.append(description);
-    }
-    for (const change of proposalChanges(proposal)) {
-      const line = document.createElement('p');
-      line.textContent = `${change.label}: ${formatValue(change.before)} → ${formatValue(change.after)}`;
-      changes.append(line);
-    }
-    if (!changes.childElementCount) {
-      const line = document.createElement('p');
-      line.textContent = 'Без изменений данных.';
-      changes.append(line);
-    }
-    const meta = document.createElement('p');
-    meta.className = 'manager-proposal-meta';
-    const created = new Date(proposal.created_at);
-    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
-    meta.textContent = [`№${proposal.id}`, date, proposal.location_name].filter(Boolean).join(' · ');
-    card.append(head, meta, changes);
-    if (proposal.review_comment) {
-      const comment = document.createElement('p');
-      comment.className = 'manager-proposal-comment';
-      comment.textContent = `Комментарий администратора: ${proposal.review_comment}`;
-      card.append(comment);
-    }
-    list.append(card);
-  }
+  const table = document.createElement('div');
+  table.className = 'request-journal';
+  table.append(requestJournalHeader());
+  for (const proposal of proposals) table.append(requestJournalRow(proposal, openManagerRequest));
+  const scroller = document.createElement('div');
+  scroller.className = 'request-journal-scroller';
+  scroller.append(table);
+  list.replaceChildren(scroller);
   empty.classList.toggle('is-hidden', proposals.length !== 0);
 }
 
@@ -645,6 +631,7 @@ export function initialiseManagerView() {
   });
   document.getElementById('manager-message-submit')?.addEventListener('click', () => void submitMessageCard());
   document.getElementById('manager-proposal-dialog')?.addEventListener('close', () => { proposalTarget = null; });
+  document.getElementById('manager-request-close')?.addEventListener('click', () => document.getElementById('manager-request-detail')?.close());
   document.addEventListener('keydown', (event) => {
     const overlay = document.getElementById('manager-fullscreen');
     if (!overlay || overlay.classList.contains('is-hidden')) return;
