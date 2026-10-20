@@ -51,8 +51,8 @@ export function contextLinksForSection(section) {
 
 export const MANAGER_PRIMARY_ROUTES = Object.freeze([
   Object.freeze({ key:'manager-locations', label:'Торговые точки', href:'/manager#manager-locations' }),
-  Object.freeze({ key:'manager-catalog', label:'Каталог', href:'/manager#manager-catalog' }),
-  Object.freeze({ key:'manager-requests', label:'Мои заявки', href:'/manager#manager-requests' })
+  Object.freeze({ key:'manager-catalog', label:'Каталог', href:'/manager#manager-catalog-title' }),
+  Object.freeze({ key:'manager-requests', label:'Мои заявки', href:'/manager#manager-proposals-title' })
 ]);
 
 export const DESKTOP_PRIMARY_ROUTES = Object.freeze([
