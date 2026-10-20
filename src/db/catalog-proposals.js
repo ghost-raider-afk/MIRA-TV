@@ -70,6 +70,63 @@ export function createCatalogProposalsRepository(pool) {
       return normaliseProposal(rows[0]);
     },
 
+
+    async createWorkflowRequest({ managerUsername, requestType, items, description = '' }) {
+      const now = isoNow();
+      const { rows } = await pool.query(
+        `INSERT INTO catalog_change_proposals
+          (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,
+           description,status,request_type,items_json,created_at,updated_at,status_changed_at)
+          VALUES ($1,'request',NULL,NULL,'{}'::jsonb,'{}'::jsonb,$2,'pending',$3,$4,$5,$5,$5)
+          RETURNING *`,
+        [managerUsername,description,requestType,JSON.stringify(items),now]
+      );
+      return normaliseProposal(rows[0]);
+    },
+
+    async updateWorkflowRequest(id, { items, status, reviewerUsername = null,
+      reviewComment = '', productId = null }) {
+      const { rows } = await pool.query(
+        `UPDATE catalog_change_proposals
+           SET items_json=$2, status=$3, reviewer_username=$4, review_comment=$5,
+               catalog_product_id=COALESCE($6,catalog_product_id),
+               status_changed_at=CASE WHEN status<>$3 THEN NOW() ELSE status_changed_at END,
+               decided_at=CASE WHEN $3 IN ('approved','rejected','conflict') THEN NOW() ELSE NULL END,
+               revision=revision+1, updated_at=NOW()
+         WHERE id=$1 AND entity_type='request' RETURNING *`,
+        [id,JSON.stringify(items),status,reviewerUsername,reviewComment,productId]
+      );
+      return normaliseProposal(rows[0]);
+    },
+
+    async recordProposalEvent(id, actor, action, details = {}) {
+      await pool.query(
+        'INSERT INTO catalog_proposal_events (proposal_id,actor,action,details_json) VALUES ($1,$2,$3,$4)',
+        [id,actor,action,JSON.stringify(details)]
+      );
+    },
+
+    async listProposalEvents(id) {
+      const { rows } = await pool.query(
+        'SELECT actor,action,details_json,created_at FROM catalog_proposal_events WHERE proposal_id=$1 ORDER BY id',
+        [id]
+      );
+      return rows.map((row) => ({ ...row, details:jsonValue(row.details_json,{}) }));
+    },
+
+    async deleteOwnPendingProposal(id, username) {
+      const { rows } = await pool.query(
+        "DELETE FROM catalog_change_proposals WHERE id=$1 AND manager_username=$2 AND status='pending' RETURNING id",
+        [id,username]
+      );
+      return rows.length > 0;
+    },
+
+    async deleteProposal(id) {
+      const { rows } = await pool.query('DELETE FROM catalog_change_proposals WHERE id=$1 RETURNING id', [id]);
+      return rows.length > 0;
+    },
+
     async resolveCatalogProposal(id, { status, reviewerUsername = null, reviewComment = '' }) {
       const now = isoNow();
       const { rows } = await pool.query(
