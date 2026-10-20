@@ -107,6 +107,9 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
       const handled = await tx.resolveCatalogProposal(proposalId, {
         status:'resolved', reviewerUsername, reviewComment
       });
+      if (typeof tx.recordProposalEvent === 'function') {
+        await tx.recordProposalEvent(proposalId,reviewerUsername,'completed',{reply:reviewComment});
+      }
       return { kind:'handled', proposal:handled, entity:null };
     }
 
@@ -114,6 +117,9 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
       const resolved = await tx.resolveCatalogProposal(proposalId, {
         status:'rejected', reviewerUsername, reviewComment
       });
+      if (proposal.entity_type === 'message' && typeof tx.recordProposalEvent === 'function') {
+        await tx.recordProposalEvent(proposalId,reviewerUsername,'rejected',{comment:reviewComment});
+      }
       return { kind:'rejected', proposal:resolved, entity:null };
     }
 
