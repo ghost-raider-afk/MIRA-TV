@@ -1,6 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { element, setMessage, clearMessage, setPending, makeButton } from '../core/dom.js';
+import { element, setMessage, clearMessage, setPending } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
 import { requestStatus, requestTopic, requestJournalHeader, requestJournalRow } from '../core/requests.js';
 import { openWorkflowApproval } from './approval-workflow.js';
@@ -20,12 +20,6 @@ function catalogDialog() {
 function closeCatalogDialog() {
   catalogDialog()?.close();
 }
-function approvalValue(value) {
-  if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
-  if (value === undefined || value === null || value === '') return '—';
-  return String(value);
-}
-
 function proposalChanges(proposal) {
   const base = proposal?.base_payload || {};
   const proposed = proposal?.proposed_payload || {};
