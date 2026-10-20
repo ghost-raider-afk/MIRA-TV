@@ -27,7 +27,7 @@ body[data-page="approvals"] .catalog-approval-actions{display:flex;justify-conte
 body[data-page="approvals"] .catalog-approvals-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 body[data-page="approvals"] .catalog-approvals-controls label{font-size:12px;color:var(--ui-text-muted)}
 body[data-page="approvals"] .catalog-approvals-controls select{min-height:40px;max-width:100%;padding:6px 10px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);font:inherit}
-body[data-page="approvals"] .catalog-approval-status{font-size:12px;color:var(--ui-text-muted);font-weight:700}
+
 body[data-page="approvals"] .catalog-approval-history-detail{margin:0;padding:10px 12px;border:1px solid var(--ui-border);border-radius:8px;overflow-wrap:anywhere}
 body[data-page="approvals"] .catalog-approval-actions .button[hidden],
 body[data-page="approvals"] #catalog-approval-comment-field[hidden],
