@@ -35,3 +35,18 @@ body[data-page="approvals"] .catalog-approval-head #catalog-approval-close{posit
   .request-journal-header{padding-inline:6px}
   .request-journal-row{padding-inline:6px}
 }
+
+/* Manager uses the same header renderer and rules as admin, with role-specific routes. */
+.manager-view #manager-locations,.manager-view #manager-catalog,.manager-view #manager-requests{scroll-margin-top:116px}
+@media(max-width:960px){
+  .manager-view .app-header{margin-bottom:44px}
+  .manager-view .app-header-nav{
+    position:absolute;top:100%;left:0;display:flex;width:100%;min-height:44px;
+    align-items:center;justify-content:space-around;overflow-x:auto;
+    border-bottom:1px solid var(--ui-border);background:var(--ui-panel)
+  }
+  .manager-view .app-header-nav-link{padding:0 8px;white-space:nowrap;font-size:12px}
+  .manager-view .app-header-title{display:none}
+  .manager-view .app-header-home{flex:1;justify-content:start}
+  .manager-view .app-header-home-name{display:block;max-width:130px}
+}
