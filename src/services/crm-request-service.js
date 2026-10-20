@@ -181,6 +181,12 @@ export async function reviewWorkflowRequest(store,{ proposalId,reviewerUsername,
         throw invalid('Для каждой позиции требуется корректное решение.');
       }
       const decision = input.decision;
+      if (item.decision === 'approved' || item.decision === 'rejected') {
+        if (decision !== item.decision || input.final_value !== undefined) {
+          throw invalid('Ранее рассмотренные позиции менять нельзя.',403);
+        }
+        return item;
+      }
       const comment = String(input.comment || '').trim();
       if (decision === 'rework' && comment.length < 10) throw invalid('Комментарий по доработке должен содержать минимум 10 символов.');
       const next = { ...item, decision, comment };
@@ -259,6 +265,9 @@ export async function returnOrRejectWorkflowRequest(store,{ proposalId,reviewerU
     if (!proposal || proposal.entity_type !== 'request') throw invalid('Заявка не найдена.',404);
     if (proposal.status !== 'pending') throw invalid('Заявка уже рассмотрена.',409);
     if (proposal.catalog_product_id) throw invalid('Товар уже сохранён. Завершите ручное размещение.');
+    if (proposal.items.some((item) => item.decision === 'approved' || item.decision === 'rejected')) {
+      throw invalid('Ранее согласованные решения нельзя изменять.',403);
+    }
     if (!['rework','rejected'].includes(action)) throw invalid('Решение не поддерживается.');
     const note = String(comment||'').trim();
     if (action === 'rework' && note.length < 10) throw invalid('Укажите причину доработки не короче 10 символов.');
