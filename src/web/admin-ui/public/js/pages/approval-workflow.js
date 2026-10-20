@@ -1,6 +1,5 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { requestStatus } from '../core/requests.js';
 import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
 
 const ACTIONS = Object.freeze([
