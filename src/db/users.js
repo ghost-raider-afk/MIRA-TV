@@ -147,10 +147,10 @@ export function createUsersRepository(pool) {
 
     async setManagerDisplayName(username, displayName) {
       const { rows } = await pool.query(
-        `UPDATE user_preferences p SET display_name=$2, updated_at=$3
-         WHERE p.username=$1 AND EXISTS(
-           SELECT 1 FROM web_users u WHERE u.username=p.username AND u.role='manager'
-         ) RETURNING p.display_name`,
+        `INSERT INTO user_preferences (username,display_name,created_at,updated_at)
+         SELECT username,$2,$3,$3 FROM web_users WHERE username=$1 AND role='manager'
+         ON CONFLICT (username) DO UPDATE SET display_name=EXCLUDED.display_name,updated_at=EXCLUDED.updated_at
+         RETURNING display_name`,
         [username, displayName, isoNow()]
       );
       return normaliseRow(rows[0]);
