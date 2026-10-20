@@ -292,3 +292,122 @@ export async function openManagerRequestForm({type='price_change',productId=null
   render();
   managerDialog.showModal();
 }
+
+export async function renderManagerWorkflow(proposal,host,onRefresh) {
+  host.replaceChildren();
+  const title=node('p','crm-workflow-note',proposal.description||'');
+  if (proposal.description) host.append(title);
+  const [catalog,locations]=await Promise.all([api.get(API.managerCatalog),api.get(API.managerOverview)]);
+  managerCatalog=Array.isArray(catalog?.products)?catalog.products:[];
+  managerLocations=Array.isArray(locations)?locations:[];
+  const edits=[];
+  const type=proposal.request_type;
+  for (const item of proposal.items||[]) {
+    const wrapper=node('div','crm-workflow-item');
+    wrapper.dataset.crmKey=String(item.key);
+    const heading=node('strong','',item.name||item.payload?.name||('Позиция '+item.key));
+    wrapper.append(heading);
+    if (item.property) {
+      const p=node('p','',String(FIELDS[item.property]||item.property)+': '+(item.before??'—')+' → '+(item.final_value??item.value??'—'));
+      wrapper.append(p);
+    } else if (type==='menu_add') wrapper.append(node('p','','Торговая точка №'+item.location_id));
+    else if (type==='menu_remove') wrapper.append(node('p','','ТВ №'+item.screen_id+' · позиция '+item.row_id));
+    else if (type==='product_create') {
+      for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(FIELDS[key]||key)+': '+value));
+      wrapper.append(node('p','','Торговые точки: '+(item.location_ids||[]).join(', ')));
+    }
+    const status=item.decision==='rework' ? 'На доработку'
+      : item.decision==='approved' ? 'Согласовано'
+      : item.decision==='rejected' ? 'Отклонено' : 'На рассмотрении';
+    wrapper.append(node('small','',status));
+    if (item.comment) wrapper.append(node('p','crm-workflow-note','Замечание администратора: '+item.comment));
+    if (proposal.status==='rework' && item.decision==='rework') {
+      if (type==='price_change' || type==='property_change') {
+        const editor=valueInput(item.property,item.value);
+        wrapper.append(field('Исправленное значение',editor));
+        edits.push(()=>({
+          key:item.key,value:['alcoholic','active'].includes(item.property) ? editor.value==='true' : editor.value
+        }));
+      } else if (type==='menu_add') {
+        const product=productChoice(item.product_id);
+        const location=locationChoice(item.location_id);
+        wrapper.append(field('Товар',product),field('Точка',location));
+        edits.push(()=>({key:item.key,product_id:Number(product.value),location_id:Number(location.value)}));
+      } else if (type==='menu_remove') {
+        const correction={...item};
+        await renderRemovalSelector(wrapper,correction);
+        edits.push(()=>({
+          key:item.key,screen_id:Number(wrapper.querySelector('[name="screen_id"]').value),
+          row_id:wrapper.querySelector('[name="row_id"]').value
+        }));
+      } else if (type==='product_create') {
+        const part=node('div','crm-workflow-product');
+        for (const [key,value] of Object.entries(item.payload||{})) {
+          part.append(field(FIELDS[key]||key,valueInput(key,value)));
+          part.lastElementChild.querySelector('input,select').name=key;
+        }
+        const points=node('div','crm-form-points');
+        points.append(node('strong','','Торговые точки'));
+        for (const point of managerLocations) {
+          const label=node('label');
+          const check=input('location_ids',point.id,'checkbox');
+          check.checked=item.location_ids?.includes(point.id);
+          label.append(check,node('span','',point.name));
+          points.append(label);
+        }
+        wrapper.append(part,points);
+        edits.push(()=>{
+          const payload={};
+          part.querySelectorAll('[name]').forEach((element)=>{
+            payload[element.name]=['alcoholic','active'].includes(element.name)
+              ? element.value==='true' : element.value;
+          });
+          const location_ids=[...points.querySelectorAll('[name="location_ids"]:checked')].map((x)=>Number(x.value));
+          return {key:item.key,payload,location_ids};
+        });
+      }
+    }
+    host.append(wrapper);
+  }
+  if (proposal.catalog_product_id) {
+    host.append(node('p','crm-workflow-note','Товар сохранён в общую базу, ID '+proposal.catalog_product_id+'. Ожидает ручного размещения на ТВ.'));
+  }
+  if (edits.length) {
+    const save=node('button','button button-primary','Отправить исправления');
+    save.type='button';
+    save.addEventListener('click',async()=>{
+      save.disabled=true;
+      try {
+        await api.put(API.managerProposals+'/'+proposal.id+'/rework',{edits:edits.map((read)=>read())});
+        await onRefresh();
+      } catch(error) {
+        host.append(node('p','form-message',error.message));
+      } finally { save.disabled=false; }
+    });
+    host.append(save);
+  }
+  if (proposal.status==='pending' && !proposal.catalog_product_id) {
+    const remove=node('button','button button-secondary','Удалить заявку');
+    remove.type='button';
+    remove.addEventListener('click',async()=>{
+      if (!window.confirm('Удалить заявку №'+proposal.id+'?')) return;
+      try {
+        await api.delete(API.managerProposals+'/'+proposal.id);
+        await onRefresh();
+      } catch(error) { host.append(node('p','form-message',error.message)); }
+    });
+    host.append(remove);
+  }
+  try {
+    const history=await api.get(API.managerProposals+'/'+proposal.id+'/history');
+    if (Array.isArray(history) && history.length) {
+      const details=node('details','crm-workflow-history');
+      details.append(node('summary','','История изменений'));
+      for (const event of history) {
+        details.append(node('p','',new Date(event.created_at).toLocaleString('ru-RU')
+          +' · '+event.actor+' · '+event.action));
+      }
+      host.append(details);
+    }
+  } catch { /* Historical records may not have line history. */ }
+}
