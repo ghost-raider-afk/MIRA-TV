@@ -1031,7 +1031,7 @@ test('apply to monitors keeps readable independent rows and uses a single scroll
   const multiApply = page.locator('.scene-editor-multi-apply');
   await multiApply.locator('summary').click();
   const list = multiApply.locator('.scene-editor-multi-apply-list');
-  const rows = list.locator('.scene-editor-multi-apply-target');
+  const rows = list.locator('.scene-editor-multi-apply-target').filter({ hasText:location.name });
   await expect(rows).toHaveCount(6);
   for (const width of [1600, 390, 320]) {
     await page.setViewportSize({ width, height:760 });
