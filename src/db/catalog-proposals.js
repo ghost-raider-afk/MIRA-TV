@@ -116,7 +116,7 @@ export function createCatalogProposalsRepository(pool) {
 
     async deleteOwnPendingProposal(id, username) {
       const { rows } = await pool.query(
-        "DELETE FROM catalog_change_proposals WHERE id=$1 AND manager_username=$2 AND status='pending' RETURNING id",
+        "DELETE FROM catalog_change_proposals WHERE id=$1 AND manager_username=$2 AND status='pending' AND catalog_product_id IS NULL RETURNING id",
         [id,username]
       );
       return rows.length > 0;
