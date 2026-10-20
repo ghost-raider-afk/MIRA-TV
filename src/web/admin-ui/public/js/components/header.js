@@ -1,6 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { canonicalRoutePath, contextLinksForSection, DESKTOP_PRIMARY_ROUTES, navigationState } from '../core/navigation.js';
+import { canonicalRoutePath, contextLinksForSection, DESKTOP_PRIMARY_ROUTES, MANAGER_PRIMARY_ROUTES, navigationState } from '../core/navigation.js';
 import { state } from '../core/state.js';
 import { applyTheme, currentTheme } from '../core/presentation.js';
 import { setIcon } from './icons.js';
@@ -23,19 +23,19 @@ function appName() {
 function homeControl() {
   const link = document.createElement('a');
   link.className = 'app-header-home';
-  link.href = '/';
+  link.href = state.session?.role === 'manager' ? '/manager' : '/';
   link.innerHTML = '<span class="app-header-home-mark" data-header-brand>ТВ</span><span class="app-header-home-name" data-header-home-name></span>';
   syncHeaderBrand(link);
   return link;
 }
 
-function primaryNavigation(activeSection) {
+function primaryNavigation(activeSection, routes = DESKTOP_PRIMARY_ROUTES) {
   const nav = document.createElement('nav');
   nav.className = 'app-header-nav';
   nav.setAttribute('aria-label', 'Основные разделы');
-  nav.innerHTML = `<span class="app-header-nav-indicator" aria-hidden="true"></span>${DESKTOP_PRIMARY_ROUTES.map((route) => {
+  nav.innerHTML = `<span class="app-header-nav-indicator" aria-hidden="true"></span>${routes.map((route) => {
     const active = route.key === activeSection;
-    const children = contextLinksForSection(route.key);
+    const children = routes === MANAGER_PRIMARY_ROUTES ? [] : contextLinksForSection(route.key);
     const link = `<a class="app-header-nav-link${active ? ' active' : ''}" data-header-section="${route.key}" href="${route.href}"><span>${route.label}</span>${children.length ? '<svg class="app-header-nav-caret" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"/></svg>' : ''}</a>`;
     if (!children.length) return link;
     const menu = children.map(([label, href]) => `<a class="app-header-dropdown-link" data-header-path="${href}" href="${href}" role="menuitem">${label}</a>`).join('');
