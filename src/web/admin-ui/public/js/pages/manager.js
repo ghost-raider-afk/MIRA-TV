@@ -20,6 +20,28 @@ let catalog = { products:[], packaging:[] };
 let catalogMode = 'products';
 let catalogSearchText = '';
 let proposalTarget = null;
+let managerCatalogAvailable = false;
+
+function syncManagerTabs() {
+  const wanted = window.location.hash;
+  const tab = wanted === '#manager-catalog-title' && managerCatalogAvailable ? 'catalog'
+    : wanted === '#manager-proposals-title' ? 'requests' : 'locations';
+  const locations = document.getElementById('manager-locations');
+  const empty = document.getElementById('manager-empty');
+  const heading = document.querySelector('.manager-heading');
+  const workspace = document.querySelector('.manager-workspace-grid');
+  const catalog = document.querySelector('[aria-labelledby="manager-catalog-title"]');
+  const requests = document.querySelector('[aria-labelledby="manager-proposals-title"]');
+  if (locations) locations.hidden = tab !== 'locations';
+  if (empty) empty.hidden = tab !== 'locations';
+  if (heading) heading.hidden = tab !== 'locations';
+  if (workspace) workspace.hidden = tab === 'locations';
+  if (catalog) catalog.hidden = tab !== 'catalog' || !managerCatalogAvailable;
+  if (requests) requests.hidden = tab !== 'requests';
+  const catalogLink = document.querySelector('[data-header-section="manager-catalog"]');
+  if (catalogLink) catalogLink.hidden = !managerCatalogAvailable;
+}
+
 
 const FIELD_LABELS = Object.freeze({
   name:'Название',
@@ -599,9 +621,11 @@ async function loadWorkspace() {
   if (button) button.disabled = true;
   try {
     const access=await api.get(`${API.managerBase}/access`);
+    managerCatalogAvailable = access.catalog_enabled === true;
     const catalogCard=document.querySelector('[aria-labelledby="manager-catalog-title"]');
     if (catalogCard) catalogCard.hidden=!access.catalog_enabled;
     await Promise.all([loadOverview(),access.catalog_enabled ? loadCatalog() : Promise.resolve(),loadProposals()]);
+    syncManagerTabs();
     setMessage('manager-message', '');
   } catch (error) {
     setMessage('manager-message', error.message);
@@ -618,7 +642,7 @@ async function logout() {
 export function initialiseManagerView() {
   document.querySelector('.manager-header')?.replaceWith(createHeader());
   initialiseHeader();
-  window.addEventListener('hashchange', () => refreshHeaderRoute());
+  window.addEventListener('hashchange', () => { syncManagerTabs(); refreshHeaderRoute(); });
   document.title = `${appName()} — Рабочее место менеджера`;
   const app = document.querySelector('[data-manager-app-name]');
   const user = document.querySelector('[data-manager-user]');
