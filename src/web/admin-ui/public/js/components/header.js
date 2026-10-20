@@ -104,7 +104,9 @@ function syncHeaderNavigation(root = document) {
   const currentPath = canonicalRoutePath(window.location.pathname);
   root.querySelectorAll('.app-header-nav-link[data-header-section]').forEach((link) => {
     const active = link.dataset.headerSection === section;
-    const exact = canonicalRoutePath(new URL(link.href, window.location.origin).pathname) === currentPath;
+    const exact = state.session?.role === 'manager'
+      ? new URL(link.href, window.location.origin).hash === window.location.hash
+      : canonicalRoutePath(new URL(link.href, window.location.origin).pathname) === currentPath;
     link.classList.toggle('active', active);
     if (exact) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
