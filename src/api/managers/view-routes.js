@@ -135,6 +135,38 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     response.status(204).end();
   });
 
+  router.put('/proposals/:id/message-rework', async (request,response) => {
+    const id=positiveId(request.params.id,'id');
+    const title=requireText(request.body?.title,'Тема обращения',{max:120});
+    const description=requireText(request.body?.description,'Текст обращения',{max:2000});
+    const locationId=request.body?.location_id == null || request.body.location_id === ''
+      ? null : positiveId(request.body.location_id,'Торговая точка');
+    if (locationId !== null) {
+      const [access,location]=await Promise.all([
+        store.getManagerAccess(request.session.sub),store.getLocation(locationId)
+      ]);
+      if (!location || location.active === false ||
+        (!access.all_locations && !access.location_ids.includes(locationId))) {
+        return response.status(403).json({error:'Торговая точка недоступна.'});
+      }
+    }
+    const updated=await store.transaction(async (tx) => {
+      const proposal=await tx.getCatalogProposalForUpdate(id);
+      if (!proposal || proposal.manager_username !== request.session.sub ||
+          proposal.entity_type !== 'message' || proposal.status !== 'rework') return null;
+      const result=await tx.reviseMessageCard(id,{
+        title,description,locationId,managerUsername:request.session.sub
+      });
+      await tx.recordProposalEvent(id,request.session.sub,'resubmitted',{
+        old_title:proposal.title,old_description:proposal.description,
+        new_title:title,new_description:description
+      });
+      return result;
+    });
+    if (!updated) throw notFound('Заявка недоступна для исправления.');
+    response.json(updated);
+  });
+
   router.post('/proposals/message', async (request, response) => {
     const title=requireText(request.body?.title, 'Тема обращения', { max:120 });
     const description=requireText(request.body?.description, 'Текст обращения', { max:2000 });
