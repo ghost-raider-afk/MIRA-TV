@@ -297,7 +297,11 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
   host.replaceChildren();
   const title=node('p','crm-workflow-note',proposal.description||'');
   if (proposal.description) host.append(title);
-  const [catalog,locations]=await Promise.all([api.get(API.managerCatalog),api.get(API.managerOverview)]);
+  const [catalogResult,locationsResult]=await Promise.allSettled([
+    api.get(API.managerCatalog),api.get(API.managerOverview)
+  ]);
+  const catalog=catalogResult.status==='fulfilled'?catalogResult.value:{};
+  const locations=locationsResult.status==='fulfilled'?locationsResult.value:[];
   managerCatalog=Array.isArray(catalog?.products)?catalog.products:[];
   managerLocations=Array.isArray(locations)?locations:[];
   const edits=[];
