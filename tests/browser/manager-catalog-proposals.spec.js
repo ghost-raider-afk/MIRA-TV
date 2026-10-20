@@ -28,6 +28,9 @@ async function expectCompactStatus(card, label) {
       paddingX:style.paddingLeft, paddingY:style.paddingTop,
       textColor:style.color, frameColor:style.borderTopColor,
       leftStripe:cardStyle.borderLeftColor, height:rect.height,
+      lineHeight:parseFloat(style.lineHeight),
+      verticalInsets:parseFloat(style.paddingTop)+parseFloat(style.paddingBottom)
+        +parseFloat(style.borderTopWidth)+parseFloat(style.borderBottomWidth),
       overflow:rect.right > card.getBoundingClientRect().right+1
     };
   });
@@ -37,7 +40,10 @@ async function expectCompactStatus(card, label) {
   expect(geometry.paddingY).toBe('2px');
   expect(geometry.textColor).toBe(geometry.frameColor);
   expect(geometry.leftStripe).toBe(geometry.textColor);
-  expect(geometry.height).toBeLessThan(30);
+  const lines=Math.round((geometry.height-geometry.verticalInsets)/geometry.lineHeight);
+  expect(lines).toBeGreaterThanOrEqual(1);
+  expect(lines).toBeLessThanOrEqual(3); // Long statuses may wrap on narrow cards.
+  expect(Math.abs(geometry.height - (lines*geometry.lineHeight + geometry.verticalInsets))).toBeLessThan(2);
   expect(geometry.overflow).toBe(false);
 }
 
