@@ -4,6 +4,7 @@ import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
 import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow } from '../core/requests.js';
+import { openManagerRequestForm } from './manager-request-form.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 import { createHeader, initialiseHeader, refreshHeaderRoute } from '../components/header.js';
 
@@ -350,7 +351,10 @@ function renderCatalog() {
     propose.className = 'button button-secondary';
     propose.type = 'button';
     propose.textContent = 'Изменить';
-    propose.addEventListener('click', () => openProposal(catalogMode === 'packaging' ? 'packaging' : 'product', item));
+    propose.addEventListener('click', () => {
+      if (catalogMode === 'packaging') openProposal('packaging',item);
+      else void openManagerRequestForm({type:'property_change',productId:item.id}).catch((error)=>setMessage('manager-message',error.message));
+    });
     row.append(copy, propose);
     list.append(row);
   }
@@ -628,6 +632,8 @@ export function initialiseManagerView() {
   document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
   document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
+  document.getElementById('manager-create-request')?.addEventListener('click', () => void openManagerRequestForm().catch((error)=>setMessage('manager-message',error.message)));
+  document.addEventListener('crm-request-created', () => { void loadProposals(); });
   document.getElementById('manager-new-message')?.addEventListener('click', () => {
     document.getElementById('manager-message-form')?.reset();
     setMessage('manager-message-error','');
