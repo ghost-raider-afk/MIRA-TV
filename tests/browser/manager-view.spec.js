@@ -59,6 +59,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
   const initialPassword = 'Manager-Create1!';
   const managerPassword = 'Manager-View2!';
   let locationId = null;
+  let excludedLocationId = null;
   const screenIds = [];
 
   try {
@@ -168,6 +169,30 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(published.name);
     await expect(previous).toBeVisible();
     await expect(next).toBeVisible();
+    // Both arrows retain the same glyph/font size; only the control box shrinks.
+    for (const width of [1440, 390]) {
+      await managerPage.setViewportSize({ width, height:844 });
+      for (const [button, glyph] of [[previous, '‹'], [next, '›']]) {
+        await expect(button.locator('span')).toHaveText(glyph);
+        const geometry=await button.evaluate((control) => {
+          const body=control.getBoundingClientRect();
+          const label=control.querySelector('span').getBoundingClientRect();
+          return {
+            width:body.width,height:body.height,
+            size:getComputedStyle(control).fontSize,
+            offsetX:((label.left+label.right)-(body.left+body.right))/2,
+            offsetY:((label.top+label.bottom)-(body.top+body.bottom))/2
+          };
+        });
+        expect(geometry.width).toBe(width <= 900 ? 52 : 64);
+        expect(geometry.height).toBe(width <= 900 ? 74 : 90);
+        expect(geometry.size).toBe(width <= 900 ? '60px' : '78px');
+        expect(Math.abs(geometry.offsetX)).toBeLessThanOrEqual(1);
+        expect(geometry.offsetY).toBeLessThan(-3);
+        expect(geometry.offsetY).toBeGreaterThan(-8);
+      }
+    }
+    await managerPage.setViewportSize({ width:1440, height:900 });
 
     await next.click();
     await expect(managerPage.locator('#manager-fullscreen-title')).toHaveText(draft.name);
@@ -232,6 +257,33 @@ test('manager uses the common sign-in and can inspect every saved active screen 
     await locationGroup.locator('.manager-location-toggle').click();
     await managerPage.unroute(contextPattern);
 
+    // The existing access UI must let an admin select exact points, not only all/none.
+    const otherLocationResponse=await adminPage.request.post('/api/locations', {
+      data:{ name:`Excluded Manager Point ${stamp}`, address:'Hidden to manager',active:true }
+    });
+    expect(otherLocationResponse.status()).toBe(201);
+    const excludedLocation=await otherLocationResponse.json();
+    excludedLocationId=excludedLocation.id;
+    const excludedScreen=await createScreen(adminPage,excludedLocationId);
+    screenIds.push(excludedScreen.id);
+
+    await adminPage.goto('/settings');
+    const permissions=adminPage.locator(`[data-manager-username="${managerUsername}"]`);
+    await expect(permissions.getByText('Какие торговые точки показывать менеджеру')).toBeVisible();
+    await permissions.getByText('Все торговые точки').click();
+    const assigned=permissions.locator('.manager-access-locations label').filter({ hasText:location.name });
+    const excluded=permissions.locator('.manager-access-locations label').filter({ hasText:excludedLocation.name });
+    await assigned.locator('input[type="checkbox"]').check();
+    await excluded.locator('input[type="checkbox"]').uncheck();
+    await expect(permissions.locator('.manager-access-location-summary')).toContainText('Выбрано 1 из');
+    await permissions.getByRole('button',{ name:'Сохранить доступ' }).click();
+    const granted=await managerPage.request.get('/api/manager/access');
+    expect(await granted.json()).toMatchObject({ all_locations:false,location_ids:[Number(locationId)] });
+    await managerPage.reload();
+    await expect(managerPage.locator('.manager-location').filter({ hasText:location.name })).toHaveCount(1);
+    await expect(managerPage.locator('.manager-location').filter({ hasText:excludedLocation.name })).toHaveCount(0);
+    expect((await managerPage.request.get(`/api/manager/screens/${excludedScreen.id}/context`)).status()).toBe(404);
+
     const restrict=await adminPage.request.put(`/api/admin/managers/${managerUsername}/access`,{
       data:{ all_locations:false,catalog_enabled:false,location_ids:[] }
     });
@@ -249,6 +301,7 @@ test('manager uses the common sign-in and can inspect every saved active screen 
       await adminPage.request.delete(`/api/admin/managers/${encodeURIComponent(managerUsername)}`).catch(() => undefined);
       for (const id of screenIds) await adminPage.request.delete(`/api/screens/${id}`).catch(() => undefined);
       if (locationId) await adminPage.request.delete(`/api/locations/${locationId}`).catch(() => undefined);
+      if (excludedLocationId) await adminPage.request.delete(`/api/locations/${excludedLocationId}`).catch(() => undefined);
     }
     await adminContext.close();
   }
