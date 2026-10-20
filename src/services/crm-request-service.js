@@ -286,31 +286,86 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
     if (!proposal || proposal.entity_type !== 'request' || proposal.manager_username !== managerUsername) {
       throw invalid('Заявка недоступна.',404);
     }
-    if (proposal.status !== 'rework' || !Array.isArray(edits)) throw invalid('Заявка недоступна для исправления.',409);
-    const changeMap = new Map(edits.map((v) => [Number(v.key),v]));
+    if (proposal.status !== 'rework' || !Array.isArray(edits)) {
+      throw invalid('Заявка недоступна для исправления.',409);
+    }
+    const changeMap = new Map(edits.map((v)=>[Number(v.key),v]));
     if (changeMap.size !== edits.length) throw invalid('Одна позиция указана несколько раз.');
-    const items = proposal.items.map((item) => {
-      const edit = changeMap.get(Number(item.key));
-      if (!edit) return item;
-      if (item.decision !== 'rework') throw invalid('Изменять согласованные и отклонённые позиции запрещено.',403);
-      if (proposal.request_type !== 'price_change' && proposal.request_type !== 'property_change') {
-        throw invalid('Эту позицию необходимо уточнить через администратора.');
+    const access = await tx.getManagerAccess(managerUsername);
+    const items=[];
+    const screens = ['menu_add','menu_remove'].includes(proposal.request_type)
+      ? await tx.listScreens() : [];
+    for (const item of proposal.items) {
+      const edit=changeMap.get(Number(item.key));
+      if (!edit) {
+        if (item.decision === 'rework') throw invalid('Исправьте все возвращённые позиции.');
+        items.push(item);
+        continue;
       }
-      const next = { ...item,decision:'pending',comment:'' };
-      const check = productInput({
-        name:item.name,
-        price_primary:item.property === 'price_primary' ? edit.value : '1',
-        [item.property]:edit.value
-      });
-      next.value = check[item.property];
+      if (item.decision !== 'rework') {
+        throw invalid('Изменять согласованные и отклонённые позиции запрещено.',403);
+      }
+      const next = {...item,decision:'pending',comment:''};
+      if (proposal.request_type === 'price_change' || proposal.request_type === 'property_change') {
+        const current=await tx.getProduct(item.product_id);
+        if (!current) throw invalid('Товар больше не существует.',409);
+        next.value=productInput({...current,[item.property]:edit.value})[item.property];
+      } else if (proposal.request_type === 'menu_add') {
+        const productId=positive(edit.product_id,'Товар');
+        const locationId=positive(edit.location_id,'Торговая точка');
+        authorised(access,locationId);
+        const product=await tx.getProduct(productId);
+        if (!product || product.active === false) throw invalid('Товар недоступен.');
+        const pointScreens=screens.filter((v)=>Number(v.location_id)===locationId);
+        for (const screen of pointScreens) {
+          const draft=await tx.getScreenDraft(screen.id);
+          if (draft.rows.some((row)=>row.kind==='item' && Number(row.product_id)===productId)) {
+            throw invalid('Товар уже размещён на выбранной точке.',409);
+          }
+        }
+        next.product_id=productId;next.location_id=locationId;next.name=product.name;
+      } else if (proposal.request_type === 'menu_remove') {
+        const screenId=positive(edit.screen_id,'ТВ');
+        const screen=screens.find((v)=>Number(v.id)===screenId);
+        if (!screen || screen.active===false) throw invalid('ТВ недоступен.');
+        authorised(access,Number(screen.location_id));
+        const draft=await tx.getScreenDraft(screenId);
+        const rowId=String(edit.row_id||'');
+        const row=draft.rows.find((v)=>v.id===rowId && v.kind==='item' && v.enabled!==false);
+        if (!row) throw invalid('Позиция отсутствует на выбранном ТВ.',409);
+        Object.assign(next,{
+          screen_id:screenId,location_id:Number(screen.location_id),row_id:rowId,
+          product_id:Number(row.product_id),revision:Number(draft.revision),name:row.name
+        });
+      } else if (proposal.request_type === 'product_create') {
+        if (proposal.catalog_product_id) throw invalid('Товар уже сохранён.',409);
+        const locationIds=edit.location_ids;
+        if (!Array.isArray(locationIds) || !locationIds.length) throw invalid('Выберите торговую точку.');
+        const ids=[...new Set(locationIds.map((value)=>positive(value,'Торговая точка')))];
+        for (const id of ids) authorised(access,id);
+        const payload=productInput(edit.payload||{});
+        const all=await tx.listProducts();
+        if (all.some((v)=>v.name.toLocaleLowerCase('ru')===payload.name.toLocaleLowerCase('ru'))) {
+          throw invalid('Такой товар уже есть в общей базе.',409);
+        }
+        next.payload=payload;next.location_ids=ids;
+      } else throw invalid('Пресет заявки не поддерживается.');
       delete next.final_value;
-      return next;
+      items.push(next);
+    }
+    for (const key of changeMap.keys()) {
+      if (!items.some((item)=>item.key===key)) throw invalid('Неизвестная позиция для исправления.');
+    }
+    uniqueKeys(items,(item)=>{
+      if (proposal.request_type==='price_change' || proposal.request_type==='property_change') return item.product_id+':'+item.property;
+      if (proposal.request_type==='menu_add') return item.product_id+':'+item.location_id;
+      if (proposal.request_type==='menu_remove') return item.screen_id+':'+item.row_id;
+      return item.key;
     });
-    if (items.some((item) => item.decision === 'rework')) throw invalid('Исправьте все возвращённые позиции.');
-    const updated = await tx.updateWorkflowRequest(proposalId,{
+    const updated=await tx.updateWorkflowRequest(proposalId,{
       items,status:'pending',reviewerUsername:null,reviewComment:''
     });
-    await tx.recordProposalEvent(proposalId,managerUsername,'resubmitted',{edited:edits.map((v) => v.key)});
+    await tx.recordProposalEvent(proposalId,managerUsername,'resubmitted',{before:proposal.items,after:items});
     return updated;
   });
 }
