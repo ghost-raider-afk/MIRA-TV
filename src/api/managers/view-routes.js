@@ -178,8 +178,12 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       if (!location || location.active === false || (!access.all_locations && !access.location_ids.includes(locationId)))
         return response.status(403).json({ error:'Торговая точка недоступна.' });
     }
-    const card=await store.createMessageCard({
-      managerUsername:request.session.sub,title,description,locationId
+    const card=await store.transaction(async (tx)=>{
+      const created=await tx.createMessageCard({
+        managerUsername:request.session.sub,title,description,locationId
+      });
+      await tx.recordProposalEvent(created.id,request.session.sub,'created',{title,description,locationId});
+      return created;
     });
     await activity(store,request,{
       action:'manager.card.created',entity_type:'catalog_change_proposal',entity_id:card.id,
