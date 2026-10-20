@@ -121,11 +121,17 @@ function managerRow(manager, locations) {
   catalogInput.type='checkbox';
   catalogInput.checked=manager.catalog_enabled === true;
   catalogLabel.append(catalogInput,' Показывать каталог продукции и тары');
+  const locationsTitle=document.createElement('strong');
+  locationsTitle.className='manager-access-locations-title';
+  locationsTitle.textContent='Какие торговые точки показывать менеджеру';
   const allLabel=document.createElement('label');
   const allInput=document.createElement('input');
   allInput.type='checkbox';
   allInput.checked=manager.all_locations === true;
   allLabel.append(allInput,' Все торговые точки');
+  const locationSummary=document.createElement('p');
+  locationSummary.className='manager-access-location-summary';
+  locationSummary.setAttribute('role','status');
   const locationList=document.createElement('div');
   locationList.className='manager-access-locations';
   const locationInputs=locations.map((location) => {
@@ -138,8 +144,15 @@ function managerRow(manager, locations) {
     locationList.append(label);
     return input;
   });
-  const syncLocations=() => { locationList.hidden=allInput.checked; };
+  const syncLocations=() => {
+    locationList.hidden=allInput.checked;
+    const count=locationInputs.filter((input) => input.checked).length;
+    locationSummary.textContent=allInput.checked
+      ? 'Менеджер видит все торговые точки.'
+      : `Выбрано ${count} из ${locations.length} торговых точек.`;
+  };
   allInput.addEventListener('change',syncLocations);
+  locationInputs.forEach((input) => input.addEventListener('change',syncLocations));
   syncLocations();
   const save=document.createElement('button');
   save.type='button';
@@ -159,7 +172,7 @@ function managerRow(manager, locations) {
       setMessage('manager-settings-message',error.message);
     } finally { save.disabled=false; }
   });
-  access.append(heading,catalogLabel,allLabel,locationList,save);
+  access.append(heading,catalogLabel,locationsTitle,allLabel,locationSummary,locationList,save);
   row.append(actions,access);
   return row;
 }
