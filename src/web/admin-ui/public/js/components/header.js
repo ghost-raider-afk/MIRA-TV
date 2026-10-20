@@ -233,7 +233,7 @@ function accountControl() {
 }
 
 export function refreshHeaderRoute(root = document) {
-  const { title } = navigationState();
+  const title = state.session?.role === 'manager' ? 'Рабочее место менеджера' : navigationState().title;
   document.title = `${appName()} — ${title}`;
   const header = root.querySelector('.app-header');
   if (!header) return;
