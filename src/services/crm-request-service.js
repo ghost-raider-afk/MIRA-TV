@@ -54,6 +54,8 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
       } else {
         const locationId = positive(input?.location_id,'Торговая точка');
         authorised(access,locationId);
+        const point = await store.getLocation(locationId);
+        if (!point || point.active === false) throw invalid('Торговая точка не найдена или неактивна.');
         const inPoint = screens.filter((screen) => Number(screen.location_id) === locationId);
         for (const screen of inPoint) {
           const draft = await store.getScreenDraft(screen.id);
@@ -67,7 +69,11 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
       const locations = input?.location_ids;
       if (!Array.isArray(locations) || !locations.length) throw invalid('Выберите хотя бы одну торговую точку.');
       item.location_ids = [...new Set(locations.map((v) => positive(v,'Торговая точка')))];
-      for (const id of item.location_ids) authorised(access,id);
+      for (const id of item.location_ids) {
+        authorised(access,id);
+        const point = await store.getLocation(id);
+        if (!point || point.active === false) throw invalid('Торговая точка не найдена или неактивна.');
+      }
       item.payload = productInput(input?.payload || {});
       const products = await store.listProducts();
       if (products.some((product) => product.name.trim().toLocaleLowerCase('ru') === item.payload.name.trim().toLocaleLowerCase('ru'))) {
@@ -314,6 +320,8 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
         const productId=positive(edit.product_id,'Товар');
         const locationId=positive(edit.location_id,'Торговая точка');
         authorised(access,locationId);
+        const point=await tx.getLocation(locationId);
+        if (!point || point.active === false) throw invalid('Торговая точка недоступна.');
         const product=await tx.getProduct(productId);
         if (!product || product.active === false) throw invalid('Товар недоступен.');
         const pointScreens=screens.filter((v)=>Number(v.location_id)===locationId);
@@ -342,7 +350,11 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
         const locationIds=edit.location_ids;
         if (!Array.isArray(locationIds) || !locationIds.length) throw invalid('Выберите торговую точку.');
         const ids=[...new Set(locationIds.map((value)=>positive(value,'Торговая точка')))];
-        for (const id of ids) authorised(access,id);
+        for (const id of ids) {
+          authorised(access,id);
+          const point=await tx.getLocation(id);
+          if (!point || point.active === false) throw invalid('Торговая точка недоступна.');
+        }
         const payload=productInput(edit.payload||{});
         const all=await tx.listProducts();
         if (all.some((v)=>v.name.toLocaleLowerCase('ru')===payload.name.toLocaleLowerCase('ru'))) {
