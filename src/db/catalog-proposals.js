@@ -127,11 +127,23 @@ export function createCatalogProposalsRepository(pool) {
       return rows.length > 0;
     },
 
+    async reviseMessageCard(id,{ title,description,locationId,managerUsername }) {
+      const { rows } = await pool.query(
+        `UPDATE catalog_change_proposals
+            SET title=$3,description=$4,location_id=$5,status='pending',
+                review_comment='',reviewer_username=NULL,decided_at=NULL,
+                status_changed_at=NOW(),updated_at=NOW(),revision=revision+1
+          WHERE id=$1 AND manager_username=$2 AND entity_type='message' AND status='rework' RETURNING *`,
+        [id,managerUsername,title,description,locationId]
+      );
+      return normaliseProposal(rows[0]);
+    },
+
     async resolveCatalogProposal(id, { status, reviewerUsername = null, reviewComment = '' }) {
       const now = isoNow();
       const { rows } = await pool.query(
         `UPDATE catalog_change_proposals
-         SET status=$1, reviewer_username=$2, review_comment=$3, updated_at=$4, decided_at=$4, status_changed_at=$4
+         SET status=$1, reviewer_username=$2, review_comment=$3, updated_at=$4, decided_at=CASE WHEN $1='rework' THEN NULL ELSE $4 END, status_changed_at=$4
          WHERE id=$5 AND status='pending' RETURNING *`,
         [status, reviewerUsername, reviewComment, now, id]
       );
