@@ -1,5 +1,6 @@
 import { pageName } from './core/config.js';
 import { loadAuthenticatedContext } from './core/session.js';
+import { showLoginGreeting } from './core/greeting.js';
 import { initialiseNotifications } from './core/notifications.js';
 import { installFrontendDiagnostics, reportFrontendError } from './core/diagnostics.js';
 import { createAppRouter } from './core/router.js';
@@ -87,6 +88,7 @@ async function initialiseApplication() {
       if (state.session?.role !== 'manager') return window.location.replace('/');
       const { initialiseManagerView } = await import('./pages/manager.js');
       initialiseManagerView();
+      showLoginGreeting(state.session, state.user);
     } catch (error) {
       console.error('Manager view initialization failed', error);
       window.location.replace('/signin');
@@ -101,6 +103,7 @@ async function initialiseApplication() {
     initialiseNotifications();
     const router = createAppRouter({ mountPage: initialisePage, syncShell: refreshShellRoute });
     await router.start();
+    showLoginGreeting(state.session, state.user);
   } catch (error) {
     reportFrontendError(error, { type: 'application', source: 'application.js' });
     console.error('Application initialization failed', error);
