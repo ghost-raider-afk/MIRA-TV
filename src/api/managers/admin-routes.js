@@ -119,9 +119,14 @@ export function createManagerAdminRouter({ store, config, realtime }) {
       }
       for (const item of result.revisions || []) realtime?.notifyScreen(item.screen_id,item.revision);
     } else if (action === 'save_product') {
-      result = await saveNewProductFromRequest(store,{
-        proposalId,reviewerUsername,correctedPayload:request.body?.product
-      });
+      try {
+        result = await saveNewProductFromRequest(store,{
+          proposalId,reviewerUsername,correctedPayload:request.body?.product
+        });
+      } catch (error) {
+        if (error?.code==='23505') throw conflict('Товар с таким названием уже существует.');
+        throw error;
+      }
     } else if (action === 'complete') {
       result = await completeManualRequest(store,{proposalId,reviewerUsername});
     } else if (action === 'rework' || action === 'rejected') {
