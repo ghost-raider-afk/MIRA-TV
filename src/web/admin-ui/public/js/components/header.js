@@ -127,7 +127,7 @@ function syncHeaderBrand(root = document) {
     ? [root]
     : [...root.querySelectorAll('.app-header-home')];
   links.forEach((link) => {
-    link.setAttribute('aria-label', `${name} — Дашборд`);
+    link.setAttribute('aria-label', `${name} — ${state.session?.role === 'manager' ? 'Торговые точки' : 'Дашборд'}`);
     link.setAttribute('title', `${name} — Дашборд`);
     const homeName = link.querySelector('[data-header-home-name]');
     if (homeName) homeName.textContent = name;
@@ -260,6 +260,7 @@ export function createHeader() {
   header.innerHTML = `<button class="mobile-context-trigger" data-mobile-context-trigger type="button" aria-expanded="false" aria-controls="app-context-panel" aria-label="Открыть меню раздела: ${title}"></button><div class="app-header-title"><strong data-app-name></strong><span></span></div><div class="app-header-actions"></div>`;
   header.prepend(homeControl(), primaryNavigation(section, manager ? MANAGER_PRIMARY_ROUTES : DESKTOP_PRIMARY_ROUTES));
   setIcon(header.querySelector('[data-mobile-context-trigger]'), 'menu');
+  if (manager) header.querySelector('[data-mobile-context-trigger]').hidden = true;
   header.querySelector('[data-app-name]').textContent = appName();
   header.querySelector('.app-header-title span').textContent = title;
   const actions = header.querySelector('.app-header-actions');
