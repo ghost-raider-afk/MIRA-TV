@@ -4,7 +4,7 @@ import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
 import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow } from '../core/requests.js';
-import { openManagerRequestForm } from './manager-request-form.js';
+import { openManagerRequestForm, renderManagerWorkflow } from './manager-request-form.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 import { createHeader, initialiseHeader, refreshHeaderRoute } from '../components/header.js';
 
@@ -399,6 +399,18 @@ function openManagerRequest(proposal) {
   ].filter(Boolean).join(' · ');
   const body = document.getElementById('manager-request-body');
   body.replaceChildren();
+  if (proposal.entity_type === 'request') {
+    dialog.showModal();
+    void renderManagerWorkflow(proposal,body,async()=>{
+      dialog.close();
+      await loadProposals();
+    }).catch((error)=>{
+      const notice=document.createElement('p');
+      notice.textContent=error.message;
+      body.replaceChildren(notice);
+    });
+    return;
+  }
   const lines = [];
   if (proposal.description) lines.push(proposal.description);
   for (const change of proposalChanges(proposal)) {
