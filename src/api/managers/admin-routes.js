@@ -61,7 +61,7 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
     action:`catalog.proposal.${result.kind}`,
     entity_type:'catalog_change_proposal',
     entity_id:id,
-    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : 'отклонена'}.`
+    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : result.kind === 'returned' ? 'возвращена на доработку' : 'отклонена'}.`
   });
   return response.json(result);
 }
@@ -75,6 +75,12 @@ export function createManagerAdminRouter({ store, config, realtime }) {
 
   router.post('/proposals/:id/approve', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'approve' }));
   router.post('/proposals/:id/reject', async (request, response) => reviewProposal({ store, realtime, request, response, decision:'reject' }));
+  router.post('/proposals/:id/rework', async (request,response) => {
+    const id=positiveId(request.params.id,'id');
+    const proposal=await store.getCatalogProposal(id);
+    if (!proposal || proposal.entity_type !== 'message') throw notFound('Обращение не найдено.');
+    return reviewProposal({store,realtime,request,response,decision:'rework'});
+  });
 
 
   router.get('/proposals/:id/history', async (request,response) => {
