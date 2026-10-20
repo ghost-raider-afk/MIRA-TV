@@ -172,10 +172,7 @@ export function openWorkflowApproval(proposal,{onDone}) {
       const group=el('div','crm-workflow-product');
       const payload=item.payload || {};
       for (const [key,label] of Object.entries(FIELD_LABELS)) {
-        if (key==='price_primary' || key!=='price_primary') {
-          if (!(key in payload)) continue;
-          group.append(entryField(label,payload[key],key));
-        }
+        if (key in payload) group.append(entryField(label,payload[key],key));
       }
       card.append(group,smallInfo('Точки для размещения: '+(item.location_ids||[]).join(', ')));
       diff.append(card);
@@ -230,7 +227,7 @@ export function openWorkflowApproval(proposal,{onDone}) {
     if (!window.confirm('Удалить заявку №'+proposal.id+'?')) return;
     message('');
     try {
-      await api.del(API.adminManagerProposals+'/'+proposal.id);
+      await api.delete(API.adminManagerProposals+'/'+proposal.id);
       await onDone?.();
     }catch(e){message(e.message);}
   }));
