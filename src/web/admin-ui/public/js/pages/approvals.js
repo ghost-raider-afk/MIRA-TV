@@ -4,21 +4,9 @@ import { element, setMessage, clearMessage, setPending, makeButton } from '../co
 import { loadNotifications } from '../core/notifications.js';
 import { requestStatus, requestTopic, requestJournalHeader, requestJournalRow } from '../core/requests.js';
 import { openWorkflowApproval } from './approval-workflow.js';
+import { CATALOG_FIELD_LABELS, catalogValueLabel } from '../core/catalog-presentation.js';
 
-const APPROVAL_FIELD_LABELS = Object.freeze({
-  name:'Название',
-  producer:'Производитель',
-  address:'Адрес',
-  characteristics:'Характеристики',
-  strength:'Крепость',
-  price_primary:'Цена 1 л',
-  price_secondary:'Цена 1,5 л',
-  alcoholic:'Алкогольная продукция',
-  beverage_color:'Цвет напитка',
-  filtration:'Фильтрация',
-  unit_price:'Цена тары',
-  active:'Активна'
-});
+const APPROVAL_FIELD_LABELS = CATALOG_FIELD_LABELS;
 
 let approvalTarget = null;
 
@@ -64,7 +52,7 @@ function makeDiffRow(change, compact = false) {
     hint.textContent = caption;
     const text = document.createElement('span');
     text.className = className;
-    text.textContent = approvalValue(value);
+    text.textContent = catalogValueLabel(change.key,value);
     cell.append(hint, text);
     return cell;
   }
