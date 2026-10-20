@@ -26,7 +26,7 @@ function syncManagerTabs() {
   const wanted = window.location.hash;
   const tab = wanted === '#manager-catalog-title' && managerCatalogAvailable ? 'catalog'
     : wanted === '#manager-proposals-title' ? 'requests' : 'locations';
-  const locations = document.getElementById('manager-locations');
+  const locations = document.querySelector('.manager-locations');
   const empty = document.getElementById('manager-empty');
   const heading = document.querySelector('.manager-heading');
   const workspace = document.querySelector('.manager-workspace-grid');
