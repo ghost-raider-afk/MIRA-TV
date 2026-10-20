@@ -3,6 +3,7 @@ import { api } from '../core/api.js';
 import { element, setMessage, clearMessage, setPending, makeButton } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
 import { requestStatus, requestTopic, requestJournalHeader, requestJournalRow } from '../core/requests.js';
+import { openWorkflowApproval } from './approval-workflow.js';
 
 const APPROVAL_FIELD_LABELS = Object.freeze({
   name:'Название',
@@ -111,6 +112,7 @@ function openApproval(proposal) {
   const dialog = catalogDialog('catalog-approval-dialog');
   const diff = element('catalog-approval-diff');
   if (!dialog || !diff) return;
+  document.querySelectorAll('[data-crm-dynamic-action]').forEach((node)=>node.remove());
   const isMessage=proposal.entity_type === 'message';
   element('catalog-approval-title').textContent = requestTopic(proposal);
   element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
@@ -139,6 +141,15 @@ function openApproval(proposal) {
   element('catalog-approval-comment').value = '';
   clearMessage('catalog-approval-message');
   diff.replaceChildren();
+  if (proposal.entity_type === 'request') {
+    const onDone = async () => {
+      closeApproval();
+      await Promise.all([loadApprovals(),loadNotifications()]);
+    };
+    openWorkflowApproval(proposal,{onDone});
+    if (!dialog.open) dialog.showModal();
+    return;
+  }
   const changes = proposalChanges(proposal);
   if (proposal.description) {
     const message=document.createElement('p');
