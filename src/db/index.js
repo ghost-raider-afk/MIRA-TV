@@ -37,6 +37,7 @@ import { migrateReadableManualColumns } from './migrations/readable-manual-colum
 import { migrateCatalogChangeProposals } from './migrations/catalog-change-proposals.js';
 import { migrateManagerAccess } from './migrations/manager-access.js';
 import { migrateManagerCrmCards } from './migrations/manager-crm-cards.js';
+import { migrateCrmRequestWorkflow } from './migrations/crm-request-workflow.js';
 import { runMigrations } from './migrations/runner.js';
 import { seedDemoData } from './migrations/seed.js';
 import { createOverviewRepository } from './overview.js';
@@ -95,7 +96,8 @@ const MIGRATIONS = Object.freeze([
   { name: '035-readable-manual-columns', run: migrateReadableManualColumns },
   { name: '036-catalog-change-proposals', run: migrateCatalogChangeProposals },
   { name: '037-manager-access', run: migrateManagerAccess },
-  { name: '038-manager-crm-cards', run: migrateManagerCrmCards }
+  { name: '038-manager-crm-cards', run: migrateManagerCrmCards },
+  { name: '039-crm-request-workflow', run: migrateCrmRequestWorkflow }
 ]);
 
 function createRepositories(queryable) {
