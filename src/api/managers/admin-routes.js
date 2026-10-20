@@ -95,9 +95,28 @@ export function createManagerAdminRouter({ store, config, realtime }) {
     const action = String(request.body?.action || '');
     let result;
     if (action === 'review') {
-      result = await reviewWorkflowRequest(store,{
-        proposalId,reviewerUsername,decisions:request.body?.decisions
-      });
+      try {
+        result = await reviewWorkflowRequest(store,{
+          proposalId,reviewerUsername,decisions:request.body?.decisions
+        });
+      } catch (cause) {
+        const error=cause?.code==='23505'
+          ? Object.assign(new Error('Товар с таким названием уже существует.'),{status:409})
+          : cause;
+        if (error?.status===409) {
+          // The original review transaction has rolled back before this status update.
+          await store.transaction(async (tx)=>{
+            const current=await tx.getCatalogProposalForUpdate(proposalId);
+            if (!current || current.entity_type!=='request' || current.status!=='pending') return;
+            await tx.updateWorkflowRequest(proposalId,{
+              items:current.items,status:'conflict',
+              reviewerUsername,reviewComment:error.message
+            });
+            await tx.recordProposalEvent(proposalId,reviewerUsername,'error',{reason:error.message});
+          });
+        }
+        throw error;
+      }
       for (const item of result.revisions || []) realtime?.notifyScreen(item.screen_id,item.revision);
     } else if (action === 'save_product') {
       result = await saveNewProductFromRequest(store,{
