@@ -2,6 +2,7 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { element, setMessage, clearMessage, setPending, makeButton } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
+import { requestStatus, requestTopic, requestJournalHeader, requestJournalRow } from '../core/requests.js';
 
 const APPROVAL_FIELD_LABELS = Object.freeze({
   name:'Название',
@@ -20,13 +21,7 @@ const APPROVAL_FIELD_LABELS = Object.freeze({
 
 let approvalTarget = null;
 
-const CARD_STATUSES = Object.freeze({
-  pending:'На рассмотрении',
-  approved:'Принято',
-  rejected:'Отклонено',
-  conflict:'Конфликт',
-  resolved:'Обработано'
-});
+
 
 
 function catalogDialog() {
@@ -82,44 +77,16 @@ function renderApprovals(proposals) {
   const empty = element('catalog-approvals-empty');
   if (!list || !empty) return;
   list.replaceChildren();
-  for (const proposal of proposals) {
-    const card = document.createElement('article');
-    card.className = `catalog-approval-card crm-request-card status-${proposal.status}`;
-    const copy = document.createElement('div');
-    copy.className = 'catalog-approval-card-copy';
-    const head = document.createElement('div');
-    head.className = 'catalog-approval-card-head';
-    const title = document.createElement('strong');
-    title.textContent = proposal.entity_type === 'message'
-      ? proposal.title || `Обращение #${proposal.id}`
-      : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
-    const manager = document.createElement('span');
-    const created = new Date(proposal.created_at);
-    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
-    manager.textContent = [`№${proposal.id}`, `Менеджер: ${proposal.manager_username}`, date, proposal.location_name].filter(Boolean).join(' · ');
-    head.append(title, manager);
-    const badge = document.createElement('span');
-    badge.className = 'catalog-approval-status crm-status';
-    badge.textContent = CARD_STATUSES[proposal.status] || proposal.status;
-    copy.append(badge);
-    const changes = proposalChanges(proposal);
-    copy.prepend(head);
-    if (proposal.entity_type !== 'message' && changes.length) {
-      const preview = document.createElement('div');
-      preview.className = 'catalog-approval-preview';
-      changes.slice(0, 3).forEach((change) => preview.append(makeDiffRow(change, true)));
-      copy.append(preview);
-    } else {
-      const summary = document.createElement('p');
-      summary.textContent = proposal.description || (proposal.entity_type === 'message' ? '' : 'Значения не изменены');
-      copy.append(summary);
-    }
-    const review = makeButton(proposal.status === 'pending' ? 'Рассмотреть' : 'Просмотреть', '', () => openApproval(proposal));
-    card.append(copy, review);
-    list.append(card);
-  }
+  const table = document.createElement('div');
+  table.className = 'request-journal';
+  table.append(requestJournalHeader());
+  for (const proposal of proposals) table.append(requestJournalRow(proposal, openApproval));
+  const scroller = document.createElement('div');
+  scroller.className = 'request-journal-scroller';
+  scroller.append(table);
+  list.append(scroller);
   empty.textContent = element('catalog-approvals-filter')?.value === 'history'
-    ? 'Завершённых карточек пока нет.' : 'Заявок в выбранном разделе нет.';
+    ? 'Завершённых заявок пока нет.' : 'Заявок в выбранном разделе нет.';
   empty.classList.toggle('is-hidden', proposals.length !== 0);
 }
 
@@ -145,20 +112,18 @@ function openApproval(proposal) {
   const diff = element('catalog-approval-diff');
   if (!dialog || !diff) return;
   const isMessage=proposal.entity_type === 'message';
-  element('catalog-approval-title').textContent = isMessage
-    ? proposal.title || 'Обращение менеджера'
-    : proposal.base_payload?.name || 'Предложение менеджера';
+  element('catalog-approval-title').textContent = requestTopic(proposal);
   element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
     isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
   const historical = proposal.status !== 'pending';
-  element('catalog-approval-approve').textContent = isMessage ? 'Отметить обработанным' : 'Принять изменение';
+  element('catalog-approval-approve').textContent = isMessage ? 'Завершить заявку' : 'Принять изменение';
   element('catalog-approval-approve').hidden = historical;
   element('catalog-approval-reject').hidden = historical;
   element('catalog-approval-comment-field').hidden = historical;
   const historyDetail = element('catalog-approval-history-detail');
   historyDetail.hidden = !historical;
   historyDetail.textContent = historical
-    ? [CARD_STATUSES[proposal.status] || proposal.status,
+    ? [requestStatus(proposal),
       proposal.reviewer_username ? `Администратор: ${proposal.reviewer_username}` : '',
       proposal.review_comment ? `Ответ: ${proposal.review_comment}` : ''
     ].filter(Boolean).join(' · ')
