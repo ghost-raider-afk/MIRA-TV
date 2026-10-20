@@ -41,8 +41,54 @@ function valueControl(property,value) {
   field.value=value ?? '';
   return field;
 }
+async function previewCurrentScreen(screenId) {
+  const dialog=el('dialog','crm-tv-preview');
+  const head=el('header');
+  head.append(el('strong','','ТВ №'+screenId));
+  const close=el('button','button button-secondary','Закрыть');
+  close.type='button';
+  close.addEventListener('click',()=>dialog.close());
+  head.append(close);
+  const shell=el('div','manager-screen-preview-shell crm-tv-preview-stage');
+  const wrapper=el('div','manager-screen-stage');
+  const stage=el('div','manager-canonical-stage');
+  wrapper.append(stage);
+  shell.append(wrapper);
+  dialog.append(head,shell);
+  document.body.append(dialog);
+  let renderer=null;
+  dialog.addEventListener('close',()=>{
+    renderer?.destroy();
+    dialog.remove();
+  },{once:true});
+  dialog.showModal();
+  try {
+    const [context,{PlayerSceneRenderer}]=await Promise.all([
+      api.get(API.screens+'/'+screenId+'/editor'),
+      import('../player/player-scene-renderer.js')
+    ]);
+    if (!dialog.open) return;
+    renderer=new PlayerSceneRenderer(stage,{weatherPreview:true});
+    await renderer.render({
+      screen:context.screen,
+      draft:context.draft,
+      products:context.products,
+      packaging:context.packaging,
+      scene:context.draft?.scene
+    });
+  } catch (error) {
+    shell.replaceChildren(el('p','crm-workflow-note',error.message));
+  }
+}
+
 function lineReviewer(item,type,decisions) {
   const box=readOnlyItem(item,type);
+  if (type === 'menu_remove') {
+    const view=el('button','button button-secondary','Посмотреть ТВ');
+    view.type='button';
+    view.addEventListener('click',()=>{void previewCurrentScreen(item.screen_id);});
+    box.append(view);
+  }
   const frozen=item.decision === 'approved' || item.decision === 'rejected';
   const dropdown=el('select');
   dropdown.setAttribute('aria-label','Решение по позиции '+itemName(item,type));
