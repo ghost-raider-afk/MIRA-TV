@@ -328,7 +328,7 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
       change.append(values);
       wrapper.append(change);
     } else if (type==='menu_add') wrapper.append(node('p','','Торговая точка №'+item.location_id));
-    else if (type==='menu_remove') wrapper.append(node('p','','ТВ №'+item.screen_id+' · позиция '+item.row_id));
+    else if (type==='menu_remove') wrapper.append(node('p','','ТВ №'+item.screen_id));
     else if (type==='product_create') {
       for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(CATALOG_FIELD_LABELS[key]||'Характеристика товара')+': '+catalogValueLabel(key,value)));
       wrapper.append(node('p','','Торговые точки: '+(item.location_ids||[]).join(', ')));
