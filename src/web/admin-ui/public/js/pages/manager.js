@@ -406,6 +406,7 @@ function openManagerRequest(proposal) {
     proposal.location_name
   ].filter(Boolean).join(' · ');
   const body = document.getElementById('manager-request-body');
+  body.dataset.requestId = String(proposal.id);
   body.replaceChildren();
   if (proposal.entity_type === 'request') {
     dialog.showModal();
