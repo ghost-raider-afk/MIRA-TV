@@ -20,6 +20,12 @@ export const REQUEST_TOPICS = Object.freeze({
 export function requestStatus(proposal) {
   return REQUEST_STATUSES[proposal.status] || 'Ошибка';
 }
+export function requestStatusBadge(proposal,label=requestStatus(proposal)) {
+  const badge=document.createElement('span');
+  badge.className='crm-status status-'+(REQUEST_STATUSES[proposal.status] ? proposal.status : 'conflict');
+  badge.textContent=label;
+  return badge;
+}
 
 export function requestTopic(proposal) {
   const kind = proposal.request_type || proposal.kind || proposal.entity_type;
