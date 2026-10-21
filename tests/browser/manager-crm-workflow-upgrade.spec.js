@@ -48,7 +48,7 @@ test('existing CRM records and decisions survive additive workflow migration', a
       VALUES ($1,'admin','returned','{"reason":"Проверьте цену"}'::jsonb)`,[id]);
     await migrateCrmRequestWorkflow(client);
     const counts=await client.query('SELECT COUNT(*)::int AS count FROM catalog_change_proposals');
-    expect(counts.rows[0].count).toBe(4);
+    expect(counts.rows[0].count).toBe(2);
     // Resolve a real pending historical message: this catches PostgreSQL's
     // inconsistent parameter type inference for shared timestamp expressions.
     const pending=await client.query(`INSERT INTO catalog_change_proposals
@@ -75,6 +75,8 @@ test('existing CRM records and decisions survive additive workflow migration', a
       status:'rework',reviewerUsername:'admin',reviewComment:'Уточните номер торговой точки.'
     });
     expect(returned).toMatchObject({status:'rework',decided_at:null});
+    const finalCount=await client.query('SELECT COUNT(*)::int AS count FROM catalog_change_proposals');
+    expect(finalCount.rows[0].count).toBe(4);
     const eventCount=await client.query('SELECT COUNT(*)::int AS count FROM catalog_proposal_events WHERE proposal_id=$1',[id]);
     expect(eventCount.rows[0].count).toBe(1);
     const history=await client.query('SELECT status,request_type FROM catalog_change_proposals WHERE entity_type=$1',['request']);
