@@ -67,3 +67,44 @@ export function requestJournalRow(proposal, onOpen) {
   row.addEventListener('click', () => onOpen(proposal));
   return row;
 }
+
+const HISTORY_ACTIONS = Object.freeze({
+  created:'Заявка создана',
+  returned:'Возвращена на доработку',
+  reviewed:'Рассмотрены позиции',
+  rework:'Возвращена на доработку',
+  resubmitted:'Исправления отправлены',
+  approved:'Завершена',
+  rejected:'Отклонена',
+  error:'Ошибка при применении',
+  product_saved:'Товар сохранён в общую базу',
+  completed:'Завершена с ответом',
+  completed_manually:'Выполнение подтверждено администратором',
+  deleted:'Заявка удалена'
+});
+
+export function requestHistoryEvent(entry) {
+  const details = entry?.details && typeof entry.details === 'object' ? entry.details : {};
+  const action = HISTORY_ACTIONS[entry?.action] || 'Действие с заявкой';
+  const notes = [];
+  if (details.comment) notes.push(String(details.comment));
+  if (details.reason) notes.push(String(details.reason));
+  if (details.reply) notes.push('Ответ: ' + String(details.reply));
+  if (details.product_id) notes.push('ID товара: ' + String(details.product_id));
+  if (Array.isArray(details.decisions)) {
+    const labels={approved:'Согласовано',rework:'На доработку',rejected:'Отклонено'};
+    for (const line of details.decisions) {
+      const label=labels[line?.decision] || 'Рассмотрено';
+      notes.push('Позиция №' + line.key + ': ' + label + (line.comment ? ' — ' + line.comment : ''));
+    }
+  }
+  if (Array.isArray(details.before) && Array.isArray(details.after)) {
+    const after = new Map(details.after.map((item)=>[item.key,item]));
+    for (const item of details.before) {
+      const current=after.get(item.key);
+      if (!current || JSON.stringify(item)===JSON.stringify(current)) continue;
+      notes.push('Исправлена позиция №' + item.key);
+    }
+  }
+  return [requestDate(entry.created_at), entry.actor || 'Система', action, ...notes].join(' · ');
+}
