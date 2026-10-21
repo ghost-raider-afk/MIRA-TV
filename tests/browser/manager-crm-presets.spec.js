@@ -81,7 +81,7 @@ test('presets #2-#5 keep catalog writes atomic and manual requests separate from
     expect(afterAdd1.draft).toEqual(before1.draft);
     expect(afterAdd2.draft).toEqual(before2.draft);
 
-    // #4: one new product is saved once; TV menu placement happens manually afterward.
+    // #4: one new product is saved once; placement on screens happens manually afterward.
     const newcomer=await json(await m.request.post('/api/manager/proposals/request',{data:{
       request_type:'product_create',
       items:[{location_ids:[locationId],payload:{
