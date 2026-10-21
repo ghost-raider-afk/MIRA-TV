@@ -96,10 +96,11 @@ async function renderRemovalSelector(container,item) {
     const target = productField.querySelector('select');
     target.replaceChildren();
     if (!screen.value) return;
+    const requestedScreenId = String(screen.value);
     target.add(new Option('Загружаем меню…',''));
     try {
-      const context = await api.get(API.managerBase + '/screens/' + screen.value + '/context');
-      if (screen.value !== String(item.screen_id)) return;
+      const context = await api.get(API.managerBase + '/screens/' + requestedScreenId + '/context');
+      if (screen.value !== requestedScreenId || String(item.screen_id) !== requestedScreenId) return;
       target.replaceChildren();
       for (const row of (context?.draft?.rows || [])) {
         if (row.kind !== 'item' || row.enabled === false) continue;
@@ -109,7 +110,9 @@ async function renderRemovalSelector(container,item) {
       if (item.row_id) target.value = item.row_id;
       item.row_id = target.value;
     } catch {
-      target.replaceChildren(new Option('Не удалось получить меню',''));
+      if (screen.value === requestedScreenId) {
+        target.replaceChildren(new Option('Не удалось получить меню',''));
+      }
     }
   }
   async function fillScreens() {
