@@ -18,13 +18,25 @@ function itemName(item,type) {
   return item.name || ('Позиция '+item.key);
 }
 function smallInfo(text) {return el('p','crm-workflow-note',text);}
+function reviewedChange(item) {
+  const container=el('div','catalog-approval-diff-row');
+  container.append(el('strong','catalog-approval-field-name',FIELD_LABELS[item.property]||item.property));
+  for (const [caption,value,className] of [
+    ['Было',item.before,'catalog-approval-before'],
+    ['Стало',item.final_value ?? item.value,'catalog-approval-after']
+  ]) {
+    const cell=el('div','catalog-approval-value-cell');
+    cell.append(el('small','',caption),el('span',className,catalogValueLabel(item.property,value)));
+    container.append(cell);
+  }
+  return container;
+}
 function readOnlyItem(item,type) {
   const row=el('div','crm-workflow-item');
   row.append(el('strong','',itemName(item,type)));
   if (type==='menu_add') row.append(smallInfo('Точка №'+item.location_id));
   else if(type==='menu_remove') row.append(smallInfo('ТВ №'+item.screen_id+' · строка '+item.row_id));
-  else row.append(smallInfo((FIELD_LABELS[item.property] || item.property)+': '+
-    catalogValueLabel(item.property,item.before)+' → '+catalogValueLabel(item.property,item.final_value ?? item.value)));
+  else if (item.property) row.append(reviewedChange(item));
   return row;
 }
 function valueControl(property,value) {
