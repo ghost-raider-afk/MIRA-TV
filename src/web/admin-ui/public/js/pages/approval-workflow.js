@@ -1,7 +1,7 @@
 import { API } from '../core/config.js';
 import { requestHistoryEvent } from '../core/requests.js';
 import { api } from '../core/api.js';
-import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
+import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel, catalogPropertyLabel, catalogProductTitle } from '../core/catalog-presentation.js';
 
 const ACTIONS = Object.freeze([
   ['approved','Согласовать'],['rework','Отправить на доработку'],['rejected','Отклонить']
@@ -15,16 +15,15 @@ function el(type,cls='',value='') {
   return node;
 }
 function itemName(item,type) {
-  if (type === 'product_create') return item.payload?.name || 'Новый товар';
-  return item.name || ('Позиция '+item.key);
+  return catalogProductTitle(item);
 }
 function smallInfo(text) {return el('p','crm-workflow-note',text);}
 function reviewedChange(item) {
   const container=el('div','catalog-approval-diff-row');
-  container.append(el('strong','catalog-approval-field-name',FIELD_LABELS[item.property]||item.property));
+  container.append(el('strong','catalog-approval-field-name',catalogPropertyLabel(item.property)));
   for (const [caption,value,className] of [
     ['Было',item.before,'catalog-approval-before'],
-    ['Стало',item.final_value ?? item.value,'catalog-approval-after']
+    ['Станет',item.final_value ?? item.value,'catalog-approval-after']
   ]) {
     const cell=el('div','catalog-approval-value-cell');
     cell.append(el('small','',caption),el('span',className,catalogValueLabel(item.property,value)));
