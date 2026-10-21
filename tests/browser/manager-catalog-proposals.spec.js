@@ -18,11 +18,14 @@ async function openTab(page,key) {
 }
 async function openOtherInquiry(page) {
   await page.locator('#manager-create-request').click();
-  const dialog=page.locator('#manager-crm-dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.locator('#crm-preset').selectOption('message');
-  await expect(page.locator('#manager-message-dialog')).toBeVisible();
-  await expect(dialog).not.toBeVisible();
+  const message=page.locator('#manager-message-dialog');
+  const preset=page.locator('#manager-crm-dialog');
+  if (!await message.isVisible()) {
+    await expect(preset).toBeVisible();
+    await preset.locator('#crm-preset').selectOption('message');
+  }
+  await expect(message).toBeVisible();
+  await expect(preset).not.toBeVisible();
 }
 async function expectJournalStatus(row,label) {
   const badge=row.locator('.request-journal-status');
