@@ -143,7 +143,7 @@ export function createCatalogProposalsRepository(pool) {
       const now = isoNow();
       const { rows } = await pool.query(
         `UPDATE catalog_change_proposals
-         SET status=$1, reviewer_username=$2, review_comment=$3, updated_at=$4, decided_at=CASE WHEN $1='rework' THEN NULL ELSE $4 END, status_changed_at=$4
+         SET status=$1, reviewer_username=$2, review_comment=$3, updated_at=$4::timestamptz, decided_at=CASE WHEN $1='rework' THEN NULL ELSE $4::timestamptz END, status_changed_at=$4::timestamptz
          WHERE id=$5 AND status='pending' RETURNING *`,
         [status, reviewerUsername, reviewComment, now, id]
       );
