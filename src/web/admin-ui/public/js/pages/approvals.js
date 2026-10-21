@@ -89,6 +89,14 @@ async function loadApprovals() {
   }
 }
 
+function syncReplyRequirement() {
+  const button=element('catalog-approval-approve');
+  if (!button) return;
+  button.disabled = approvalTarget?.entity_type === 'message'
+    && approvalTarget?.status === 'pending'
+    && !String(element('catalog-approval-comment')?.value || '').trim();
+}
+
 function openApproval(proposal) {
   approvalTarget = proposal;
   const dialog = catalogDialog('catalog-approval-dialog');
@@ -100,7 +108,7 @@ function openApproval(proposal) {
   element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
     isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
   const historical = proposal.status !== 'pending';
-  element('catalog-approval-approve').textContent = isMessage ? 'Завершить заявку' : 'Принять изменение';
+  element('catalog-approval-approve').textContent = isMessage ? 'Завершить' : 'Принять изменение';
   const commentField = element('catalog-approval-comment-field');
   const commentInput = element('catalog-approval-comment');
   const commentLabel = commentField?.querySelector('span');
@@ -121,6 +129,7 @@ function openApproval(proposal) {
     ].filter(Boolean).join(' · ')
     : '';
   element('catalog-approval-comment').value = '';
+  syncReplyRequirement();
   clearMessage('catalog-approval-message');
   diff.replaceChildren();
   if (proposal.entity_type === 'request') {
@@ -197,11 +206,12 @@ async function decideApproval(decision) {
       setMessage('catalog-approval-message', 'Перед завершением заявки напишите ответ менеджеру.');
       return;
     }
+    const wasMessage = approvalTarget.entity_type === 'message';
     await api.post(`${API.adminManagerProposals}/${approvalTarget.id}/${decision}`, { comment });
     closeApproval();
     await Promise.all([loadApprovals(), loadNotifications()]);
     setMessage('catalog-approvals-message', decision === 'approve'
-      ? (approvalTarget?.entity_type === 'message' ? 'Обращение завершено. Ответ сохранён.' : 'Изменения применены.')
+      ? (wasMessage ? 'Обращение завершено. Ответ сохранён.' : 'Изменения применены.')
       : decision === 'rework' ? 'Заявка возвращена менеджеру на доработку.' : 'Заявка отклонена.', 'success');
   } catch (error) {
     setMessage('catalog-approval-message', error.message);
@@ -209,6 +219,7 @@ async function decideApproval(decision) {
   } finally {
     approve.disabled = false;
     reject.disabled = false;
+    syncReplyRequirement();
   }
 }
 
@@ -223,5 +234,6 @@ export function initialiseApprovals() {
   });
   element('catalog-approval-close')?.addEventListener('click', closeApproval);
   element('catalog-approval-approve')?.addEventListener('click', () => { void decideApproval('approve'); });
+  element('catalog-approval-comment')?.addEventListener('input', syncReplyRequirement);
   element('catalog-approval-reject')?.addEventListener('click', () => { void decideApproval('reject'); });
 }
