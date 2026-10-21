@@ -1,4 +1,5 @@
 import { API } from '../core/config.js';
+import { requestHistoryEvent } from '../core/requests.js';
 import { api } from '../core/api.js';
 import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
 
@@ -190,7 +191,7 @@ async function history(proposal,host) {
     detail.append(el('summary','','История заявки'));
     for (const entry of rows) {
       const line=el('p');
-      line.textContent=[new Date(entry.created_at).toLocaleString('ru-RU'),entry.actor,entry.action].join(' · ');
+      line.textContent=requestHistoryEvent(entry);
       detail.append(line);
     }
     host.append(detail);
