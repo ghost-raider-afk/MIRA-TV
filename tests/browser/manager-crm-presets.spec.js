@@ -107,7 +107,7 @@ test('presets #2-#5 keep catalog writes atomic and manual requests separate from
     expect(noAuto1.draft).toEqual(before1.draft);
 
     // #5: prepare existing canonical drafts as the normal editor does.
-    const initial={background_color:'#102030',theme:'premium'};
+    const initial={background_color:'#102030'};
     async function publish(screen,id,rowId) {
       const editor=await json(await a.request.get('/api/screens/'+screen.id+'/editor'));
       const saved=await json(await a.request.put('/api/screens/'+screen.id+'/draft',{data:{
