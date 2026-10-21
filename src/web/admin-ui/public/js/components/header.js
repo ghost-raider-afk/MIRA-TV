@@ -232,7 +232,7 @@ function initialiseHeaderSearch(header) {
 function accountControl() {
   const wrap = document.createElement('div');
   wrap.className = 'header-account';
-  wrap.innerHTML = `<button class="header-account-trigger" type="button" aria-expanded="false" aria-haspopup="menu"><span class="profile-avatar" data-profile-initials>TV</span><span class="header-account-name" data-profile-name></span></button><div class="header-account-menu is-hidden" role="menu">${state.session?.role === 'manager' ? '' : '<a href="/profile" role="menuitem">Профиль</a>'}<button type="button" data-logout role="menuitem">Выйти</button></div>`;
+  wrap.innerHTML = `<button class="header-account-trigger" type="button" aria-expanded="false" aria-haspopup="menu"><span class="profile-avatar" data-profile-initials>TV</span><span class="header-account-name" data-profile-name ${state.session?.role === 'manager' ? 'data-manager-user' : ''}></span></button><div class="header-account-menu is-hidden" role="menu">${state.session?.role === 'manager' ? '' : '<a href="/profile" role="menuitem">Профиль</a>'}<button type="button" data-logout role="menuitem">Выйти</button></div>`;
   return wrap;
 }
 
