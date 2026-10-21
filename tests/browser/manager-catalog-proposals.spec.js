@@ -143,6 +143,11 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await expect(managerDetail).toContainText('Менеджер E2E '+stamp);
     await expect(managerDetail).toContainText('200');
     await expect(managerDetail).toContainText('220');
+    await expect(managerDetail).toContainText('Товар: Менеджер E2E '+stamp+' (Тестовый завод)');
+    await expect(managerDetail).toContainText('Было: 200,00 ₽');
+    await expect(managerDetail).toContainText('Станет: 220,00 ₽');
+    await expect(managerDetail).not.toContainText('price_primary');
+    await expect(managerDetail.locator('.request-detail-meta .crm-status')).toHaveText('На рассмотрении');
     await managerDetail.getByRole('button',{name:'Закрыть'}).click();
 
     await adminPage.goto('/catalog');
@@ -158,8 +163,10 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await expect(adminDialog).toContainText('Менеджер E2E '+stamp);
     await expect(adminDialog).toContainText('200');
     await expect(adminDialog).toContainText('220');
+    await expect(adminDialog).toContainText('Товар: Менеджер E2E '+stamp+' (Тестовый завод)');
+    await expect(adminDialog.locator('#catalog-approval-meta .crm-status')).toHaveText('На рассмотрении');
     const diff=adminDialog.locator('.catalog-approval-diff-row').first();
-    await expect(diff.locator('small')).toHaveText(['Было','Стало']);
+    await expect(diff.locator('small')).toHaveText(['Было','Станет']);
     const colors=await diff.evaluate((row)=>{
       const probe=document.createElement('span');
       row.append(probe);

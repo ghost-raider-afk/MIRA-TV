@@ -48,6 +48,7 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
       if (!product || product.active === false) throw invalid('Товар не найден или неактивен.');
       item.product_id = productId;
       item.name = product.name;
+      item.producer = product.producer;
       if (requestType === 'price_change') {
         item.property = 'price_primary';
         item.before = product.price_primary;
@@ -100,7 +101,9 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
       item.row_id = rowId;
       item.product_id = Number(row.product_id);
       item.revision = Number(draft.revision);
-      item.name = row.name;
+      const product = await store.getProduct(item.product_id);
+      item.name = row.name || product?.name || '';
+      item.producer = product?.producer || '';
     }
     prepared.push(item);
   }
@@ -345,7 +348,7 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
             throw invalid('Товар уже размещён на выбранной точке.',409);
           }
         }
-        next.product_id=productId;next.location_id=locationId;next.name=product.name;
+        next.product_id=productId;next.location_id=locationId;next.name=product.name;next.producer=product.producer;
       } else if (proposal.request_type === 'menu_remove') {
         const screenId=positive(edit.screen_id,'ТВ');
         const screen=screens.find((v)=>Number(v.id)===screenId);
@@ -355,6 +358,8 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
         const rowId=String(edit.row_id||'');
         const row=draft.rows.find((v)=>v.id===rowId && v.kind==='item' && v.enabled!==false);
         if (!row) throw invalid('Позиция отсутствует на выбранном ТВ.',409);
+        const removalProduct=await tx.getProduct(Number(row.product_id));
+        next.producer=removalProduct?.producer || '';
         Object.assign(next,{
           screen_id:screenId,location_id:Number(screen.location_id),row_id:rowId,
           product_id:Number(row.product_id),revision:Number(draft.revision),name:row.name

@@ -2,9 +2,9 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { element, setMessage, clearMessage, setPending } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
-import { requestStatus, requestTopic, requestJournalHeader, requestJournalRow } from '../core/requests.js';
+import { requestStatus, requestTopic, requestJournalHeader, requestJournalRow, requestStatusBadge } from '../core/requests.js';
 import { openWorkflowApproval } from './approval-workflow.js';
-import { CATALOG_FIELD_LABELS, catalogValueLabel } from '../core/catalog-presentation.js';
+import { CATALOG_FIELD_LABELS, catalogValueLabel, catalogProductTitle, catalogPropertyLabel } from '../core/catalog-presentation.js';
 
 const APPROVAL_FIELD_LABELS = CATALOG_FIELD_LABELS;
 
@@ -27,7 +27,7 @@ function proposalChanges(proposal) {
     .filter((key) => JSON.stringify(base[key] ?? null) !== JSON.stringify(proposed[key] ?? null))
     .map((key) => ({
       key,
-      label:APPROVAL_FIELD_LABELS[key] || key,
+      label:catalogPropertyLabel(key),
       before:base[key],
       after:proposed[key]
     }));
@@ -51,7 +51,7 @@ function makeDiffRow(change, compact = false) {
     return cell;
   }
   row.append(field, valueCell('Было', change.before, 'catalog-approval-before'),
-    valueCell('Стало', change.after, 'catalog-approval-after'));
+    valueCell('Станет', change.after, 'catalog-approval-after'));
   return row;
 }
 
@@ -105,8 +105,10 @@ function openApproval(proposal) {
   document.querySelectorAll('[data-crm-dynamic-action]').forEach((node)=>node.remove());
   const isMessage=proposal.entity_type === 'message';
   element('catalog-approval-title').textContent = requestTopic(proposal);
-  element('catalog-approval-meta').textContent = [`Карточка №${proposal.id}`, `Менеджер ${proposal.manager_username}`,
-    isMessage ? 'обращение' : proposal.entity_type === 'product' ? 'продукция' : 'тара', proposal.location_name].filter(Boolean).join(' · ');
+  const meta=element('catalog-approval-meta');
+  meta.replaceChildren(document.createTextNode([
+    `Карточка №${proposal.id}`,`Менеджер ${proposal.manager_username}`,proposal.location_name
+  ].filter(Boolean).join(' · ')+' · '),requestStatusBadge(proposal));
   const historical = proposal.status !== 'pending';
   element('catalog-approval-approve').textContent = isMessage ? 'Завершить' : 'Принять изменение';
   const commentField = element('catalog-approval-comment-field');
@@ -123,7 +125,7 @@ function openApproval(proposal) {
   const historyDetail = element('catalog-approval-history-detail');
   historyDetail.hidden = !historical;
   historyDetail.textContent = historical
-    ? [requestStatus(proposal),
+    ? [
       proposal.reviewer_username ? `Администратор: ${proposal.reviewer_username}` : '',
       proposal.review_comment ? `Ответ: ${proposal.review_comment}` : ''
     ].filter(Boolean).join(' · ')
@@ -143,6 +145,12 @@ function openApproval(proposal) {
     return;
   }
   const changes = proposalChanges(proposal);
+  if (proposal.entity_type === 'product') {
+    const title=document.createElement('strong');
+    title.className='crm-product-title';
+    title.textContent=catalogProductTitle({...proposal.base_payload,...proposal.proposed_payload});
+    diff.append(title);
+  }
   if (proposal.description) {
     const message=document.createElement('p');
     message.className='catalog-approval-no-changes';

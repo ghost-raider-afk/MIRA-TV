@@ -34,7 +34,27 @@ export function createCatalogProposalsRepository(pool) {
       }
       const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
       const { rows } = await pool.query(`SELECT p.*, l.name AS location_name FROM catalog_change_proposals p LEFT JOIN locations l ON l.id=p.location_id${where} ORDER BY p.created_at DESC, p.id DESC`, values);
-      return rows.map(normaliseProposal);
+      const proposals=rows.map(normaliseProposal);
+      // Historical request lines predate the manufacturer snapshot. Resolve
+      // missing names in one DB query; never require manager catalog access.
+      const missing=[...new Set(proposals.flatMap((proposal)=>
+        (proposal.items || [])
+          .filter((item)=>!item.producer && Number.isSafeInteger(Number(item.product_id)) && Number(item.product_id)>0)
+          .map((item)=>Number(item.product_id))
+      ))];
+      if (!missing.length) return proposals;
+      const products=await pool.query(
+        'SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missing]
+      );
+      const byId=new Map(products.rows.map((product)=>[Number(product.id),product]));
+      return proposals.map((proposal)=>({
+        ...proposal,
+        items:(proposal.items || []).map((item)=>{
+          const product=byId.get(Number(item.product_id));
+          if (!product || item.producer) return item;
+          return {...item,name:item.name || product.name,producer:product.producer};
+        })
+      }));
     },
 
     async getCatalogProposal(id) {

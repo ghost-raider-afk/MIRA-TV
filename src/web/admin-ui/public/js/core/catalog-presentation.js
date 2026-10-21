@@ -19,9 +19,34 @@ export const CATALOG_OPTIONS = Object.freeze({
   active:Object.freeze([['true','Да'],['false','Нет']])
 });
 
+export function catalogPropertyLabel(field) {
+  return CATALOG_FIELD_LABELS[field] || 'Характеристика товара';
+}
+
+export function catalogProductTitle(item) {
+  const product=item?.payload || item || {};
+  const name=String(product.name || '').trim();
+  const producer=String(product.producer || '').trim();
+  return 'Товар: ' + (name || 'Без названия') + (producer ? ' (' + producer + ')' : '');
+}
+
+export function catalogChangeParts(field,before,after) {
+  return {
+    field:catalogPropertyLabel(field),
+    before:'Было: ' + catalogValueLabel(field,before),
+    after:'Станет: ' + catalogValueLabel(field,after)
+  };
+}
+
 export function catalogValueLabel(field,value) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
+  if (['price_primary','price_secondary','unit_price'].includes(field)) {
+    const amount=Number(String(value).replace(',', '.'));
+    if (Number.isFinite(amount)) return new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits:2,maximumFractionDigits:2
+    }).format(amount) + ' ₽';
+  }
   const choices=CATALOG_OPTIONS[field];
   if (choices) {
     return choices.find(([id])=>id===String(value))?.[1] || String(value);
