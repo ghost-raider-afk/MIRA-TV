@@ -431,6 +431,27 @@ function openManagerRequest(proposal) {
     p.textContent = line;
     body.append(p);
   }
+  if (proposal.status === 'pending' && !proposal.catalog_product_id) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'button button-secondary';
+    remove.textContent = 'Удалить заявку';
+    remove.addEventListener('click', async () => {
+      if (!window.confirm('Удалить заявку №' + proposal.id + '?')) return;
+      remove.disabled = true;
+      try {
+        await api.delete(API.managerProposals + '/' + proposal.id);
+        dialog.close();
+        await loadProposals();
+      } catch (error) {
+        const notice = document.createElement('p');
+        notice.textContent = error.message;
+        body.append(notice);
+        remove.disabled = false;
+      }
+    });
+    body.append(remove);
+  }
   if (proposal.entity_type === 'message' && proposal.status === 'rework') {
     const subject=document.createElement('input');
     subject.value=proposal.title||'';
