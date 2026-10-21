@@ -77,16 +77,16 @@ async function sendMessage(harness, type) {
 
 test('upgraded Offline Player shell keeps active clients and the previous working shell', async () => {
   const harness = serviceWorkerHarness([
-    'mira-tv-player-shell-v80',
     'mira-tv-player-shell-v81',
     'mira-tv-player-shell-v82',
+    'mira-tv-player-shell-v83',
     'mira-tv-player-data-v18'
   ]);
   await activate(harness);
   assert.equal(harness.claimed(), 1);
   assert.deepEqual(harness.navigated, []);
-  assert.equal(harness.deleted.includes('mira-tv-player-shell-v81'), false, 'previous shell must survive activation');
-  assert.equal(harness.deleted.includes('mira-tv-player-shell-v80'), true, 'outdated previous shell is retired');
+  assert.equal(harness.deleted.includes('mira-tv-player-shell-v82'), false, 'previous shell must survive activation');
+  assert.equal(harness.deleted.includes('mira-tv-player-shell-v81'), true, 'outdated previous shell is retired');
 });
 
 test('first Offline Player shell install does not reload the Player', async () => {
@@ -100,7 +100,7 @@ test('first Offline Player shell install does not reload the Player', async () =
 
 test('Local-first handshake checks for a newer shell without a polling loop', async () => {
   const harness = serviceWorkerHarness([
-    'mira-tv-player-shell-v82',
+    'mira-tv-player-shell-v83',
     'mira-tv-player-data-v18'
   ]);
   const first = await sendMessage(harness, 'mira:player-cache-capabilities');
