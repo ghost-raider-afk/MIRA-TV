@@ -118,6 +118,7 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await expect(productRow).toBeVisible();
     await search.fill('');
 
+    await openTab(managerPage,'manager-requests');
     await managerPage.locator('#manager-create-request').click();
     const create=managerPage.locator('#manager-crm-dialog');
     await expect(create).toBeVisible();
