@@ -16,6 +16,13 @@ function authorised(access, locationId) {
   if (access.all_locations || access.location_ids.includes(locationId)) return;
   throw invalid('Торговая точка не назначена менеджеру.', 403);
 }
+function validateNewProductCard(input) {
+  const payload=productInput(input || {});
+  if (!payload.producer?.trim() || !payload.address?.trim()) {
+    throw invalid('Укажите производителя и адрес нового товара.');
+  }
+  return payload;
+}
 function same(a,b) { return JSON.stringify(a) === JSON.stringify(b); }
 function uniqueKeys(items, valueFor) {
   const keys = items.map(valueFor);
@@ -74,7 +81,7 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
         const point = await store.getLocation(id);
         if (!point || point.active === false) throw invalid('Торговая точка не найдена или неактивна.');
       }
-      item.payload = productInput(input?.payload || {});
+      item.payload = validateNewProductCard(input?.payload);
       const products = await store.listProducts();
       if (products.some((product) => product.name.trim().toLocaleLowerCase('ru') === item.payload.name.trim().toLocaleLowerCase('ru'))) {
         throw invalid('Такой товар уже есть в общей базе.', 409);
@@ -254,7 +261,7 @@ export async function saveNewProductFromRequest(store,{proposalId,reviewerUserna
     if (proposal.catalog_product_id) return {proposal,product:await tx.getProduct(proposal.catalog_product_id)};
     if (proposal.status !== 'pending') throw invalid('Заявка не находится на рассмотрении.',409);
     const item = proposal.items[0];
-    const payload = productInput(correctedPayload || item.payload);
+    const payload = validateNewProductCard(correctedPayload || item.payload);
     const products = await tx.listProducts();
     if (products.some((x) => x.name.trim().toLocaleLowerCase('ru') === payload.name.trim().toLocaleLowerCase('ru'))) {
       throw invalid('Товар с таким названием уже существует.',409);
@@ -362,7 +369,7 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
           const point=await tx.getLocation(id);
           if (!point || point.active === false) throw invalid('Торговая точка недоступна.');
         }
-        const payload=productInput(edit.payload||{});
+        const payload=validateNewProductCard(edit.payload);
         const all=await tx.listProducts();
         if (all.some((v)=>v.name.toLocaleLowerCase('ru')===payload.name.toLocaleLowerCase('ru'))) {
           throw invalid('Такой товар уже есть в общей базе.',409);
