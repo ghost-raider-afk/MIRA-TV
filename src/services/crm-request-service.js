@@ -82,7 +82,7 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
     } else if (requestType === 'menu_remove') {
       const screenId = positive(input?.screen_id,'ТВ');
       const screen = screens.find((v) => Number(v.id) === screenId);
-      if (!screen || screen.active === false) throw invalid('ТВ не найден или неактивен.');
+      if (!screen || screen.active === false || screen.status !== 'published') throw invalid('Удалять можно только позиции опубликованного ТВ.');
       authorised(access,Number(screen.location_id));
       const draft = await store.getScreenDraft(screenId);
       const rowId = String(input?.row_id || '');
@@ -147,6 +147,10 @@ async function applyMenuRemovals(tx, items) {
   const updated = [];
   for (const [screenId, lines] of [...screens].sort((a,b) => a[0]-b[0])) {
     if (!await tx.lockScreen(screenId)) throw invalid('ТВ больше не существует.',409);
+    const screen = await tx.getScreen(screenId);
+    if (!screen || screen.active === false || screen.status !== 'published') {
+      throw invalid('ТВ больше не опубликован или недоступен.',409);
+    }
     const draft = await tx.getScreenDraft(screenId);
     if (lines.some((line) => Number(draft.revision) !== Number(line.revision))) {
       throw invalid('Меню ТВ изменилось после создания заявки.',409);
@@ -338,7 +342,7 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
       } else if (proposal.request_type === 'menu_remove') {
         const screenId=positive(edit.screen_id,'ТВ');
         const screen=screens.find((v)=>Number(v.id)===screenId);
-        if (!screen || screen.active===false) throw invalid('ТВ недоступен.');
+        if (!screen || screen.active===false || screen.status!=='published') throw invalid('Удалять можно только позиции опубликованного ТВ.');
         authorised(access,Number(screen.location_id));
         const draft=await tx.getScreenDraft(screenId);
         const rowId=String(edit.row_id||'');
