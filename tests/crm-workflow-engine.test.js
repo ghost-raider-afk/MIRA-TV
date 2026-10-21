@@ -121,3 +121,78 @@ test('same product/property pair is rejected before proposal creation',async()=>
     rawItems:[{product_id:1,property:'strength',value:'5%'},{product_id:1,property:'strength',value:'6%'}]
   }),/дважды/);
 });
+
+test('published TV removal changes only the named row and preserves scene/settings',async()=>{
+  const draft={
+    revision:5,
+    rows:[
+      {id:'section',kind:'section',name:'РАЗЛИВНОЕ'},
+      {id:'one',kind:'item',product_id:1,name:'Жигулёвское',enabled:true},
+      {id:'two',kind:'item',product_id:2,name:'Лагер',enabled:true}
+    ],
+    settings:{theme:'custom',background_color:'#102030'},
+    scene:{version:1,elements:[{id:'logo',type:'image'}]}
+  };
+  const writes=[];
+  const tx={
+    getCatalogProposalForUpdate:async()=>({
+      id:50,entity_type:'request',status:'pending',request_type:'menu_remove',
+      items:[{key:1,screen_id:8,row_id:'one',product_id:1,revision:5,decision:'pending'}]
+    }),
+    getScreen:async()=>({id:8,status:'published',active:true}),
+    lockScreen:async()=>true,
+    getScreenDraft:async()=>draft,
+    saveScreenDraft:async(id,value,revision)=>{
+      writes.push({id,value,revision});
+      return {...value,revision:revision+1};
+    },
+    markScreenRenderChanged:async(ids,components)=>ids.map(screen_id=>({screen_id,revision:10,components})),
+    updateWorkflowRequest:async(_id,value)=>({id:50,...value}),
+    recordProposalEvent:async()=>{}
+  };
+  const result=await reviewWorkflowRequest({transaction:async(run)=>run(tx)},{
+    proposalId:50,reviewerUsername:'admin',decisions:[{key:1,decision:'approved'}]
+  });
+  assert.equal(result.proposal.status,'approved');
+  assert.equal(writes.length,1);
+  assert.deepEqual(writes[0].value.rows.map(x=>x.id),['section','two']);
+  assert.deepEqual(writes[0].value.settings,draft.settings);
+  assert.deepEqual(writes[0].value.scene,draft.scene);
+  assert.deepEqual(result.revisions,[{screen_id:8,revision:10,components:['menu']}]);
+});
+
+test('stale TV revision aborts removal before modifying the draft',async()=>{
+  let writes=0;
+  const tx={
+    getCatalogProposalForUpdate:async()=>({
+      id:51,entity_type:'request',status:'pending',request_type:'menu_remove',
+      items:[{key:1,screen_id:8,row_id:'one',product_id:1,revision:4,decision:'pending'}]
+    }),
+    lockScreen:async()=>true,
+    getScreen:async()=>({id:8,status:'published',active:true}),
+    getScreenDraft:async()=>({revision:5,rows:[{id:'one',kind:'item',product_id:1}]}),
+    saveScreenDraft:async()=>{writes++;return {};}
+  };
+  await assert.rejects(
+    reviewWorkflowRequest({transaction:async(run)=>run(tx)},{
+      proposalId:51,reviewerUsername:'admin',decisions:[{key:1,decision:'approved'}]
+    }),
+    (error)=>error.status===409 && /изменилось/i.test(error.message)
+  );
+  assert.equal(writes,0);
+});
+
+test('only published TVs can become removal request targets',async()=>{
+  const tx={
+    listScreens:async()=>[{id:7,location_id:3,status:'draft',active:true}],
+    getScreenDraft:async()=>({revision:5,rows:[{id:'line',kind:'item',product_id:1,name:'Жигулёвское'}]})
+  };
+  await assert.rejects(
+    prepareWorkflowRequest(tx,{
+      managerUsername:'manager',requestType:'menu_remove',
+      access:{catalog_enabled:true,all_locations:true,location_ids:[]},
+      rawItems:[{screen_id:7,row_id:'line'}]
+    }),
+    /опубликованного ТВ/
+  );
+});
