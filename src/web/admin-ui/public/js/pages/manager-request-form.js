@@ -1,7 +1,7 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { REQUEST_TOPICS, requestHistoryEvent } from '../core/requests.js';
-import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
+import { REQUEST_TOPICS, requestHistoryEvent, requestStatusBadge } from '../core/requests.js';
+import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel, catalogProductTitle, catalogChangeParts } from '../core/catalog-presentation.js';
 
 const FIELDS = Object.freeze(Object.fromEntries(
   ['name','producer','address','characteristics','strength','beverage_color','filtration','alcoholic','active']
@@ -44,7 +44,7 @@ function field(label, child) {
   return wrapper;
 }
 function productChoice(id) {
-  return select('product_id',managerCatalog.map((p)=>[p.id,p.name]),id);
+  return select('product_id',managerCatalog.map((p)=>[p.id,catalogProductTitle(p)]),id);
 }
 function locationChoice(id) {
   return select('location_id',managerLocations.map((p)=>[p.id,p.name]),id);
@@ -316,21 +316,29 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
   for (const item of proposal.items||[]) {
     const wrapper=node('div','crm-workflow-item');
     wrapper.dataset.crmKey=String(item.key);
-    const heading=node('strong','',item.name||item.payload?.name||('Позиция '+item.key));
+    const heading=node('strong','',catalogProductTitle(item));
     wrapper.append(heading);
     if (item.property) {
-      const p=node('p','',String(FIELDS[item.property]||item.property)+': '+catalogValueLabel(item.property,item.before)+' → '+catalogValueLabel(item.property,item.final_value??item.value));
-      wrapper.append(p);
+      const parts=catalogChangeParts(item.property,item.before,item.final_value ?? item.value);
+      const change=node('div','crm-change');
+      change.append(node('span','crm-change-field',parts.field));
+      const values=node('div','crm-change-values');
+      values.append(node('span','crm-change-before',parts.before),
+        node('span','crm-change-arrow','→'),node('span','crm-change-after',parts.after));
+      change.append(values);
+      wrapper.append(change);
     } else if (type==='menu_add') wrapper.append(node('p','','Торговая точка №'+item.location_id));
     else if (type==='menu_remove') wrapper.append(node('p','','ТВ №'+item.screen_id+' · позиция '+item.row_id));
     else if (type==='product_create') {
-      for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(CATALOG_FIELD_LABELS[key]||key)+': '+catalogValueLabel(key,value)));
+      for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(CATALOG_FIELD_LABELS[key]||'Характеристика товара')+': '+catalogValueLabel(key,value)));
       wrapper.append(node('p','','Торговые точки: '+(item.location_ids||[]).join(', ')));
     }
     const status=item.decision==='rework' ? 'На доработку'
       : item.decision==='approved' ? 'Согласовано'
       : item.decision==='rejected' ? 'Отклонено' : 'На рассмотрении';
-    wrapper.append(node('small','',status));
+    const statusKey=item.decision==='approved' ? 'approved'
+      : item.decision==='rework' ? 'rework' : item.decision==='rejected' ? 'rejected' : 'pending';
+    wrapper.append(requestStatusBadge({status:statusKey},status));
     if (item.comment) wrapper.append(node('p','crm-workflow-note','Замечание администратора: '+item.comment));
     if (proposal.status==='rework' && item.decision==='rework') {
       if (type==='price_change' || type==='property_change') {
