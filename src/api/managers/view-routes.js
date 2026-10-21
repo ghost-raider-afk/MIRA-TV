@@ -62,10 +62,10 @@ export function createManagerViewRouter({ store, config, weatherService }) {
   });
 
   router.get('/proposals', async (request, response) => {
-    const access=await store.getManagerAccess(request.session.sub);
+    // Catalog visibility restricts catalog reading and new mutations, not the
+    // manager's own request history or administrators' replies.
     response.json(await store.listCatalogProposals({
-      managerUsername:request.session.sub,
-      entityType:access.catalog_enabled ? null : 'message'
+      managerUsername:request.session.sub
     }));
   });
 
