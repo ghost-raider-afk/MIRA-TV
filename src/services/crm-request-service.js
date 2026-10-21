@@ -298,6 +298,9 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
     const changeMap = new Map(edits.map((v)=>[Number(v.key),v]));
     if (changeMap.size !== edits.length) throw invalid('Одна позиция указана несколько раз.');
     const access = await tx.getManagerAccess(managerUsername);
+    if (!access?.catalog_enabled) {
+      throw invalid('Доступ к изменению каталога отключён. История заявки остаётся доступной.',403);
+    }
     const items=[];
     const screens = ['menu_add','menu_remove'].includes(proposal.request_type)
       ? await tx.listScreens() : [];
