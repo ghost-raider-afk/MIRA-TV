@@ -1,6 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { REQUEST_TOPICS } from '../core/requests.js';
+import { REQUEST_TOPICS, requestHistoryEvent } from '../core/requests.js';
 import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel } from '../core/catalog-presentation.js';
 
 const FIELDS = Object.freeze(Object.fromEntries(
@@ -406,8 +406,7 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
       const details=node('details','crm-workflow-history');
       details.append(node('summary','','История изменений'));
       for (const event of history) {
-        details.append(node('p','',new Date(event.created_at).toLocaleString('ru-RU')
-          +' · '+event.actor+' · '+event.action));
+        details.append(node('p','',requestHistoryEvent(event)));
       }
       host.append(details);
     }
