@@ -3,11 +3,11 @@ import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
-import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow } from '../core/requests.js';
+import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow, requestStatusBadge } from '../core/requests.js';
 import { openManagerRequestForm, renderManagerWorkflow } from './manager-request-form.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
 import { createHeader, initialiseHeader, refreshHeaderRoute } from '../components/header.js';
-import { CATALOG_FIELD_LABELS, catalogValueLabel } from '../core/catalog-presentation.js';
+import { CATALOG_FIELD_LABELS, catalogValueLabel, catalogProductTitle, catalogChangeParts, catalogPropertyLabel } from '../core/catalog-presentation.js';
 
 const previewRenderers = new Map();
 const screenContexts = new Map();
@@ -391,20 +391,21 @@ function proposalChanges(proposal) {
   const proposed = proposal?.proposed_payload || {};
   return Object.keys(proposed)
     .filter((key) => JSON.stringify(base[key] ?? null) !== JSON.stringify(proposed[key] ?? null))
-    .map((key) => ({ key, label:FIELD_LABELS[key] || key, before:base[key], after:proposed[key] }));
+    .map((key) => ({ key, label:catalogPropertyLabel(key), before:base[key], after:proposed[key] }));
 }
 
 function openManagerRequest(proposal) {
   const dialog = document.getElementById('manager-request-detail');
   if (!(dialog instanceof HTMLDialogElement)) return;
   document.getElementById('manager-request-title').textContent = requestTopic(proposal);
-  document.getElementById('manager-request-meta').textContent = [
+  const meta=document.getElementById('manager-request-meta');
+  const details=[
     '№' + proposal.id,
     'Создана: ' + requestDate(proposal.created_at),
-    requestStatus(proposal),
     'Дата: ' + requestDate(proposal.status_changed_at || proposal.decided_at || proposal.updated_at || proposal.created_at),
     proposal.location_name
   ].filter(Boolean).join(' · ');
+  meta.replaceChildren(document.createTextNode(details+' · '),requestStatusBadge(proposal));
   const body = document.getElementById('manager-request-body');
   body.dataset.requestId = String(proposal.id);
   body.replaceChildren();
@@ -422,8 +423,14 @@ function openManagerRequest(proposal) {
   }
   const lines = [];
   if (proposal.description) lines.push(proposal.description);
+  if (proposal.entity_type === 'product') {
+    const heading=document.createElement('strong');
+    heading.textContent=catalogProductTitle({...proposal.base_payload,...proposal.proposed_payload});
+    body.append(heading);
+  }
   for (const change of proposalChanges(proposal)) {
-    lines.push(change.label + ': ' + formatValue(change.before) + ' → ' + formatValue(change.after));
+    const parts=catalogChangeParts(change.key,change.before,change.after);
+    lines.push(parts.field + ': ' + parts.before + ' → ' + parts.after);
   }
   if (proposal.review_comment) lines.push('Комментарий администратора: ' + proposal.review_comment);
   if (!lines.length) lines.push('Без изменений данных.');
