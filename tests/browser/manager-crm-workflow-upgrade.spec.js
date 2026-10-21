@@ -3,6 +3,7 @@ import { Client } from 'pg';
 import { migrateCatalogChangeProposals } from '../../src/db/migrations/catalog-change-proposals.js';
 import { migrateManagerCrmCards } from '../../src/db/migrations/manager-crm-cards.js';
 import { migrateCrmRequestWorkflow } from '../../src/db/migrations/crm-request-workflow.js';
+import { createCatalogProposalsRepository } from '../../src/db/catalog-proposals.js';
 
 test.skip(!process.env.POSTGRES_HOST, 'PostgreSQL integration environment is required');
 
@@ -47,7 +48,33 @@ test('existing CRM records and decisions survive additive workflow migration', a
       VALUES ($1,'admin','returned','{"reason":"Проверьте цену"}'::jsonb)`,[id]);
     await migrateCrmRequestWorkflow(client);
     const counts=await client.query('SELECT COUNT(*)::int AS count FROM catalog_change_proposals');
-    expect(counts.rows[0].count).toBe(2);
+    expect(counts.rows[0].count).toBe(4);
+    // Resolve a real pending historical message: this catches PostgreSQL's
+    // inconsistent parameter type inference for shared timestamp expressions.
+    const pending=await client.query(`INSERT INTO catalog_change_proposals
+      (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,
+       status,title,description)
+      VALUES ('manager','message',NULL,NULL,'{}'::jsonb,'{}'::jsonb,'pending',
+              'Ответить','Необходимо проверить экран')
+      RETURNING id`);
+    const repo=createCatalogProposalsRepository(client);
+    const decision=await repo.resolveCatalogProposal(pending.rows[0].id,{
+      status:'resolved',reviewerUsername:'admin',reviewComment:'Проверили, всё исправлено.'
+    });
+    expect(decision).toMatchObject({
+      status:'resolved',reviewer_username:'admin',review_comment:'Проверили, всё исправлено.'
+    });
+    expect(decision.status_changed_at).not.toBeNull();
+    const otherPending=await client.query(`INSERT INTO catalog_change_proposals
+      (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,
+       status,title,description)
+      VALUES ('manager','message',NULL,NULL,'{}'::jsonb,'{}'::jsonb,'pending',
+              'Уточнить','Вернуть на доработку')
+      RETURNING id`);
+    const returned=await repo.resolveCatalogProposal(otherPending.rows[0].id,{
+      status:'rework',reviewerUsername:'admin',reviewComment:'Уточните номер торговой точки.'
+    });
+    expect(returned).toMatchObject({status:'rework',decided_at:null});
     const eventCount=await client.query('SELECT COUNT(*)::int AS count FROM catalog_proposal_events WHERE proposal_id=$1',[id]);
     expect(eventCount.rows[0].count).toBe(1);
     const history=await client.query('SELECT status,request_type FROM catalog_change_proposals WHERE entity_type=$1',['request']);
