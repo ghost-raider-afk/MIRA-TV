@@ -150,6 +150,29 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await expect(adminDialog).toContainText('Менеджер E2E '+stamp);
     await expect(adminDialog).toContainText('200');
     await expect(adminDialog).toContainText('220');
+    const diff=adminDialog.locator('.catalog-approval-diff-row').first();
+    await expect(diff.locator('small')).toHaveText(['Было','Стало']);
+    const colors=await diff.evaluate((row)=>{
+      const probe=document.createElement('span');
+      row.append(probe);
+      probe.style.color='var(--ui-danger)';
+      const danger=getComputedStyle(probe).color;
+      probe.style.color='var(--ui-success)';
+      const success=getComputedStyle(probe).color;
+      probe.remove();
+      const before=row.querySelector('.catalog-approval-before');
+      const after=row.querySelector('.catalog-approval-after');
+      return {
+        danger,success,oldColor:getComputedStyle(before).color,
+        newColor:getComputedStyle(after).color,
+        oldDecoration:getComputedStyle(before).textDecorationLine,
+        newDecoration:getComputedStyle(after).textDecorationLine
+      };
+    });
+    expect(colors.oldColor).toBe(colors.danger);
+    expect(colors.newColor).toBe(colors.success);
+    expect(colors.oldDecoration).toBe('line-through');
+    expect(colors.newDecoration).toBe('none');
     await adminDialog.locator('.crm-workflow-controls select').selectOption('approved');
     adminPage.once('dialog',(dialog)=>dialog.accept());
     await adminDialog.getByRole('button',{name:'Проверить и применить'}).click();
