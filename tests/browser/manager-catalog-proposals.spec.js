@@ -124,10 +124,16 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await create.locator('#crm-preset').selectOption('price_change');
     await create.locator('[name="product_id"]').first().selectOption(String(productId));
     await create.locator('[name="value"]').first().fill('220');
+    const pricePosted=managerPage.waitForResponse((response)=>
+      response.url().endsWith('/api/manager/proposals/request') && response.request().method()==='POST'
+    );
     await create.getByRole('button',{name:'Отправить заявку'}).click();
+    const postedPrice=await pricePosted;
+    expect(postedPrice.status()).toBe(201);
+    const priceId=(await postedPrice.json()).id;
     await expect(create).not.toBeVisible();
     await openTab(managerPage,'manager-requests');
-    const priceRow=managerPage.locator('.request-journal-row',{hasText:'Изменить цену'}).first();
+    const priceRow=managerPage.locator('.request-journal-row[aria-label^="Заявка №'+priceId+'."]');
     await expect(priceRow).toBeVisible();
     const pendingStyle=await expectJournalStatus(priceRow,'На рассмотрении');
     await priceRow.click();
@@ -142,7 +148,7 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await openTab(adminPage,'approvals');
     await expect(adminPage).toHaveURL(/\/approvals$/);
     await expect(adminPage.locator('main #catalog-approval-dialog')).toHaveCount(1);
-    const incomingPrice=adminPage.locator('.request-journal-row',{hasText:'Изменить цену'}).first();
+    const incomingPrice=adminPage.locator('.request-journal-row[aria-label^="Заявка №'+priceId+'."]');
     await expectJournalStatus(incomingPrice,'На рассмотрении');
     await incomingPrice.click();
     const adminDialog=adminPage.locator('#catalog-approval-dialog');
@@ -197,12 +203,18 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await managerPage.locator('#manager-message-subject').fill('Вопрос по точке '+stamp);
     await managerPage.locator('#manager-message-location').selectOption(String(locationId));
     await managerPage.locator('#manager-message-body').fill('Проверьте оборудование на точке.');
+    const inquiryPosted=managerPage.waitForResponse((response)=>
+      response.url().endsWith('/api/manager/proposals/message') && response.request().method()==='POST'
+    );
     await managerPage.locator('#manager-message-submit').click();
-    const inquiryRow=managerPage.locator('.request-journal-row',{hasText:'Вопрос по точке '+stamp}).first();
+    const postedInquiry=await inquiryPosted;
+    expect(postedInquiry.status()).toBe(201);
+    const inquiryId=(await postedInquiry.json()).id;
+    const inquiryRow=managerPage.locator('.request-journal-row[aria-label^="Заявка №'+inquiryId+'."]');
     await expectJournalStatus(inquiryRow,'На рассмотрении');
 
     await adminPage.locator('#refresh-catalog-approvals').click();
-    const incomingInquiry=adminPage.locator('.request-journal-row',{hasText:'Вопрос по точке '+stamp}).first();
+    const incomingInquiry=adminPage.locator('.request-journal-row[aria-label^="Заявка №'+inquiryId+'."]');
     await expect(incomingInquiry).toBeVisible();
     await incomingInquiry.click();
     await expect(adminDialog).toContainText('Проверьте оборудование на точке.');
@@ -221,7 +233,7 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await managerDetail.getByRole('button',{name:'Закрыть'}).click();
 
     await adminPage.locator('#catalog-approvals-filter').selectOption('history');
-    const historyRow=adminPage.locator('.request-journal-row',{hasText:'Вопрос по точке '+stamp}).first();
+    const historyRow=adminPage.locator('.request-journal-row[aria-label^="Заявка №'+inquiryId+'."]');
     await expectJournalStatus(historyRow,'Завершена');
     await historyRow.click();
     await expect(adminDialog).toContainText('Оборудование проверено, вопрос решён.');
