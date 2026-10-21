@@ -117,7 +117,9 @@ async function renderRemovalSelector(container,item) {
     const target = Number(location.value);
     const point = locations.find((p)=>Number(p.id) === target);
     screen.replaceChildren();
-    for (const v of point?.screens || []) screen.add(new Option(v.name,v.id));
+    for (const v of point?.screens || []) {
+      if (v.status === 'published') screen.add(new Option(v.name,v.id));
+    }
     if (item.screen_id && [...screen.options].some((v)=>v.value===String(item.screen_id))) screen.value = String(item.screen_id);
     item.screen_id = Number(screen.value);
     await fillItems();
