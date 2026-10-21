@@ -2,6 +2,7 @@ import express from 'express';
 import { optionalText, positiveId, requireText } from '../../contracts/input.js';
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
+import { prepareWorkflowRequest, reviseWorkflowRequest } from '../../services/crm-request-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 import { themeWeatherSettings } from '../../contracts/menu-theme.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
@@ -61,10 +62,10 @@ export function createManagerViewRouter({ store, config, weatherService }) {
   });
 
   router.get('/proposals', async (request, response) => {
-    const access=await store.getManagerAccess(request.session.sub);
+    // Catalog visibility restricts catalog reading and new mutations, not the
+    // manager's own request history or administrators' replies.
     response.json(await store.listCatalogProposals({
-      managerUsername:request.session.sub,
-      entityType:access.catalog_enabled ? null : 'message'
+      managerUsername:request.session.sub
     }));
   });
 
@@ -89,6 +90,83 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     response.status(201).json(proposal);
   });
 
+
+  router.post('/proposals/request', async (request,response) => {
+    const access = await store.getManagerAccess(request.session.sub);
+    const proposal = await prepareWorkflowRequest(store,{
+      managerUsername:request.session.sub,
+      requestType:request.body?.request_type,
+      rawItems:request.body?.items,
+      access,
+      description:optionalText(request.body?.description,'Комментарий',{max:2000})
+    });
+    await activity(store,request,{
+      action:'crm.request.created',entity_type:'catalog_change_proposal',entity_id:proposal.id,
+      message:'Создана заявка №'+proposal.id+'.'
+    });
+    response.status(201).json(proposal);
+  });
+
+  router.put('/proposals/:id/rework', async (request,response) => {
+    const proposal = await reviseWorkflowRequest(store,{
+      proposalId:positiveId(request.params.id,'id'),
+      managerUsername:request.session.sub,
+      edits:request.body?.edits
+    });
+    response.json(proposal);
+  });
+
+  router.get('/proposals/:id/history', async (request,response) => {
+    const id = positiveId(request.params.id,'id');
+    const proposal = await store.getCatalogProposal(id);
+    if (!proposal || proposal.manager_username !== request.session.sub) throw notFound('Заявка недоступна.');
+    response.json(await store.listProposalEvents(id));
+  });
+
+  router.delete('/proposals/:id', async (request,response) => {
+    const id = positiveId(request.params.id,'id');
+    const deleted = await store.transaction(async (tx) => {
+      const proposal = await tx.getCatalogProposalForUpdate(id);
+      if (!proposal || proposal.manager_username !== request.session.sub || proposal.status !== 'pending') return false;
+      await tx.recordProposalEvent(id,request.session.sub,'deleted',{ status:proposal.status });
+      return tx.deleteOwnPendingProposal(id,request.session.sub);
+    });
+    if (!deleted) return response.status(409).json({error:'Можно удалить только свою заявку на рассмотрении.'});
+    response.status(204).end();
+  });
+
+  router.put('/proposals/:id/message-rework', async (request,response) => {
+    const id=positiveId(request.params.id,'id');
+    const title=requireText(request.body?.title,'Тема обращения',{max:120});
+    const description=requireText(request.body?.description,'Текст обращения',{max:2000});
+    const locationId=request.body?.location_id == null || request.body.location_id === ''
+      ? null : positiveId(request.body.location_id,'Торговая точка');
+    if (locationId !== null) {
+      const [access,location]=await Promise.all([
+        store.getManagerAccess(request.session.sub),store.getLocation(locationId)
+      ]);
+      if (!location || location.active === false ||
+        (!access.all_locations && !access.location_ids.includes(locationId))) {
+        return response.status(403).json({error:'Торговая точка недоступна.'});
+      }
+    }
+    const updated=await store.transaction(async (tx) => {
+      const proposal=await tx.getCatalogProposalForUpdate(id);
+      if (!proposal || proposal.manager_username !== request.session.sub ||
+          proposal.entity_type !== 'message' || proposal.status !== 'rework') return null;
+      const result=await tx.reviseMessageCard(id,{
+        title,description,locationId,managerUsername:request.session.sub
+      });
+      await tx.recordProposalEvent(id,request.session.sub,'resubmitted',{
+        old_title:proposal.title,old_description:proposal.description,
+        new_title:title,new_description:description
+      });
+      return result;
+    });
+    if (!updated) throw notFound('Заявка недоступна для исправления.');
+    response.json(updated);
+  });
+
   router.post('/proposals/message', async (request, response) => {
     const title=requireText(request.body?.title, 'Тема обращения', { max:120 });
     const description=requireText(request.body?.description, 'Текст обращения', { max:2000 });
@@ -100,8 +178,12 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       if (!location || location.active === false || (!access.all_locations && !access.location_ids.includes(locationId)))
         return response.status(403).json({ error:'Торговая точка недоступна.' });
     }
-    const card=await store.createMessageCard({
-      managerUsername:request.session.sub,title,description,locationId
+    const card=await store.transaction(async (tx)=>{
+      const created=await tx.createMessageCard({
+        managerUsername:request.session.sub,title,description,locationId
+      });
+      await tx.recordProposalEvent(created.id,request.session.sub,'created',{title,description,locationId});
+      return created;
     });
     await activity(store,request,{
       action:'manager.card.created',entity_type:'catalog_change_proposal',entity_id:card.id,

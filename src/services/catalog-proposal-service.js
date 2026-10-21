@@ -75,7 +75,7 @@ export async function createCatalogChangeProposal(store, { managerUsername, enti
 }
 
 export async function reviewCatalogChangeProposal(store, { proposalId, decision, reviewerUsername, reviewComment = '' }) {
-  const status = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : null;
+  const status = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : decision === 'rework' ? 'rework' : null;
   if (!status) throw Object.assign(new Error('Решение по заявке не поддерживается.'), { status:400 });
 
   return store.transaction(async (tx) => {
@@ -83,10 +83,33 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
     if (!proposal) return { kind:'missing', proposal:null, entity:null };
     if (proposal.status !== 'pending') return { kind:'resolved', proposal, entity:null };
 
+    if (status === 'rework') {
+      const note = String(reviewComment || '').trim();
+      if (proposal.entity_type !== 'message') {
+        throw Object.assign(new Error('Возврат этой заявки обрабатывается через пресет.'), { status:400 });
+      }
+      if (note.length < 10) {
+        throw Object.assign(new Error('Комментарий для доработки должен содержать минимум 10 символов.'), { status:400 });
+      }
+      const returned = await tx.resolveCatalogProposal(proposalId, {
+        status:'rework',reviewerUsername,reviewComment:note
+      });
+      if (typeof tx.recordProposalEvent === 'function') {
+        await tx.recordProposalEvent(proposalId,reviewerUsername,'returned',{comment:note});
+      }
+      return { kind:'returned', proposal:returned, entity:null };
+    }
+
     if (proposal.entity_type === 'message' && status === 'approved') {
+      if (!String(reviewComment || '').trim()) {
+        throw Object.assign(new Error('Напишите ответ менеджеру перед завершением заявки.'), { status:400 });
+      }
       const handled = await tx.resolveCatalogProposal(proposalId, {
         status:'resolved', reviewerUsername, reviewComment
       });
+      if (typeof tx.recordProposalEvent === 'function') {
+        await tx.recordProposalEvent(proposalId,reviewerUsername,'completed',{reply:reviewComment});
+      }
       return { kind:'handled', proposal:handled, entity:null };
     }
 
@@ -94,6 +117,9 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
       const resolved = await tx.resolveCatalogProposal(proposalId, {
         status:'rejected', reviewerUsername, reviewComment
       });
+      if (proposal.entity_type === 'message' && typeof tx.recordProposalEvent === 'function') {
+        await tx.recordProposalEvent(proposalId,reviewerUsername,'rejected',{comment:reviewComment});
+      }
       return { kind:'rejected', proposal:resolved, entity:null };
     }
 

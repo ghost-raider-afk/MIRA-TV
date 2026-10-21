@@ -3,7 +3,11 @@ import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
 import { formatRussianCount } from '../core/ru-plural.js';
+import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow } from '../core/requests.js';
+import { openManagerRequestForm, renderManagerWorkflow } from './manager-request-form.js';
 import { PlayerSceneRenderer } from '../player/player-scene-renderer.js';
+import { createHeader, initialiseHeader, refreshHeaderRoute } from '../components/header.js';
+import { CATALOG_FIELD_LABELS, catalogValueLabel } from '../core/catalog-presentation.js';
 
 const previewRenderers = new Map();
 const screenContexts = new Map();
@@ -17,29 +21,30 @@ let catalog = { products:[], packaging:[] };
 let catalogMode = 'products';
 let catalogSearchText = '';
 let proposalTarget = null;
+let managerCatalogAvailable = false;
 
-const FIELD_LABELS = Object.freeze({
-  name:'Название',
-  producer:'Производитель',
-  address:'Адрес',
-  characteristics:'Характеристики',
-  strength:'Крепость',
-  price_primary:'Цена 1 л',
-  price_secondary:'Цена 1,5 л',
-  alcoholic:'Алкогольная продукция',
-  beverage_color:'Цвет напитка',
-  filtration:'Фильтрация',
-  unit_price:'Цена тары',
-  active:'Активна'
-});
+function syncManagerTabs() {
+  const wanted = window.location.hash;
+  const tab = wanted === '#manager-catalog-title' && managerCatalogAvailable ? 'catalog'
+    : wanted === '#manager-proposals-title' ? 'requests' : 'locations';
+  const locations = document.querySelector('.manager-locations');
+  const empty = document.getElementById('manager-empty');
+  const heading = document.querySelector('.manager-heading');
+  const workspace = document.querySelector('.manager-workspace-grid');
+  const catalog = document.querySelector('[aria-labelledby="manager-catalog-title"]');
+  const requests = document.querySelector('[aria-labelledby="manager-proposals-title"]');
+  if (locations) locations.hidden = tab !== 'locations';
+  if (empty) empty.hidden = tab !== 'locations';
+  if (heading) heading.hidden = tab !== 'locations';
+  if (workspace) workspace.hidden = tab === 'locations';
+  if (catalog) catalog.hidden = tab !== 'catalog' || !managerCatalogAvailable;
+  if (requests) requests.hidden = tab !== 'requests';
+  const catalogLink = document.querySelector('[data-header-section="manager-catalog"]');
+  if (catalogLink) catalogLink.hidden = !managerCatalogAvailable;
+}
 
-const STATUS_LABELS = Object.freeze({
-  pending:'Ожидает согласования',
-  approved:'Принято',
-  rejected:'Отклонено',
-  conflict:'Конфликт',
-  resolved:'Обработано'
-});
+
+const FIELD_LABELS = CATALOG_FIELD_LABELS;
 
 function appName() {
   return state.site?.app_name || state.site?.application_name || state.session?.app_name || 'MIRA-TV';
@@ -354,7 +359,10 @@ function renderCatalog() {
     propose.className = 'button button-secondary';
     propose.type = 'button';
     propose.textContent = 'Изменить';
-    propose.addEventListener('click', () => openProposal(catalogMode === 'packaging' ? 'packaging' : 'product', item));
+    propose.addEventListener('click', () => {
+      if (catalogMode === 'packaging') openProposal('packaging',item);
+      else void openManagerRequestForm({type:'property_change',productId:item.id}).catch((error)=>setMessage('manager-message',error.message));
+    });
     row.append(copy, propose);
     list.append(row);
   }
@@ -386,55 +394,128 @@ function proposalChanges(proposal) {
     .map((key) => ({ key, label:FIELD_LABELS[key] || key, before:base[key], after:proposed[key] }));
 }
 
+function openManagerRequest(proposal) {
+  const dialog = document.getElementById('manager-request-detail');
+  if (!(dialog instanceof HTMLDialogElement)) return;
+  document.getElementById('manager-request-title').textContent = requestTopic(proposal);
+  document.getElementById('manager-request-meta').textContent = [
+    '№' + proposal.id,
+    'Создана: ' + requestDate(proposal.created_at),
+    requestStatus(proposal),
+    'Дата: ' + requestDate(proposal.status_changed_at || proposal.decided_at || proposal.updated_at || proposal.created_at),
+    proposal.location_name
+  ].filter(Boolean).join(' · ');
+  const body = document.getElementById('manager-request-body');
+  body.dataset.requestId = String(proposal.id);
+  body.replaceChildren();
+  if (proposal.entity_type === 'request') {
+    dialog.showModal();
+    void renderManagerWorkflow(proposal,body,async()=>{
+      dialog.close();
+      await loadProposals();
+    }).catch((error)=>{
+      const notice=document.createElement('p');
+      notice.textContent=error.message;
+      body.replaceChildren(notice);
+    });
+    return;
+  }
+  const lines = [];
+  if (proposal.description) lines.push(proposal.description);
+  for (const change of proposalChanges(proposal)) {
+    lines.push(change.label + ': ' + formatValue(change.before) + ' → ' + formatValue(change.after));
+  }
+  if (proposal.review_comment) lines.push('Комментарий администратора: ' + proposal.review_comment);
+  if (!lines.length) lines.push('Без изменений данных.');
+  for (const line of lines) {
+    const p = document.createElement('p');
+    p.textContent = line;
+    body.append(p);
+  }
+  if (proposal.status === 'pending' && !proposal.catalog_product_id) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'button button-secondary';
+    remove.textContent = 'Удалить заявку';
+    remove.addEventListener('click', async () => {
+      if (!window.confirm('Удалить заявку №' + proposal.id + '?')) return;
+      remove.disabled = true;
+      try {
+        await api.delete(API.managerProposals + '/' + proposal.id);
+        dialog.close();
+        await loadProposals();
+      } catch (error) {
+        const notice = document.createElement('p');
+        notice.textContent = error.message;
+        body.append(notice);
+        remove.disabled = false;
+      }
+    });
+    body.append(remove);
+  }
+  if (proposal.entity_type === 'message' && proposal.status === 'rework') {
+    const subject=document.createElement('input');
+    subject.value=proposal.title||'';
+    subject.maxLength=120;
+    const description=document.createElement('textarea');
+    description.value=proposal.description||'';
+    description.maxLength=2000;
+    description.rows=5;
+    const location=document.createElement('select');
+    location.add(new Option('Общее обращение',''));
+    const label=(text,control)=>{
+      const wrapper=document.createElement('label');
+      wrapper.className='manager-proposal-field';
+      const caption=document.createElement('span');
+      caption.textContent=text;
+      wrapper.append(caption,control);
+      return wrapper;
+    };
+    const box=document.createElement('div');
+    box.className='crm-message-rework';
+    box.append(label('Тема обращения',subject),label('Сообщение',description),label('Торговая точка',location));
+    body.append(box);
+    void api.get(API.managerOverview).then((points)=>{
+      if (!Array.isArray(points)) return;
+      for (const point of points) location.add(new Option(point.name,String(point.id)));
+      location.value=String(proposal.location_id||'');
+    }).catch(()=>{});
+    const save=document.createElement('button');
+    save.type='button';
+    save.className='button button-primary';
+    save.textContent='Отправить исправления';
+    save.addEventListener('click',async()=>{
+      save.disabled=true;
+      try {
+        await api.put(API.managerProposals+'/'+proposal.id+'/message-rework',{
+          title:subject.value,description:description.value,
+          location_id:location.value ? Number(location.value) : null
+        });
+        dialog.close();
+        await loadProposals();
+      } catch(error) {
+        const note=document.createElement('p');
+        note.textContent=error.message;
+        body.append(note);
+      } finally {save.disabled=false;}
+    });
+    body.append(save);
+  }
+  dialog.showModal();
+}
+
 function renderProposals(proposals) {
   const list = document.getElementById('manager-proposal-list');
   const empty = document.getElementById('manager-proposals-empty');
   if (!list || !empty) return;
-  list.replaceChildren();
-  for (const proposal of proposals) {
-    const card = document.createElement('article');
-    card.className = `manager-proposal-card crm-request-card status-${proposal.status}`;
-    const head = document.createElement('header');
-    const title = document.createElement('strong');
-    title.textContent = proposal.entity_type === 'message'
-      ? proposal.title || `Обращение #${proposal.id}`
-      : proposal.base_payload?.name || `${proposal.entity_type === 'product' ? 'Продукция' : 'Тара'} #${proposal.entity_id}`;
-    const status = document.createElement('span');
-    status.className = 'manager-proposal-status crm-status';
-    status.textContent = proposal.entity_type === 'message' && proposal.status === 'pending'
-      ? 'Ожидает ответа' : STATUS_LABELS[proposal.status] || proposal.status;
-    head.append(title, status);
-    const changes = document.createElement('div');
-    changes.className = 'manager-proposal-changes';
-    if (proposal.description) {
-      const description = document.createElement('p');
-      description.textContent = proposal.description;
-      changes.append(description);
-    }
-    for (const change of proposalChanges(proposal)) {
-      const line = document.createElement('p');
-      line.textContent = `${change.label}: ${formatValue(change.before)} → ${formatValue(change.after)}`;
-      changes.append(line);
-    }
-    if (!changes.childElementCount) {
-      const line = document.createElement('p');
-      line.textContent = 'Без изменений данных.';
-      changes.append(line);
-    }
-    const meta = document.createElement('p');
-    meta.className = 'manager-proposal-meta';
-    const created = new Date(proposal.created_at);
-    const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('ru-RU', { dateStyle:'short', timeStyle:'short' });
-    meta.textContent = [`№${proposal.id}`, date, proposal.location_name].filter(Boolean).join(' · ');
-    card.append(head, meta, changes);
-    if (proposal.review_comment) {
-      const comment = document.createElement('p');
-      comment.className = 'manager-proposal-comment';
-      comment.textContent = `Комментарий администратора: ${proposal.review_comment}`;
-      card.append(comment);
-    }
-    list.append(card);
-  }
+  const table = document.createElement('div');
+  table.className = 'request-journal';
+  table.append(requestJournalHeader());
+  for (const proposal of proposals) table.append(requestJournalRow(proposal, openManagerRequest));
+  const scroller = document.createElement('div');
+  scroller.className = 'request-journal-scroller';
+  scroller.append(table);
+  list.replaceChildren(scroller);
   empty.classList.toggle('is-hidden', proposals.length !== 0);
 }
 
@@ -596,9 +677,11 @@ async function loadWorkspace() {
   if (button) button.disabled = true;
   try {
     const access=await api.get(`${API.managerBase}/access`);
+    managerCatalogAvailable = access.catalog_enabled === true;
     const catalogCard=document.querySelector('[aria-labelledby="manager-catalog-title"]');
     if (catalogCard) catalogCard.hidden=!access.catalog_enabled;
     await Promise.all([loadOverview(),access.catalog_enabled ? loadCatalog() : Promise.resolve(),loadProposals()]);
+    syncManagerTabs();
     setMessage('manager-message', '');
   } catch (error) {
     setMessage('manager-message', error.message);
@@ -613,6 +696,9 @@ async function logout() {
 }
 
 export function initialiseManagerView() {
+  document.querySelector('.manager-header')?.replaceWith(createHeader());
+  initialiseHeader();
+  window.addEventListener('hashchange', () => { syncManagerTabs(); refreshHeaderRoute(); });
   document.title = `${appName()} — Рабочее место менеджера`;
   const app = document.querySelector('[data-manager-app-name]');
   const user = document.querySelector('[data-manager-user]');
@@ -638,6 +724,8 @@ export function initialiseManagerView() {
   document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
   document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
+  document.getElementById('manager-create-request')?.addEventListener('click', () => void openManagerRequestForm({type:managerCatalogAvailable ? 'price_change' : 'message'}).catch((error)=>setMessage('manager-message',error.message)));
+  document.addEventListener('crm-request-created', () => { void loadProposals(); });
   document.getElementById('manager-new-message')?.addEventListener('click', () => {
     document.getElementById('manager-message-form')?.reset();
     setMessage('manager-message-error','');
@@ -645,6 +733,7 @@ export function initialiseManagerView() {
   });
   document.getElementById('manager-message-submit')?.addEventListener('click', () => void submitMessageCard());
   document.getElementById('manager-proposal-dialog')?.addEventListener('close', () => { proposalTarget = null; });
+  document.getElementById('manager-request-close')?.addEventListener('click', () => document.getElementById('manager-request-detail')?.close());
   document.addEventListener('keydown', (event) => {
     const overlay = document.getElementById('manager-fullscreen');
     if (!overlay || overlay.classList.contains('is-hidden')) return;
