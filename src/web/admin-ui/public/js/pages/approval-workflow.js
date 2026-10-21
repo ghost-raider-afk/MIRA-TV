@@ -186,7 +186,8 @@ async function history(proposal,host) {
   if (!proposal.id) return;
   try {
     const rows=await api.get(API.adminManagerProposals+'/'+proposal.id+'/history');
-    if (!Array.isArray(rows) || !rows.length || !host.isConnected) return;
+    if (!Array.isArray(rows) || !rows.length || !host.isConnected
+      || host.dataset.requestId !== String(proposal.id)) return;
     const detail=el('details','crm-workflow-history');
     detail.append(el('summary','','История заявки'));
     for (const entry of rows) {
@@ -201,6 +202,7 @@ export function openWorkflowApproval(proposal,{onDone}) {
   const footer=clearActions();
   const diff=document.getElementById('catalog-approval-diff');
   if (!footer || !diff) return;
+  diff.dataset.requestId = String(proposal.id);
   diff.replaceChildren();
   const type=proposal.request_type;
   const current=proposal.status==='pending';
