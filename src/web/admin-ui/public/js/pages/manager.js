@@ -702,7 +702,7 @@ export function initialiseManagerView() {
   document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
   document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
-  document.getElementById('manager-create-request')?.addEventListener('click', () => void openManagerRequestForm().catch((error)=>setMessage('manager-message',error.message)));
+  document.getElementById('manager-create-request')?.addEventListener('click', () => void openManagerRequestForm({type:managerCatalogAvailable ? 'price_change' : 'message'}).catch((error)=>setMessage('manager-message',error.message)));
   document.addEventListener('crm-request-created', () => { void loadProposals(); });
   document.getElementById('manager-new-message')?.addEventListener('click', () => {
     document.getElementById('manager-message-form')?.reset();
