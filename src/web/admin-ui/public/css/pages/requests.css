@@ -90,9 +90,15 @@ body[data-page="approvals"] .catalog-approval-head #catalog-approval-close{posit
 .crm-message-rework{display:grid;gap:10px;margin-top:12px}
 .crm-message-rework textarea,.crm-message-rework input,.crm-message-rework select{width:100%;min-width:0;padding:9px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text)}
 
-/* Unified compact status typography for all five approved states. */
-.request-journal-row .request-journal-status{
-  display:inline-block;justify-self:start;max-width:100%;
-  padding:2px 4px;border-radius:4px;
-  font-size:inherit;font-weight:800;line-height:1.25
-}
+/* Shared status appearance is owned by components.css. */
+.request-journal-row .request-journal-status{justify-self:start}
+/* Readable product changes, without changing the card's layout. */
+.crm-change{display:grid;gap:5px;min-width:0}
+.crm-change-field{font-weight:700}
+.crm-change-values{display:flex;flex-wrap:wrap;align-items:center;gap:5px 9px}
+.crm-change-before{color:var(--ui-text-muted)}
+.crm-change-after{font-weight:700}
+.crm-change-arrow{color:var(--ui-text-muted)}
+.manager-request-detail .request-detail-meta .crm-status,
+.catalog-approval-head #catalog-approval-meta .crm-status{vertical-align:middle}
+.crm-workflow-item>strong,.crm-product-title{overflow-wrap:anywhere}
