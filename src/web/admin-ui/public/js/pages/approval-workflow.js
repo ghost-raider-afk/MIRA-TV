@@ -35,7 +35,7 @@ function readOnlyItem(item,type) {
   const row=el('div','crm-workflow-item');
   row.append(el('strong','',itemName(item,type)));
   if (type==='menu_add') row.append(smallInfo('Точка №'+item.location_id));
-  else if(type==='menu_remove') row.append(smallInfo('ТВ №'+item.screen_id+' · строка '+item.row_id));
+  else if(type==='menu_remove') row.append(smallInfo('ТВ №'+item.screen_id));
   else if (item.property) row.append(reviewedChange(item));
   return row;
 }
