@@ -31,3 +31,15 @@ test('request card has one centered uppercase topic and preserves approved journ
   const columns=['№','Дата создания','Тема','Статус','Дата'];
   for(const name of columns)assert.ok(presentation.includes(name),'Missing journal column '+name);
 });
+
+test('all five statuses share one bold compact badge with distinct tones',async()=>{
+  const shared=await load('css/components.css');
+  const requests=await load('css/pages/requests.css');
+  assert.match(shared,/\.crm-status\s*\{[^}]*padding:2px 5px/);
+  assert.match(shared,/\.crm-status\s*\{[^}]*font-size:14px;font-weight:700/);
+  for(const status of ['pending','rework','approved','resolved','rejected','conflict'])
+    assert.match(shared,new RegExp('\\.status-'+status+'\\b'));
+  assert.match(shared,/status-rejected\{--crm-status-tone:var\(--ui-text-muted\)/);
+  assert.match(shared,/status-conflict\{--crm-status-tone:var\(--ui-danger\)/);
+  assert.doesNotMatch(requests,/\.request-journal-row \.request-journal-status\{[^}]*padding:/);
+});
