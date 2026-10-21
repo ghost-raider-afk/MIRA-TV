@@ -292,6 +292,7 @@ export async function openManagerRequestForm({type='price_change',productId=null
 }
 
 export async function renderManagerWorkflow(proposal,host,onRefresh) {
+  host.dataset.requestId = String(proposal.id);
   host.replaceChildren();
   const title=node('p','crm-workflow-note',proposal.description||'');
   if (proposal.description) host.append(title);
@@ -300,6 +301,7 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
   ]);
   const catalog=catalogResult.status==='fulfilled'?catalogResult.value:{};
   const locations=locationsResult.status==='fulfilled'?locationsResult.value:[];
+  if (host.dataset.requestId !== String(proposal.id)) return;
   managerCatalog=Array.isArray(catalog?.products)?catalog.products:[];
   managerLocations=Array.isArray(locations)?locations:[];
   const edits=[];
@@ -402,6 +404,7 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
   }
   try {
     const history=await api.get(API.managerProposals+'/'+proposal.id+'/history');
+    if (host.dataset.requestId !== String(proposal.id)) return;
     if (Array.isArray(history) && history.length) {
       const details=node('details','crm-workflow-history');
       details.append(node('summary','','История изменений'));
