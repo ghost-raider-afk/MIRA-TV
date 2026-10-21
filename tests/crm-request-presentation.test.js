@@ -1,3 +1,4 @@
+import { catalogPropertyLabel, catalogValueLabel, catalogProductTitle, catalogChangeParts } from '../src/web/admin-ui/public/js/core/catalog-presentation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { requestStatus, requestTopic, requestDate, requestHistoryEvent } from '../src/web/admin-ui/public/js/core/requests.js';
@@ -56,4 +57,25 @@ test('saved catalog product and completed message preserve user-readable audit d
   });
   assert.match(completed,/Завершена с ответом/);
   assert.match(completed,/Проверено, всё работает/);
+});
+
+test('all change details use Russian field labels, before/after and ruble prices', () => {
+  const price=catalogChangeParts('price_primary','230.00','235');
+  assert.deepEqual(price,{field:'Цена за 1 л',before:'Было: 230,00 ₽',after:'Станет: 235,00 ₽'});
+  assert.equal(catalogValueLabel('unit_price','12.5'),'12,50 ₽');
+  assert.equal(catalogPropertyLabel('unknown_field'),'Характеристика товара');
+  for (const [field,expected] of [
+    ['filtration','Фильтрация'],['beverage_color','Цвет напитка'],
+    ['strength','Крепость'],['producer','Производитель'],['address','Адрес']
+  ]) assert.equal(catalogChangeParts(field,'a','b').field,expected);
+  assert.equal(catalogChangeParts('filtration','filtered','unfiltered').after,'Станет: Нефильтрованное');
+  assert.equal(catalogChangeParts('beverage_color','light','dark').before,'Было: Светлое');
+});
+
+test('product name includes manufacturer; supports new product payloads and historical rows', () => {
+  assert.equal(catalogProductTitle({name:'27 РЕГИОН',producer:'Пивоварня Амур'}),
+    'Товар: 27 РЕГИОН (Пивоварня Амур)');
+  assert.equal(catalogProductTitle({payload:{name:'Лагер',producer:'Завод А'}}),
+    'Товар: Лагер (Завод А)');
+  assert.equal(catalogProductTitle({name:'Лагер'}),'Товар: Лагер');
 });
