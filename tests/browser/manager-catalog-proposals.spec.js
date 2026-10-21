@@ -17,6 +17,7 @@ async function openTab(page,key) {
   await page.locator('.app-header-nav-link[data-header-section="'+key+'"]').click();
 }
 async function openOtherInquiry(page) {
+  await openTab(page,'manager-requests');
   await page.locator('#manager-create-request').click();
   const message=page.locator('#manager-message-dialog');
   const preset=page.locator('#manager-crm-dialog');
