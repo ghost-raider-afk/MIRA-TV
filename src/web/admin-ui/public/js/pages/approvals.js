@@ -125,7 +125,7 @@ function openApproval(proposal) {
   const historyDetail = element('catalog-approval-history-detail');
   historyDetail.hidden = !historical;
   historyDetail.textContent = historical
-    ? [requestStatus(proposal),
+    ? [
       proposal.reviewer_username ? `Администратор: ${proposal.reviewer_username}` : '',
       proposal.review_comment ? `Ответ: ${proposal.review_comment}` : ''
     ].filter(Boolean).join(' · ')
