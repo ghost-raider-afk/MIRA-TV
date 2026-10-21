@@ -202,6 +202,7 @@ export function openWorkflowApproval(proposal,{onDone}) {
       const group=el('div','crm-workflow-product');
       const payload=item.payload || {};
       for (const [key,label] of Object.entries(FIELD_LABELS)) {
+        if (key === 'price_secondary') continue; // Calculated from the primary price by the product contract.
         if (key in payload) group.append(entryField(label,payload[key],key));
       }
       card.append(group,smallInfo('Точки для размещения: '+(item.location_ids||[]).join(', ')));
