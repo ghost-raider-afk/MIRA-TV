@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 
+const baseURL=process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080';
 const adminPassword=process.env.E2E_ADMIN_PASSWORD || '';
 test.skip(!adminPassword,'E2E_ADMIN_PASSWORD is required');
 
@@ -18,8 +19,8 @@ async function json(response,expected=200) {
 }
 
 test('presets #2-#5 keep catalog writes atomic and manual requests separate from TV editor',async({browser})=>{
-  const admin=await browser.newContext();
-  const manager=await browser.newContext();
+  const admin=await browser.newContext({baseURL});
+  const manager=await browser.newContext({baseURL});
   const a=await admin.newPage();
   const m=await manager.newPage();
   const stamp=Date.now();
