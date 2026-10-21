@@ -185,7 +185,11 @@ function renderProductCreation(host) {
     ['name','Наименование'],['producer','Производитель'],['address','Адрес'],
     ['characteristics','Характеристики'],['strength','Крепость'],['price_primary','Цена за 1 л']
   ];
-  for (const [key,label] of fields) host.append(field(label,input(key,values[key])));
+  for (const [key,label] of fields) {
+    const control=input(key,values[key]);
+    if (['name','producer','address','price_primary'].includes(key)) control.required=true;
+    host.append(field(label,control));
+  }
   host.append(field('Цвет',select('beverage_color',COLORS,values.beverage_color || 'none')));
   host.append(field('Фильтрация',select('filtration',FILTERS,values.filtration || 'none')));
   host.append(field('Алкогольная продукция',select('alcoholic',BOOLEAN,String(values.alcoholic ?? true))));
