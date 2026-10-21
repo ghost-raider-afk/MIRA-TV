@@ -131,6 +131,7 @@ function openApproval(proposal) {
   element('catalog-approval-comment').value = '';
   syncReplyRequirement();
   clearMessage('catalog-approval-message');
+  diff.dataset.requestId = String(proposal.id);
   diff.replaceChildren();
   if (proposal.entity_type === 'request') {
     const onDone = async () => {
