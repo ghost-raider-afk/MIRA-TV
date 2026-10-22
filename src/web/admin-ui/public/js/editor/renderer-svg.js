@@ -110,13 +110,14 @@ function promotionMarkup(line, x, box, scale, typography, textBaseline, settings
 function sectionMarkup(line, box, horizontal, palette, scale, typography, themeId = 'legacy', styleId = 'legacy') {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const readable = styleId === 'readable';
+  const singlePrice = readable || themeId === 'legacy';
   const title = String(line.name || 'Меню');
   const baseline = box.top + (readable ? 41.5 : 35) * fontScale;
   const titleX = horizontal.left + 19 * horizontal.scaleX;
   const classicGap = MENU_REFERENCE.priceColumnGap * horizontal.scaleX;
   const firstDividerX = readable && Number.isFinite(horizontal.priceZoneLeft)
     ? horizontal.priceZoneLeft
-    : horizontal.primaryPriceX - classicGap;
+    : singlePrice ? horizontal.primaryPriceX : horizontal.primaryPriceX - classicGap;
   const titleRight = line.showPriceLabels
     ? firstDividerX
     : horizontal.right;
@@ -124,11 +125,11 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
   const maximumCharacters = Math.max(8, Math.floor(titleWidth / ((readable ? 15.5 : 17) * fontScale)));
   const primaryLabelX = readable && Number.isFinite(horizontal.priceCellWidth)
     ? horizontal.primaryPriceX - horizontal.priceCellWidth / 2
-    : horizontal.primaryPriceX - classicGap / 2;
+    : singlePrice ? horizontal.secondaryPriceX - classicGap / 2 : horizontal.primaryPriceX - classicGap / 2;
   const secondaryLabelX = horizontal.secondaryPriceX - classicGap / 2;
   const labels = line.showPriceLabels
-    ? readable
-      ? `<text x="${primaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:25.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 Л</text>`
+    ? singlePrice
+      ? `<text x="${primaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:(readable ? 25.5 : 23.5) * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 Л</text>`
       : `<text x="${primaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:23.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1 Л</text>
       <text x="${secondaryLabelX}" y="${baseline}" class="price-label" ${textAttributes({ size:23.5 * fontScale, weight:800, fill:palette.sectionText, anchor:'middle', fontFamily:typography?.family }, typography)}>1,5 Л</text>`
     : '';
@@ -137,9 +138,7 @@ function sectionMarkup(line, box, horizontal, palette, scale, typography, themeI
   const dividerBottom = box.top + rectHeight - dividerInset;
   const dividerTop = box.top + dividerInset;
   const dividerXs = line.showPriceLabels
-    ? readable
-      ? [firstDividerX]
-      : [firstDividerX, horizontal.primaryPriceX]
+    ? singlePrice ? [firstDividerX] : [firstDividerX, horizontal.primaryPriceX]
     : [];
   const dividers = dividerXs.map((x) => `<line x1="${x}" y1="${dividerTop}" x2="${x}" y2="${dividerBottom}" class="section-price-divider" stroke="${palette.sectionText}" stroke-opacity=".32" stroke-width="${Math.max(1, 1.1 * scale)}"/>`).join('');
   const fill = themeId === 'premium'
@@ -227,8 +226,9 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     secondaryCentsColor = palette.accentText;
   }
   const numberMarkup = showSequence ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle', fontFamily:itemFont?.family }, itemFont)}>${escapeXml(line.sequence || '')}</text>` : '';
-  const pricesMarkup = readable
-    ? priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)
+  const singlePrice = readable || themeId === 'legacy';
+  const pricesMarkup = singlePrice
+    ? priceMarkup(line.pricePrimary, readable ? horizontal.primaryPriceX : horizontal.secondaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)
     : `${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}`;
   return `<g class="table-item theme-${themeId} tone-${line.tone === 'accent' ? 'accent' : 'light'}">
     ${separatorMarkup(box, horizontal, scale, themeId, themeStyle)}
