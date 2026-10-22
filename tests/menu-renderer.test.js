@@ -81,16 +81,16 @@ test('second line is built from catalog producer, strength, color and filtration
   assert.equal(lines[1].metadata, 'ООО «Портал», п. Солнечный · 4,6% · светлое · нефильтрованное');
 });
 
-test('canonical SVG keeps MIRA-TV 1 geometry with section-only price dividers', () => {
+test('classic SVG shows one litre price in the rightmost column without changing table geometry', () => {
   const { svg, layout } = rendered();
   assert.match(svg, /viewBox="0 0 1920 1080"/);
   assert.equal(layout.horizontal.primaryPriceX, 1258);
   assert.equal(layout.horizontal.secondaryPriceX, 1405);
   assert.match(svg, /x1="65"[^>]*x2="1430"[^>]*class="separator"/);
-  assert.equal((svg.match(/class="section-price-divider"/g) || []).length, 2);
+  assert.equal((svg.match(/class="section-price-divider"/g) || []).length, 1);
   assert.doesNotMatch(svg, /<line[^>]*x1="1405"[^>]*y2=/);
-  assert.match(svg, /<text x="1184.5"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1 Л<\/text>/);
-  assert.match(svg, /<text x="1331.5"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1,5 Л<\/text>/);
+  assert.match(svg, /<text x="1331.5"[^>]*class="price-label"[^>]*text-anchor="middle"[^>]*>1 Л<\/text>/);
+  assert.doesNotMatch(svg, /1,5 Л|<text x="1184.5"[^>]*class="price-label"/);
   assert.match(svg, /class="table-section">\s*<rect[^>]*x="56"[^>]*width="1374"[^>]*rx="5"/);
   assert.match(svg, /class="item-name"[^>]*>БАВАРИЯ ПШЕНИЧНОЕ<\/text>/);
   assert.doesNotMatch(svg, /class="item-name"[^>]*4,6%/);
@@ -98,7 +98,9 @@ test('canonical SVG keeps MIRA-TV 1 geometry with section-only price dividers', 
   assert.match(svg, /class="item-meta"[^>]*>ООО «Портал», п\. Солнечный · 4,6% · светлое · нефильтрованное<\/text>/);
   assert.match(svg, /class="price"[^>]*text-anchor="end"/);
   assert.match(svg, />179<tspan/);
-  assert.match(svg, />268<tspan/);
+  assert.doesNotMatch(svg, />268<tspan/);
+  assert.equal((svg.match(/class="price" /g) || []).length, 4);
+  assert.match(svg, /<text x="1405"[^>]*class="price"/);
 });
 
 test('canonical SVG uses MIRA-TV 1 typography ratios and remains CSP-safe', () => {
@@ -179,6 +181,8 @@ test('approved branded theme uses its own table chrome without changing legacy S
   const svg = buildTableSvg(model,lines,layout);
   assert.doesNotMatch(svg,/class="item-sequence"/);
   assert.match(svg,/class="theme-price-columns"/);
+  assert.match(svg, />1,5 Л<\/text>/, 'approved themed classic layout retains its own price columns');
+  assert.match(svg, />268<tspan/, 'preset theme prices must stay unchanged');
   assert.match(svg,/fill="url\(#mira-theme-brand-gold\)"/);
   assert.match(svg,/MIRA Russo One/);
   assert.match(svg,/MIRA PT Sans Narrow/);

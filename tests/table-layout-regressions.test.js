@@ -70,8 +70,10 @@ test('packaging sections suppress litre headings while product sections keep div
 
   const classic = renderState('legacy');
   assert.equal((classic.svg.match(/>1 Л<\/text>/g) || []).length, 1);
-  assert.equal((classic.svg.match(/>1,5 Л<\/text>/g) || []).length, 1);
-  assert.equal((classic.svg.match(/class="section-price-divider"/g) || []).length, 2);
+  assert.doesNotMatch(classic.svg, />1,5 Л<\/text>/);
+  assert.equal((classic.svg.match(/class="section-price-divider"/g) || []).length, 1);
+  assert.match(classic.svg, /<text x="1405"[^>]*class="price"/);
+  assert.doesNotMatch(classic.svg, />300<tspan/);
 });
 
 test('rows without secondary metadata are compact in both table styles', () => {
