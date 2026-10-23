@@ -38,7 +38,7 @@ test('system toast remains in audit journal, outside request-only bell', async (
   const notificationPanel = page.getByRole('dialog', { name: 'Уведомления о заявках' });
   await expect(notificationPanel).toBeVisible();
   await expect(notificationPanel.locator('[data-notification-list]').filter({ hasText: marker })).toHaveCount(0);
-  await notificationPanel.getByRole('button', { name: 'Закрыть уведомления' }).click();
+  await page.locator('#notifications-button').click();
   await page.goto('/events');
   await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
   await page.locator('#event-filter-severity').selectOption('warning');
