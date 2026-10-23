@@ -42,6 +42,7 @@ test('monitor settings contract stores only canonical renderer and theme fields'
     background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.png',
     accent_color: '#F4C915', text_color: '#F8FAFC', font_scale_percent: 92, font_family: 'tahoma-bold',
     price_font_size_pt: 27,
+    show_secondary_price:false,
     promotion_badge_shape: 'base', promotion_font_family: 'arial-narrow', promotion_font_size_percent: 100,
     promotion_font_weight: 900, promotion_font_height_percent: 112, promotion_letter_spacing_px: 0,
     table_x: 40, table_y: 20, table_width_px: 1200, table_height_px: 700
@@ -104,4 +105,11 @@ test('client cannot inject arbitrary or legacy background asset URL', () => {
   assert.throws(() => menuSettingsInput({ background_image_url: 'https://example.test/background.png' }), /недопустимый адрес/);
   assert.throws(() => menuSettingsInput({ background_image_url: '/site-assets/templates/background-123e4567-e89b-12d3-a456-426614174000.webp' }), /недопустимый адрес/);
   assert.equal(menuSettingsInput({ background_image_url: '/site-assets/screens/background-123e4567-e89b-12d3-a456-426614174000.webp' }).background_image_url.endsWith('.webp'), true);
+});
+
+test('one-and-a-half-litre price visibility is optional and strictly boolean', () => {
+  assert.equal(menuSettingsInput({}).show_secondary_price,false);
+  assert.equal(menuSettingsInput({show_secondary_price:true}).show_secondary_price,true);
+  assert.equal(menuSettingsInput({show_secondary_price:false}).show_secondary_price,false);
+  assert.throws(()=>menuSettingsInput({show_secondary_price:'true'}),/Показ цены/);
 });
