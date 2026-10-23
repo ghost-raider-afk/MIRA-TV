@@ -188,3 +188,37 @@ test('approved branded theme uses its own table chrome without changing legacy S
   assert.match(svg,/MIRA PT Sans Narrow/);
   assert.match(svg,/MIRA Montserrat/);
 });
+
+test('classic second-price editor setting changes both section labels and rendered item prices',()=>{
+  const editorState=state(3);
+  editorState.settings.show_secondary_price=true;
+  const model=buildRenderModel(editorState,{width:1920,height:1080});
+  const lines=buildDisplayLines(model,{products:[product]});
+  const layout=buildRenderLayout(model,lines);
+  const svg=buildTableSvg(model,lines,layout);
+  assert.match(svg,/>1,5 Л<\\/text>/);
+  assert.match(svg,/>268<tspan/);
+  assert.equal((svg.match(/class="section-price-divider"/g)||[]).length,2);
+  assert.equal((svg.match(/class="price" /g)||[]).length,6);
+  editorState.settings.show_secondary_price=false;
+  const oneModel=buildRenderModel(editorState,{width:1920,height:1080});
+  const oneLines=buildDisplayLines(oneModel,{products:[product]});
+  const oneSvg=buildTableSvg(oneModel,oneLines,buildRenderLayout(oneModel,oneLines));
+  assert.doesNotMatch(oneSvg,/>1,5 Л<\\/text>|>268<tspan/);
+  assert.equal((oneSvg.match(/class="price" /g)||[]).length,3);
+});
+
+test('approved branded theme retains two prices regardless of classic visibility toggle',()=>{
+  const editorState=state(1);
+  editorState.settings.theme=resolveMenuThemeSettings({theme:{preset_id:'brand-premium'}}).theme;
+  editorState.settings.show_secondary_price=false;
+  const render=()=>{
+    const model=buildRenderModel(editorState,{width:1920,height:1080});
+    const lines=buildDisplayLines(model,{products:[product]});
+    return buildTableSvg(model,lines,buildRenderLayout(model,lines));
+  };
+  const off=render();
+  editorState.settings.show_secondary_price=true;
+  const on=render();
+  assert.equal(off,on);
+});
