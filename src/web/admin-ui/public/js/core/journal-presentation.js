@@ -15,6 +15,6 @@ export function journalEventMessage(event) {
 }
 export function journalActionLabel(event) {
   const code=String(event?.action || '');
-  if(code.startsWith('crm.request.') || code.startsWith('manager.card.')) return '';
+  if(code.startsWith('crm.request.') || code.startsWith('manager.card.') || code.startsWith('catalog.proposal.')) return '';
   return code ? 'Действие: '+code : '';
 }
