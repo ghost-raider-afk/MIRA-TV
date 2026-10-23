@@ -3,6 +3,7 @@ import { api } from '../core/api.js';
 import { clearMessage, element, setMessage, setPending } from '../core/dom.js';
 import { showToast } from '../core/toasts.js';
 import { formatDate } from '../core/presentation.js';
+import { journalEventMessage, journalActionLabel } from '../core/journal-presentation.js';
 
 const SEVERITY_LABELS = Object.freeze({ success: 'Успешно', warning: 'Предупреждение', error: 'Ошибка', info: 'Информация' });
 const CATEGORY_LABELS = Object.freeze({
@@ -37,13 +38,13 @@ function eventCard(event) {
 
   const message = document.createElement('p');
   message.className = 'event-journal-entry-message';
-  message.textContent = event.message;
+  message.textContent = journalEventMessage(event);
 
   const meta = document.createElement('div');
   meta.className = 'event-journal-entry-meta';
   const metaValues = [
     event.actor_username ? `Пользователь: ${event.actor_username}` : '',
-    event.action ? `Действие: ${event.action}` : '',
+    journalActionLabel(event),
     metadataValue(event, 'page') ? `Страница: ${metadataValue(event, 'page')}` : '',
     metadataValue(event, 'source') ? `Источник: ${metadataValue(event, 'source')}${metadataValue(event, 'line_number') !== null && metadataValue(event, 'line_number') !== undefined ? `:${metadataValue(event, 'line_number')}${metadataValue(event, 'column_number') !== null && metadataValue(event, 'column_number') !== undefined ? `:${metadataValue(event, 'column_number')}` : ''}` : ''}` : '',
     metadataValue(event, 'user_agent') ? `Браузер: ${metadataValue(event, 'user_agent')}` : ''
