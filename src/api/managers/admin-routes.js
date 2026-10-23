@@ -66,7 +66,7 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
   });
   await activity(store,request,{
     action:`catalog.proposal.${result.kind}`,
-    entity_type:'catalog_change_proposal',entity_id:id,...display
+    entity_type:'catalog_change_proposal',entity_id:id,category:'catalog',...display
   });
   return response.json(result);
 }
@@ -145,7 +145,7 @@ export function createManagerAdminRouter({ store, config, realtime }) {
     const proposal=await store.getCatalogProposal(proposalId);
     const display=crmActivity({proposal,action,actor:reviewerUsername,outcome:result});
     await activity(store,request,{
-      action:'crm.request.'+action,entity_type:'catalog_change_proposal',entity_id:proposalId,...display
+      action:'crm.request.'+action,entity_type:'catalog_change_proposal',entity_id:proposalId,category:'catalog',...display
     });
     response.json(result);
   });
