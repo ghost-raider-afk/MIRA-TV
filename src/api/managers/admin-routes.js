@@ -58,11 +58,23 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
       request.session.sub
     );
   }
+  const inquiry=result.proposal?.entity_type==='message';
+  const inquiryTitle=String(result.proposal?.title || 'Другое обращение');
+  const reply=String(result.proposal?.review_comment || '').trim();
+  const readableMessage=inquiry
+    ? (result.kind==='handled'
+      ? `Администратор завершил обращение №${id} «${inquiryTitle}» и ответил менеджеру.`
+      : result.kind==='returned'
+        ? `Администратор вернул обращение №${id} «${inquiryTitle}» на доработку.`
+        : `Администратор отклонил обращение №${id} «${inquiryTitle}».`)
+    : `Заявка №${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : result.kind === 'returned' ? 'возвращена на доработку' : 'отклонена'}.`;
   await activity(store, request, {
     action:`catalog.proposal.${result.kind}`,
     entity_type:'catalog_change_proposal',
     entity_id:id,
-    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : result.kind === 'returned' ? 'возвращена на доработку' : 'отклонена'}.`
+    message:readableMessage,
+    details:inquiry && reply ? (result.kind==='handled'?'Ответ менеджеру: ':'Комментарий: ')+reply : '',
+    category:'catalog'
   });
   return response.json(result);
 }
