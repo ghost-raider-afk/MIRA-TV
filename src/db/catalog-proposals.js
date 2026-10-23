@@ -13,6 +13,38 @@ function normaliseProposal(row) {
   };
 }
 
+async function enrichRequestLocations(pool,proposals) {
+  const missing=[...new Set(proposals.flatMap((proposal)=>(proposal.items || []).flatMap((item)=>{
+    const ids=[];
+    if (item.location_id && !item.location_name) ids.push(Number(item.location_id));
+    for (const id of item.location_ids || []) {
+      if (!item.location_names?.[id]) ids.push(Number(id));
+    }
+    return ids;
+  }).filter((id)=>Number.isSafeInteger(id) && id>0)))];
+  if (!missing.length) return proposals;
+  const {rows}=await pool.query('SELECT id,name FROM locations WHERE id=ANY($1::bigint[])',[missing]);
+  const names=new Map(rows.map((location)=>[Number(location.id),location.name]));
+  return proposals.map((proposal)=>({
+    ...proposal,
+    items:(proposal.items || []).map((item)=>{
+      const next={...item};
+      if (next.location_id && !next.location_name) {
+        next.location_name=names.get(Number(next.location_id)) || '';
+      }
+      if (Array.isArray(next.location_ids)) {
+        next.location_names={...(next.location_names || {})};
+        for (const id of next.location_ids) {
+          if (!next.location_names[id] && names.has(Number(id))) {
+            next.location_names[id]=names.get(Number(id));
+          }
+        }
+      }
+      return next;
+    })
+  }));
+}
+
 export function createCatalogProposalsRepository(pool) {
   return Object.freeze({
     async listCatalogProposals({ managerUsername = null, status = null, entityType = null } = {}) {
@@ -42,24 +74,29 @@ export function createCatalogProposalsRepository(pool) {
           .filter((item)=>!item.producer && Number.isSafeInteger(Number(item.product_id)) && Number(item.product_id)>0)
           .map((item)=>Number(item.product_id))
       ))];
-      if (!missing.length) return proposals;
-      const products=await pool.query(
-        'SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missing]
-      );
-      const byId=new Map(products.rows.map((product)=>[Number(product.id),product]));
-      return proposals.map((proposal)=>({
-        ...proposal,
-        items:(proposal.items || []).map((item)=>{
-          const product=byId.get(Number(item.product_id));
-          if (!product || item.producer) return item;
-          return {...item,name:item.name || product.name,producer:product.producer};
-        })
-      }));
+      let enriched=proposals;
+      if (missing.length) {
+        const products=await pool.query(
+          'SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missing]
+        );
+        const byId=new Map(products.rows.map((product)=>[Number(product.id),product]));
+        enriched=proposals.map((proposal)=>({
+          ...proposal,
+          items:(proposal.items || []).map((item)=>{
+            const product=byId.get(Number(item.product_id));
+            if (!product || item.producer) return item;
+            return {...item,name:item.name || product.name,producer:product.producer};
+          })
+        }));
+      }
+      return enrichRequestLocations(pool,enriched);
     },
 
     async getCatalogProposal(id) {
       const { rows } = await pool.query('SELECT * FROM catalog_change_proposals WHERE id=$1', [id]);
-      return normaliseProposal(rows[0]);
+      const proposal=normaliseProposal(rows[0]);
+      if (!proposal) return null;
+      return (await enrichRequestLocations(pool,[proposal]))[0];
     },
 
     async getCatalogProposalForUpdate(id) {
