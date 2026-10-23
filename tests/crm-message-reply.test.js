@@ -72,9 +72,10 @@ test('message rework updates the same id and only a matching returned message',a
   });
   const updated=await repo.reviseMessageCard(77,{
     title:'Уточнение по ТВ',description:'Исправленное обращение',
-    locationId:null,managerUsername:'manager'
+    locationId:null,locationName:'',managerUsername:'manager'
   });
   assert.equal(updated.id,77);
   assert.match(statements[0].sql,/entity_type='message' AND status='rework'/);
-  assert.deepEqual(statements[0].args,[77,'manager','Уточнение по ТВ','Исправленное обращение',null]);
+  assert.deepEqual(statements[0].args,[77,'manager','Уточнение по ТВ','Исправленное обращение',null,'']);
+  assert.match(statements[0].sql,/proposed_payload=jsonb_set/);
 });
