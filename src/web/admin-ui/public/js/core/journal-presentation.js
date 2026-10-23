@@ -6,7 +6,7 @@ export function journalEventMessage(event) {
   const id=legacy[1];
   switch(legacy[2]) {
     case 'review': return 'Администратор рассмотрел заявку №'+id+'.';
-    case 'complete': return 'Администратор вручную завершил заявку №'+id+'.';
+    case 'complete': return 'Заявка №'+id+' закрыта вручную администратором.';
     case 'save_product': return 'Администратор сохранил товар по заявке №'+id+'.';
     case 'rework': return 'Администратор вернул заявку №'+id+' на доработку.';
     case 'rejected': return 'Администратор отклонил заявку №'+id+'.';
