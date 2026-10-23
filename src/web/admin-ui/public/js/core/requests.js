@@ -20,6 +20,17 @@ export const REQUEST_TOPICS = Object.freeze({
 export function requestStatus(proposal) {
   return REQUEST_STATUSES[proposal.status] || 'Ошибка';
 }
+export function requestLocationLabel(item) {
+  const name=String(item?.location_name || '').trim();
+  return 'Торговая точка: ' + (name || 'Название точки недоступно');
+}
+
+export function requestLocationList(item) {
+  const names=Array.isArray(item?.location_names) ? item.location_names : [];
+  return (item?.location_ids || []).map((id,index)=>
+    String(names[index] || '').trim() || 'Название точки недоступно').join(', ');
+}
+
 export function requestStatusBadge(proposal,label=requestStatus(proposal)) {
   const badge=document.createElement('span');
   badge.className='crm-status status-'+(REQUEST_STATUSES[proposal.status] ? proposal.status : 'conflict');
