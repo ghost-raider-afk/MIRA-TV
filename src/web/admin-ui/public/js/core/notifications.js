@@ -208,6 +208,14 @@ export function initialiseNotifications() {
   sound?.addEventListener('click',async()=>{
     const enabled=state.user?.request_sound_enabled!==true;
     try {
+      // Start/resume directly inside the click gesture, before the asynchronous API call.
+      if(enabled) {
+        try {
+          const Audio=window.AudioContext||window.webkitAudioContext;
+          if(!soundContext&&Audio)soundContext=new Audio();
+          void soundContext?.resume().catch(()=>undefined);
+        }catch{}
+      }
       const result=await api.put(BASE+'/sound',{enabled});
       state.user.request_sound_enabled=result.enabled;
       soundIcon();
@@ -277,13 +285,13 @@ export function initialiseNotifications() {
     if(document.visibilityState==='visible')scheduleRefresh(false);
   });
   document.addEventListener('pointerdown',()=>{
-    if(state.user?.request_sound_enabled!==true)return;
+    if(state.user?.request_sound_enabled!==true || soundContext?.state==='running')return;
     try {
       const Audio=window.AudioContext||window.webkitAudioContext;
       if(!soundContext&&Audio)soundContext=new Audio();
       void soundContext?.resume().catch(()=>undefined);
     }catch{}
-  },{once:true});
+  });
   stream=new EventSource(BASE+'/stream');
   stream.addEventListener('changed',()=>scheduleRefresh(true));
   stream.addEventListener('open',()=>scheduleRefresh(false));
