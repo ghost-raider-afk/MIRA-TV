@@ -1508,6 +1508,17 @@ export function initialiseSceneEditor() {
       if (Number.isFinite(value)) patchMenuSettings({ price_font_size_pt:clamp(Math.round(value),MENU_PRICE_FONT_SIZE.minPt,MENU_PRICE_FONT_SIZE.maxPt) });
     });
     typePanel.append(makeField('Шрифт',font), makeField('Масштаб, %',scale), makeField('Кегль цен, pt',priceSize));
+    if (state.settings?.theme?.preset_id === 'legacy' || !state.settings?.theme?.preset_id) {
+      const secondaryPrice=document.createElement('input');
+      secondaryPrice.type='checkbox';
+      secondaryPrice.checked=state.settings.show_secondary_price === true;
+      secondaryPrice.setAttribute('aria-label','Показывать цену за 1,5 л');
+      secondaryPrice.addEventListener('change',()=>{
+        history.checkpoint();
+        patchMenuSettings({show_secondary_price:secondaryPrice.checked},{trackThemeOverride:false});
+      });
+      typePanel.append(makeField('Показывать цену за 1,5 л',secondaryPrice));
+    }
     typography.append(typePanel);
 
     const palette = document.createElement('details');
