@@ -9,7 +9,8 @@ function normaliseProposal(row) {
     location_id:proposal.location_id === null ? null : (proposal.location_id === undefined ? null : Number(proposal.location_id)),
     base_payload:jsonValue(proposal.base_payload, {}),
     proposed_payload:jsonValue(proposal.proposed_payload, {}),
-    items:jsonValue(proposal.items_json, [])
+    items:jsonValue(proposal.items_json, []),
+    location_name:jsonValue(proposal.proposed_payload,{}).location_name || proposal.location_name || null
   };
 }
 
@@ -115,14 +116,14 @@ export function createCatalogProposalsRepository(pool) {
       return normaliseProposal(rows[0]);
     },
 
-    async createMessageCard({ managerUsername, title, description, locationId = null }) {
+    async createMessageCard({ managerUsername, title, description, locationId = null, locationName = '' }) {
       const now = isoNow();
       const { rows } = await pool.query(
         `INSERT INTO catalog_change_proposals
           (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,title,description,location_id,status,created_at,updated_at)
-         VALUES ($1,'message',NULL,NULL,'{}'::jsonb,'{}'::jsonb,$2,$3,$4,'pending',$5,$5)
+         VALUES ($1,'message',NULL,NULL,'{}'::jsonb,$6::jsonb,$2,$3,$4,'pending',$5,$5)
          RETURNING *`,
-        [managerUsername,title,description,locationId,now]
+        [managerUsername,title,description,locationId,now,JSON.stringify({location_name:locationName})]
       );
       return normaliseProposal(rows[0]);
     },
@@ -184,14 +185,15 @@ export function createCatalogProposalsRepository(pool) {
       return rows.length > 0;
     },
 
-    async reviseMessageCard(id,{ title,description,locationId,managerUsername }) {
+    async reviseMessageCard(id,{ title,description,locationId,locationName = '',managerUsername }) {
       const { rows } = await pool.query(
         `UPDATE catalog_change_proposals
             SET title=$3,description=$4,location_id=$5,status='pending',
+                proposed_payload=jsonb_set(proposed_payload,'{location_name}',to_jsonb($6::text),true),
                 review_comment='',reviewer_username=NULL,decided_at=NULL,
                 status_changed_at=NOW(),updated_at=NOW(),revision=revision+1
           WHERE id=$1 AND manager_username=$2 AND entity_type='message' AND status='rework' RETURNING *`,
-        [id,managerUsername,title,description,locationId]
+        [id,managerUsername,title,description,locationId,locationName]
       );
       return normaliseProposal(rows[0]);
     },
