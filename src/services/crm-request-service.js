@@ -72,15 +72,18 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
           }
         }
         item.location_id = locationId;
+        item.location_name = point.name;
       }
     } else if (requestType === 'product_create') {
       const locations = input?.location_ids;
       if (!Array.isArray(locations) || !locations.length) throw invalid('Выберите хотя бы одну торговую точку.');
       item.location_ids = [...new Set(locations.map((v) => positive(v,'Торговая точка')))];
+      item.location_names = {};
       for (const id of item.location_ids) {
         authorised(access,id);
         const point = await store.getLocation(id);
         if (!point || point.active === false) throw invalid('Торговая точка не найдена или неактивна.');
+        item.location_names[id] = point.name;
       }
       item.payload = validateNewProductCard(input?.payload);
       const products = await store.listProducts();
@@ -98,6 +101,9 @@ export async function prepareWorkflowRequest(store, { managerUsername, requestTy
       if (!row) throw invalid('Этой позиции нет в действующем меню указанного ТВ.', 409);
       item.screen_id = screenId;
       item.location_id = Number(screen.location_id);
+      const point = await store.getLocation(item.location_id);
+      if (!point) throw invalid('Торговая точка не найдена.',409);
+      item.location_name = point.name;
       item.row_id = rowId;
       item.product_id = Number(row.product_id);
       item.revision = Number(draft.revision);
@@ -348,7 +354,8 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
             throw invalid('Товар уже размещён на выбранной точке.',409);
           }
         }
-        next.product_id=productId;next.location_id=locationId;next.name=product.name;next.producer=product.producer;
+        next.product_id=productId;next.location_id=locationId;next.location_name=point.name;
+        next.name=product.name;next.producer=product.producer;
       } else if (proposal.request_type === 'menu_remove') {
         const screenId=positive(edit.screen_id,'ТВ');
         const screen=screens.find((v)=>Number(v.id)===screenId);
@@ -360,6 +367,9 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
         if (!row) throw invalid('Позиция отсутствует на выбранном ТВ.',409);
         const removalProduct=await tx.getProduct(Number(row.product_id));
         next.producer=removalProduct?.producer || '';
+        const removalLocation=await tx.getLocation(Number(screen.location_id));
+        if (!removalLocation) throw invalid('Торговая точка недоступна.',409);
+        next.location_name=removalLocation.name;
         Object.assign(next,{
           screen_id:screenId,location_id:Number(screen.location_id),row_id:rowId,
           product_id:Number(row.product_id),revision:Number(draft.revision),name:row.name
@@ -369,17 +379,19 @@ export async function reviseWorkflowRequest(store,{proposalId,managerUsername,ed
         const locationIds=edit.location_ids;
         if (!Array.isArray(locationIds) || !locationIds.length) throw invalid('Выберите торговую точку.');
         const ids=[...new Set(locationIds.map((value)=>positive(value,'Торговая точка')))];
+        const locationNames={};
         for (const id of ids) {
           authorised(access,id);
           const point=await tx.getLocation(id);
           if (!point || point.active === false) throw invalid('Торговая точка недоступна.');
+          locationNames[id]=point.name;
         }
         const payload=validateNewProductCard(edit.payload);
         const all=await tx.listProducts();
         if (all.some((v)=>v.name.toLocaleLowerCase('ru')===payload.name.toLocaleLowerCase('ru'))) {
           throw invalid('Такой товар уже есть в общей базе.',409);
         }
-        next.payload=payload;next.location_ids=ids;
+        next.payload=payload;next.location_ids=ids;next.location_names=locationNames;
       } else throw invalid('Пресет заявки не поддерживается.');
       delete next.final_value;
       items.push(next);
