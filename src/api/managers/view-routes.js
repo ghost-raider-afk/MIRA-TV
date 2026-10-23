@@ -3,6 +3,7 @@ import { optionalText, positiveId, requireText } from '../../contracts/input.js'
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { prepareWorkflowRequest, reviseWorkflowRequest } from '../../services/crm-request-service.js';
+import { describeCrmActivity } from '../../services/crm-activity-description.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 import { themeWeatherSettings } from '../../contracts/menu-theme.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
@@ -102,7 +103,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     });
     await activity(store,request,{
       action:'crm.request.created',entity_type:'catalog_change_proposal',entity_id:proposal.id,
-      message:'Создана заявка №'+proposal.id+'.'
+      ...describeCrmActivity(proposal,'created')
     });
     response.status(201).json(proposal);
   });
@@ -112,6 +113,10 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       proposalId:positiveId(request.params.id,'id'),
       managerUsername:request.session.sub,
       edits:request.body?.edits
+    });
+    await activity(store,request,{
+      action:'crm.request.resubmitted',entity_type:'catalog_change_proposal',entity_id:proposal.id,
+      ...describeCrmActivity(proposal,'resubmitted')
     });
     response.json(proposal);
   });
@@ -187,7 +192,8 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     });
     await activity(store,request,{
       action:'manager.card.created',entity_type:'catalog_change_proposal',entity_id:card.id,
-      message:`Менеджер создал обращение #${card.id}.`
+      message:`Менеджер создал обращение №${card.id} «${title}».`,
+      details:description,category:'catalog'
     });
     response.status(201).json(card);
   });
