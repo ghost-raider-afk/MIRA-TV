@@ -196,7 +196,7 @@ test('classic second-price editor setting changes both section labels and render
   const lines=buildDisplayLines(model,{products:[product]});
   const layout=buildRenderLayout(model,lines);
   const svg=buildTableSvg(model,lines,layout);
-  assert.match(svg,/>1,5 Л<\\/text>/);
+  assert.match(svg,/>1,5 Л<\/text>/);
   assert.match(svg,/>268<tspan/);
   assert.equal((svg.match(/class="section-price-divider"/g)||[]).length,2);
   assert.equal((svg.match(/class="price" /g)||[]).length,6);
@@ -204,7 +204,7 @@ test('classic second-price editor setting changes both section labels and render
   const oneModel=buildRenderModel(editorState,{width:1920,height:1080});
   const oneLines=buildDisplayLines(oneModel,{products:[product]});
   const oneSvg=buildTableSvg(oneModel,oneLines,buildRenderLayout(oneModel,oneLines));
-  assert.doesNotMatch(oneSvg,/>1,5 Л<\\/text>|>268<tspan/);
+  assert.doesNotMatch(oneSvg,/>1,5 Л<\/text>|>268<tspan/);
   assert.equal((oneSvg.match(/class="price" /g)||[]).length,3);
 });
 
