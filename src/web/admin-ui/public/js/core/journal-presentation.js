@@ -1,11 +1,4 @@
 // The stored audit code is kept intact for diagnostics; the UI never exposes it for CRM.
-const LEGACY_CRM_ACTIONS=Object.freeze({
-  review:'Администратор рассмотрел заявку',
-  complete:'Администратор вручную завершил заявку',
-  save_product:'Администратор сохранил товар по заявке',
-  rework:'Администратор вернул заявку на доработку',
-  rejected:'Администратор отклонил заявку'
-});
 export function journalEventMessage(event) {
   const message=String(event?.message || '');
   const legacy=message.match(/^Обработка заявки №(\d+): ([a-z_]+)\.$/);
