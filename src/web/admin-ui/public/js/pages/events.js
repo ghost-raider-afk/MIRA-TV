@@ -15,6 +15,39 @@ function metadataValue(event, key) {
   return event?.metadata && typeof event.metadata === 'object' ? event.metadata[key] : undefined;
 }
 
+const CRM_ACTIONS=Object.freeze({
+  review:'Рассмотрение заявки',complete:'Ручное завершение заявки',
+  save_product:'Сохранение товара',rework:'Возврат на доработку',
+  rejected:'Отклонение заявки',created:'Создание заявки',
+  approve:'Завершение заявки',handled:'Завершение обращения',
+  returned:'Возврат на доработку',approved:'Согласование',
+  reject:'Отклонение заявки'
+});
+function eventActionLabel(event) {
+  const action=String(event.action || '');
+  if (action.startsWith('crm.request.') || action.startsWith('catalog.proposal.')) {
+    const operation=action.split('.').pop();
+    return CRM_ACTIONS[operation] || 'Работа с заявкой';
+  }
+  return action;
+}
+function eventMessage(event) {
+  const action=String(event.action || '');
+  if (!action.startsWith('crm.request.')) return event.message;
+  const old=String(event.message || '');
+  // Old journal records did not preserve line decisions. Do not infer them.
+  if (/^Обработка заявки №\d+: [a-z_]+\.$/.test(old)) {
+    const id=old.match(/№(\d+)/)?.[1] || '';
+    const type=action.split('.').pop();
+    const actor=event.actor_username ? ' пользователем '+event.actor_username : '';
+    const phrase=type==='complete'?'завершена вручную администратором':
+      type==='review'?'рассмотрена':type==='save_product'?'добавлен товар в каталог по заявке':
+      type==='rework'?'возвращена на доработку':type==='rejected'?'отклонена':'обработана';
+    return 'Заявка №'+id+' '+phrase+actor+'.';
+  }
+  return old;
+}
+
 function eventCard(event) {
   const article = document.createElement('article');
   article.className = `settings-card event-journal-entry is-${event.severity || 'info'}`;
@@ -37,13 +70,13 @@ function eventCard(event) {
 
   const message = document.createElement('p');
   message.className = 'event-journal-entry-message';
-  message.textContent = event.message;
+  message.textContent = eventMessage(event);
 
   const meta = document.createElement('div');
   meta.className = 'event-journal-entry-meta';
   const metaValues = [
     event.actor_username ? `Пользователь: ${event.actor_username}` : '',
-    event.action ? `Действие: ${event.action}` : '',
+    event.action ? `Действие: ${eventActionLabel(event)}` : '',
     metadataValue(event, 'page') ? `Страница: ${metadataValue(event, 'page')}` : '',
     metadataValue(event, 'source') ? `Источник: ${metadataValue(event, 'source')}${metadataValue(event, 'line_number') !== null && metadataValue(event, 'line_number') !== undefined ? `:${metadataValue(event, 'line_number')}${metadataValue(event, 'column_number') !== null && metadataValue(event, 'column_number') !== undefined ? `:${metadataValue(event, 'column_number')}` : ''}` : ''}` : '',
     metadataValue(event, 'user_agent') ? `Браузер: ${metadataValue(event, 'user_agent')}` : ''

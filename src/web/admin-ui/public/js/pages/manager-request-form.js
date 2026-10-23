@@ -1,6 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
-import { REQUEST_TOPICS, requestHistoryEvent, requestStatusBadge } from '../core/requests.js';
+import { REQUEST_TOPICS, requestHistoryEvent, requestStatusBadge, requestLocationLabel, requestLocationList } from '../core/requests.js';
 import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel, catalogProductTitle, catalogChangeParts } from '../core/catalog-presentation.js';
 
 const FIELDS = Object.freeze(Object.fromEntries(
@@ -327,11 +327,11 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
         node('span','crm-change-arrow','→'),node('span','crm-change-after',parts.after));
       change.append(values);
       wrapper.append(change);
-    } else if (type==='menu_add') wrapper.append(node('p','','Торговая точка №'+item.location_id));
-    else if (type==='menu_remove') wrapper.append(node('p','','ТВ №'+item.screen_id));
+    } else if (type==='menu_add') wrapper.append(node('p','',requestLocationLabel(item)));
+    else if (type==='menu_remove') wrapper.append(node('p','',requestLocationLabel(item)+' · ТВ №'+item.screen_id));
     else if (type==='product_create') {
       for (const [key,value] of Object.entries(item.payload||{})) wrapper.append(node('p','',(CATALOG_FIELD_LABELS[key]||'Характеристика товара')+': '+catalogValueLabel(key,value)));
-      wrapper.append(node('p','','Торговые точки: '+(item.location_ids||[]).join(', ')));
+      wrapper.append(node('p','','Торговые точки: '+requestLocationList(item)));
     }
     const status=item.decision==='rework' ? 'На доработку'
       : item.decision==='approved' ? 'Согласовано'

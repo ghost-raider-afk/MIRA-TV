@@ -141,6 +141,7 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     const description=requireText(request.body?.description,'Текст обращения',{max:2000});
     const locationId=request.body?.location_id == null || request.body.location_id === ''
       ? null : positiveId(request.body.location_id,'Торговая точка');
+    let locationName='';
     if (locationId !== null) {
       const [access,location]=await Promise.all([
         store.getManagerAccess(request.session.sub),store.getLocation(locationId)
@@ -149,13 +150,14 @@ export function createManagerViewRouter({ store, config, weatherService }) {
         (!access.all_locations && !access.location_ids.includes(locationId))) {
         return response.status(403).json({error:'Торговая точка недоступна.'});
       }
+      locationName=location.name;
     }
     const updated=await store.transaction(async (tx) => {
       const proposal=await tx.getCatalogProposalForUpdate(id);
       if (!proposal || proposal.manager_username !== request.session.sub ||
           proposal.entity_type !== 'message' || proposal.status !== 'rework') return null;
       const result=await tx.reviseMessageCard(id,{
-        title,description,locationId,managerUsername:request.session.sub
+        title,description,locationId,locationName,managerUsername:request.session.sub
       });
       await tx.recordProposalEvent(id,request.session.sub,'resubmitted',{
         old_title:proposal.title,old_description:proposal.description,
@@ -172,15 +174,17 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     const description=requireText(request.body?.description, 'Текст обращения', { max:2000 });
     const locationId=request.body?.location_id === null || request.body?.location_id === undefined || request.body?.location_id === ''
       ? null : positiveId(request.body.location_id, 'Торговая точка');
+    let locationName='';
     if (locationId !== null) {
       const access=await store.getManagerAccess(request.session.sub);
       const location=await store.getLocation(locationId);
       if (!location || location.active === false || (!access.all_locations && !access.location_ids.includes(locationId)))
         return response.status(403).json({ error:'Торговая точка недоступна.' });
+      locationName=location.name;
     }
     const card=await store.transaction(async (tx)=>{
       const created=await tx.createMessageCard({
-        managerUsername:request.session.sub,title,description,locationId
+        managerUsername:request.session.sub,title,description,locationId,locationName
       });
       await tx.recordProposalEvent(created.id,request.session.sub,'created',{title,description,locationId});
       return created;

@@ -6,6 +6,7 @@ import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-ser
 import { reviewWorkflowRequest, completeManualRequest, saveNewProductFromRequest, returnOrRejectWorkflowRequest } from '../../services/crm-request-service.js';
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
+import { crmActivity } from '../../shared/crm-activity.js';
 
 const PROPOSAL_STATUSES = new Set(['pending','rework','approved','rejected','conflict','resolved','history']);
 
@@ -57,11 +58,15 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
       request.session.sub
     );
   }
-  await activity(store, request, {
+  const display = crmActivity({
+    proposal:result.proposal,actor:request.session.sub,
+    action:result.kind==='handled' || result.kind==='approved' ? 'approve' :
+      result.kind==='returned' ? 'rework' : 'rejected',
+    outcome:result
+  });
+  await activity(store,request,{
     action:`catalog.proposal.${result.kind}`,
-    entity_type:'catalog_change_proposal',
-    entity_id:id,
-    message:`Заявка #${id} ${result.kind === 'approved' ? 'утверждена' : result.kind === 'handled' ? 'обработана' : result.kind === 'returned' ? 'возвращена на доработку' : 'отклонена'}.`
+    entity_type:'catalog_change_proposal',entity_id:id,category:'catalog',...display
   });
   return response.json(result);
 }
@@ -137,9 +142,10 @@ export function createManagerAdminRouter({ store, config, realtime }) {
     } else {
       return response.status(400).json({error:'Неизвестное действие с заявкой.'});
     }
+    const proposal=await store.getCatalogProposal(proposalId);
+    const display=crmActivity({proposal,action,actor:reviewerUsername,outcome:result});
     await activity(store,request,{
-      action:'crm.request.'+action,entity_type:'catalog_change_proposal',entity_id:proposalId,
-      message:'Обработка заявки №'+proposalId+': '+action+'.'
+      action:'crm.request.'+action,entity_type:'catalog_change_proposal',entity_id:proposalId,category:'catalog',...display
     });
     response.json(result);
   });

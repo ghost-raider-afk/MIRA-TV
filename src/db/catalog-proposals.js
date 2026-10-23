@@ -8,6 +8,7 @@ function normaliseProposal(row) {
     entity_id:proposal.entity_id === null ? null : Number(proposal.entity_id),
     location_id:proposal.location_id === null ? null : (proposal.location_id === undefined ? null : Number(proposal.location_id)),
     base_payload:jsonValue(proposal.base_payload, {}),
+    location_name:jsonValue(proposal.base_payload,{}).location_name || proposal.location_name || '',
     proposed_payload:jsonValue(proposal.proposed_payload, {}),
     items:jsonValue(proposal.items_json, [])
   };
@@ -35,24 +36,39 @@ export function createCatalogProposalsRepository(pool) {
       const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
       const { rows } = await pool.query(`SELECT p.*, l.name AS location_name FROM catalog_change_proposals p LEFT JOIN locations l ON l.id=p.location_id${where} ORDER BY p.created_at DESC, p.id DESC`, values);
       const proposals=rows.map(normaliseProposal);
-      // Historical request lines predate the manufacturer snapshot. Resolve
-      // missing names in one DB query; never require manager catalog access.
-      const missing=[...new Set(proposals.flatMap((proposal)=>
-        (proposal.items || [])
-          .filter((item)=>!item.producer && Number.isSafeInteger(Number(item.product_id)) && Number(item.product_id)>0)
-          .map((item)=>Number(item.product_id))
-      ))];
-      if (!missing.length) return proposals;
-      const products=await pool.query(
-        'SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missing]
-      );
-      const byId=new Map(products.rows.map((product)=>[Number(product.id),product]));
+      // One batched lookup per type, preserving names captured when the request
+      // was submitted. Historical items may lack these snapshots.
+      const missingProducts=[...new Set(proposals.flatMap((proposal)=>
+        (proposal.items || []).filter((item)=>!item.producer && Number.isSafeInteger(Number(item.product_id)) && Number(item.product_id)>0)
+          .map((item)=>Number(item.product_id))))];
+      const missingLocations=[...new Set(proposals.flatMap((proposal)=>
+        (proposal.items || []).flatMap((item)=>{
+          const ids=Array.isArray(item.location_ids) ? item.location_ids : item.location_id ? [item.location_id] : [];
+          return ids.filter((id,index)=> Number.isSafeInteger(Number(id)) && Number(id)>0 &&
+            (Array.isArray(item.location_ids) ? !item.location_names?.[index] : !item.location_name)).map(Number);
+        })))];
+      if (!missingProducts.length && !missingLocations.length) return proposals;
+      const [products,locations]=await Promise.all([
+        missingProducts.length ? pool.query('SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missingProducts]) : {rows:[]},
+        missingLocations.length ? pool.query('SELECT id,name FROM locations WHERE id=ANY($1::bigint[])',[missingLocations]) : {rows:[]}
+      ]);
+      const byProduct=new Map(products.rows.map((product)=>[Number(product.id),product]));
+      const byLocation=new Map(locations.rows.map((point)=>[Number(point.id),point.name]));
       return proposals.map((proposal)=>({
         ...proposal,
         items:(proposal.items || []).map((item)=>{
-          const product=byId.get(Number(item.product_id));
-          if (!product || item.producer) return item;
-          return {...item,name:item.name || product.name,producer:product.producer};
+          const product=byProduct.get(Number(item.product_id));
+          const updated={...item};
+          if (product && !item.producer) {
+            updated.name=item.name || product.name;
+            updated.producer=product.producer;
+          }
+          if (item.location_id && !item.location_name) updated.location_name=byLocation.get(Number(item.location_id)) || '';
+          if (Array.isArray(item.location_ids)) {
+            updated.location_names=item.location_ids.map((id,index)=>
+              item.location_names?.[index] || byLocation.get(Number(id)) || '');
+          }
+          return updated;
         })
       }));
     },
@@ -78,14 +94,14 @@ export function createCatalogProposalsRepository(pool) {
       return normaliseProposal(rows[0]);
     },
 
-    async createMessageCard({ managerUsername, title, description, locationId = null }) {
+    async createMessageCard({ managerUsername, title, description, locationId = null, locationName = '' }) {
       const now = isoNow();
       const { rows } = await pool.query(
         `INSERT INTO catalog_change_proposals
           (manager_username,entity_type,entity_id,base_updated_at,base_payload,proposed_payload,title,description,location_id,status,created_at,updated_at)
-         VALUES ($1,'message',NULL,NULL,'{}'::jsonb,'{}'::jsonb,$2,$3,$4,'pending',$5,$5)
+         VALUES ($1,'message',NULL,NULL,$6::jsonb,'{}'::jsonb,$2,$3,$4,'pending',$5,$5)
          RETURNING *`,
-        [managerUsername,title,description,locationId,now]
+        [managerUsername,title,description,locationId,now,JSON.stringify({location_name:locationName})]
       );
       return normaliseProposal(rows[0]);
     },
@@ -147,14 +163,14 @@ export function createCatalogProposalsRepository(pool) {
       return rows.length > 0;
     },
 
-    async reviseMessageCard(id,{ title,description,locationId,managerUsername }) {
+    async reviseMessageCard(id,{ title,description,locationId,locationName='',managerUsername }) {
       const { rows } = await pool.query(
         `UPDATE catalog_change_proposals
-            SET title=$3,description=$4,location_id=$5,status='pending',
+            SET title=$3,description=$4,location_id=$5,base_payload=$6::jsonb,status='pending',
                 review_comment='',reviewer_username=NULL,decided_at=NULL,
                 status_changed_at=NOW(),updated_at=NOW(),revision=revision+1
           WHERE id=$1 AND manager_username=$2 AND entity_type='message' AND status='rework' RETURNING *`,
-        [id,managerUsername,title,description,locationId]
+        [id,managerUsername,title,description,locationId,JSON.stringify({location_name:locationName})]
       );
       return normaliseProposal(rows[0]);
     },

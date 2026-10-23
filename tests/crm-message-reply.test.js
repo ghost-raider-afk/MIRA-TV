@@ -76,5 +76,5 @@ test('message rework updates the same id and only a matching returned message',a
   });
   assert.equal(updated.id,77);
   assert.match(statements[0].sql,/entity_type='message' AND status='rework'/);
-  assert.deepEqual(statements[0].args,[77,'manager','Уточнение по ТВ','Исправленное обращение',null]);
+  assert.deepEqual(statements[0].args,[77,'manager','Уточнение по ТВ','Исправленное обращение',null,JSON.stringify({location_name:''})]);
 });
