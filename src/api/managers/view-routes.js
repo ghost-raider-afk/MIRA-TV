@@ -171,6 +171,12 @@ export function createManagerViewRouter({ store, config, weatherService }) {
       return result;
     });
     if (!updated) throw notFound('Заявка недоступна для исправления.');
+    await activity(store,request,{
+      action:'crm.request.resubmitted',entity_type:'catalog_change_proposal',entity_id:id,
+      message:'Менеджер повторно отправил исправленное обращение №'+id+' «'+title+'».',
+      details:'Торговая точка: '+(locationName || 'Не указана')+'\nТекст обращения: '+description,
+      category:'catalog'
+    });
     response.json(updated);
   });
 
