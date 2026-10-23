@@ -239,7 +239,6 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   mountProtectedApi(app, dependencies, requireApiSession, requireApiRole);
   mountFrontend(app, requirePageSession, requirePageRole);
   app.use(errorHandler);
-  requestNotifications.start();
   return { app, store, config, realtime, weatherService, requestNotifications };
 }
 
@@ -247,6 +246,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const service = await createApp();
   const server = service.app.listen(service.config.port, service.config.host, () => logger.info('MIRA-TV server started', { app: service.config.appName, host: service.config.host, port: service.config.port }));
   service.realtime.attach(server);
+  service.requestNotifications.start();
   service.weatherService.start();
   const maintenanceTimer = setInterval(() => {
     void cleanupDeviceActivations(service.store, service.config);

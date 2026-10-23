@@ -32,13 +32,13 @@ export function createRequestNotificationsRepository(db) {
     },
     async readRequestNotification(username,id) {
       const {rowCount}=await db.query(
-        'UPDATE request_notifications SET read_at=COALESCE(read_at,NOW()) WHERE username=$1 AND id=$2 AND archived_at IS NULL',
+        'UPDATE request_notifications SET read_at=COALESCE(read_at,NOW()),presented_at=COALESCE(presented_at,NOW()) WHERE username=$1 AND id=$2 AND archived_at IS NULL',
         [username,id]);
       return rowCount>0;
     },
     async readAllRequestNotifications(username) {
       const {rowCount}=await db.query(
-        'UPDATE request_notifications SET read_at=NOW() WHERE username=$1 AND archived_at IS NULL AND read_at IS NULL',[username]);
+        'UPDATE request_notifications SET read_at=NOW(),presented_at=COALESCE(presented_at,NOW()) WHERE username=$1 AND archived_at IS NULL AND (read_at IS NULL OR presented_at IS NULL)',[username]);
       return rowCount;
     },
     async clearRequestNotifications(username) {

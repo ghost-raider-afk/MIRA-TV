@@ -249,8 +249,10 @@ export function initialiseNotifications() {
     try{
       await api.post(BASE+'/read-all');
       // Already displayed toasts are dismissed, but audit events are untouched.
-      for(const node of [...visible])dismissToast(node);
+      paused=true;
+      for(const node of [...visible]){visible.delete(node);node.remove();}
       await loadNotifications();
+      paused=!layer.classList.contains('is-hidden');
     }catch{}
   });
   document.getElementById('request-notifications-clear')?.addEventListener('click',async()=>{
@@ -272,6 +274,14 @@ export function initialiseNotifications() {
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible')scheduleRefresh(false);
   });
+  document.addEventListener('pointerdown',()=>{
+    if(state.user?.request_sound_enabled!==true)return;
+    try {
+      const Audio=window.AudioContext||window.webkitAudioContext;
+      if(!soundContext&&Audio)soundContext=new Audio();
+      void soundContext?.resume().catch(()=>undefined);
+    }catch{}
+  },{once:true});
   stream=new EventSource(BASE+'/stream');
   stream.addEventListener('changed',()=>scheduleRefresh(true));
   stream.addEventListener('open',()=>scheduleRefresh(false));
