@@ -1,7 +1,7 @@
 import { pageName } from './config.js';
 
 export const ROUTE_DEFINITIONS = Object.freeze([
-  Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Дашборд', prefetch: false }),
+  Object.freeze({ path: '/', page: 'overview', section: 'overview', title: 'Мониторинг', prefetch: false }),
   Object.freeze({ path: '/locations', page: 'locations', section: 'monitors', title: 'Торговые точки', prefetch: true }),
   Object.freeze({ path: '/screens', page: 'screens', section: 'monitors', title: 'Мониторы', prefetch: true }),
   Object.freeze({ path: '/connect-tv', page: 'connect-tv', section: 'monitors', title: 'Подключить ТВ', prefetch: true }),
@@ -56,7 +56,7 @@ export const MANAGER_PRIMARY_ROUTES = Object.freeze([
 ]);
 
 export const DESKTOP_PRIMARY_ROUTES = Object.freeze([
-  Object.freeze({ key: 'overview', label: 'Обзор', href: '/' }),
+  Object.freeze({ key: 'overview', label: 'Мониторинг', href: '/' }),
   Object.freeze({ key: 'monitors', label: 'TV-сеть', href: '/screens' }),
   Object.freeze({ key: 'scene', label: 'Редактор сцены', href: '/scene' }),
   Object.freeze({ key: 'catalog', label: 'Каталог', href: '/catalog' }),

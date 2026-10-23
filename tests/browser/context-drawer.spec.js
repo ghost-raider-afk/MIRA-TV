@@ -35,7 +35,7 @@ test('desktop context navigation is integrated into the floating top bar', async
   await login(page);
   const context = page.locator('.ui-context');
 
-  await expect(page).toHaveTitle(/ — Дашборд$/);
+  await expect(page).toHaveTitle(/ — Мониторинг$/);
   await expect(context).toBeHidden();
   await expect(page.locator('.ui-rail')).toBeHidden();
   await expect(page.locator('.app-header-nav')).toBeVisible();

@@ -14,9 +14,9 @@
         <main class="main-content dashboard-page">
           <section class="dashboard-commandbar">
             <div>
-              <p class="eyebrow">ОПЕРАТИВНЫЙ ЦЕНТР</p>
-              <h1>Дашборд</h1>
-              <p>Состояние TV-сети и история работы каждого TV Player.</p>
+              <p class="eyebrow">СОСТОЯНИЕ TV-СЕТИ</p>
+              <h1>Мониторинг</h1>
+              <p>Состояние TV-сети и диагностика выбранного Player.</p>
             </div>
             <div class="dashboard-period-control">
               <span>Период: <strong data-dashboard-range-label>1 час</strong></span>
@@ -63,7 +63,12 @@
             <span>Проблемой считаются только объективные состояния: TV не подключён, офлайн или перестал передавать телеметрию.</span>
           </section>
 
-          <section class="dashboard-tv-toolbar" aria-label="Выбор телевизора для анализа">
+          <section class="dashboard-operations-grid" aria-label="Состояние TV-сети и выбранный монитор">
+            <article class="dashboard-panel">
+              <header><div><span>Проблемные TV</span><small>Только устройства, требующие внимания</small></div><a href="/screens">Открыть TV-сеть</a></header>
+              <div class="dashboard-attention-list" data-dashboard-attention></div>
+            </article>
+            <section class="dashboard-tv-toolbar" aria-label="Выбор телевизора для анализа">
             <label class="dashboard-tv-select-field">
               <span>Телевизор для анализа</span>
               <select data-dashboard-tv-select aria-label="Телевизор для анализа"></select>
@@ -76,6 +81,7 @@
               <span class="dashboard-tv-status" data-dashboard-tv-status>—</span>
               <small data-dashboard-telemetry-status>История появится после первого замера Player.</small>
             </div>
+            </section>
           </section>
 
           <section class="dashboard-chart-grid" aria-label="Графики выбранного телевизора">
@@ -110,21 +116,22 @@
               <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
             </article>
 
-            <article class="dashboard-chart-card" data-dashboard-card="uptime">
+            <article class="dashboard-chart-card dashboard-uptime-card" data-dashboard-card="uptime">
               <header>
-                <div><span>Uptime Player</span><small>Время с запуска страницы Player</small></div>
+                <div><span>Время работы Player</span><small>С момента запуска страницы</small></div>
                 <strong data-dashboard-current>—</strong>
               </header>
-              <div class="dashboard-chart-host" data-dashboard-chart></div>
-              <footer><span>Мин <strong data-dashboard-min>—</strong></span><span>Макс <strong data-dashboard-max>—</strong></span></footer>
+              <div class="dashboard-uptime-body">
+                <div class="dashboard-uptime-state" data-dashboard-uptime-state>Ожидаем данные Player</div>
+                <dl class="dashboard-uptime-details">
+                  <div><dt>Последний замер</dt><dd data-dashboard-uptime-last>—</dd></div>
+                  <div><dt>Замеров за период</dt><dd data-dashboard-uptime-samples>—</dd></div>
+                </dl>
+              </div>
             </article>
           </section>
 
-          <section class="dashboard-lower-grid">
-            <article class="dashboard-panel">
-              <header><div><span>Проблемные TV</span><small>Только устройства, требующие внимания</small></div><a href="/screens">Открыть TV-сеть</a></header>
-              <div class="dashboard-attention-list" data-dashboard-attention></div>
-            </article>
+          <section class="dashboard-info-grid" aria-label="Параметры телеметрии">
             <article class="dashboard-panel dashboard-info-panel">
               <header><div><span>Телеметрия</span><small>Параметры выбранного TV Player</small></div></header>
               <div class="dashboard-info-list">

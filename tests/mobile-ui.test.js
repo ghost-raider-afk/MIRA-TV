@@ -31,7 +31,7 @@ test('mobile UI is one canonical shell layer rather than page-by-page patches', 
   assert.match(header, /DESKTOP_PRIMARY_ROUTES/);
   assert.match(header, /app-header-nav/);
   assert.match(header, /className = 'app-header-home'/);
-  assert.match(header, /Дашборд/);
+  assert.match(header, /Мониторинг/);
   assert.match(shell, /ui-context-backdrop/);
   assert.match(shell, /PHONE_BREAKPOINT = 960/);
   assert.match(shell, /document\.body\.classList\.toggle\('ui-context-open'/);

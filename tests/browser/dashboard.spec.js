@@ -14,12 +14,12 @@ test('Dashboard is reached from the logo and switches per-TV reporting periods',
   await login(page);
 
   await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
-  await expect(page).toHaveTitle(/ — Дашборд$/);
-  await expect(page.locator('.dashboard-commandbar h1')).toHaveText('Дашборд');
+  await expect(page).toHaveTitle(/ — Мониторинг$/);
+  await expect(page.locator('.dashboard-commandbar h1')).toHaveText('Мониторинг');
   await expect(page.locator('[data-dashboard-card]')).toHaveCount(4);
   await expect(page.locator('[data-dashboard-tv-select]')).toBeVisible();
   await expect(page.locator('.ui-context')).toBeHidden();
-  await expect(page.locator('.ui-rail-button[aria-label="Дашборд"]')).toHaveCount(0);
+  await expect(page.locator('.ui-rail-button[aria-label="Мониторинг"]')).toHaveCount(0);
 
   const requestedRanges = [];
   const requestedScreens = [];
@@ -115,5 +115,7 @@ test('Dashboard collapses four empty graphs into one telemetry state and restore
   await page.locator('[data-dashboard-range="24h"]').click();
   await expect(empty).toBeHidden();
   await expect(page.locator('[data-dashboard-card]:visible')).toHaveCount(4);
-  await expect(page.locator('.dashboard-sparkline')).toHaveCount(4);
+  await expect(page.locator('.dashboard-sparkline')).toHaveCount(3);
+  await expect(page.locator('[data-dashboard-card="uptime"] [data-dashboard-chart]')).toHaveCount(0);
+  await expect(page.locator('[data-dashboard-card="uptime"] [data-dashboard-uptime-samples]')).toHaveText('2');
 });

@@ -127,8 +127,8 @@ function syncHeaderBrand(root = document) {
     ? [root]
     : [...root.querySelectorAll('.app-header-home')];
   links.forEach((link) => {
-    link.setAttribute('aria-label', `${name} — ${state.session?.role === 'manager' ? 'Торговые точки' : 'Дашборд'}`);
-    link.setAttribute('title', `${name} — Дашборд`);
+    link.setAttribute('aria-label', `${name} — ${state.session?.role === 'manager' ? 'Торговые точки' : 'Мониторинг'}`);
+    link.setAttribute('title', `${name} — Мониторинг`);
     const homeName = link.querySelector('[data-header-home-name]');
     if (homeName) homeName.textContent = name;
     const mark = link.querySelector('[data-header-brand]');
