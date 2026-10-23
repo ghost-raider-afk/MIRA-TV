@@ -84,12 +84,13 @@ test('existing location-only workflow items get a name without changing the data
 test('manual completion reports explicitly that the administrator closed the request',()=>{
   const result=describeCrmActivity({
     id:6,request_type:'menu_add',items:[{name:'НЕМЕЦКОЕ',producer:product.producer,
-      location_id:4,location_name:'Центральный магазин'}]
+      location_id:4,location_name:'Центральный магазин',decision:'pending'}]
   },'complete');
   assert.match(result.message,/Заявка №6 «Добавить позиции в меню» закрыта вручную администратором/);
   assert.match(result.details,/Товар: НЕМЕЦКОЕ \(ОАО Барнаульский пивоваренный завод\)/);
   assert.match(result.details,/Торговая точка: Центральный магазин/);
   assert.doesNotMatch(result.message,/complete|crm\.request/);
+  assert.doesNotMatch(result.details,/Решение: На рассмотрении/);
 });
 
 test('review audit includes decisions, changed values and location names in Russian',()=>{
