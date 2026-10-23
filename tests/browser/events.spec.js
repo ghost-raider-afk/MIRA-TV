@@ -11,7 +11,7 @@ async function login(page) {
   await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
 }
 
-test('user message appears once at top, reaches bell and persists in event journal', async ({ page }) => {
+test('system toast remains in audit journal, outside request-only bell', async ({ page }) => {
   await login(page);
   await page.goto('/settings');
   await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
@@ -35,11 +35,12 @@ test('user message appears once at top, reaches bell and persists in event journ
   }).toBe(true);
 
   await page.locator('#notifications-button').click();
-  const notificationPanel = page.getByLabel('Последние события');
-  await expect(notificationPanel.locator('[data-notification-list] .event-row').filter({ hasText: marker })).toBeVisible();
-
-  await notificationPanel.getByRole('link', { name: 'Открыть журнал событий' }).click();
-  await expect(page).toHaveURL(/\/events$/);
+  const notificationPanel = page.getByRole('dialog', { name: 'Уведомления о заявках' });
+  await expect(notificationPanel).toBeVisible();
+  await expect(notificationPanel.locator('[data-notification-list]').filter({ hasText: marker })).toHaveCount(0);
+  await page.locator('#notifications-button').click();
+  await page.goto('/events');
+  await expect(page.locator('.main-content')).toHaveAttribute('data-route-state', 'ready');
   await page.locator('#event-filter-severity').selectOption('warning');
   await page.locator('#event-filter-category').selectOption('settings');
   await page.locator('#event-filter-query').fill(marker);

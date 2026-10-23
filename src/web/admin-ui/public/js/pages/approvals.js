@@ -81,6 +81,12 @@ async function loadApprovals() {
     const url = filter === 'all' ? API.adminManagerProposals : `${API.adminManagerProposals}?status=${filter}`;
     const proposals = await api.get(url);
     renderApprovals(Array.isArray(proposals) ? proposals : []);
+    const requested = new URLSearchParams(window.location.search).get('request');
+    const chosen = Array.isArray(proposals) && proposals.find((item) => String(item.id) === requested);
+    if (chosen) {
+      history.replaceState(history.state, '', '/approvals');
+      openApproval(chosen);
+    }
     clearMessage('catalog-approvals-message');
   } catch (error) {
     setMessage('catalog-approvals-message', error.message);

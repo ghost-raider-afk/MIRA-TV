@@ -44,6 +44,8 @@ import { createOverviewRepository } from './overview.js';
 import { createUsersRepository } from './users.js';
 import { createSettingsRepository } from './settings.js';
 import { createNotificationsRepository } from './notifications.js';
+import { migrateRequestNotifications } from './migrations/request-notifications.js';
+import { createRequestNotificationsRepository } from './request-notifications.js';
 import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
@@ -97,7 +99,8 @@ const MIGRATIONS = Object.freeze([
   { name: '036-catalog-change-proposals', run: migrateCatalogChangeProposals },
   { name: '037-manager-access', run: migrateManagerAccess },
   { name: '038-manager-crm-cards', run: migrateManagerCrmCards },
-  { name: '039-crm-request-workflow', run: migrateCrmRequestWorkflow }
+  { name: '039-crm-request-workflow', run: migrateCrmRequestWorkflow },
+  { name: '040-request-notifications', run: migrateRequestNotifications }
 ]);
 
 function createRepositories(queryable) {
@@ -108,6 +111,7 @@ function createRepositories(queryable) {
     createUsersRepository(queryable),
     createSettingsRepository(queryable),
     createNotificationsRepository(queryable),
+    createRequestNotificationsRepository(queryable),
     locations,
     createScreensRepository(queryable),
     createCatalogRepository(queryable),

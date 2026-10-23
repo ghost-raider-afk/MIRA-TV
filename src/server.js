@@ -22,6 +22,8 @@ import { createSessionRouter } from './api/session/routes.js';
 import { createOverviewRouter } from './api/overview/routes.js';
 import { createSettingsRouter } from './api/settings/routes.js';
 import { createNotificationsRouter } from './api/notifications/routes.js';
+import { createRequestNotificationsRouter } from './api/notifications/request-routes.js';
+import { createRequestNotificationHub } from './realtime/request-notifications.js';
 import { createDiagnosticsRouter } from './api/diagnostics/routes.js';
 import { createCatalogRouter } from './api/catalog/routes.js';
 import { createLocationsRouter } from './api/locations/routes.js';
@@ -168,6 +170,7 @@ function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole)
   app.use('/api', requireApiSession);
   app.use('/api', protectStateChangingRequest);
   app.use('/api', createSessionRouter(dependencies));
+  app.use('/api/request-notifications', createRequestNotificationsRouter(dependencies));
 
   app.use('/api/manager', requireApiRole('manager'), createManagerViewRouter(dependencies));
 
@@ -224,6 +227,7 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   await initialiseStore(store, config);
   await recoverRuntimeState(store, config);
   const realtime = createPlayerRealtime({ store });
+  const requestNotifications = createRequestNotificationHub(store.pool);
   const weatherService = createWeatherService({ store, config, logger });
   const app = express();
   configureSecurity(app, config);
@@ -231,17 +235,18 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   app.use('/api/auth', protectStateChangingRequest, createAuthRouter({ store, config }));
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession, requireApiRole, requirePageRole } = createSessionMiddleware(resolveSession);
-  const dependencies = { store, config, realtime, weatherService };
+  const dependencies = { store, config, realtime, weatherService, requestNotifications };
   mountProtectedApi(app, dependencies, requireApiSession, requireApiRole);
   mountFrontend(app, requirePageSession, requirePageRole);
   app.use(errorHandler);
-  return { app, store, config, realtime, weatherService };
+  return { app, store, config, realtime, weatherService, requestNotifications };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const service = await createApp();
   const server = service.app.listen(service.config.port, service.config.host, () => logger.info('MIRA-TV server started', { app: service.config.appName, host: service.config.host, port: service.config.port }));
   service.realtime.attach(server);
+  service.requestNotifications.start();
   service.weatherService.start();
   const maintenanceTimer = setInterval(() => {
     void cleanupDeviceActivations(service.store, service.config);
@@ -256,6 +261,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       clearInterval(maintenanceTimer);
       service.weatherService.stop();
       service.realtime.close();
+      service.requestNotifications.close();
       logger.info('MIRA-TV server stopping', { signal });
       server.close(() => void service.store.close());
     });
