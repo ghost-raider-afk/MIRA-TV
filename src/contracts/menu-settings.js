@@ -89,6 +89,11 @@ export function menuSettingsInput(value, { allowBackgroundImage = true, maxWidth
     font_scale_percent: fontScale(source.font_scale_percent),
     font_family: fontFamily(source.font_family),
     price_font_size_pt: integer(source.price_font_size_pt, 'price_font_size_pt', table_style === 'readable' ? 32 : 27, 18, 40),
+    show_secondary_price: source.show_secondary_price === undefined || source.show_secondary_price === null
+      ? false : (() => {
+        if (typeof source.show_secondary_price !== 'boolean') throw new ValidationError('Показ цены за 1,5 л должен быть включён или выключен.');
+        return source.show_secondary_price;
+      })(),
     promotion_badge_shape: promotionShape(source.promotion_badge_shape),
     promotion_font_family: fontFamily(source.promotion_font_family, 'Шрифт акции', DEFAULT_FONT_FAMILY),
     promotion_font_size_percent: integer(source.promotion_font_size_percent, 'promotion_font_size_percent', 100, 60, 180),
