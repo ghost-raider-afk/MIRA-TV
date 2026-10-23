@@ -85,8 +85,9 @@ function playSound() {
     source.start();
   }catch{/* Browser may disable audio. Notifications remain visible. */}
 }
-function openRequest(item) {
-  void api.post(BASE+'/'+item.id+'/read').catch(()=>undefined);
+async function openRequest(item) {
+  try { await api.post(BASE+'/'+item.id+'/read'); }
+  catch { /* Navigation is still allowed if the read update fails. */ }
   window.location.assign(requestUrl(item.proposal_id));
 }
 function requestRow(item) {
