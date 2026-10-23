@@ -36,8 +36,8 @@ function eventMessage(event) {
   if (!action.startsWith('crm.request.')) return event.message;
   const old=String(event.message || '');
   // Old journal records did not preserve line decisions. Do not infer them.
-  if (/^Обработка заявки №\\d+: [a-z_]+\\.$/.test(old)) {
-    const id=old.match(/№(\\d+)/)?.[1] || '';
+  if (/^Обработка заявки №\d+: [a-z_]+\.$/.test(old)) {
+    const id=old.match(/№(\d+)/)?.[1] || '';
     const type=action.split('.').pop();
     const actor=event.actor_username ? ' пользователем '+event.actor_username : '';
     const phrase=type==='complete'?'завершена вручную администратором':
