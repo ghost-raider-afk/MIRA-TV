@@ -35,24 +35,39 @@ export function createCatalogProposalsRepository(pool) {
       const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
       const { rows } = await pool.query(`SELECT p.*, l.name AS location_name FROM catalog_change_proposals p LEFT JOIN locations l ON l.id=p.location_id${where} ORDER BY p.created_at DESC, p.id DESC`, values);
       const proposals=rows.map(normaliseProposal);
-      // Historical request lines predate the manufacturer snapshot. Resolve
-      // missing names in one DB query; never require manager catalog access.
-      const missing=[...new Set(proposals.flatMap((proposal)=>
-        (proposal.items || [])
-          .filter((item)=>!item.producer && Number.isSafeInteger(Number(item.product_id)) && Number(item.product_id)>0)
-          .map((item)=>Number(item.product_id))
-      ))];
-      if (!missing.length) return proposals;
-      const products=await pool.query(
-        'SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missing]
-      );
-      const byId=new Map(products.rows.map((product)=>[Number(product.id),product]));
+      // One batched lookup per type, preserving names captured when the request
+      // was submitted. Historical items may lack these snapshots.
+      const missingProducts=[...new Set(proposals.flatMap((proposal)=>
+        (proposal.items || []).filter((item)=>!item.producer && Number.isSafeInteger(Number(item.product_id)) && Number(item.product_id)>0)
+          .map((item)=>Number(item.product_id))))];
+      const missingLocations=[...new Set(proposals.flatMap((proposal)=>
+        (proposal.items || []).flatMap((item)=>{
+          const ids=Array.isArray(item.location_ids) ? item.location_ids : item.location_id ? [item.location_id] : [];
+          return ids.filter((id,index)=> Number.isSafeInteger(Number(id)) && Number(id)>0 &&
+            (Array.isArray(item.location_ids) ? !item.location_names?.[index] : !item.location_name)).map(Number);
+        })))];
+      if (!missingProducts.length && !missingLocations.length) return proposals;
+      const [products,locations]=await Promise.all([
+        missingProducts.length ? pool.query('SELECT id,name,producer FROM catalog_products WHERE id=ANY($1::bigint[])',[missingProducts]) : {rows:[]},
+        missingLocations.length ? pool.query('SELECT id,name FROM locations WHERE id=ANY($1::bigint[])',[missingLocations]) : {rows:[]}
+      ]);
+      const byProduct=new Map(products.rows.map((product)=>[Number(product.id),product]));
+      const byLocation=new Map(locations.rows.map((point)=>[Number(point.id),point.name]));
       return proposals.map((proposal)=>({
         ...proposal,
         items:(proposal.items || []).map((item)=>{
-          const product=byId.get(Number(item.product_id));
-          if (!product || item.producer) return item;
-          return {...item,name:item.name || product.name,producer:product.producer};
+          const product=byProduct.get(Number(item.product_id));
+          const updated={...item};
+          if (product && !item.producer) {
+            updated.name=item.name || product.name;
+            updated.producer=product.producer;
+          }
+          if (item.location_id && !item.location_name) updated.location_name=byLocation.get(Number(item.location_id)) || '';
+          if (Array.isArray(item.location_ids)) {
+            updated.location_names=item.location_ids.map((id,index)=>
+              item.location_names?.[index] || byLocation.get(Number(id)) || '');
+          }
+          return updated;
         })
       }));
     },
