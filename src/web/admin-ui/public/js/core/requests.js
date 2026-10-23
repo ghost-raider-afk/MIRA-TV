@@ -33,6 +33,22 @@ export function requestTopic(proposal) {
   return REQUEST_TOPICS[kind] || (kind === 'product' || kind === 'packaging' ? 'Изменение каталога' : 'Заявка');
 }
 
+// Request snapshots take precedence over live location names.
+export function requestLocationName(item,id=item?.location_id) {
+  const name=String(
+    (Number(item?.location_id)===Number(id) && item?.location_name)
+    || item?.location_names?.[id] || ''
+  ).trim();
+  return name || 'Название торговой точки недоступно';
+}
+
+export function requestLocationDetails(item) {
+  if (Array.isArray(item?.location_ids)) {
+    return 'Торговые точки: ' + item.location_ids.map((id)=>requestLocationName(item,id)).join(', ');
+  }
+  return 'Торговая точка: ' + requestLocationName(item);
+}
+
 export function requestDate(value) {
   if (!value) return '—';
   const date = new Date(value);
