@@ -31,7 +31,7 @@ function value(field,input) {
   }
   return VALUES[input] || String(input);
 }
-function itemDetails(item) {
+function itemDetails(item,action) {
   const product=item.payload || item;
   const lines=[];
   if(product.name) lines.push('Товар: '+product.name+(product.producer?' ('+product.producer+')':''));
@@ -44,7 +44,9 @@ function itemDetails(item) {
     lines.push((FIELDS[item.property]||'Характеристика товара')+': было '+value(item.property,item.before)
       +' → станет '+value(item.property,item.final_value??item.value));
   }
-  if(item.decision) lines.push('Решение: '+(DECISIONS[item.decision]||'Рассмотрено'));
+  if(item.decision && ['review','rework','rejected'].includes(action)) {
+    lines.push('Решение: '+(DECISIONS[item.decision]||'Рассмотрено'));
+  }
   if(item.comment) lines.push('Замечание: '+item.comment);
   return lines.join(' · ');
 }
@@ -68,7 +70,7 @@ export function describeCrmActivity(proposal,action) {
   else if(action==='created') message='Менеджер создал '+prefix+'.';
   else if(action==='resubmitted') message='Менеджер повторно отправил исправления по заявке №'+id+'.';
   else message='Изменён статус заявки №'+id+'.';
-  const lines=items.map(itemDetails).filter(Boolean);
+  const lines=items.map((item)=>itemDetails(item,action)).filter(Boolean);
   if(proposal?.review_comment) lines.push('Комментарий администратора: '+proposal.review_comment);
   if(proposal?.description) lines.push('Комментарий к заявке: '+proposal.description);
   return {message,details:lines.join('\n'),category:'catalog'};
