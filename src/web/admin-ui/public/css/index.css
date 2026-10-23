@@ -23,4 +23,5 @@
 @import url('./pages/scene-table-columns.css');
 @import url('./auth/signin.css');
 @import url('./notifications.css');
+@import url('./request-notifications.css');
 @import url('./mobile.css');

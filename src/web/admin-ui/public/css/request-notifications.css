@@ -1,0 +1,30 @@
+/* Personal CRM inbox, consistently used by administrators and managers. */
+.request-notification-controls{display:inline-flex;gap:4px;align-items:center}
+.request-sound-button{width:27px;height:31px}
+.request-sound-button svg{width:15px;height:15px}
+.request-nav-badge{display:inline-flex;min-width:17px;height:17px;align-items:center;justify-content:center;padding:0 4px;border-radius:9px;background:var(--ui-danger);color:white;font-size:10px;font-weight:800;line-height:1}
+.request-notification-panel{width:min(390px,calc(100vw - 24px))!important}
+.request-center-list{overflow:auto;max-height:min(55dvh,520px);overscroll-behavior:contain}
+.request-center-row{display:flex;align-items:center;gap:3px;border-bottom:1px solid var(--ui-border);background:var(--ui-panel)}
+.request-center-row.is-unread{background:color-mix(in srgb,var(--ui-accent) 7%,var(--ui-panel))}
+.request-center-open{flex:1;min-width:0;display:grid;gap:4px;padding:13px 14px;border:0;background:transparent;text-align:left;color:var(--ui-text);cursor:pointer}
+.request-center-open strong{font-size:13px}
+.request-center-open span{font-size:12px;overflow-wrap:anywhere}
+.request-center-open small{font-size:10px;color:var(--ui-text-muted)}
+.request-center-open:hover{background:var(--ui-panel-hover)}
+.request-center-read{flex:none;width:30px;height:30px;margin-right:8px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-accent-text);cursor:pointer}
+.request-center-actions{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:13px;border-top:1px solid var(--ui-border)}
+.request-center-more{display:block;width:100%;padding:11px;border:0;background:transparent;color:var(--ui-accent-text);cursor:pointer}
+.request-clear-button{color:var(--ui-danger)}
+.request-toast-region{position:fixed;top:80px;right:14px;z-index:calc(var(--ui-z-modal) + 1);display:grid;gap:8px;width:min(340px,calc(100vw - 28px));pointer-events:none}
+.request-popup{display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:7px;padding:12px;border:1px solid var(--ui-border);border-left:3px solid var(--ui-accent);border-radius:13px;background:var(--ui-panel-raised);color:var(--ui-text);box-shadow:var(--ui-shadow);pointer-events:auto;animation:request-toast-enter .15s ease-out}
+.request-popup-open{display:grid;gap:5px;min-width:0;padding:0;border:0;background:transparent;text-align:left;color:inherit;cursor:pointer}
+.request-popup-open strong{font-size:13px}
+.request-popup-open span{font-size:12px;color:var(--ui-text-muted);overflow-wrap:anywhere}
+.request-popup-close{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--ui-text-muted);font-size:20px;cursor:pointer}
+@keyframes request-toast-enter{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.request-popup{animation:none}}
+@media(max-width:960px){.request-toast-region{top:calc(93px + env(safe-area-inset-top));right:10px;width:min(340px,calc(100vw - 20px))}.request-notification-panel{width:auto!important}}
+/* Greeting is centered above the workspace for both roles. */
+.login-greeting{top:72px;right:auto;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 24px);font-size:18px;text-align:center}
+@media(max-width:700px){.login-greeting{top:65px;right:auto;left:50%;max-width:calc(100vw - 20px);font-size:16px}}

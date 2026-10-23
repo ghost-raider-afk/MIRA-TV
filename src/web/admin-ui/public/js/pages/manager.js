@@ -529,6 +529,13 @@ function renderProposals(proposals) {
 async function loadProposals() {
   const proposals = await api.get(API.managerProposals);
   renderProposals(Array.isArray(proposals) ? proposals : []);
+  const requested = new URLSearchParams(window.location.search).get('request');
+  const chosen = Array.isArray(proposals) && proposals.find((item) => String(item.id) === requested);
+  if (chosen) {
+    history.replaceState(history.state, '', '/manager#manager-proposals-title');
+    syncManagerTabs();
+    openManagerRequest(chosen);
+  }
 }
 
 function textField(label, name, value = '', { type = 'text', maxLength = 180 } = {}) {

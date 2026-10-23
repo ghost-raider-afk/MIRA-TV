@@ -271,7 +271,7 @@ export function createHeader() {
     refresh.type = 'button';
     refresh.textContent = '↻';
     refresh.setAttribute('aria-label', 'Обновить');
-    actions.append(refresh);
+    actions.append(refresh, createNotificationsControl());
   } else {
     actions.append(searchControl(), createNotificationsControl());
   }

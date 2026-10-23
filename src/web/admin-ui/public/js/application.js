@@ -88,6 +88,7 @@ async function initialiseApplication() {
       if (state.session?.role !== 'manager') return window.location.replace('/');
       const { initialiseManagerView } = await import('./pages/manager.js');
       initialiseManagerView();
+      initialiseNotifications();
       showLoginGreeting(state.session, state.user);
     } catch (error) {
       console.error('Manager view initialization failed', error);
