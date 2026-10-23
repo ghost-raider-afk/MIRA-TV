@@ -4,6 +4,7 @@ import { managerDisplayNameInput, managerUsernameInput } from '../../contracts/u
 import { notifyCatalogEntityChanged } from '../../services/catalog-render-notifier.js';
 import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { reviewWorkflowRequest, completeManualRequest, saveNewProductFromRequest, returnOrRejectWorkflowRequest } from '../../services/crm-request-service.js';
+import { describeCrmActivity } from '../../services/crm-activity-description.js';
 import { hashPassword, validateNewPassword } from '../../services/password-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
@@ -137,9 +138,10 @@ export function createManagerAdminRouter({ store, config, realtime }) {
     } else {
       return response.status(400).json({error:'Неизвестное действие с заявкой.'});
     }
+    const audit=describeCrmActivity(result.proposal || result,action);
     await activity(store,request,{
       action:'crm.request.'+action,entity_type:'catalog_change_proposal',entity_id:proposalId,
-      message:'Обработка заявки №'+proposalId+': '+action+'.'
+      ...audit
     });
     response.json(result);
   });
