@@ -8,6 +8,8 @@ let activeRange = '1h';
 let selectedScreenId = null;
 let refreshTimer = null;
 let disposed = false;
+let lastChartSnapshot = null;
+let dashboardResizeTimer = null;
 
 function metricNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -72,14 +74,15 @@ function niceAxisStep(raw) {
 }
 
 function valueScale(numeric, config) {
-  if (config.key === 'player_load_percent') return { minimum:0, maximum:100, step:25 };
+  if (config.key === 'player_load_percent') return { minimum:0, maximum:100, step:25, intervals:4 };
   const lowest = Math.min(...numeric);
   const highest = Math.max(...numeric);
   const padding = Math.max((highest - lowest) * 0.14, Math.abs(highest) * 0.035, 0.5);
   const step = niceAxisStep((highest - lowest + padding * 2) / 4);
   const minimum = Math.max(0, Math.floor(Math.max(0, lowest - padding) / step) * step);
-  const maximum = Math.max(minimum + step * 4, Math.ceil((highest + padding) / step) * step);
-  return { minimum, maximum, step };
+  const intervals = Math.max(4, Math.min(6, Math.ceil((highest + padding - minimum) / step)));
+  const maximum = minimum + intervals * step;
+  return { minimum, maximum, step, intervals };
 }
 
 function axisValue(value, step) {
@@ -96,7 +99,8 @@ function axisTime(timestamp) {
 
 // The same time and value geometry is used by all three telemetry graphs.
 function drawSeriesChart(host, points, config, numeric, endAt, telemetry) {
-  const width = 480, height = 126;
+  // Size the viewBox in CSS pixels so 11px axis labels stay legible on narrow screens.
+  const width = Math.max(240, Math.round(host.getBoundingClientRect().width)), height = 126;
   const left = 47, right = 9, top = 7, bottom = 29;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
@@ -110,14 +114,13 @@ function drawSeriesChart(host, points, config, numeric, endAt, telemetry) {
   const svg = svgNode('svg', {
     viewBox:'0 0 ' + width + ' ' + height,
     role:'img',
-    'aria-label':config.aria,
-    preserveAspectRatio:'none'
+    'aria-label':config.aria
   });
   svg.classList.add('dashboard-sparkline');
 
-  for (let index = 0; index <= 4; index += 1) {
-    const y = top + plotHeight * index / 4;
-    const value = scale.maximum - (scale.maximum - scale.minimum) * index / 4;
+  for (let index = 0; index <= scale.intervals; index += 1) {
+    const y = top + plotHeight * index / scale.intervals;
+    const value = scale.maximum - index * scale.step;
     const grid = svgNode('line', { x1:left, y1:y, x2:width-right, y2:y });
     grid.classList.add('dashboard-chart-gridline');
     const tick = svgNode('text', { x:left-7, y:y+3.5, 'text-anchor':'end' });
@@ -181,6 +184,7 @@ function drawSeriesChart(host, points, config, numeric, endAt, telemetry) {
     tooltip.className = 'dashboard-chart-tooltip';
     tooltip.hidden = true;
     host.append(tooltip);
+    svg.setAttribute('tabindex', '0');
     let lastPoint = null;
     const hide = () => {
       tooltip.hidden = true;
@@ -297,6 +301,7 @@ function drawAllCharts(points, selectedTv, telemetry, generatedAt) {
     sharedMessage.textContent = emptyChartMessage(selectedTv, telemetry);
   }
 
+  lastChartSnapshot = { points, selectedTv, telemetry, generatedAt };
   for (const config of configs) {
     const card = document.querySelector('[data-dashboard-card="' + config.id + '"]');
     if (card) card.hidden = !hasTelemetry;
@@ -451,6 +456,7 @@ function scheduleRefresh() {
 
 export function initialiseDashboard() {
   disposed = false;
+  lastChartSnapshot = null;
   activeRange = '1h';
   selectedScreenId = null;
 
@@ -471,8 +477,19 @@ export function initialiseDashboard() {
     void loadDashboard();
   };
 
+  const onResize = () => {
+    if (dashboardResizeTimer) clearTimeout(dashboardResizeTimer);
+    dashboardResizeTimer = setTimeout(() => {
+      dashboardResizeTimer = null;
+      if (!disposed && lastChartSnapshot) {
+        const { points, selectedTv, telemetry, generatedAt } = lastChartSnapshot;
+        drawAllCharts(points, selectedTv, telemetry, generatedAt);
+      }
+    }, 120);
+  };
   controls.forEach((button) => button.addEventListener('click', onRange));
   select?.addEventListener('change', onTvChange);
+  window.addEventListener('resize', onResize, { passive:true });
   syncRangeButtons();
   void loadDashboard();
   scheduleRefresh();
@@ -482,6 +499,10 @@ export function initialiseDashboard() {
       disposed = true;
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = null;
+      if (dashboardResizeTimer) clearTimeout(dashboardResizeTimer);
+      dashboardResizeTimer = null;
+      lastChartSnapshot = null;
+      window.removeEventListener('resize', onResize);
       controls.forEach((button) => button.removeEventListener('click', onRange));
       select?.removeEventListener('change', onTvChange);
     }
