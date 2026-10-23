@@ -71,6 +71,22 @@ test('presets #2-#5 keep catalog writes atomic and manual requests separate from
       request_type:'menu_add',
       items:[{product_id:productIds[1],location_id:locationId}]
     }}),201);
+    // Both request cards must use the trading point name, not the internal ID.
+    await a.goto('/approvals');
+    const adminRow=a.locator('.request-journal-row[aria-label^="Заявка №'+addition.id+'."]');
+    await expect(adminRow).toBeVisible();
+    await adminRow.click();
+    await expect(a.locator('#catalog-approval-dialog')).toContainText('Торговая точка: CRM Preset '+stamp);
+    await expect(a.locator('#catalog-approval-dialog')).not.toContainText('Точка №'+locationId);
+    await a.locator('#catalog-approval-close').click();
+
+    await m.goto('/manager#manager-proposals-title');
+    const managerRow=m.locator('.request-journal-row[aria-label^="Заявка №'+addition.id+'."]');
+    await expect(managerRow).toBeVisible();
+    await managerRow.click();
+    await expect(m.locator('#manager-request-detail')).toContainText('Торговая точка: CRM Preset '+stamp);
+    await m.locator('#manager-request-detail').getByRole('button',{name:'Закрыть'}).click();
+
     const before1=await json(await a.request.get('/api/screens/'+screen1.id+'/editor'));
     const before2=await json(await a.request.get('/api/screens/'+screen2.id+'/editor'));
     await json(await a.request.post('/api/admin/managers/proposals/'+addition.id+'/workflow',{
