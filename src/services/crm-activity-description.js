@@ -55,7 +55,7 @@ export function describeCrmActivity(proposal,action) {
   const prefix='заявку №'+id+' «'+topic+'»';
   const items=proposal?.items || [];
   let message;
-  if(action==='complete') message='Администратор вручную завершил '+prefix+'.';
+  if(action==='complete') message='Заявка №'+id+' «'+topic+'» закрыта вручную администратором.';
   else if(action==='review') {
     const approved=items.filter(item=>item.decision==='approved').length;
     const rework=items.filter(item=>item.decision==='rework').length;
