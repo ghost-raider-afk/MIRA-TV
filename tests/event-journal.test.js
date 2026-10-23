@@ -19,7 +19,8 @@ test('settings navigation exposes one unified event journal', async () => {
   assert.doesNotMatch(application, /case 'error-log'|pages\/error-log/);
   assert.match(page, /data-page="events"/);
   assert.match(page, />Журнал событий<\/h1>/);
-  assert.match(bell, /href="\/events"/);
+  assert.match(bell, /Уведомления о заявках/);
+  assert.doesNotMatch(bell, /href="\/events"/); // Journal stays in Settings, request bell is personal.
   await assert.rejects(access(new URL('../src/web/admin-ui/public/error-log.html', import.meta.url)));
 });
 

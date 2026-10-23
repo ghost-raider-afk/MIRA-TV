@@ -6,7 +6,7 @@ export async function migrateRequestNotifications(db) {
       id BIGSERIAL PRIMARY KEY,
       username TEXT NOT NULL REFERENCES web_users(username) ON DELETE CASCADE,
       proposal_id BIGINT NOT NULL,
-      kind TEXT NOT NULL CHECK(kind IN ('created','resubmitted','approved','rework','rejected')),
+      kind TEXT NOT NULL CHECK(kind IN ('created','resubmitted','approved','rework','rejected','conflict')),
       title TEXT NOT NULL,
       location_name TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -31,7 +31,7 @@ export async function migrateRequestNotifications(db) {
         event_kind:='resubmitted';
       ELSIF NEW.status IN ('approved','resolved') THEN
         event_kind:='approved';
-      ELSIF NEW.status IN ('rework','rejected') THEN
+      ELSIF NEW.status IN ('rework','rejected','conflict') THEN
         event_kind:=NEW.status;
       ELSE
         RETURN NEW;

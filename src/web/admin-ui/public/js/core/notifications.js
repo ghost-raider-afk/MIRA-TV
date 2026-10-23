@@ -5,7 +5,8 @@ import { createNotificationsLayer } from '../components/notifications.js';
 const BASE='/api/request-notifications';
 const TITLES=Object.freeze({
   created:'Новая заявка',resubmitted:'Заявка отправлена повторно',
-  approved:'Заявка завершена',rework:'Заявка на доработке',rejected:'Заявка отклонена'
+  approved:'Заявка завершена',rework:'Заявка на доработке',rejected:'Заявка отклонена',
+  conflict:'Ошибка обработки заявки'
 });
 let initialized=false,stream=null,refreshTimer=null,claiming=false,visible=new Set(),paused=false,started=false;
 let soundContext=null,soundBuffer=null,nextCursor=null,rendered=[];
@@ -25,7 +26,7 @@ function updateCount(count) {
     badge.textContent=value>99?'99+':String(value);
     badge.classList.toggle('is-hidden',value===0);
   }
-  for(const link of document.querySelectorAll('[data-header-section="approvals"],[data-header-section="manager-requests"]')) {
+  for(const link of document.querySelectorAll('[data-header-section="approvals"],[data-header-section="manager-requests"],[data-route-section="approvals"]')) {
     if(!link.querySelector('[data-request-nav-count]')) {
       const badge=el('span','request-nav-badge is-hidden');
       badge.dataset.requestNavCount='';
