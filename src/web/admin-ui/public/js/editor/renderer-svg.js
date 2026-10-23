@@ -107,10 +107,10 @@ function promotionMarkup(line, x, box, scale, typography, textBaseline, settings
   };
 }
 
-function sectionMarkup(line, box, horizontal, palette, scale, typography, themeId = 'legacy', styleId = 'legacy') {
+function sectionMarkup(line, box, horizontal, palette, scale, typography, themeId = 'legacy', styleId = 'legacy', settings = {}) {
   const fontScale = TV1_REFERENCE_SCALE * scale;
   const readable = styleId === 'readable';
-  const singlePrice = readable || themeId === 'legacy';
+  const singlePrice = readable || (themeId === 'legacy' && settings?.show_secondary_price !== true);
   const title = String(line.name || 'Меню');
   const baseline = box.top + (readable ? 41.5 : 35) * fontScale;
   const titleX = horizontal.left + 19 * horizontal.scaleX;
@@ -226,7 +226,7 @@ function itemMarkup(line, box, horizontal, palette, scale, typography, settings,
     secondaryCentsColor = palette.accentText;
   }
   const numberMarkup = showSequence ? `<text x="${numberX}" y="${priceBaseline}" class="item-sequence" ${textAttributes({ size:18 * fontScale, weight:500, fill:palette.primaryText, anchor:'middle', fontFamily:itemFont?.family }, itemFont)}>${escapeXml(line.sequence || '')}</text>` : '';
-  const singlePrice = readable || themeId === 'legacy';
+  const singlePrice = readable || (themeId === 'legacy' && settings?.show_secondary_price !== true);
   const pricesMarkup = singlePrice
     ? priceMarkup(line.pricePrimary, readable ? horizontal.primaryPriceX : horizontal.secondaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)
     : `${priceMarkup(line.pricePrimary, horizontal.primaryPriceX, priceBaseline, scale, primaryPriceColor, priceFont, priceFontSizePt, 'price', primaryCentsColor)}${priceMarkup(line.priceSecondary, horizontal.secondaryPriceX, priceBaseline, scale, secondaryPriceColor, priceFont, priceFontSizePt, 'price', secondaryCentsColor)}`;
@@ -272,7 +272,7 @@ export function buildTableSvg(model, lines, layout = buildMenuRenderLayout(model
       const sectionLine = readable
         ? { ...line, showPriceLabels:line.sectionType !== 'packaging' && lineHorizontal.fullWidth !== true }
         : { ...line, showPriceLabels:line.sectionType !== 'packaging' && line.showPriceLabels === true };
-      return sectionMarkup(sectionLine, box, lineHorizontal, palette, scale, themeTypography.section || typography, themeId, layout.styleId);
+      return sectionMarkup(sectionLine, box, lineHorizontal, palette, scale, themeTypography.section || typography, themeId, layout.styleId, model.settings);
     }
     if (line.kind === 'packaging') return packagingMarkup(line, box, lineHorizontal, palette, scale, typography, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
     return itemMarkup(line, box, lineHorizontal, palette, scale, typography, model.settings, layout.priceFontSizePt, themeId, themeStyle, themeTypography);
