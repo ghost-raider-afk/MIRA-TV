@@ -1,5 +1,5 @@
 import { API } from '../core/config.js';
-import { requestHistoryEvent } from '../core/requests.js';
+import { requestHistoryEvent, requestLocationDetails } from '../core/requests.js';
 import { api } from '../core/api.js';
 import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel, catalogPropertyLabel, catalogProductTitle } from '../core/catalog-presentation.js';
 
@@ -34,8 +34,8 @@ function reviewedChange(item) {
 function readOnlyItem(item,type) {
   const row=el('div','crm-workflow-item');
   row.append(el('strong','',itemName(item,type)));
-  if (type==='menu_add') row.append(smallInfo('Точка №'+item.location_id));
-  else if(type==='menu_remove') row.append(smallInfo('ТВ №'+item.screen_id));
+  if (type==='menu_add') row.append(smallInfo(requestLocationDetails(item)));
+  else if(type==='menu_remove') row.append(smallInfo(requestLocationDetails(item)+' · ТВ №'+item.screen_id));
   else if (item.property) row.append(reviewedChange(item));
   return row;
 }
@@ -219,7 +219,7 @@ export function openWorkflowApproval(proposal,{onDone}) {
         if (key === 'price_secondary') continue; // Calculated from the primary price by the product contract.
         if (key in payload) group.append(entryField(label,payload[key],key));
       }
-      card.append(group,smallInfo('Точки для размещения: '+(item.location_ids||[]).join(', ')));
+      card.append(group,smallInfo(requestLocationDetails(item)));
       diff.append(card);
     } else diff.append(readOnlyItem(item,type));
   }
