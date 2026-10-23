@@ -8,7 +8,7 @@ const nav=readFileSync(new URL('../src/web/admin-ui/public/js/core/navigation.js
 
 test('Monitoring preserves existing route while renaming the visible page',()=>{
   assert.match(nav,/path: '\/', page: 'overview', section: 'overview', title: 'Мониторинг'/);
-  assert.match(nav,/label: 'Мониторинг', href: '\/"?/);
+  assert.match(nav,/label: 'Мониторинг', href: '\/'/);
   assert.match(html,/<h1>Мониторинг<\/h1>/);
   assert.match(html,/dashboard-operations-grid/);
 });
