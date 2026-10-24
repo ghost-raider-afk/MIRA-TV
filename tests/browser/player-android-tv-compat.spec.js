@@ -77,6 +77,15 @@ async function emulateOlderAndroidTvApis(page) {
 
 test('Player renders on Android TV Chromium without newer JS and DOM APIs', async ({ page }) => {
   await emulateOlderAndroidTvApis(page);
+  // Chromium 80 ignores the inset shorthand; simulate its CSS parser in the modern test browser.
+  await page.route('**/css/player*.css', async (route) => {
+    const response = await route.fetch();
+    const css = await response.text();
+    await route.fulfill({
+      response,
+      body: css.replace(/\binset\s*:\s*0(?=\s*[;}])/g, 'unsupported-inset:0')
+    });
+  });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
 
@@ -98,6 +107,17 @@ test('Player renders on Android TV Chromium without newer JS and DOM APIs', asyn
 
   await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
   await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg')).toHaveCount(1);
+  await expect(page.locator('[data-player-menu-layer] svg.menu-table-svg')).toBeVisible();
+  const bounds = await page.evaluate(() => {
+    const stage = document.querySelector('[data-player-stage]').getBoundingClientRect();
+    const menu = document.querySelector('[data-player-menu-layer]').getBoundingClientRect();
+    const svg = document.querySelector('[data-player-menu-layer] svg.menu-table-svg').getBoundingClientRect();
+    return { stage: [stage.width, stage.height], menu: [menu.width, menu.height], svg: [svg.width, svg.height] };
+  });
+  expect(bounds.menu[0]).toBeCloseTo(bounds.stage[0], 0);
+  expect(bounds.menu[1]).toBeCloseTo(bounds.stage[1], 0);
+  expect(bounds.svg[0]).toBeCloseTo(bounds.stage[0], 0);
+  expect(bounds.svg[1]).toBeCloseTo(bounds.stage[1], 0);
   await expect(page.locator('[data-player-menu-layer] .packaging-cell')).toHaveCount(2);
   await expect(page.locator('[data-player-menu-layer]')).toContainText('Напитки');
   await expect(page.locator('[data-scene-element-id="android-static-text"] [data-scene-text]')).toContainText('STATIC-TV');

@@ -7,7 +7,10 @@
 .player-scene-stage .tv-player-theme-layer,
 .player-scene-stage .tv-player-scene-elements-layer{
   position:absolute;
-  inset:0
+  top:0;
+  right:0;
+  bottom:0;
+  left:0
 }
 .player-scene-stage .tv-player-menu-layer{
   z-index:1;
@@ -15,7 +18,10 @@
 }
 .player-scene-stage .tv-player-menu-layer>svg{
   position:absolute;
-  inset:0;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
   display:block;
   width:100%;
   height:100%;
@@ -23,7 +29,10 @@
 }
 .player-scene-stage .tv-player-menu-flat{
   position:absolute;
-  inset:0;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
   display:block;
   width:100%;
   height:100%
@@ -91,7 +100,10 @@
 .player-scene-stage .menu-theme-warning{
   position:absolute;
   z-index:1;
-  inset:0;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
   display:flex;
   box-sizing:border-box;
   align-items:center;

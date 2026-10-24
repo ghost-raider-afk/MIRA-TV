@@ -5,7 +5,8 @@ import { readFile } from 'node:fs/promises';
 test('Player boot layer always covers cached scene content until bootstrap finishes', async () => {
   const css = await readFile(new URL('../src/web/admin-ui/public/css/player.css', import.meta.url), 'utf8');
   assert.match(css, /\.player-root\s*\{[^}]*position:\s*fixed;[^}]*width:\s*var\(--mira-player-viewport-width,[^}]*height:\s*var\(--mira-player-viewport-height,/s);
-  assert.match(css, /\.player-boot\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;[^}]*z-index:\s*100;/s);
+  assert.match(css, /\.player-boot\s*\{[^}]*position:\s*absolute;[^}]*top:\s*0;[^}]*right:\s*0;[^}]*bottom:\s*0;[^}]*left:\s*0;[^}]*z-index:\s*100;/s);
+  assert.match(css, /\.tv-player\s*\{[^}]*position:\s*absolute;[^}]*top:\s*0;[^}]*right:\s*0;[^}]*bottom:\s*0;[^}]*left:\s*0;/s);
 });
 
 test('unsupported desktop Player does not render the Android-only label', async () => {

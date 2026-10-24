@@ -27,7 +27,10 @@ button { font: inherit; }
 
 .player-boot {
   position: absolute;
-  inset: 0;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
   z-index: 100;
   display: grid;
   place-items: center;
@@ -99,7 +102,14 @@ button { font: inherit; }
 .activation-status { font-size: clamp(17px, 1.8vw, 22px); font-weight: 700; }
 .activation-hint { max-width: 570px; color: #98a2b3; font-size: clamp(14px, 1.45vw, 18px); line-height: 1.45; }
 
-.tv-player { position: absolute; inset: 0; background: #101828; }
+.tv-player {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #101828;
+}
 .tv-player-stage { position: absolute; top: 0; left: 0; right: auto; bottom: auto; overflow: hidden; background-position: center; background-repeat: no-repeat; background-size: cover; transform-origin: top left; }
 .player-connection-message { position: absolute; right: 24px; bottom: 24px; z-index: 10; max-width: min(560px, calc(100vw - 48px)); padding: 12px 16px; border-radius: 12px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 16px; }
 .player-fullscreen-hint {
