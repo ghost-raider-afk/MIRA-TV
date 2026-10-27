@@ -16,7 +16,7 @@ migration_valid_ipv4() {
 }
 
 migration_valid_port() {
-  [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= 1 && 10#$1 <= 65535 ))
+  [[ "$1" =~ ^[1-9][0-9]{0,4}$ ]] && (( 10#$1 <= 65535 ))
 }
 
 migration_known_hosts_entry() {
@@ -206,6 +206,11 @@ migration_target_probe() {
   fi
   local volume
   if command -v docker >/dev/null 2>&1; then
+    local container
+    for container in mira-tv-db mira-tv mira-tv-proxy mira-tv-site-assets-init mira-tv-proxy-config-init; do
+      docker container inspect "$container" >/dev/null 2>&1 &&
+        die "На целевом сервере существует контейнер $container. Перезапись запрещена."
+    done
     for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
       docker volume inspect "$volume" >/dev/null 2>&1 && die "На новом сервере обнаружен существующий Docker volume: $volume"
     done
@@ -296,6 +301,11 @@ migration_target_prepare() (
     die 'Файл конфигурации содержит неоднозначную версию.'
   install_prerequisites
   install_docker
+  local container
+  for container in mira-tv-db mira-tv mira-tv-proxy mira-tv-site-assets-init mira-tv-proxy-config-init; do
+    docker container inspect "$container" >/dev/null 2>&1 &&
+      die "На целевом сервере существует контейнер $container. Восстановление запрещено."
+  done
   for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
     docker volume inspect "$volume" >/dev/null 2>&1 &&
       die "На целевом сервере уже существует Docker volume $volume. Восстановление запрещено."
