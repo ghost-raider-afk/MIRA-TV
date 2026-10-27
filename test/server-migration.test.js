@@ -134,7 +134,7 @@ test('preliminary restoration cannot publish the public proxy', () => {
 });
 
 test('target cleanup refuses to touch an installation without a migration ownership marker', () => {
-  const result = runBash('require_root(){ :; }; MIGRATION_STATE_DIR=/definitely/nonexistent/mira-test; migration_target_reset');
+  const result = runBash('require_root(){ :; }; die(){ printf "%s\\n" "$1" >&2; exit 1; }; MIGRATION_STATE_DIR=/definitely/nonexistent/mira-test; migration_target_reset');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Очистка существующей установки запрещена/);
 });
