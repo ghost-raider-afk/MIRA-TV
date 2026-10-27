@@ -305,7 +305,7 @@ migration_menu() {
   printf '\nМиграция MIRA-TV (подготовительный этап)\n'
   printf '1) Этот сервер — исходный (выдать временный SSH-ключ)\n'
   printf '2) Этот сервер — новый (проверить SSH-подключение)\n'
-  printf '3) Отозвать временный SSH-доступ на исходном сервере\n4) Удалить предварительную копию на новом сервере\n5) Повторить подготовку нового сервера из проверенной копии\n0) Назад\n'
+  printf '3) Отозвать временный SSH-доступ на исходном сервере\n4) Удалить предварительную копию на новом сервере\n5) Повторить подготовку нового сервера из проверенной копии\n6) Отменить подготовку нового сервера (тестовые данные)\n0) Назад\n'
   local choice
   read -r -p 'Выберите действие: ' choice
   case "$choice" in
@@ -314,6 +314,7 @@ migration_menu() {
     3) migration_load; migration_source_cancel ;;
     4) migration_load; migration_target_discard ;;
     5) migration_load; migration_target_prepare ;;
+    6) migration_load; migration_target_reset ;;
     0) return 0 ;;
     *) die 'Неизвестный пункт меню миграции.' ;;
   esac
@@ -334,6 +335,7 @@ case "${1:-menu}" in
   migrate-cancel) migration_load; migration_source_cancel ;;
   migrate-discard) migration_load; migration_target_discard ;;
   migrate-prepare) migration_load; migration_target_prepare ;;
+  migrate-reset) migration_load; migration_target_reset ;;
   migrate-remote) migration_load; migration_source_remote ;;
   *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
 esac
