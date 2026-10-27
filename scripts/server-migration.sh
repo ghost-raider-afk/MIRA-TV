@@ -3,6 +3,11 @@
 
 MIGRATION_STATE_DIR="/var/lib/mira-tv/migration"
 MIGRATION_SOURCE_STATE="$MIGRATION_STATE_DIR/source.state"
+# Idle lease: a key is usable for up to 24h without activity. The source
+# renews the lease during a verified transfer. A 7-day absolute cap prevents
+# abandoned keys from surviving indefinitely; expiry-time is an SSH safeguard.
+MIGRATION_IDLE_LEASE_SECONDS=86400
+MIGRATION_MAX_KEY_SECONDS=604800
 
 migration_valid_ipv4() {
   local ip="$1" part
@@ -42,6 +47,29 @@ migration_source_clear_key() {
   rm -f -- "$filtered"
 }
 
+
+migration_source_touch_lease() {
+  local now id current_expiry hard_expiry next_expiry tmp
+  [[ -f "$MIGRATION_SOURCE_STATE" ]] || return 1
+  id="$(sed -n '1p' "$MIGRATION_SOURCE_STATE")"
+  current_expiry="$(sed -n '2p' "$MIGRATION_SOURCE_STATE")"
+  hard_expiry="$(sed -n '3p' "$MIGRATION_SOURCE_STATE")"
+  [[ "$id" =~ ^[0-9a-f]{24}$ && "$current_expiry" =~ ^[0-9]{10}$ &&
+     "$hard_expiry" =~ ^[0-9]{10}$ ]] || return 1
+  now="$(date -u +%s)" || return 1
+  (( now < current_expiry && now < hard_expiry )) || return 1
+  next_expiry=$(( now + MIGRATION_IDLE_LEASE_SECONDS ))
+  (( next_expiry > hard_expiry )) && next_expiry="$hard_expiry"
+  tmp="$(mktemp "$MIGRATION_STATE_DIR/.lease.XXXXXX")" || return 1
+  chmod 600 "$tmp"
+  printf '%s\n%s\n%s\n' "$id" "$next_expiry" "$hard_expiry" > "$tmp" || {
+    rm -f -- "$tmp"; return 1
+  }
+  mv -f -- "$tmp" "$MIGRATION_SOURCE_STATE" || {
+    rm -f -- "$tmp"; return 1
+  }
+}
+
 migration_source_setup() {
   require_root migrate-source
   [[ -f "$INSTALL_DIR/.env" && -f "$INSTALL_DIR/mira-tv.sh" ]] || die 'MIRA-TV должна быть установлена на исходном сервере.'
@@ -52,7 +80,7 @@ migration_source_setup() {
     die 'SSH-сервер не запущен.'
   fi
   [[ ! -f "$MIGRATION_SOURCE_STATE" ]] || die 'Временный доступ уже подготовлен. Сначала отмените его.'
-  local ip port expires id key_dir host_key package
+  local ip port expires id key_dir host_key package now idle_expiry hard_expiry
   read -r -p 'Публичный IPv4 исходного сервера: ' ip
   migration_valid_ipv4 "$ip" || die 'Некорректный IPv4.'
   read -r -p 'SSH-порт [22]: ' port
@@ -65,20 +93,24 @@ migration_source_setup() {
   chmod 700 "$key_dir"
   ssh-keygen -q -t ed25519 -N '' -f "$key_dir/key" -C 'mira-tv-ephemeral' || die 'Не удалось создать временный SSH-ключ.'
   id="$(openssl rand -hex 12)"
-  expires="$(date -u -d '+2 hours' +%Y%m%d%H%M%SZ)"
+  now="$(date -u +%s)"
+  idle_expiry=$(( now + MIGRATION_IDLE_LEASE_SECONDS ))
+  hard_expiry=$(( now + MIGRATION_MAX_KEY_SECONDS ))
+  expires="$(date -u -d "@$hard_expiry" +%Y%m%d%H%M%SZ)"
   host_key="$(awk '$1=="ssh-ed25519" {print $2;exit}' /etc/ssh/ssh_host_ed25519_key.pub)"
   [[ "$host_key" =~ ^[A-Za-z0-9+/=]+$ ]] || die 'Не удалось прочитать SSH host key.'
   migration_source_clear_key
   # The key cannot open an interactive shell or forward network connections.
   printf 'restrict,expiry-time="%s",command="/bin/bash %s/mira-tv.sh migrate-remote" %s # MIRA-TV-MIGRATION-%s\n' \
     "$expires" "$INSTALL_DIR" "$(cut -d' ' -f1,2 "$key_dir/key.pub")" "$id" >> /root/.ssh/authorized_keys
-  printf '%s\n%s\n' "$id" "$(date -u -d '+2 hours' +%s)" > "$MIGRATION_SOURCE_STATE"
+  printf '%s\n%s\n%s\n' "$id" "$idle_expiry" "$hard_expiry" > "$MIGRATION_SOURCE_STATE"
   chmod 600 "$MIGRATION_SOURCE_STATE"
   # The handoff contains an authentication secret. It must not go into logs.
   package="$(printf '%s\n%s\n%s\n%s\n' "$ip" "$port" "$host_key" "$(base64 -w0 < "$key_dir/key")" | base64 -w0)"
   rm -rf -- "$key_dir"
   printf '\nСОХРАНИТЕ КОМПЛЕКТ ПОДКЛЮЧЕНИЯ (показывается один раз):\n\nMIRA1.%s\n\n' "$package"
-  info 'Доступ ограничен двумя часами и только проверенными командами миграции.'
+  info 'Подключитесь в течение 24 часов; во время передачи доступ продлевается автоматически.'
+  info 'Предельный срок временного ключа — 7 дней. После 24 часов без активности доступ истекает.'
   info 'Не отправляйте этот комплект в чат, почту или журнал терминала.'
   info 'Продолжайте на новом сервере: MIRA-TV → «Новый сервер».'
 }
@@ -100,7 +132,23 @@ migration_source_snapshot() {
   work="$(mktemp -d "$MIGRATION_STATE_DIR/snapshot.XXXXXX")" || return 1
   chmod 700 "$work"
   (
-    trap 'rm -rf -- "$work"' EXIT
+    heartbeat_pid=''
+    migration_snapshot_cleanup() {
+      if [[ -n "$heartbeat_pid" ]]; then
+        kill "$heartbeat_pid" 2>/dev/null || true
+        wait "$heartbeat_pid" 2>/dev/null || true
+      fi
+      rm -rf -- "$work"
+    }
+    trap migration_snapshot_cleanup EXIT
+    # Keep access renewable even during a multi-hour SSH archive stream.
+    # A failed or abandoned transfer stops its own heartbeat on exit.
+    (
+      while sleep 300; do
+        migration_source_touch_lease || exit 1
+      done
+    ) &
+    heartbeat_pid=$!
     cd "$INSTALL_DIR" || exit 1
     revision="$(git rev-parse HEAD)" || exit 1
     [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || exit 1
@@ -175,11 +223,9 @@ migration_target_stage() {
 migration_source_remote() {
   # Invoked exclusively by the forced-command authorized_keys entry.
   [[ -n "${SSH_ORIGINAL_COMMAND:-}" && -f "$MIGRATION_SOURCE_STATE" ]] || exit 1
-  local id expires
-  read -r id < "$MIGRATION_SOURCE_STATE"
-  expires="$(sed -n '2p' "$MIGRATION_SOURCE_STATE")"
-  [[ "$id" =~ ^[0-9a-f]{24}$ && "$expires" =~ ^[0-9]{10}$ ]] || exit 1
-  (( $(date -u +%s) < expires )) || exit 1
+  # The soft expiry is checked and renewed only for authenticated,
+  # forced-command SSH requests. Expired or malformed state fails closed.
+  migration_source_touch_lease || exit 1
   case "$SSH_ORIGINAL_COMMAND" in
     probe)
       [[ -f "$INSTALL_DIR/.env" ]] || exit 1
