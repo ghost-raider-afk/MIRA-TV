@@ -137,7 +137,11 @@ migration_target_probe() {
   fi
   chmod 600 "$tmp/id_ed25519"
   # Trust only the host key included in the out-of-band transfer bundle.
-  printf '[%s]:%s ssh-ed25519 %s\n' "$ip" "$port" "$host_key" > "$tmp/known_hosts"
+  if [[ "$port" == 22 ]]; then
+    printf '%s ssh-ed25519 %s\n' "$ip" "$host_key" > "$tmp/known_hosts"
+  else
+    printf '[%s]:%s ssh-ed25519 %s\n' "$ip" "$port" "$host_key" > "$tmp/known_hosts"
+  fi
   chmod 600 "$tmp/known_hosts"
   unset token encoded private_key
   local -a ssh_args=(
