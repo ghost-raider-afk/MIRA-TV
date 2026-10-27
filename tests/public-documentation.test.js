@@ -8,6 +8,7 @@ const docsRoot = new URL('../docs/', import.meta.url);
 const PUBLIC_DOCS = [
   'README.md',
   'INSTALLATION.md',
+  'SERVER-MIGRATION.md',
   'CONFIGURATION.md',
   'USAGE.md',
   'ARCHITECTURE.md',
