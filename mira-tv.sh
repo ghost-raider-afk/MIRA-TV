@@ -312,6 +312,7 @@ migration_menu() {
     1) migration_load; migration_source_setup ;;
     2) migration_load; migration_target_probe ;;
     3) migration_load; migration_source_cancel ;;
+    4) migration_load; migration_target_discard ;;
     0) return 0 ;;
     *) die 'Неизвестный пункт меню миграции.' ;;
   esac
@@ -330,6 +331,7 @@ case "${1:-menu}" in
   migrate-source) migration_load; migration_source_setup ;;
   migrate-target) migration_load; migration_target_probe ;;
   migrate-cancel) migration_load; migration_source_cancel ;;
+  migrate-discard) migration_load; migration_target_discard ;;
   migrate-remote) migration_load; migration_source_remote ;;
   *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
 esac
