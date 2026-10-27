@@ -223,11 +223,10 @@ migration_target_stage() {
 migration_source_remote() {
   # Invoked exclusively by the forced-command authorized_keys entry.
   [[ -n "${SSH_ORIGINAL_COMMAND:-}" && -f "$MIGRATION_SOURCE_STATE" ]] || exit 1
-  # The soft expiry is checked and renewed only for authenticated,
-  # forced-command SSH requests. Expired or malformed state fails closed.
-  migration_source_touch_lease || exit 1
+  # Reject unexpected SSH commands without extending the access lease.
   case "$SSH_ORIGINAL_COMMAND" in
     probe)
+      migration_source_touch_lease || exit 1
       [[ -f "$INSTALL_DIR/.env" ]] || exit 1
       local version domain revision
       version="$(installed_version)"
@@ -238,6 +237,7 @@ migration_source_remote() {
       printf 'MIRA-TV-SSH-1\n%s\n%s\n%s\n' "$version" "$revision" "$domain"
       ;;
     snapshot)
+      migration_source_touch_lease || exit 1
       migration_source_snapshot
       ;;
     *) exit 1 ;;
