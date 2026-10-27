@@ -44,6 +44,17 @@ test('SSH port validation enforces the actual TCP port range', () => {
   }
 });
 
+test('pinned host keys use port-aware OpenSSH known_hosts syntax', () => {
+  const key = 'A'.repeat(68);
+  const standard = runBash('migration_known_hosts_entry 198.51.100.10 22 "$KEY"', { KEY: key });
+  assert.equal(standard.status, 0, standard.stderr);
+  assert.equal(standard.stdout, '198.51.100.10 ssh-ed25519 ' + key + '\n');
+
+  const alternative = runBash('migration_known_hosts_entry 198.51.100.10 2222 "$KEY"', { KEY: key });
+  assert.equal(alternative.status, 0, alternative.stderr);
+  assert.equal(alternative.stdout, '[198.51.100.10]:2222 ssh-ed25519 ' + key + '\n');
+});
+
 test('SSH migration is strictly opt-in, limited to a forced command and probe', () => {
   const helper = readFileSync(migrationScript, 'utf8');
   const content = readFileSync(installer, 'utf8');
