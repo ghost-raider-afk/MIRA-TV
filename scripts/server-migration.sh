@@ -47,7 +47,6 @@ migration_source_setup() {
   read -r -p 'SSH-порт [22]: ' port
   port="${port:-22}"
   migration_valid_port "$port" || die 'Некорректный SSH-порт.'
-  [[ "$port" != 22 ]] || port=22
   install -d -m 700 "$MIGRATION_STATE_DIR" /root/.ssh
   touch /root/.ssh/authorized_keys
   chmod 600 /root/.ssh/authorized_keys
@@ -60,7 +59,7 @@ migration_source_setup() {
   [[ "$host_key" =~ ^[A-Za-z0-9+/=]+$ ]] || die 'Не удалось прочитать SSH host key.'
   migration_source_clear_key
   # The key cannot open an interactive shell or forward network connections.
-  printf 'restrict,expiry-time="%s",command="%s/mira-tv.sh migrate-remote" %s # MIRA-TV-MIGRATION-%s\n' \
+  printf 'restrict,expiry-time="%s",command="/bin/bash %s/mira-tv.sh migrate-remote" %s # MIRA-TV-MIGRATION-%s\n' \
     "$expires" "$INSTALL_DIR" "$(cut -d' ' -f1,2 "$key_dir/key.pub")" "$id" >> /root/.ssh/authorized_keys
   printf '%s\n%s\n' "$id" "$(date -u -d '+2 hours' +%s)" > "$MIGRATION_SOURCE_STATE"
   chmod 600 "$MIGRATION_SOURCE_STATE"
@@ -117,7 +116,8 @@ migration_target_probe() {
   fi
   command -v ssh >/dev/null 2>&1 || die 'Установите openssh-client перед переносом.'
   local token encoded tmp ip port host_key private_key result
-  read -r -p 'Вставьте комплект MIRA1 с исходного сервера: ' token
+  read -r -s -p 'Вставьте комплект MIRA1 с исходного сервера (ввод скрыт): ' token
+  printf '\n'
   [[ "$token" =~ ^MIRA1\.[A-Za-z0-9+/=]{100,4096}$ ]] || die 'Неверный формат комплекта подключения.'
   encoded="${token#MIRA1.}"
   tmp="$(mktemp -d -t mira-tv-migrate.XXXXXX)"
