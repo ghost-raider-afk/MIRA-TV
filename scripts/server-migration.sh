@@ -19,6 +19,17 @@ migration_valid_port() {
   [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= 1 && 10#$1 <= 65535 ))
 }
 
+migration_known_hosts_entry() {
+  local ip="$1" port="$2" key="$3"
+  migration_valid_ipv4 "$ip" && migration_valid_port "$port" || return 1
+  [[ "$key" =~ ^[A-Za-z0-9+/=]{40,200}$ ]] || return 1
+  if [[ "$port" == 22 ]]; then
+    printf '%s ssh-ed25519 %s\n' "$ip" "$key"
+  else
+    printf '[%s]:%s ssh-ed25519 %s\n' "$ip" "$port" "$key"
+  fi
+}
+
 migration_source_clear_key() {
   local key_file="/root/.ssh/authorized_keys"
   [[ -f "$key_file" ]] || return 0
@@ -137,11 +148,7 @@ migration_target_probe() {
   fi
   chmod 600 "$tmp/id_ed25519"
   # Trust only the host key included in the out-of-band transfer bundle.
-  if [[ "$port" == 22 ]]; then
-    printf '%s ssh-ed25519 %s\n' "$ip" "$host_key" > "$tmp/known_hosts"
-  else
-    printf '[%s]:%s ssh-ed25519 %s\n' "$ip" "$port" "$host_key" > "$tmp/known_hosts"
-  fi
+  migration_known_hosts_entry "$ip" "$port" "$host_key" > "$tmp/known_hosts"
   chmod 600 "$tmp/known_hosts"
   unset token encoded private_key
   local -a ssh_args=(
