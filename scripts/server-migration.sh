@@ -272,3 +272,80 @@ migration_target_discard() {
   rm -rf -- "$stage"
   info 'Предварительная копия удалена. Исходный сервер и его данные не изменены.'
 }
+
+# Restore the validated preliminary archive on a brand-new target without
+# starting the public Traefik proxy or changing the source.
+migration_target_prepare() (
+  set -Eeuo pipefail
+  require_root migrate-prepare
+  require_ubuntu
+  local staged="$MIGRATION_STATE_DIR/staged" volume version revision state
+  state="$MIGRATION_STATE_DIR/target-prepared"
+  [[ -d "$staged" && -s "$staged/install.env" && -s "$staged/revision" ]] ||
+    die 'Сначала получите и проверьте предварительную копию по SSH.'
+  [[ ! -e "$INSTALL_DIR" && ! -e "$state" ]] ||
+    die 'На новом сервере уже есть установка или завершённая подготовка.'
+  revision="$(cat "$staged/revision")"
+  version="$(sed -nE 's/^MIRA_TV_VERSION=([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' "$staged/install.env" | head -1)"
+  [[ "$revision" =~ ^[0-9a-f]{40}$ && "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+    die 'Повреждены метаданные версии в предварительной копии.'
+  [[ "$(grep -c '^MIRA_TV_VERSION=' "$staged/install.env")" == 1 ]] ||
+    die 'Файл конфигурации содержит неоднозначную версию.'
+  install_prerequisites
+  install_docker
+  for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
+    docker volume inspect "$volume" >/dev/null 2>&1 &&
+      die "На целевом сервере уже существует Docker volume $volume. Восстановление запрещено."
+  done
+  local completed=no
+  migration_prepare_rollback() {
+    [[ "$completed" == yes ]] && return 0
+    if [[ -d "$INSTALL_DIR" ]]; then
+      (cd "$INSTALL_DIR" && docker compose down -v --remove-orphans) >/dev/null 2>&1 || true
+      rm -rf -- "$INSTALL_DIR"
+    fi
+    # Volumes created during an unsuccessful preparation only, never original volumes.
+    for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
+      docker volume rm "$volume" >/dev/null 2>&1 || true
+    done
+  }
+  trap migration_prepare_rollback EXIT
+  git clone --quiet --depth 1 --branch "v$version" "$REPO_URL" "$INSTALL_DIR" ||
+    die 'Не удалось загрузить исходную версию MIRA-TV.'
+  [[ "$(git -C "$INSTALL_DIR" rev-parse HEAD)" == "$revision" ]] ||
+    die 'Git HEAD установочного пакета отличается от исходного сервера.'
+  install -m 0600 "$staged/install.env" "$INSTALL_DIR/.env"
+  cd "$INSTALL_DIR"
+  docker compose config --quiet ||
+    die 'Неверная конфигурация Docker Compose для исходной версии.'
+  docker compose up -d --wait db ||
+    die 'PostgreSQL не запустился на целевом сервере.'
+  docker compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' \
+    < "$staged/database.dump" || die 'Восстановление PostgreSQL не завершилось.'
+  docker compose run --rm --no-deps -T site-assets-init sh -ec \
+    'mkdir -p "$SITE_ASSETS_ROOT"; tar -C "$SITE_ASSETS_ROOT" -xzf -' \
+    < "$staged/site-assets.tar.gz" ||
+    die 'Восстановление изображений не завершилось.'
+  docker volume create mira-tv-letsencrypt >/dev/null
+  docker run --rm -i --network none -v mira-tv-letsencrypt:/certs \
+    busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0 \
+    tar -C /certs -xzf - < "$staged/letsencrypt.tar.gz" ||
+    die 'Восстановление HTTPS-хранилища не завершилось.'
+  # Start only the internal app, NEVER the public proxy before final cutover.
+  docker compose up -d --build --wait app ||
+    die 'Внутренний запуск нового приложения завершился ошибкой.'
+  wait_ready 30 || die 'Новый сервер не подтвердил /readyz.'
+  # Smoke check: database tables needed for existing TV registrations.
+  docker compose exec -T db sh -ec \
+    'PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT (SELECT count(*) FROM tv_devices), (SELECT count(*) FROM tv_device_bindings WHERE active), (SELECT count(*) FROM tv_device_sessions WHERE revoked_at IS NULL)"' \
+    > "$MIGRATION_STATE_DIR/tv-records-prepared" ||
+    die 'Не удалось проверить перенесённые регистрации ТВ.'
+  docker compose stop app ||
+    die 'Не удалось остановить внутреннее тестовое приложение.'
+  install -m 0600 "$staged/revision" "$state"
+  completed=yes
+  info 'Предварительная копия восстановлена; PostgreSQL, ресурсы и /readyz проверены.'
+  info 'Публичный Traefik на новом сервере не запускался. Источник продолжает работать.'
+  warn 'Это НЕ окончательный перенос: изменения с исходного сервера необходимо синхронизировать повторно.'
+)
+
