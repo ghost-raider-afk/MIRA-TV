@@ -90,6 +90,88 @@ migration_source_cancel() {
   info 'Временный SSH-доступ миграции отозван. Приложение и данные не изменены.'
 }
 
+
+# Preliminary copy: production continues to serve traffic and is never stopped.
+# These files are NOT a cutover-safe final snapshot while app writes continue.
+migration_source_snapshot() {
+  [[ -f "$MIGRATION_SOURCE_STATE" && -f "$INSTALL_DIR/.env" ]] || return 1
+  [[ ! -f "$MIGRATION_STATE_DIR/source-frozen" ]] || return 1
+  local work revision
+  work="$(mktemp -d "$MIGRATION_STATE_DIR/snapshot.XXXXXX")" || return 1
+  chmod 700 "$work"
+  (
+    trap 'rm -rf -- "$work"' EXIT
+    cd "$INSTALL_DIR" || exit 1
+    revision="$(git rev-parse HEAD)" || exit 1
+    [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || exit 1
+    install -m 0600 .env "$work/install.env" || exit 1
+    printf '%s\n' "$revision" > "$work/revision"
+    docker compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$work/database.dump" || exit 1
+    [[ -s "$work/database.dump" ]] || exit 1
+    docker compose exec -T app sh -ec 'tar -C "$SITE_ASSETS_ROOT" -czf - .' > "$work/site-assets.tar.gz" || exit 1
+    [[ -s "$work/site-assets.tar.gz" ]] || exit 1
+    docker volume inspect mira-tv-letsencrypt >/dev/null 2>&1 || exit 1
+    docker run --rm --network none -v mira-tv-letsencrypt:/certs:ro busybox:1.37.0 \
+      tar -C /certs -czf - . > "$work/letsencrypt.tar.gz" || exit 1
+    [[ -s "$work/letsencrypt.tar.gz" ]] || exit 1
+    (cd "$work" && sha256sum install.env revision database.dump site-assets.tar.gz letsencrypt.tar.gz > SHA256SUMS) || exit 1
+    tar -C "$work" -czf - SHA256SUMS install.env revision database.dump site-assets.tar.gz letsencrypt.tar.gz
+  )
+}
+
+migration_archive_validate() {
+  local archive="$1" target="$2" expected actual
+  [[ -s "$archive" && -d "$target" ]] || return 1
+  expected="$(printf '%s\n' SHA256SUMS install.env revision database.dump site-assets.tar.gz letsencrypt.tar.gz | sort)"
+  actual="$(tar -tzf "$archive" | sort)" || return 1
+  [[ "$actual" == "$expected" ]] || return 1
+  tar -xzf "$archive" -C "$target" --no-same-owner --no-same-permissions || return 1
+  (cd "$target" && sha256sum -c SHA256SUMS >/dev/null) || return 1
+  [[ -s "$target/database.dump" && -s "$target/site-assets.tar.gz" && -s "$target/letsencrypt.tar.gz" ]] || return 1
+  [[ -s "$target/install.env" && -s "$target/revision" ]] || return 1
+  [[ "$(cat "$target/revision")" =~ ^[0-9a-f]{40}$ ]] || return 1
+  tar -tzf "$target/site-assets.tar.gz" >/dev/null || return 1
+  tar -tzf "$target/letsencrypt.tar.gz" >/dev/null || return 1
+}
+
+migration_target_stage() {
+  local ssh_ip="$1" ssh_port="$2" conn_dir="$3" revision="$4"
+  [[ ! -e "$MIGRATION_STATE_DIR/staged" ]] || die 'Предварительная копия уже есть. Требуется отдельное подтверждение повторного переноса.'
+  install -d -m 0700 "$MIGRATION_STATE_DIR"
+  local work
+  work="$(mktemp -d "$MIGRATION_STATE_DIR/staging.XXXXXX")" || die 'Не удалось выделить каталог предварительной копии.'
+  chmod 700 "$work"
+  # This stream contains authentication secrets. It must only be written to a root-owned directory.
+  local -a ssh_args=(
+    -T -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes
+    -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null
+    -o UserKnownHostsFile="$conn_dir/known_hosts" -o HostKeyAlgorithms=ssh-ed25519
+    -o ConnectTimeout=10 -o ConnectionAttempts=1
+    -o ServerAliveInterval=20 -o ServerAliveCountMax=3
+    -i "$conn_dir/id_ed25519" -p "$ssh_port"
+  )
+  if ! ssh "${ssh_args[@]}" "root@$ssh_ip" snapshot > "$work/bundle.tar.gz"; then
+    rm -rf -- "$work"
+    die 'Предварительная SSH-передача прервана. Исходный сервер не изменён.'
+  fi
+  if ! migration_archive_validate "$work/bundle.tar.gz" "$work"; then
+    rm -rf -- "$work"
+    die 'Снимок не прошёл проверку целостности. Исходный сервер не изменён.'
+  fi
+  [[ "$(cat "$work/revision")" == "$revision" ]] || {
+    rm -rf -- "$work"
+    die 'Исходный Git HEAD изменился во время переноса. Повторите миграцию.'
+  }
+  chmod -R go-rwx "$work"
+  rm -f -- "$work/bundle.tar.gz"
+  mv -- "$work" "$MIGRATION_STATE_DIR/staged" || {
+    rm -rf -- "$work"
+    die 'Не удалось зафиксировать предварительную копию.'
+  }
+  info "Предварительная копия БД, ресурсов, .env и HTTPS сохранена в $MIGRATION_STATE_DIR/staged"
+  warn 'Копия НЕ финальная: источник продолжает принимать изменения. Переключение на новый сервер запрещено.'
+}
+
 migration_source_remote() {
   # Invoked exclusively by the forced-command authorized_keys entry.
   [[ -n "${SSH_ORIGINAL_COMMAND:-}" && -f "$MIGRATION_SOURCE_STATE" ]] || exit 1
@@ -108,6 +190,9 @@ migration_source_remote() {
       [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$revision" =~ ^[a-f0-9]{40}$ ]] || exit 1
       validate_domain "$domain"
       printf 'MIRA-TV-SSH-1\n%s\n%s\n%s\n' "$version" "$revision" "$domain"
+      ;;
+    snapshot)
+      migration_source_snapshot
       ;;
     *) exit 1 ;;
   esac
@@ -162,7 +247,6 @@ migration_target_probe() {
   if ! result="$(ssh "${ssh_args[@]}" "root@$ip" probe)"; then
     rm -rf -- "$tmp"; die 'SSH-проверка не прошла. Проверьте SSH-порт, разрешение root по ключу и firewall.'
   fi
-  rm -rf -- "$tmp"
   local -a result_fields
   mapfile -t result_fields <<< "$result"
   [[ "${#result_fields[@]}" -eq 4 && "${result_fields[0]}" == 'MIRA-TV-SSH-1' ]] || die 'Исходный сервер вернул неверный протокол.'
@@ -173,5 +257,7 @@ migration_target_probe() {
   info "Версия MIRA-TV: ${result_fields[1]}"
   info "HEAD: ${result_fields[2]}"
   info "Домен: ${result_fields[3]}"
-  warn 'Передача данных и переключение пока НЕ запускаются: реализован первый безопасный этап — одноразовое SSH-сопряжение.'
+  migration_target_stage "$ip" "$port" "$tmp" "${result_fields[2]}"
+  rm -rf -- "$tmp"
+  warn 'Перенос финальных изменений и переключение ещё не реализованы — никаких изменений на исходном сервере.'
 }
