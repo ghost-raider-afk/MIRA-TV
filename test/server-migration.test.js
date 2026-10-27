@@ -70,6 +70,7 @@ test('SSH migration is strictly opt-in, limited to a forced command and probe', 
   assert.match(content, /migrate-source\)/);
   assert.match(content, /migrate-target\)/);
   assert.match(content, /migrate-discard\)/);
+  assert.match(content, /migrate-prepare\)/);
   assert.doesNotMatch(helper, /StrictHostKeyChecking=no/);
 });
 
@@ -115,4 +116,19 @@ test('migration preliminary archive is allowlisted and checksum-verified before 
 test('unknown remote migration commands fail closed', () => {
   const result = runBash('MIGRATION_SOURCE_STATE="$STATE"; SSH_ORIGINAL_COMMAND="whoami"; migration_source_remote', { STATE: '/definitely/not/a/source.state' });
   assert.notEqual(result.status, 0);
+});
+
+test('preliminary restoration cannot publish the public proxy', () => {
+  const helper = readFileSync(migrationScript, 'utf8');
+  const start = helper.indexOf('migration_target_prepare() (');
+  assert.ok(start > 0);
+  const restore = helper.slice(start);
+  assert.match(restore, /docker compose up -d --wait db/);
+  assert.match(restore, /docker compose up -d --build --wait app/);
+  assert.match(restore, /wait_ready 30/);
+  assert.match(restore, /docker compose stop app/);
+  assert.match(restore, /pg_restore --exit-on-error/);
+  assert.match(restore, /tv_device_sessions/);
+  assert.doesNotMatch(restore, /docker compose up -d(?: --wait)? proxy\b/);
+  assert.match(restore, /trap migration_prepare_rollback EXIT/);
 });
