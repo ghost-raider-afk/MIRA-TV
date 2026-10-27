@@ -26,6 +26,41 @@ test('migration helper and installer pass bash syntax checks', () => {
   }
 });
 
+
+test('renewable SSH lease extends active transfers but never passes the hard deadline', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'mira-ssh-lease-'));
+  try {
+    const state = path.join(dir, 'source.state');
+    const now = Math.floor(Date.now() / 1000);
+    const hard = now + 7200;
+    writeFileSync(state, 'a'.repeat(24) + '\n' + (now + 60) + '\n' + hard + '\n', { mode: 0o600 });
+    const active = runBash('MIGRATION_STATE_DIR="$DIR"; MIGRATION_SOURCE_STATE="$STATE"; migration_source_touch_lease', { DIR: dir, STATE: state });
+    assert.equal(active.status, 0, active.stderr);
+    const lines = readFileSync(state, 'utf8').trim().split('\n');
+    assert.equal(Number(lines[1]), hard);
+    assert.equal(Number(lines[2]), hard);
+
+    writeFileSync(state, 'a'.repeat(24) + '\n' + (now - 60) + '\n' + hard + '\n');
+    const expired = runBash('MIGRATION_STATE_DIR="$DIR"; MIGRATION_SOURCE_STATE="$STATE"; migration_source_touch_lease', { DIR: dir, STATE: state });
+    assert.notEqual(expired.status, 0, 'expired keys must never renew');
+
+    writeFileSync(state, 'a'.repeat(24) + '\n' + (now + 3600) + '\n' + (now - 1) + '\n');
+    const hardExpired = runBash('MIGRATION_STATE_DIR="$DIR"; MIGRATION_SOURCE_STATE="$STATE"; migration_source_touch_lease', { DIR: dir, STATE: state });
+    assert.notEqual(hardExpired.status, 0, 'hard deadline must be enforced');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('SSH lease is renewed during snapshot and expires when idle', () => {
+  const source = readFileSync(migrationScript, 'utf8');
+  assert.match(source, /MIGRATION_IDLE_LEASE_SECONDS=86400/);
+  assert.match(source, /MIGRATION_MAX_KEY_SECONDS=604800/);
+  assert.match(source, /while sleep 300; do[\s\S]*migration_source_touch_lease \|\| exit 1/);
+  assert.match(source, /migration_source_touch_lease \|\| exit 1[\s\S]*case "\$SSH_ORIGINAL_COMMAND"/);
+  assert.doesNotMatch(source, /date -u -d '\+2 hours'/);
+});
+
 test('SSH destination accepts only canonical public IPv4 input', () => {
   for (const address of ['1.2.3.4', '198.51.100.27', '203.0.113.9']) {
     const result = runBash('migration_valid_ipv4 "$IP"', { IP: address });
