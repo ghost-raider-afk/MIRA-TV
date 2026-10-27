@@ -8,6 +8,8 @@
 
 [INSTALLATION.md](INSTALLATION.md) — установка на Ubuntu, запуск Docker Compose, обновление и удаление.
 
+[SERVER-MIGRATION.md](SERVER-MIGRATION.md) — перенос между серверами и текущий этап реализации SSH-механизма.
+
 [CONFIGURATION.md](CONFIGURATION.md) — основные настройки файла `.env` простым языком.
 
 [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md) — список проверок после новой установки или переноса на другой сервер.
