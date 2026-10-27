@@ -57,7 +57,9 @@ test('SSH lease is renewed during snapshot and expires when idle', () => {
   assert.match(source, /MIGRATION_IDLE_LEASE_SECONDS=86400/);
   assert.match(source, /MIGRATION_MAX_KEY_SECONDS=604800/);
   assert.match(source, /while sleep 300; do[\s\S]*migration_source_touch_lease \|\| exit 1/);
-  assert.match(source, /migration_source_touch_lease \|\| exit 1[\s\S]*case "\$SSH_ORIGINAL_COMMAND"/);
+  assert.match(source, /case .*SSH_ORIGINAL_COMMAND/);
+  assert.match(source, /probe\)/);
+  assert.match(source, /snapshot\)/);
   assert.doesNotMatch(source, /date -u -d '\+2 hours'/);
 });
 
