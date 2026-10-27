@@ -206,7 +206,7 @@ migration_target_probe() {
   fi
   local volume
   if command -v docker >/dev/null 2>&1; then
-    for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt; do
+    for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
       docker volume inspect "$volume" >/dev/null 2>&1 && die "На новом сервере обнаружен существующий Docker volume: $volume"
     done
   fi
@@ -259,7 +259,8 @@ migration_target_probe() {
   info "Домен: ${result_fields[3]}"
   migration_target_stage "$ip" "$port" "$tmp" "${result_fields[2]}"
   rm -rf -- "$tmp"
-  warn 'Перенос финальных изменений и переключение ещё не реализованы — никаких изменений на исходном сервере.'
+  migration_target_prepare
+  warn 'Финальное переключение ещё не реализовано — исходный сервер продолжает работать.'
 }
 
 migration_target_discard() {
