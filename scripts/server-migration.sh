@@ -370,8 +370,10 @@ migration_target_reset() {
       die 'Обнаружен работающий публичный Traefik. Автоматическая очистка запрещена.'
   fi
   if [[ -d "$INSTALL_DIR" ]]; then
-    (cd "$INSTALL_DIR" && docker compose down -v --remove-orphans) ||
-      die 'Невозможно остановить целевую тестовую установку. Данные не удалены.'
+    if [[ -f "$INSTALL_DIR/compose.yaml" ]]; then
+      (cd "$INSTALL_DIR" && docker compose down -v --remove-orphans) ||
+        die 'Невозможно остановить целевую тестовую установку. Данные не удалены.'
+    fi
     rm -rf -- "$INSTALL_DIR"
   fi
   if command -v docker >/dev/null 2>&1; then
