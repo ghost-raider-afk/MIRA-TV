@@ -270,6 +270,8 @@ migration_target_discard() {
     info 'Предварительная копия отсутствует.'
     return 0
   }
+  [[ ! -e "$MIGRATION_STATE_DIR/target-prepared" && ! -e "$MIGRATION_STATE_DIR/target-preparing" ]] ||
+    die 'Сначала отмените подготовку нового сервера, затем удалите предварительную копию.'
   rm -rf -- "$stage"
   info 'Предварительная копия удалена. Исходный сервер и его данные не изменены.'
 }
@@ -284,8 +286,8 @@ migration_target_prepare() (
   state="$MIGRATION_STATE_DIR/target-prepared"
   [[ -d "$staged" && -s "$staged/install.env" && -s "$staged/revision" ]] ||
     die 'Сначала получите и проверьте предварительную копию по SSH.'
-  [[ ! -e "$INSTALL_DIR" && ! -e "$state" ]] ||
-    die 'На новом сервере уже есть установка или завершённая подготовка.'
+  [[ ! -e "$INSTALL_DIR" && ! -e "$state" && ! -e "$MIGRATION_STATE_DIR/target-preparing" ]] ||
+    die 'На новом сервере есть незавершённая подготовка. Сначала воспользуйтесь безопасной очисткой.'
   revision="$(cat "$staged/revision")"
   version="$(sed -nE 's/^MIRA_TV_VERSION=([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' "$staged/install.env" | head -1)"
   [[ "$revision" =~ ^[0-9a-f]{40}$ && "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
@@ -298,6 +300,9 @@ migration_target_prepare() (
     docker volume inspect "$volume" >/dev/null 2>&1 &&
       die "На целевом сервере уже существует Docker volume $volume. Восстановление запрещено."
   done
+  # This marker proves that all subsequent artifacts are owned by this migration.
+  install -m 0600 /dev/null "$MIGRATION_STATE_DIR/target-preparing"
+  printf '%s\n' "$revision" > "$MIGRATION_STATE_DIR/target-preparing"
   local completed=no
   migration_prepare_rollback() {
     [[ "$completed" == yes ]] && return 0
@@ -344,9 +349,38 @@ migration_target_prepare() (
   docker compose stop app ||
     die 'Не удалось остановить внутреннее тестовое приложение.'
   install -m 0600 "$staged/revision" "$state"
+  rm -f -- "$MIGRATION_STATE_DIR/target-preparing"
   completed=yes
   info 'Предварительная копия восстановлена; PostgreSQL, ресурсы и /readyz проверены.'
   info 'Публичный Traefik на новом сервере не запускался. Источник продолжает работать.'
   warn 'Это НЕ окончательный перенос: изменения с исходного сервера необходимо синхронизировать повторно.'
 )
 
+
+migration_target_reset() {
+  require_root migrate-reset
+  local marker="$MIGRATION_STATE_DIR/target-preparing"
+  local prepared="$MIGRATION_STATE_DIR/target-prepared"
+  [[ -f "$marker" || -f "$prepared" ]] ||
+    die 'Не найдено состояния подготовки MIRA-TV. Очистка существующей установки запрещена.'
+  [[ ! -f "$MIGRATION_STATE_DIR/target-active" ]] ||
+    die 'Нельзя очищать сервер после активации. Требуется отдельная процедура безопасного отката.'
+  if command -v docker >/dev/null 2>&1; then
+    [[ "$(docker ps --filter 'name=^/mira-tv-proxy$' --format '{{.ID}}' | head -1)" == "" ]] ||
+      die 'Обнаружен работающий публичный Traefik. Автоматическая очистка запрещена.'
+  fi
+  if [[ -d "$INSTALL_DIR" ]]; then
+    (cd "$INSTALL_DIR" && docker compose down -v --remove-orphans) ||
+      die 'Невозможно остановить целевую тестовую установку. Данные не удалены.'
+    rm -rf -- "$INSTALL_DIR"
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    local volume
+    for volume in mira-tv-db-data mira-tv-site-assets mira-tv-letsencrypt mira-tv-proxy-config; do
+      docker volume rm "$volume" >/dev/null 2>&1 ||
+        { docker volume inspect "$volume" >/dev/null 2>&1 && die "Не удалось удалить тестовый volume $volume."; }
+    done
+  fi
+  rm -f -- "$marker" "$prepared" "$MIGRATION_STATE_DIR/tv-records-prepared"
+  info 'Тестовая установка удалена. Предварительная копия сохранена для повторной подготовки.'
+}
