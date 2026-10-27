@@ -132,3 +132,19 @@ test('preliminary restoration cannot publish the public proxy', () => {
   assert.doesNotMatch(restore, /docker compose up -d(?: --wait)? proxy\b/);
   assert.match(restore, /trap migration_prepare_rollback EXIT/);
 });
+
+test('target cleanup refuses to touch an installation without a migration ownership marker', () => {
+  const result = runBash('require_root(){ :; }; MIGRATION_STATE_DIR=/definitely/nonexistent/mira-test; migration_target_reset');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Очистка существующей установки запрещена/);
+});
+
+test('abandoned target preparation has explicit recovery and never starts a public proxy', () => {
+  const helper = readFileSync(migrationScript, 'utf8');
+  const script = readFileSync(installer, 'utf8');
+  assert.match(helper, /target-preparing/);
+  assert.match(helper, /target-prepared/);
+  assert.match(helper, /target-active/);
+  assert.match(helper, /docker compose down -v --remove-orphans/);
+  assert.match(script, /migrate-reset\)/);
+});
