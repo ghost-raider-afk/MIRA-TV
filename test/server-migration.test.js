@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -68,6 +70,45 @@ test('SSH migration is strictly opt-in, limited to a forced command and probe', 
   assert.match(content, /migrate-source\)/);
   assert.match(content, /migrate-target\)/);
   assert.doesNotMatch(helper, /StrictHostKeyChecking=no/);
+});
+
+
+test('migration preliminary archive is allowlisted and checksum-verified before extraction', () => {
+  const base = mkdtempSync(path.join(tmpdir(), 'mira-transfer-test-'));
+  try {
+    const source = path.join(base, 'source');
+    const target = path.join(base, 'target');
+    mkdirSync(source);
+    mkdirSync(target);
+    const files = ['install.env', 'revision', 'database.dump', 'site-assets.tar.gz', 'letsencrypt.tar.gz'];
+    for (const name of files) {
+      const body = name === 'revision' ? 'a'.repeat(40) + '\n' : 'test-data-for-' + name;
+      writeFileSync(path.join(source, name), body);
+    }
+    const checksums = files.map((name) =>
+      createHash('sha256').update(readFileSync(path.join(source, name))).digest('hex') + '  ' + name).join('\n') + '\n';
+    writeFileSync(path.join(source, 'SHA256SUMS'), checksums);
+    // Actual nested archives also must be structurally valid.
+    for (const name of ['site-assets.tar.gz', 'letsencrypt.tar.gz']) {
+      const tar = spawnSync('tar', ['-czf', path.join(source, name), '-C', source, 'revision'], { encoding: 'utf8' });
+      assert.equal(tar.status, 0, tar.stderr);
+    }
+    const updatedChecksums = files.map((name) =>
+      createHash('sha256').update(readFileSync(path.join(source, name))).digest('hex') + '  ' + name).join('\n') + '\n';
+    writeFileSync(path.join(source, 'SHA256SUMS'), updatedChecksums);
+    const bundle = path.join(base, 'bundle.tar.gz');
+    const contents = ['SHA256SUMS', ...files];
+    assert.equal(spawnSync('tar', ['-czf', bundle, '-C', source, ...contents]).status, 0);
+    assert.equal(runBash('migration_archive_validate "$ARCHIVE" "$TARGET"', { ARCHIVE: bundle, TARGET: target }).status, 0);
+    writeFileSync(path.join(source, 'database.dump'), 'TAMPERED');
+    assert.equal(spawnSync('tar', ['-czf', bundle, '-C', source, ...contents]).status, 0);
+    assert.notEqual(runBash('migration_archive_validate "$ARCHIVE" "$TARGET"', { ARCHIVE: bundle, TARGET: target }).status, 0);
+    writeFileSync(path.join(source, 'EXTRA'), 'unexpected');
+    assert.equal(spawnSync('tar', ['-czf', bundle, '-C', source, ...contents, 'EXTRA']).status, 0);
+    assert.notEqual(runBash('migration_archive_validate "$ARCHIVE" "$TARGET"', { ARCHIVE: bundle, TARGET: target }).status, 0);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('unknown remote migration commands fail closed', () => {
