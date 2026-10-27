@@ -111,7 +111,7 @@ migration_source_snapshot() {
     docker compose exec -T app sh -ec 'tar -C "$SITE_ASSETS_ROOT" -czf - .' > "$work/site-assets.tar.gz" || exit 1
     [[ -s "$work/site-assets.tar.gz" ]] || exit 1
     docker volume inspect mira-tv-letsencrypt >/dev/null 2>&1 || exit 1
-    docker run --rm --network none -v mira-tv-letsencrypt:/certs:ro busybox:1.37.0 \
+    docker run --rm --network none -v mira-tv-letsencrypt:/certs:ro busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0 \
       tar -C /certs -czf - . > "$work/letsencrypt.tar.gz" || exit 1
     [[ -s "$work/letsencrypt.tar.gz" ]] || exit 1
     (cd "$work" && sha256sum install.env revision database.dump site-assets.tar.gz letsencrypt.tar.gz > SHA256SUMS) || exit 1
