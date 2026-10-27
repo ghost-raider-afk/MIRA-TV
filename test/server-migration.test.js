@@ -69,6 +69,7 @@ test('SSH migration is strictly opt-in, limited to a forced command and probe', 
   assert.match(content, /9\) migration_menu/);
   assert.match(content, /migrate-source\)/);
   assert.match(content, /migrate-target\)/);
+  assert.match(content, /migrate-discard\)/);
   assert.doesNotMatch(helper, /StrictHostKeyChecking=no/);
 });
 
