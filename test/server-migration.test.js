@@ -41,7 +41,7 @@ test('SSH port validation enforces the actual TCP port range', () => {
   for (const port of ['1', '22', '2222', '65535']) {
     assert.equal(runBash('migration_valid_port "$PORT"', { PORT: port }).status, 0, port);
   }
-  for (const port of ['0', '65536', '-1', 'abc', '22;id']) {
+  for (const port of ['0', '022', '65536', '-1', 'abc', '22;id']) {
     assert.notEqual(runBash('migration_valid_port "$PORT"', { PORT: port }).status, 0, port);
   }
 });
@@ -147,4 +147,11 @@ test('abandoned target preparation has explicit recovery and never starts a publ
   assert.match(helper, /target-active/);
   assert.match(helper, /docker compose down -v --remove-orphans/);
   assert.match(script, /migrate-reset\)/);
+});
+
+test('target rejects existing MIRA-TV containers and volumes before staging', () => {
+  const helper = readFileSync(migrationScript, 'utf8');
+  assert.match(helper, /docker container inspect "\$container"/);
+  assert.match(helper, /docker volume inspect "\$volume"/);
+  assert.match(helper, /mira-tv-proxy-config-init/);
 });
