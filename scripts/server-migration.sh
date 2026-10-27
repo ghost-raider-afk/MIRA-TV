@@ -261,3 +261,14 @@ migration_target_probe() {
   rm -rf -- "$tmp"
   warn 'Перенос финальных изменений и переключение ещё не реализованы — никаких изменений на исходном сервере.'
 }
+
+migration_target_discard() {
+  require_root migrate-discard
+  local stage="$MIGRATION_STATE_DIR/staged"
+  [[ -d "$stage" && ! -L "$stage" ]] || {
+    info 'Предварительная копия отсутствует.'
+    return 0
+  }
+  rm -rf -- "$stage"
+  info 'Предварительная копия удалена. Исходный сервер и его данные не изменены.'
+}
