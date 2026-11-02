@@ -338,13 +338,13 @@ test('proxy retirement has a safety period and cannot restart the old app', () =
   const source = readFileSync(migrationScript, 'utf8');
   const script = readFileSync(installer, 'utf8');
   assert.match(source, /MIGRATION_PROXY_QUIET_SECONDS=1209600/);
-  assert.match(source, /migration_source_frozen_verified \\|\\| return 0/);
+  assert.match(source, /migration_source_frozen_verified \|\| return 0/);
   assert.match(source, /ss -Htn state established/);
   assert.match(source, /migration_proxy_network_bytes/);
   assert.match(source, /docker update --restart=no mira-tv-proxy/);
   assert.match(source, /docker stop --time 30 mira-tv-proxy/);
   assert.match(source, /OnCalendar=hourly/);
-  assert.match(script, /migrate-proxy-check\\)/);
+  assert.match(script, /migrate-proxy-check\)/);
 });
 
 
