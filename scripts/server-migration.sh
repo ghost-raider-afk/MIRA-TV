@@ -157,7 +157,7 @@ migration_source_freeze() {
   printf '%s\n' preparing > "$MIGRATION_STATE_DIR/source-frozen"
   # Fail closed across a Docker daemon restart, including a host reboot.
   docker update --restart=no mira-tv >/dev/null || return 1
-  (cd "$INSTALL_DIR" && docker compose stop -t 30 app) || return 1
+  (cd "$INSTALL_DIR" && docker compose stop -t 30 app >/dev/null) || return 1
   [[ "$(docker inspect -f '{{.State.Running}}' mira-tv)" == false ]] || return 1
   printf '%s\n' ready > "$MIGRATION_STATE_DIR/source-frozen"
   migration_source_frozen_verified || return 1
