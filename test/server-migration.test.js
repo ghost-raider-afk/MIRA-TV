@@ -200,6 +200,7 @@ test('source freezes the writer before final snapshot and allows explicit guarde
   assert.match(helper, /migration_source_frozen_verified\(\)/);
   assert.match(helper, /docker update --restart=no mira-tv/);
   assert.match(helper, /docker compose stop -t 30 app/);
+  assert.match(helper, /docker compose stop -t 30 app >\/dev\/null/);
   assert.match(helper, /final\) migration_source_frozen_verified \|\| return 1/);
   assert.match(helper, /final-snapshot\)/);
   assert.match(helper, /migration_source_resume\(\)/);
