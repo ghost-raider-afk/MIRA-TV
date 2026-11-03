@@ -305,7 +305,15 @@ purge_app() {
   require_root purge; [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
   printf '\nВНИМАНИЕ: будут безвозвратно удалены приложение MIRA-TV, база данных, загруженные файлы, сохранённые секреты и HTTPS-сертификаты.\n'
   if ! confirm_action 'Удалить приложение и ВСЕ данные?'; then info 'Удаление отменено.'; return 0; fi
-  compose down -v --remove-orphans; rm -rf "$INSTALL_DIR" "$PERSIST_DIR"; rm -f "$LAUNCHER_PATH"; info 'MIRA-TV и все его данные Docker удалены.'
+  compose down -v --remove-orphans
+  # Purge also the dormant TLS volumes of the OTHER selectable proxy.
+  local volume
+  for volume in mira-tv-letsencrypt mira-tv-proxy-config mira-tv-caddy-data mira-tv-caddy-config; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      docker volume rm "$volume" >/dev/null || die "Не удалось удалить SSL volume: $volume."
+    fi
+  done
+  rm -rf "$INSTALL_DIR" "$PERSIST_DIR"; rm -f "$LAUNCHER_PATH"; info 'MIRA-TV и все его данные Docker удалены.'
 }
 
 configure_proxy_app() {

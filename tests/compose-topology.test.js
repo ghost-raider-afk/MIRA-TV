@@ -48,3 +48,10 @@ test('installer chooses one proxy and provides persistent network bootstrap', ()
   assert.match(installer, /ensure_proxy_network/);
   assert.match(installer, /configure_proxy_app/);
 });
+
+test('explicit purge clears TLS storage of either selectable proxy', () => {
+  for (const volume of ['mira-tv-letsencrypt', 'mira-tv-proxy-config', 'mira-tv-caddy-data', 'mira-tv-caddy-config']) {
+    assert.ok(installer.includes(volume), volume);
+  }
+  assert.match(installer, /docker volume rm "\$volume"/);
+});
