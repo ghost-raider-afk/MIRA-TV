@@ -196,6 +196,15 @@ jobs:
           docker compose run --rm --no-deps -T --entrypoint cat proxy-config-init /dynamic/dynamic.yml \
             | grep -F 'rule: "Host(`mira.example.test`)"'
 
+      - name: Validate Caddy and isolated future-bot configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          COMPOSE_FILE=compose.yaml:compose.caddy.yaml docker compose config --quiet
+          docker compose -f compose.yaml -f compose.bot.yaml config --quiet
+          docker network inspect mira-tv-proxy >/dev/null 2>&1 || docker network create --driver bridge mira-tv-proxy
+          docker compose -f compose.yaml -f compose.caddy.yaml run --rm --no-deps -T proxy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
       - name: Build application image
         shell: bash
         run: |

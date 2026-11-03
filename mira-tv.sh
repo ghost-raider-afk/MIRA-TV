@@ -108,7 +108,35 @@ write_env() {
 }
 
 compose() { [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'; (cd "$INSTALL_DIR" && docker compose "$@"); }
-validate_compose() { compose config --quiet; }
+validate_compose_selection() {
+  local selected
+  selected="$(sed -nE 's/^COMPOSE_FILE=(.*)$/\1/p' "${INSTALL_DIR}/.env" | tail -n 1)"
+  case "$selected" in
+    compose.yaml:compose.traefik.yaml|compose.yaml:compose.caddy.yaml) ;;
+    *) die 'В .env выберите compose.yaml:compose.traefik.yaml или compose.yaml:compose.caddy.yaml.' ;;
+  esac
+}
+ensure_proxy_network() {
+  if ! docker network inspect mira-tv-proxy >/dev/null 2>&1; then
+    docker network create --driver bridge mira-tv-proxy >/dev/null || die 'Не удалось создать Docker-сеть mira-tv-proxy.'
+  fi
+}
+choose_proxy_overlay() {
+  local choice
+  printf '\nВыберите обратный прокси:\n1) Traefik (по умолчанию)\n2) Caddy\n' >&2
+  read -r -p 'Ваш выбор [1/2]: ' choice
+  case "$choice" in
+    ''|1) printf 'compose.traefik.yaml\n' ;;
+    2) printf 'compose.caddy.yaml\n' ;;
+    *) die 'Неизвестный reverse proxy. Выберите 1 или 2.' ;;
+  esac
+}
+set_proxy_overlay() {
+  local selected="$1"
+  sed -i "s|^COMPOSE_FILE=.*|COMPOSE_FILE=compose.yaml:${selected}|" "${INSTALL_DIR}/.env"
+  chmod 600 "${INSTALL_DIR}/.env"
+}
+validate_compose() { validate_compose_selection; compose config --quiet; }
 
 wait_ready() {
   local attempts="${1:-60}"
@@ -120,6 +148,7 @@ wait_ready() {
 }
 
 start_stack() {
+  ensure_proxy_network
   validate_compose
   compose up -d --build --wait
   wait_ready || die 'Приложение запущено, но /readyz не подтвердил готовность.'
@@ -193,6 +222,7 @@ restore_temporary_backup() {
   cp "$TEMP_BACKUP_DIR/.env" "$INSTALL_DIR/.env" || return 1; chmod 600 "$INSTALL_DIR/.env" || return 1
   git -C "$INSTALL_DIR" reset --hard "$(<"$TEMP_BACKUP_DIR/git-revision")" || return 1
   install -m 0755 "$TEMP_BACKUP_DIR/installer.sh" "$LAUNCHER_PATH" || return 1
+  ensure_proxy_network
   compose up -d --wait db || return 1
   restore_database_exact "$TEMP_BACKUP_DIR/database.dump" || return 1
   restore_site_assets || return 1
@@ -215,14 +245,15 @@ recover_failed_update() {
 install_app() {
   require_root install; require_ubuntu; install_prerequisites; install_docker
   [[ ! -e "$INSTALL_DIR" ]] || die "${INSTALL_DIR} уже существует. Используйте пункт проверки обновления."
-  local domain email admin admin_password tag
+  local domain email admin admin_password tag proxy_overlay
   read -r -p 'Домен MIRA-TV для HTTPS: ' domain; validate_domain "$domain"
   read -r -p 'Email для HTTPS-сертификата: ' email; validate_email "$email"
   read -r -p 'Логин администратора: ' admin
   [[ "$admin" =~ ^[A-Za-z][A-Za-z0-9_.-]{2,63}$ ]] || die 'Логин: 3–64 латинских букв, цифр, точка, дефис или подчёркивание.'
+  proxy_overlay="$(choose_proxy_overlay)"
   tag="$(latest_tag)"; [[ -n "$tag" ]] || die 'Стабильный релиз MIRA-TV не найден.'; admin_password="$(generated_admin_password)"
   log "Установка ${PROGRAM_NAME} ${tag#v}"; git clone --depth 1 --branch "$tag" "$REPO_URL" "$INSTALL_DIR"
-  write_env "$domain" "$email" "$admin" "$admin_password"; start_stack; install -m 0755 "${INSTALL_DIR}/mira-tv.sh" "$LAUNCHER_PATH"; persist_env
+  write_env "$domain" "$email" "$admin" "$admin_password"; set_proxy_overlay "$proxy_overlay"; persist_env; start_stack; install -m 0755 "${INSTALL_DIR}/mira-tv.sh" "$LAUNCHER_PATH"; persist_env
   printf '\nMIRA-TV установлен.\nURL: https://%s\nАдминистратор: %s\nПароль: %s\n\n' "$domain" "$admin" "$admin_password"
   info "Рабочий каталог: ${INSTALL_DIR}"; info "Открыть меню: mira-tv"
 }
@@ -243,7 +274,8 @@ update_app() {
   merge_env_defaults || recover_failed_update 'merge env defaults'
   sed -i "s|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=${version}|" .env || recover_failed_update 'update MIRA_TV_VERSION'
   chmod 600 .env || recover_failed_update 'chmod .env'; persist_env || recover_failed_update 'persist merged .env'
-  docker compose config --quiet || recover_failed_update 'docker compose config'
+  ensure_proxy_network
+  validate_compose || recover_failed_update 'docker compose config'
   docker compose up -d --build --wait || recover_failed_update 'docker compose up --build --wait'
   wait_ready || recover_failed_update 'wait /readyz'
   install -m 0755 mira-tv.sh "$LAUNCHER_PATH" || recover_failed_update 'install launcher'
@@ -276,15 +308,65 @@ purge_app() {
   compose down -v --remove-orphans; rm -rf "$INSTALL_DIR" "$PERSIST_DIR"; rm -f "$LAUNCHER_PATH"; info 'MIRA-TV и все его данные Docker удалены.'
 }
 
+configure_proxy_app() {
+  require_root proxy
+  [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
+  validate_compose_selection
+  local previous selected
+  previous="$(sed -nE 's/^COMPOSE_FILE=compose.yaml:(.*)$/\1/p' "${INSTALL_DIR}/.env" | tail -n 1)"
+  info "Сейчас используется: ${previous}"
+  selected="$(choose_proxy_overlay)"
+  if [[ "$selected" == "$previous" ]]; then
+    ensure_proxy_network
+    validate_compose
+    compose up -d --wait proxy
+    info 'Выбранный reverse proxy проверен и запущен.'
+    return
+  fi
+  warn 'При смене прокси HTTPS может быть кратковременно недоступен. Новый сертификат будет выпущен отдельно.'
+  if ! confirm_action "Переключить ${previous} на ${selected}?"; then info 'Отменено.'; return; fi
+  ensure_proxy_network
+  # Do not touch app, db, volumes, device registrations or sessions.
+  compose exec -T app node -e "fetch('http://127.0.0.1:8080/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1 ||
+    die 'Основное приложение не готово; переключение proxy остановлено.'
+  compose stop proxy || die 'Не удалось остановить предыдущий reverse proxy.'
+  compose rm -f proxy || die 'Не удалось убрать контейнер предыдущего proxy.'
+  set_proxy_overlay "$selected"
+  if validate_compose &&
+    { [[ "$selected" != compose.traefik.yaml ]] || compose up -d --no-deps proxy-config-init; } &&
+    compose up -d --no-deps --wait proxy; then
+    persist_env
+    info 'Reverse proxy переключён. Проверьте HTTPS и выпуск сертификата.'
+    return
+  fi
+  warn 'Новый proxy не запустился. Восстанавливаем предыдущий.'
+  compose stop proxy >/dev/null 2>&1 || true
+  compose rm -f proxy >/dev/null 2>&1 || true
+  set_proxy_overlay "$previous"
+  if { [[ "$previous" != compose.traefik.yaml ]] || compose up -d --no-deps proxy-config-init; } &&
+    compose up -d --no-deps --wait proxy; then
+    persist_env
+    die 'Переключение отменено: предыдущий reverse proxy восстановлен.'
+  fi
+  die 'Не удалось автоматически восстановить proxy. Проверьте docker compose ps и логи; база и ТВ не изменялись.'
+}
+
+install_bot_app() {
+  require_root bot
+  info 'Бот Telegram/MAX ещё не реализован. Исполняемый Docker-образ отсутствует.'
+  info 'compose.bot.yaml — будущая отдельная конфигурация, она не включена в рабочий стек.'
+  info 'См. docs/BOT.md. Основное приложение и прокси не изменены.'
+}
+
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Выбрать/установить reverse proxy\n10) Установить бот (после реализации)\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
-  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
+  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 9) configure_proxy_app ;; 10) install_bot_app ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
 }
 
 case "${1:-menu}" in
   install) install_app ;; update) update_app ;; status) status_app ;; restart) restart_app ;; logs) logs_app ;;
-  reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
-  *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
+  reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;; proxy) configure_proxy_app ;; bot) install_bot_app ;; menu) show_menu ;;
+  *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | proxy | bot | menu' ;;
 esac

@@ -1,0 +1,20 @@
+# FUTURE COMPONENT — no functioning bot runtime or image exists yet.
+# Do not enable this profile until implementation and integration tests.
+# Reserved internal bot port: 8090; upstream app API:8080. No public host port.
+services:
+  bot:
+    profiles: [bot]
+    image: mira-tv-bot:local
+    container_name: mira-tv-bot
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      BOT_PORT: "8090"
+      MIRA_TV_API_BASE_URL: http://app:8080
+    expose:
+      - "8090"
+    networks: [mira-tv-proxy]

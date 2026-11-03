@@ -8,7 +8,7 @@
 Администратор / менеджер (браузер)
               │ HTTPS
               ▼
-   Traefik 3 (file provider)
+   Traefik 3 / Caddy 2
               │
               ▼
   Node.js 24+ / Express 5
@@ -23,7 +23,9 @@
    Local-first + статический SVG
 ~~~
 
-Всё работает в Docker Compose: `app`, `db`, служебные init-контейнеры и `proxy`. Наружу опубликованы только порты `80`/`443`; readiness приложения — `/readyz`. PostgreSQL, site assets и TLS/Traefik state сохраняются в отдельных Docker volumes.
+Базовый `compose.yaml` содержит `app`, `db` и init-контейнер для assets. Reverse proxy вынесен в `compose.traefik.yaml` (Traefik, default) или `compose.caddy.yaml` (Caddy). `COMPOSE_FILE` в `.env` выбирает один из них. Наружу опубликованы TCP 80/443 (Caddy также UDP 443), а `app:8080` и `db:5432` остаются внутренними. Внешняя Docker-сеть `mira-tv-proxy` создаётся установщиком; приватная `mira-tv-internal` используется для БД. Readiness приложения — `/readyz`; база, assets и сертификаты хранятся в постоянных Docker volumes.
+
+Отдельный `compose.bot.yaml` пока только описывает **будущий** Telegram/MAX-бот с проектным внутренним портом `8090`; рабочего runtime нет. См. [REVERSE-PROXY.md](REVERSE-PROXY.md) и [BOT.md](BOT.md).
 
 ## Общий рендеринг сцены
 

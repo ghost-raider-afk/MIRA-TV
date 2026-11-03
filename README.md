@@ -38,7 +38,7 @@
 | Backend / API | Node.js 24+, Express 5 |
 | Данные | PostgreSQL 17 |
 | Интерфейс / TV Player | Нативный JavaScript, HTML, CSS, SVG |
-| Доставка / HTTPS | Docker Compose, Traefik 3 (file provider) |
+| Доставка / HTTPS | Docker Compose, Traefik 3 или Caddy 2 (выбор при установке) |
 | Тесты | Node.js test runner, Playwright, Docker/DB/visual regression |
 
 Снаружи открыты порты `80` и `443`. Для проверки готовности предусмотрен `/readyz`. Пользовательские assets хранятся на сервере в постоянном Docker volume; TV не зависит от внешнего CDN для показа сцены.
@@ -59,13 +59,15 @@ mira-tv
 
 Рабочий каталог — `/opt/MIRA-TV`, локальная конфигурация — `/opt/MIRA-TV/.env`. Пароли и ключи из `.env` не публикуются.
 
-См. [установку и обновление](docs/INSTALLATION.md) и [настройки](docs/CONFIGURATION.md).
+См. [установку и обновление](docs/INSTALLATION.md), [пошаговое развёртывание Docker/Traefik/Caddy](docs/REVERSE-PROXY.md) и [настройки](docs/CONFIGURATION.md). Telegram/MAX-бот — [отдельный планируемый компонент](docs/BOT.md), пока не включённый в production.
 
 ## Документация
 
 - [Оглавление документации](docs/README.md)
 - [Пользователи, каталог, сцены и заявки](docs/USAGE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
+- [Полная установка Docker, Traefik/Caddy и сети](docs/REVERSE-PROXY.md)
+- [Бот Telegram/MAX — будущий контейнер](docs/BOT.md)
 - [TV Player и работа без сети](docs/PLAYER.md)
 - [Производительность Android TV](docs/PERFORMANCE.md)
 - [Диагностика](docs/TROUBLESHOOTING.md)

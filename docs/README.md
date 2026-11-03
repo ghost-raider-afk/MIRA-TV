@@ -5,6 +5,8 @@
 ## Установка и эксплуатация
 
 - [INSTALLATION.md](INSTALLATION.md) — установка на Ubuntu, обновление, откат и сохранность данных.
+- [REVERSE-PROXY.md](REVERSE-PROXY.md) — полная установка Docker, выбор Traefik/Caddy, сети, Compose-файлы и порты.
+- [BOT.md](BOT.md) — отдельный будущий контейнер Telegram/MAX, требования и статус реализации.
 - [CONFIGURATION.md](CONFIGURATION.md) — параметры `.env`, секреты и безопасные настройки.
 - [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md) — готовность, HTTPS, база, Player и сохранение LKG.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — диагностика сайта, соединений и старых Android TV.
