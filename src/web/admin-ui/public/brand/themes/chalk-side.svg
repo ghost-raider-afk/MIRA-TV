@@ -1,32 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 398 444" preserveAspectRatio="xMidYMid meet">
-<defs>
-  <pattern id="dust" width="46" height="46" patternUnits="userSpaceOnUse">
-    <path d="M7 9l13-3M29 24l10-2M8 39l8-2" stroke="#f3efe4" stroke-opacity=".055" stroke-linecap="round"/>
-    <circle cx="37" cy="8" r="1" fill="#f3efe4" fill-opacity=".05"/>
-  </pattern>
-</defs>
-<rect width="398" height="444" fill="#0e100d"/>
-<rect width="398" height="444" fill="url(#dust)"/>
-<g fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <g stroke="#f3efe4">
-    <path d="M95 78h176l-11 271c-2 31-18 47-48 47h-63c-30 0-47-16-49-47L95 78Z" stroke-width="5" opacity=".92"/>
-    <path d="M269 128h31c43 0 59 30 58 69v71c0 49-22 75-65 75h-28" stroke-width="8" opacity=".78"/>
-    <path d="M99 82c7-35 28-48 52-37 17-24 48-25 67-5 22-14 51 0 53 29 20-2 38 13 34 34" stroke-width="5"/>
-    <path d="M113 123c44 9 94 9 139 0M113 347c42 11 87 11 132 0" stroke-width="2.5" opacity=".28"/>
-    <path d="M119 149c-5 53-6 125-2 177M243 145c5 58 5 129 1 185" stroke-width="2" opacity=".12"/>
-    <path d="M32 79c29-25 60-35 92-31M303 388c31-9 56-25 75-49" stroke-width="3" opacity=".32"/>
+  <rect width="398" height="444" fill="none"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- quiet botanical framing -->
+    <g stroke="#e8e2d5" stroke-width="2" opacity=".5">
+      <path d="M35 382c24-43 50-73 79-91M45 361c4-22 17-36 38-42-4 22-17 36-38 42ZM67 335c5-20 18-33 37-38-5 20-17 33-37 38Z"/>
+      <path d="M337 390c-18-39-41-69-71-91M328 366c-2-20-13-35-32-43 1 21 12 35 32 43ZM309 340c-4-19-16-33-34-39 3 20 15 33 34 39Z"/>
+    </g>
+    <g stroke="#e2b62d" stroke-width="2.4" opacity=".92">
+      <path d="M29 401c30-7 57-20 82-39M369 406c-29-8-56-21-80-40"/>
+      <path d="M81 369c5-13 14-21 27-24-4 13-13 21-27 24ZM315 373c-5-13-14-21-27-25 4 13 13 22 27 25Z"/>
+    </g>
+
+    <!-- refined hand-drawn glass -->
+    <g stroke="#f3efe4">
+      <path d="M105 101h173l-8 228c-1 43-23 64-65 64h-36c-42 0-64-22-66-64l2-228Z" stroke-width="5.2"/>
+      <path d="M275 144h32c38 0 57 25 57 75v63c0 50-20 76-58 76h-34" stroke-width="7"/>
+      <path d="M289 166h17c23 0 34 16 34 51v66c0 34-12 51-36 51h-23" stroke-width="3.3" opacity=".72"/>
+      <path d="M111 128c42 8 99 8 157 0M116 337c39 9 92 9 145 0" stroke-width="2.4" opacity=".45"/>
+      <path d="M130 158c-4 52-4 118 0 171M165 151c-3 58-3 124 1 181M201 151c2 58 2 124 0 181M237 157c4 54 4 117 0 172" stroke-width="1.9" opacity=".23"/>
+    </g>
+
+    <!-- chalk foam, drawn as a continuous uneven crown -->
+    <g stroke="#f3efe4" fill="#f3efe4" fill-opacity=".035">
+      <path d="M106 108c3-27 20-43 42-37 10-22 36-28 53-12 17-17 46-11 56 11 22-8 43 8 42 34-1 18-12 31-30 35-43 7-111 5-141 0-15-4-23-15-22-31Z" stroke-width="5"/>
+      <path d="M121 108c13 5 24 4 35-4M169 99c11 8 25 8 38 0M221 105c12 6 23 6 34 0" stroke-width="2" opacity=".55"/>
+    </g>
+
+    <!-- amber beer accent rendered as sparse chalk hatching -->
+    <g stroke="#e4b52d">
+      <path d="M124 153c-4 52-4 113 0 165M143 151c-2 58-2 117 0 173M224 153c3 52 3 111 0 166M244 156c2 48 1 101-2 157" stroke-width="3" opacity=".72"/>
+      <path d="M136 185h91M134 221h96M135 258h91M137 295h86" stroke-width="1.7" opacity=".35"/>
+      <circle cx="155" cy="174" r="4"/><circle cx="218" cy="203" r="3"/><circle cx="178" cy="245" r="3.4"/><circle cx="230" cy="279" r="2.8"/>
+    </g>
+
+    <!-- small fish mark ties the mug to the brand -->
+    <g stroke="#e4b52d" stroke-width="3.2">
+      <path d="M153 283c23-18 49-18 71 0-22 20-48 20-71 0Z"/>
+      <path d="M224 283l28-18-3 36Z"/>
+      <circle cx="169" cy="279" r="2.4" fill="#e4b52d" stroke="none"/>
+    </g>
+
+    <!-- restrained chalk rays -->
+    <g stroke="#f3efe4" stroke-width="2" opacity=".35">
+      <path d="M73 155l-26-12M78 205l-30 2M319 112l21-19M331 329l26 12"/>
+    </g>
   </g>
-  <g stroke="#e4b52d">
-    <path d="M127 220c28-24 61-25 88-2-27 26-60 27-88 2Z" stroke-width="4"/>
-    <path d="M215 218l30-20-2 41Z" stroke-width="4"/>
-    <circle cx="148" cy="215" r="3" fill="#e4b52d" stroke="none"/>
-    <path d="M164 199v39M181 197v42M198 201v34" stroke-width="3"/>
-  </g>
-  <g stroke="#e4b52d" stroke-width="3" opacity=".82">
-    <path d="M286 84l7-19M300 91l15-12M278 90l-11-14"/>
-  </g>
-  <g stroke="#f3efe4" stroke-width="2" opacity=".22">
-    <path d="M42 122l16-6M333 105l19-5M55 365l18-4M323 308l16 10M61 245l10 8M343 237l12-10"/>
-  </g>
-</g>
 </svg>
