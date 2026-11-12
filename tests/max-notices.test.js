@@ -15,11 +15,11 @@ test('Telegram and MAX use the same sanitized localized notification content', (
   assert.match(common.plainText, /Нет связи с телевизором/);
 });
 
-test('MAX uses POST messages with open_app keyboard and safe plain text', async () => {
+test('MAX uses POST messages with registered bot open_app keyboard and safe plain text', async () => {
   const calls = [];
   const expected = {message:{mid:'test-message'}};
   const result = await sendMaxNotice(async (req)=>{calls.push(req);return expected;},{
-    recipient:'6789012345', miniAppUrl:'https://app.example.test/messenger',
+    recipient:'6789012345', miniAppBot:'mira_tv_bot',
     notice:{kind:'tv_restored',location:'Центральная',subject:'ТВ 2',detail:'Связь восстановлена'}
   });
   assert.equal(result,expected);
@@ -31,7 +31,20 @@ test('MAX uses POST messages with open_app keyboard and safe plain text', async 
   assert.match(calls[0].body.text,/Связь восстановлена/);
   assert.deepEqual(calls[0].body.attachments,[{
     type:'inline_keyboard',payload:{buttons:[[
-      {type:'open_app',text:'Открыть MIRA-TV',web_app:'https://app.example.test/messenger'}
+      {type:'open_app',text:'Открыть MIRA-TV',web_app:'mira_tv_bot'}
+    ]]}
+  }]);
+});
+
+test('unregistered MAX Mini App uses a safe link rather than invalid open_app button', async () => {
+  let req;
+  await sendMaxNotice(async p => { req=p;return {ok:true}; },{
+    recipient:'123',miniAppUrl:'https://app.example.test/messenger',
+    notice:{kind:'tv_offline'}
+  });
+  assert.deepEqual(req.body.attachments,[{
+    type:'inline_keyboard',payload:{buttons:[[
+      {type:'link',text:'Открыть MIRA-TV',url:'https://app.example.test/messenger'}
     ]]}
   }]);
 });
@@ -59,6 +72,7 @@ test('MAX forbids forged recipients and insecure app addresses before invoking t
   await assert.rejects(sendMaxNotice(api,{
     recipient:'123',miniAppUrl:'https://user:password@example.test',notice:{kind:'tv_offline'}
   }),TypeError);
+  await assert.rejects(sendMaxNotice(api,{recipient:'123',miniAppBot:'bad/bot',notice:{kind:'tv_offline'}}),TypeError);
   await assert.rejects(sendMaxNotice(api,{recipient:'123',notice:{kind:'invalid'}}),TypeError);
   assert.equal(sends,0);
 });

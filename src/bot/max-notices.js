@@ -16,7 +16,7 @@ function destinationId(value, type) {
 // Authorization: <bot-token> against platform-api2.max.ru, with durable retry
 // and per-dialog throttling (MAX: at most two sends per second).
 export async function sendMaxNotice(apiCall, {
-  recipient, recipientType = 'user', miniAppUrl = '', notice
+  recipient, recipientType = 'user', miniAppUrl = '', miniAppBot = '', notice
 } = {}) {
   if (typeof apiCall !== 'function' || !['user','chat'].includes(recipientType)) {
     throw new TypeError('Invalid MAX transport or recipient type.');
@@ -24,9 +24,16 @@ export async function sendMaxNotice(apiCall, {
   const id = destinationId(recipient, recipientType);
   const content = noticeContent(notice);
   const app = miniAppUrl ? secureMiniAppUrl(miniAppUrl) : '';
-  const attachments = app ? [{
+  const bot = String(miniAppBot || '').trim();
+  if (bot && !/^[A-Za-z0-9_]{3,64}$/.test(bot)) {
+    throw new TypeError('MAX Mini App requires a valid registered bot username.');
+  }
+  const button = bot
+    ? { type:'open_app', text:'Открыть MIRA-TV', web_app:bot }
+    : app ? { type:'link', text:'Открыть MIRA-TV', url:app } : null;
+  const attachments = button ? [{
     type:'inline_keyboard',
-    payload:{ buttons:[[{ type:'open_app', text:'Открыть MIRA-TV', web_app:app }]] }
+    payload:{ buttons:[[button]] }
   }] : null;
 
   return apiCall({
