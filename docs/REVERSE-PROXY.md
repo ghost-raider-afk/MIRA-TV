@@ -280,3 +280,11 @@ sudo docker network inspect mira-tv-proxy
 ## Контроль безопасности
 
 По завершении убедитесь, что опубликованы только необходимые порты, секреты скрыты, volumes `mira-tv-db-data` и `mira-tv-site-assets` существуют, Docker-сеть `mira-tv-internal` закрыта, внешний `mira-tv-proxy` существует, а телеплеер сохраняет Last Known Good при недоступности сети.
+
+## Мастер Telegram/MAX-бота и отдельная Docker-сеть
+
+После установки основного MIRA-TV выберите `10) Настроить Telegram/MAX-бот (подготовка)` или запустите `sudo mira-tv bot`. Скрипт спросит **отдельный домен**, Docker-сеть, Telegram токен и **числовой Telegram User ID администратора**. Затем спросит, нужен ли MAX. При ответе `N` MAX отключён и его токен не требуется; при `Y` вводятся токен и числовой MAX User ID. Токены читаются без отображения в терминале. Секреты `TELEGRAM_WEBHOOK_SECRET`, `MAX_WEBHOOK_SECRET` и `BOT_INTERNAL_API_TOKEN` генерируются автоматически и сохраняются в `/opt/MIRA-TV/.env.bot` (0600), резервная копия — `/var/lib/mira-tv/bot.env`.
+
+Отдельная сеть `mira-tv-bot` (либо выбранное имя) создаётся через Docker bridge. В будущем `compose.bot.yaml` подключит к ней `app`, `proxy` и `bot`, но не PostgreSQL. Внешние 80/443 остаются у **того же** Traefik/Caddy, на домене бота будет TLS и маршруты `/webhooks/telegram` и `/webhooks/max` к `bot:8090`. Не открывайте порт 8090 наружу. Полные маршруты, требования HTTPS, секретные заголовки и проверки описаны в [BOT.md](BOT.md).
+
+**Бот не запускается до готового Docker runtime и интеграционных испытаний.** Мастер выполняет только безопасную подготовку, не вмешиваясь в живой Player, прокси и PostgreSQL.
