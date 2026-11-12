@@ -80,6 +80,7 @@ export function createPlayerTelemetryRepository(pool) {
            FROM tv_player_logs
           WHERE device_id = ANY($1::bigint[])
             AND event_type <> 'fullscreen.state'
+            AND event_type NOT LIKE 'connection.%'
           ORDER BY device_id, server_received_at DESC, seq DESC`,
         [ids]
       );

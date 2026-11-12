@@ -42,8 +42,8 @@ function interpretation(data) {
   const fallback = data.events?.find(e => e.event_type === 'connection.http_fallback_ok');
   if (offline && fallback) return 'Зафиксирован обрыв WebSocket при доступном HTTP. Проверьте обратный прокси и сеть. События могут относиться к разным попыткам.';
   if (!data.online) return 'Активного WebSocket нет. Локальные логи ТВ поступят на сервер после восстановления HTTP-связи.';
-  if (Number(data.outages) > 0) return 'Сейчас соединение восстановлено. За выбранный период сервер фиксировал обрывы — подробности в журнале.';
-  return 'WebSocket подключён. Обрывов, зарегистрированных этим сервером за период, нет. Перезапуск сервера может оставить пробелы.';
+  if (Number(data.outages) > 0) return 'Сейчас соединение восстановлено. За выбранный период сервер фиксировал отключения WebSocket, в том числе возможные штатные. Подробности в журнале.';
+  return 'WebSocket подключён. Отключений, зарегистрированных этим сервером за период, нет. Перезапуск сервера может оставить пробелы.';
 }
 
 function renderEvents() {
@@ -164,7 +164,7 @@ function ensureDialog() {
     '<button type="button" class="button button-secondary" data-connection-export>Экспорт CSV</button></div>',
     '<div class="tv-connection-stats">',
     '<div><small>WebSocket</small><strong data-connection-online>—</strong></div>',
-    '<div><small>Обрывов</small><strong data-connection-outages>—</strong></div>',
+    '<div><small>Отключений</small><strong data-connection-outages>—</strong></div>',
     '<div><small>Ping</small><strong data-connection-ping>—</strong></div>',
     '<div><small>Последняя связь</small><strong data-connection-last-seen>—</strong></div></div>',
     '<p data-connection-interpretation class="tv-connection-interpretation">Получение данных…</p>',

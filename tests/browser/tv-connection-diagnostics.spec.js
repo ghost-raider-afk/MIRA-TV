@@ -40,6 +40,7 @@ test.describe('TV connection history in admin interface', () => {
     await expect(modal).toBeVisible();
     await expect(modal.locator('[data-connection-online]')).toHaveText('Онлайн');
     await expect(modal.locator('[data-connection-ping]')).toHaveText('48 мс');
+    await expect(modal.getByText('Отключений', { exact:true })).toBeVisible();
     await expect(modal.getByText('WebSocket отключён')).toBeVisible();
     await modal.locator('[data-connection-events] details').first().locator('summary').click();
     await expect(modal.locator('[data-connection-events] details').first().locator('pre')).toContainText('heartbeat_timeout');

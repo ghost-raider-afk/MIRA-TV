@@ -53,6 +53,21 @@ test('history uses parameterized bounded per-device pagination and retains time 
   assert.deepEqual(continuation.args, [23, FROM, AT, 'server-run-1', 2, 3]);
 });
 
+test('server connection bookkeeping does not conceal the latest Player diagnostic', async () => {
+  const calls = [];
+  const repository = createPlayerTelemetryRepository({
+    async query(sql, args) {
+      calls.push({ sql, args });
+      return { rows:[] };
+    }
+  });
+  assert.deepEqual(await repository.listLatestPlayerLogsByDeviceIds([23]), []);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /event_type NOT LIKE 'connection\\.%'/);
+  assert.match(calls[0].sql, /event_type <> 'fullscreen\\.state'/);
+  assert.deepEqual(calls[0].args, [[23]]);
+});
+
 test('history rejects malformed cursors and invalid device/since values', async () => {
   const pool = { query() { throw Error('unexpected database call'); } };
   const history = createPlayerTelemetryRepository(pool);
