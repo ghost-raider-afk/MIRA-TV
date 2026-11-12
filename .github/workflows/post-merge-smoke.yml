@@ -70,6 +70,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          docker network inspect mira-tv-proxy >/dev/null 2>&1 || docker network create --driver bridge mira-tv-proxy
           docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml config --quiet
           docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml up -d --build --wait --wait-timeout 180
           docker compose -f compose.yaml -f /tmp/mira-tv-compose-smoke.yaml ps

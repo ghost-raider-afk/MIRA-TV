@@ -80,7 +80,7 @@ test('persistent limiter blocks password spraying across usernames from one IP',
 });
 
 test('Traefik applies dedicated flood limits only to login and initial TV activation', async () => {
-  const compose = await readFile('compose.yaml', 'utf8');
+  const compose = await readFile('compose.traefik.yaml', 'utf8');
   assert.match(compose, /mira-tv-login-rate-limit/);
   assert.match(compose, /Path\(\\140\/api\/auth\/login\\140\).*Method\(\\140POST\\140\)/);
   assert.match(compose, /mira-tv-device-activation-rate-limit/);

@@ -12,11 +12,11 @@
 bash <(curl -Ls https://raw.githubusercontent.com/ghost-raider-afk/MIRA-TV/main/mira-tv.sh)
 ~~~
 
-В меню выберите **1) Установить**. Скрипт запросит домен (без `https://`), email для сертификата и логин администратора. Пароль администратора, пароль PostgreSQL и сессионный секрет генерируются автоматически. Пароль администратора показывается после установки: сохраните его.
+В меню выберите **1) Установить**. Скрипт запросит домен (без `https://`), email для сертификата, логин администратора и предложит reverse proxy: **Traefik (по умолчанию) или Caddy**. Пароль администратора, пароль PostgreSQL и сессионный секрет генерируются автоматически. Пароль администратора показывается после установки: сохраните его.
 
 После установки доступны:
 
-- `/opt/MIRA-TV` — рабочий каталог с `compose.yaml`.
+- `/opt/MIRA-TV` — рабочий каталог с `compose.yaml`, `compose.traefik.yaml`, `compose.caddy.yaml` и будущим `compose.bot.yaml`.
 - `/opt/MIRA-TV/.env` — приватные параметры и секреты.
 - `/var/lib/mira-tv/install.env` — защищённая копия конфигурации, которую использует установщик.
 - `/usr/local/bin/mira-tv` — команда управления.
@@ -32,6 +32,8 @@ bash <(curl -Ls https://raw.githubusercontent.com/ghost-raider-afk/MIRA-TV/main/
 6) Сбросить пароль администратора
 7) Удалить приложение
 8) Удалить приложение и данные
+9) Выбрать/установить reverse proxy
+10) Настроить Telegram/MAX-бот (подготовка)
 0) Выход
 ~~~
 
@@ -44,7 +46,7 @@ mira-tv
 Поддерживаемые аргументы установленного скрипта:
 
 ~~~text
-install | update | status | restart | logs | reset-admin-password | remove | purge | menu
+install | update | status | restart | logs | reset-admin-password | remove | purge | proxy | bot | menu
 ~~~
 
 **Отдельной команды `check-update` в стабильном установщике нет.** Для проверки обновлений используйте `mira-tv update` или второй пункт меню: сначала выводятся версии и запрос подтверждения. Команды миграции на новый сервер ещё не включены в релиз.
@@ -77,6 +79,8 @@ sudo docker compose exec -T app node -e "fetch('http://127.0.0.1:8080/readyz').t
 
 ## Docker Compose
 
+Основной стек и выбранный прокси загружаются вместе через `COMPOSE_FILE` в `.env`. Примеры: `compose.yaml:compose.traefik.yaml` или `compose.yaml:compose.caddy.yaml`. Команда `mira-tv proxy` меняет прокси (возможен кратковременный перерыв HTTPS); `mira-tv bot` открывает мастер настройки Telegram/MAX. Он записывает токены, отдельный домен, ID администраторов и сеть в защищённый `.env.bot`, но не запускает отсутствующий bot runtime. Полная инструкция с установкой Docker, созданием сетей, всеми внутренними портами и примерами файлов — [REVERSE-PROXY.md](REVERSE-PROXY.md). Статус бота — [BOT.md](BOT.md).
+
 ~~~bash
 cd /opt/MIRA-TV
 sudo docker compose up -d
@@ -88,7 +92,7 @@ sudo docker compose start
 sudo docker compose down
 ~~~
 
-`docker compose down` оставляет volumes на месте. **`docker compose down -v` удаляет постоянные данные** — не используйте эту команду при штатном восстановлении.
+`docker compose down` оставляет volumes и внешнюю Docker-сеть `mira-tv-proxy` на месте. **`docker compose down -v` удаляет постоянные данные** — не используйте эту команду при штатном восстановлении.
 
 ## Сброс пароля и удаление
 

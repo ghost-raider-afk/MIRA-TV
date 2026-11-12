@@ -6,10 +6,11 @@ const exists = async (path) => access(path).then(() => true, () => false);
 const regexEscape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test('MIRA-TV owns the repository, runtime and installer namespace', async () => {
-  const [pkg, env, compose, installer] = await Promise.all([
+  const [pkg, env, compose, proxy, installer] = await Promise.all([
     readFile('package.json', 'utf8'),
     readFile('.env.example', 'utf8'),
     readFile('compose.yaml', 'utf8'),
+    readFile('compose.traefik.yaml', 'utf8'),
     readFile('mira-tv.sh', 'utf8')
   ]);
   const meta = JSON.parse(pkg);
@@ -29,7 +30,7 @@ test('MIRA-TV owns the repository, runtime and installer namespace', async () =>
   assert.match(compose, /^name: mira-tv$/m);
   assert.match(compose, /container_name: mira-tv\b/);
   assert.match(compose, /container_name: mira-tv-db\b/);
-  assert.match(compose, /container_name: mira-tv-proxy\b/);
+  assert.match(proxy, /container_name: mira-tv-proxy\b/);
 });
 
 test('MIRA-TV public documentation and vector brand assets exist', async () => {

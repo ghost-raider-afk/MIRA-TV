@@ -1,0 +1,13 @@
+{
+    email {$MIRA_TV_ACME_EMAIL}
+    admin off
+}
+
+{$MIRA_TV_DOMAIN} {
+    # Internal app:8080 handles HTTP and WebSocket.
+    reverse_proxy app:8080
+    # Future bot only after implementation and authenticated routing:
+    # handle /bot/* {
+    #     reverse_proxy bot:8090
+    # }
+}

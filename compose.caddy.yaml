@@ -1,0 +1,32 @@
+# Optional reverse proxy: COMPOSE_FILE=compose.yaml:compose.caddy.yaml
+# Host ports TCP 80/443, UDP 443; internal app:8080 (HTTP and WebSocket).
+# db:5432 is private; future bot:8090 is not routed until its runtime exists.
+services:
+  proxy:
+    image: caddy:2.11.7-alpine
+    container_name: mira-tv-proxy
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEMORY_LIMIT}
+    pids_limit: ${PROXY_PIDS_LIMIT}
+    security_opt: [no-new-privileges:true]
+    environment:
+      MIRA_TV_DOMAIN: ${MIRA_TV_DOMAIN:?MIRA_TV_DOMAIN must be set}
+      MIRA_TV_ACME_EMAIL: ${MIRA_TV_ACME_EMAIL:?MIRA_TV_ACME_EMAIL must be set}
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy:/etc/caddy:ro
+      - mira-tv-caddy-data:/data
+      - mira-tv-caddy-config:/config
+    networks: [mira-tv-proxy]
+
+volumes:
+  mira-tv-caddy-data:
+    name: mira-tv-caddy-data
+  mira-tv-caddy-config:
+    name: mira-tv-caddy-config

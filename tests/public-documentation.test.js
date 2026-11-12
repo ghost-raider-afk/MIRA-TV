@@ -9,6 +9,8 @@ const PUBLIC_DOCS = [
   'README.md',
   'INSTALLATION.md',
   'CONFIGURATION.md',
+  'REVERSE-PROXY.md',
+  'BOT.md',
   'USAGE.md',
   'ARCHITECTURE.md',
   'PLAYER.md',

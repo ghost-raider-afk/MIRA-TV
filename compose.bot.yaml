@@ -1,0 +1,38 @@
+# FUTURE BOT. Do not enable until a functional bot image, webhooks and healthcheck exist.
+# Bot is on its own external network; app and proxy join it only when overlay is enabled.
+# PostgreSQL is never attached. Host ports remain owned by Traefik/Caddy.
+services:
+  app:
+    networks:
+      mira-tv-bot:
+        gw_priority: 0
+
+  proxy:
+    networks:
+      mira-tv-bot:
+
+  bot:
+    profiles: [bot]
+    image: mira-tv-bot:local
+    container_name: mira-tv-bot
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    env_file: [.env.bot]
+    environment:
+      BOT_PORT: "8090"
+      MIRA_TV_API_BASE_URL: http://app:8080
+    expose:
+      - "8090"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [mira-tv-bot]
+
+networks:
+  mira-tv-bot:
+    name: ${BOT_DOCKER_NETWORK:-mira-tv-bot}
+    external: true
