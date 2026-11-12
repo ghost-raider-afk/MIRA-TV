@@ -73,6 +73,9 @@ persist_env() {
   [[ -f "${INSTALL_DIR}/.env" ]] || return 0
   install -d -m 0700 "$PERSIST_DIR"
   install -m 0600 "${INSTALL_DIR}/.env" "$PERSIST_ENV"
+  if [[ -f "${INSTALL_DIR}/.env.bot" ]]; then
+    install -m 0600 "${INSTALL_DIR}/.env.bot" "${PERSIST_DIR}/bot.env"
+  fi
 }
 
 merge_env_defaults() {
@@ -172,8 +175,9 @@ create_temporary_backup() {
   [[ -f "${INSTALL_DIR}/.env" ]] || die 'Не найден /opt/MIRA-TV/.env.'
   if [[ -f "${INSTALL_DIR}/mira-tv.sh" ]]; then installer_source="${INSTALL_DIR}/mira-tv.sh"; elif [[ -f "$LAUNCHER_PATH" ]]; then installer_source="$LAUNCHER_PATH"; else die 'Не найден установленный скрипт MIRA-TV для резервной копии.'; fi
   TEMP_BACKUP_DIR="$(mktemp -d -t 'mira-tv.update.XXXXXX')"; chmod 700 "$TEMP_BACKUP_DIR"
-  tar --exclude='./.git' --exclude='./.env' --exclude='./node_modules' -C "$INSTALL_DIR" -czf "$TEMP_BACKUP_DIR/source.tar.gz" .
+  tar --exclude='./.git' --exclude='./.env' --exclude='./.env.bot' --exclude='./node_modules' -C "$INSTALL_DIR" -czf "$TEMP_BACKUP_DIR/source.tar.gz" .
   cp "$INSTALL_DIR/.env" "$TEMP_BACKUP_DIR/.env"; cp "$installer_source" "$TEMP_BACKUP_DIR/installer.sh"
+  if [[ -f "$INSTALL_DIR/.env.bot" ]]; then cp "$INSTALL_DIR/.env.bot" "$TEMP_BACKUP_DIR/bot.env"; chmod 600 "$TEMP_BACKUP_DIR/bot.env"; fi
   chmod 600 "$TEMP_BACKUP_DIR/.env"; chmod 700 "$TEMP_BACKUP_DIR/installer.sh"; git -C "$INSTALL_DIR" rev-parse HEAD > "$TEMP_BACKUP_DIR/git-revision"
   compose exec -T db sh -ec 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$TEMP_BACKUP_DIR/database.dump"
   [[ -s "$TEMP_BACKUP_DIR/database.dump" ]] || die 'Резервная копия PostgreSQL пуста; обновление остановлено.'
@@ -217,9 +221,13 @@ restore_temporary_backup() {
   [[ -f "$TEMP_BACKUP_DIR/source.tar.gz" && -f "$TEMP_BACKUP_DIR/.env" && -f "$TEMP_BACKUP_DIR/git-revision" && -s "$TEMP_BACKUP_DIR/database.dump" && -s "$TEMP_BACKUP_DIR/site-assets.tar.gz" ]] || return 1
   warn 'Обновление не прошло проверку. Выполняется автоматическое восстановление.'
   compose down --remove-orphans || true
-  find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env' -exec rm -rf -- {} + || return 1
+  find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.env' ! -name '.env.bot' -exec rm -rf -- {} + || return 1
   tar -C "$INSTALL_DIR" -xzf "$TEMP_BACKUP_DIR/source.tar.gz" || return 1
   cp "$TEMP_BACKUP_DIR/.env" "$INSTALL_DIR/.env" || return 1; chmod 600 "$INSTALL_DIR/.env" || return 1
+  if [[ -f "$TEMP_BACKUP_DIR/bot.env" ]]; then
+    cp "$TEMP_BACKUP_DIR/bot.env" "$INSTALL_DIR/.env.bot" || return 1
+    chmod 600 "$INSTALL_DIR/.env.bot" || return 1
+  fi
   git -C "$INSTALL_DIR" reset --hard "$(<"$TEMP_BACKUP_DIR/git-revision")" || return 1
   install -m 0755 "$TEMP_BACKUP_DIR/installer.sh" "$LAUNCHER_PATH" || return 1
   ensure_proxy_network
@@ -361,14 +369,18 @@ configure_proxy_app() {
 
 install_bot_app() {
   require_root bot
-  info 'Бот Telegram/MAX ещё не реализован. Исполняемый Docker-образ отсутствует.'
-  info 'compose.bot.yaml — будущая отдельная конфигурация, она не включена в рабочий стек.'
-  info 'См. docs/BOT.md. Основное приложение и прокси не изменены.'
+  [[ -d "${INSTALL_DIR}/.git" ]] || die 'Сначала установите основной сервер MIRA-TV.'
+  [[ -f "${INSTALL_DIR}/scripts/configure-bot.sh" ]] || die 'В установленной версии нет мастера настройки бота.'
+  bash "${INSTALL_DIR}/scripts/configure-bot.sh" "$INSTALL_DIR" "$PERSIST_DIR" || die 'Настройка бота прервана.'
+  persist_env
+  info 'Настройки сохранены. Бот ещё не реализован: Docker-образ и webhook runtime отсутствуют.'
+  info 'compose.bot.yaml пока не включён в основной стек; работа ТВ не затронута.'
+  info 'Перед активацией выполните шаги из docs/BOT.md.'
 }
 
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Выбрать/установить reverse proxy\n10) Установить бот (после реализации)\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Выбрать/установить reverse proxy\n10) Настроить Telegram/MAX-бот (подготовка)\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
   case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 9) configure_proxy_app ;; 10) install_bot_app ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
 }
