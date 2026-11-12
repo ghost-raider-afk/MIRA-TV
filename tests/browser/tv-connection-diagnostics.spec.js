@@ -41,6 +41,7 @@ test.describe('TV connection history in admin interface', () => {
     await expect(modal.locator('[data-connection-online]')).toHaveText('Онлайн');
     await expect(modal.locator('[data-connection-ping]')).toHaveText('48 мс');
     await expect(modal.getByText('WebSocket отключён')).toBeVisible();
+    await modal.locator('[data-connection-events] details').first().locator('summary').click();
     await expect(modal.getByText(/heartbeat/)).toBeVisible();
     await modal.getByRole('button', { name:'Загрузить ещё' }).click();
     await expect(modal.getByText('Ошибка синхронизации')).toBeVisible();
