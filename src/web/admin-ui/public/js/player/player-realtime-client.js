@@ -92,9 +92,13 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
         }
       } catch {}
     });
-    next.addEventListener('close', () => {
+    next.addEventListener('close', (event) => {
       if (socket === next) socket = null;
-      onDisconnected?.();
+      onDisconnected?.({
+        code:Number(event?.code) || 0,
+        reason:String(event?.reason || '').slice(0, 80),
+        was_clean:event?.wasClean === true
+      });
       window.dispatchEvent(new CustomEvent('mira:player-realtime-disconnected'));
       scheduleReconnect();
     });

@@ -59,5 +59,6 @@ test('noncritical TV diagnostics are deferred until after the first rendered fra
   assert.match(background, /const PREVIEW_SETTLE_MS = 1500;/);
   assert.match(background, /previewTimer = setTimeout/);
   assert.doesNotMatch(background, /setInterval|previewCaptureIntervalMs/);
-  assert.doesNotMatch(dockerfile, /ffmpeg|fonts-dejavu-core/);
+  // Local DejaVu font packaging is covered by player-font-delivery.test.js.
+  assert.doesNotMatch(dockerfile, /ffmpeg/);
 });
