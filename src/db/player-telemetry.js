@@ -123,7 +123,7 @@ export function createPlayerTelemetryRepository(pool) {
             WHERE device_id = $1 AND server_received_at >= $2::timestamptz
               ${before}
             ORDER BY server_received_at DESC, boot_id DESC, seq DESC
-            LIMIT ${args.length}`,
+            LIMIT ${boundary ? '$6' : '$3'}`,
           args
         ),
         pool.query(
