@@ -63,8 +63,8 @@ test('server connection bookkeeping does not conceal the latest Player diagnosti
   });
   assert.deepEqual(await repository.listLatestPlayerLogsByDeviceIds([23]), []);
   assert.equal(calls.length, 1);
-  assert.match(calls[0].sql, /event_type NOT LIKE 'connection\\.%'/);
-  assert.match(calls[0].sql, /event_type <> 'fullscreen\\.state'/);
+  assert.ok(calls[0].sql.includes("event_type NOT LIKE 'connection.%'"));
+  assert.ok(calls[0].sql.includes("event_type <> 'fullscreen.state'"));
   assert.deepEqual(calls[0].args, [[23]]);
 });
 
