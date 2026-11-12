@@ -42,7 +42,7 @@ test.describe('TV connection history in admin interface', () => {
     await expect(modal.locator('[data-connection-ping]')).toHaveText('48 мс');
     await expect(modal.getByText('WebSocket отключён')).toBeVisible();
     await modal.locator('[data-connection-events] details').first().locator('summary').click();
-    await expect(modal.getByText(/heartbeat/)).toBeVisible();
+    await expect(modal.locator('[data-connection-events] details').first().locator('pre')).toContainText('heartbeat_timeout');
     await modal.getByRole('button', { name:'Загрузить ещё' }).click();
     await expect(modal.getByText('Ошибка синхронизации')).toBeVisible();
     await modal.locator('[data-connection-events] details').last().locator('summary').click();
