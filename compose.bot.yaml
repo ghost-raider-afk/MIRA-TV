@@ -1,7 +1,16 @@
-# FUTURE COMPONENT — no functioning bot runtime or image exists yet.
-# Do not enable this profile until implementation and integration tests.
-# Reserved internal bot port: 8090; upstream app API:8080. No public host port.
+# FUTURE BOT. Do not enable until a functional bot image, webhooks and healthcheck exist.
+# Bot is on its own external network; app and proxy join it only when overlay is enabled.
+# PostgreSQL is never attached. Host ports remain owned by Traefik/Caddy.
 services:
+  app:
+    networks:
+      mira-tv-bot:
+        gw_priority: 0
+
+  proxy:
+    networks:
+      mira-tv-bot:
+
   bot:
     profiles: [bot]
     image: mira-tv-bot:local
@@ -12,9 +21,18 @@ services:
       - /tmp:rw,noexec,nosuid,size=16m
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
+    env_file: [.env.bot]
     environment:
       BOT_PORT: "8090"
       MIRA_TV_API_BASE_URL: http://app:8080
     expose:
       - "8090"
-    networks: [mira-tv-proxy]
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [mira-tv-bot]
+
+networks:
+  mira-tv-bot:
+    name: ${BOT_DOCKER_NETWORK:-mira-tv-bot}
+    external: true
