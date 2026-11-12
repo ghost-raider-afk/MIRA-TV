@@ -21,10 +21,11 @@ test('Telegram status cards have updateable state and no injected HTML', () => {
   assert.equal(JSON.parse(result.chat_data).location, suspicious);
   assert.equal(result.allow_queries, false);
   assert.equal(result.protect_content, true);
-  assert.equal(result.width, 340);
+  assert.equal(result.width, 0, 'automatic bubble width');
+  assert.equal(result.height, 0, 'automatic height for expandable details');
   assert.ok(Buffer.byteLength(result.chat_data) <= 1024);
   assert.throws(() => buildTelegramNotice({ kind:'arbitrary' }), TypeError);
-  assert.throws(() => buildTelegramNotice({ kind:'tv_offline', location:'Я'.repeat(2000) }), RangeError);
+  assert.equal([...JSON.parse(buildTelegramNotice({ kind:'tv_offline', location:'Я'.repeat(2000) }).chat_data).location].length, 100, 'long location is bounded');
 });
 
 test('Telegram sends a widget to a private chat and plain fallback elsewhere', async () => {

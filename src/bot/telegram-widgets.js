@@ -91,8 +91,8 @@ export function buildTelegramNotice({
   return {
     html:STATUS_WIDGET_HTML,
     chat_data:chatData,
-    width:340,
-    height:218,
+    width:0,
+    height:0,
     allow_queries:false,
     protect_content:true,
     caption:notice.tag + ' ' + notice.title + (payload.location ? '\n' + payload.location : '') +
