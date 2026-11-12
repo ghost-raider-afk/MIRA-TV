@@ -202,9 +202,9 @@ jobs:
           set -euo pipefail
           COMPOSE_FILE=compose.yaml:compose.caddy.yaml docker compose config --quiet
           cp .env.bot.example .env.bot
-          BOT_DOCKER_NETWORK=ci-mira-tv-bot docker compose -f compose.yaml -f compose.traefik.yaml -f compose.bot.yaml config --quiet
-          BOT_DOCKER_NETWORK=ci-mira-tv-bot docker compose -f compose.yaml -f compose.caddy.yaml -f compose.bot.yaml config --quiet
-          BOT_DOCKER_NETWORK=ci-mira-tv-bot docker compose -f compose.yaml -f compose.traefik.yaml -f compose.bot.yaml config --format json             | python3 -c 'import json,sys; d=json.load(sys.stdin)["services"]; assert "mira-tv-bot" in d["app"]["networks"]; assert "mira-tv-bot" in d["proxy"]["networks"]; assert "mira-tv-bot" not in d["db"]["networks"]; assert not d["bot"].get("ports")'
+          BOT_DOCKER_NETWORK=ci-mira-tv-bot docker compose --profile bot -f compose.yaml -f compose.traefik.yaml -f compose.bot.yaml config --quiet
+          BOT_DOCKER_NETWORK=ci-mira-tv-bot docker compose --profile bot -f compose.yaml -f compose.caddy.yaml -f compose.bot.yaml config --quiet
+          BOT_DOCKER_NETWORK=ci-mira-tv-bot docker compose --profile bot -f compose.yaml -f compose.traefik.yaml -f compose.bot.yaml config --format json             | python3 -c 'import json,sys; d=json.load(sys.stdin)["services"]; assert "mira-tv-bot" in d["app"]["networks"]; assert "mira-tv-bot" in d["proxy"]["networks"]; assert "mira-tv-bot" not in d["db"]["networks"]; assert not d["bot"].get("ports")'
           docker network inspect mira-tv-proxy >/dev/null 2>&1 || docker network create --driver bridge mira-tv-proxy
           docker compose -f compose.yaml -f compose.caddy.yaml run --rm --no-deps -T proxy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
