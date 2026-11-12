@@ -93,6 +93,26 @@ test('repeat wizard preserves secrets while adding an optional MAX bot',t=>{
   assert.notEqual(env.MAX_WEBHOOK_SECRET,env.TELEGRAM_WEBHOOK_SECRET);
 });
 
+test('repeat wizard keeps enabled MAX by default; explicit n disables and clears credentials',t=>{
+  const f=fixture(t);
+  assert.equal(f.run(['bot.example.com','',TELEGRAM_TOKEN,'901234567','n','y']).status,0);
+  assert.equal(f.run(['','','','','y',MAX_TOKEN,'800222333','mira_tv_bot','y']).status,0);
+  const before=envAt(join(f.app,'.env.bot'));
+  const kept=f.run(['','','','','','','','','y']);
+  assert.equal(kept.status,0,kept.stderr+'\n'+kept.stdout);
+  const after=envAt(join(f.app,'.env.bot'));
+  assert.equal(after.MAX_BOT_ENABLED,'true');
+  assert.equal(after.MAX_BOT_TOKEN,MAX_TOKEN);
+  assert.equal(after.MAX_WEBHOOK_SECRET,before.MAX_WEBHOOK_SECRET);
+  const disabled=f.run(['','','','','n','y']);
+  assert.equal(disabled.status,0,disabled.stderr+'\n'+disabled.stdout);
+  const off=envAt(join(f.app,'.env.bot'));
+  assert.equal(off.MAX_BOT_ENABLED,'false');
+  assert.equal(off.MAX_BOT_TOKEN,'');
+  assert.equal(off.MAX_ADMIN_ID,'');
+  assert.equal(off.MAX_WEBHOOK_SECRET,'');
+});
+
 test('wrong bot hostname or nonnumeric administrator ID never writes secrets',t=>{
   const f=fixture(t);
   assert.notEqual(f.run(['menu.example.com']).status,0);

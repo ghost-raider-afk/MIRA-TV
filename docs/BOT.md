@@ -119,3 +119,11 @@ bot.example.com {
 Источники: [Telegram Bot API](https://core.telegram.org/bots/api), [Telegram Webhook Guide](https://core.telegram.org/bots/webhooks), [MAX Subscriptions](https://dev.max.ru/docs-api/methods/POST/subscriptions/), [MAX events](https://dev.max.ru/docs-api/use-cases/event-notifications/).
 
 Полная установка MIRA-TV и команды для Docker — [INSTALLATION.md](INSTALLATION.md), устройство сетей — [REVERSE-PROXY.md](REVERSE-PROXY.md).
+
+## Повторная настройка и доверие TLS MAX
+
+При повторном запуске мастер предлагает сохранить уже введённые токены без их отображения. Если MAX ранее был включён, ответ `Enter` сохраняет его настройку; явный `n` выключает MAX и очищает его токен/ID из `.env.bot`. Секрет Telegram остаётся стабильным при повторной настройке до явной ротации.
+
+**MAX API:** с 19 июля 2026 используется `platform-api2.max.ru` вместо старого домена. Официальная документация требует включить доверие к сертификату Минцифры в окружении клиента. В будущем Docker-образ бота должен включать корректно проверенную цепочку доверенных сертификатов (при необходимости — официально полученный дополнительный CA) и проверку HTTPS-запросов к MAX. **Не отключать TLS-проверку**, не использовать `NODE_TLS_REJECT_UNAUTHORIZED=0`. После установки проверить реальный `GET /me` и `GET /subscriptions` из контейнера; при ошибках сертификата не активировать MAX до исправления доверия. Источник: [MAX API changelog](https://dev.max.ru/docs-api/changelog-api).
+
+При будущем подключении overlay используется конфигурация обеих env-файлов: `docker compose --env-file .env --env-file .env.bot -f compose.yaml -f compose.traefik.yaml -f compose.bot.yaml --profile bot config --quiet` (либо Caddy вместо Traefik). Флаг `--quiet` обязателен в инструкциях проверки: полный вывод `docker compose config` может содержать раскрытые переменные окружения и токены. Это **только проверка структуры**, запуск недопустим до готового bot runtime.

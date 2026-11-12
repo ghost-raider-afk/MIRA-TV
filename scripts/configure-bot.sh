@@ -67,7 +67,7 @@ put() {
 
 main() {
   local main_domain proxy domain network tg_token tg_id max_token='' max_id=''
-  local max_user='' tg_secret max_secret='' internal_key choice enabled=false state
+  local max_user='' tg_secret max_secret='' internal_key choice enabled=false state previous_max_enabled
   main_domain="$(setting "$ENV_MAIN" MIRA_TV_DOMAIN)"
   domain_ok "$main_domain"
   proxy="$(setting "$ENV_MAIN" COMPOSE_FILE)"
@@ -92,9 +92,19 @@ main() {
   ask tg_id 'Числовой Telegram User ID администратора' "$(setting "$ENV_BOT" TELEGRAM_ADMIN_ID)"
   id_ok "$tg_id"
 
-  IFS= read -r -p 'Настроить MAX сейчас? [y/N]: ' choice || fail 'Ввод прерван.'
-  if [[ "${choice,,}" == y || "${choice,,}" == yes ]]; then
-    enabled=true
+  previous_max_enabled="$(setting "$ENV_BOT" MAX_BOT_ENABLED false)"
+  if [[ "$previous_max_enabled" == true ]]; then
+    IFS= read -r -p 'MAX уже настроен. Оставить включённым? [Y/n]: ' choice || fail 'Ввод прерван.'
+  else
+    IFS= read -r -p 'Настроить MAX сейчас? [y/N]: ' choice || fail 'Ввод прерван.'
+  fi
+  case "${choice,,}" in
+    y|yes) enabled=true ;;
+    n|no) enabled=false ;;
+    '') [[ "$previous_max_enabled" == true ]] && enabled=true ;;
+    *) fail 'Введите y или n для настройки MAX.' ;;
+  esac
+  if [[ "$enabled" == true ]]; then
     secret max_token 'MAX bot token (скрытый ввод)' "$(setting "$ENV_BOT" MAX_BOT_TOKEN)"
     max_token_ok "$max_token"
     ask max_id 'Числовой MAX User ID администратора' "$(setting "$ENV_BOT" MAX_ADMIN_ID)"
@@ -164,6 +174,7 @@ main() {
   note 'Webhook MAX: /webhooks/max и X-Max-Bot-Api-Secret; только HTTPS:443.'
   note 'Правила диагностики: offline 120 сек, recovery включено, повторы подавляются.'
   note 'Бот ещё не реализован: Docker-контейнер и маршруты прокси не запускаются.'
-  note 'Примеры конфигурации: docs/BOT.md.'
+  note "Файлы прокси: Traefik — compose.traefik.yaml и /dynamic/dynamic.yml; Caddy — deploy/caddy/Caddyfile."
+  note 'Примеры точных маршрутов и проверок: docs/BOT.md.'
 }
 main "$@"
