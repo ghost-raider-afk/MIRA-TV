@@ -46,7 +46,7 @@ test.describe('TV connection history in admin interface', () => {
     await modal.getByRole('button', { name:'Загрузить ещё' }).click();
     await expect(modal.getByText('Ошибка синхронизации')).toBeVisible();
     await modal.locator('[data-connection-events] details').last().locator('summary').click();
-    await expect(modal.getByText('<img src=x onerror="window.injected=true">')).toBeVisible();
+    await expect(modal.locator('[data-connection-events] details').last().locator('pre')).toContainText('window.injected=true');
     expect(await page.evaluate(() => window.injected)).toBeUndefined();
     await expect(modal.locator('[data-connection-events] img')).toHaveCount(0);
     await modal.locator('[data-connection-level]').selectOption('error');
