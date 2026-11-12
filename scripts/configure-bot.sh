@@ -101,7 +101,7 @@ main() {
   case "${choice,,}" in
     y|yes) enabled=true ;;
     n|no) enabled=false ;;
-    '') [[ "$previous_max_enabled" == true ]] && enabled=true ;;
+    '') if [[ "$previous_max_enabled" == true ]]; then enabled=true; fi ;;
     *) fail 'Введите y или n для настройки MAX.' ;;
   esac
   if [[ "$enabled" == true ]]; then
