@@ -21,8 +21,8 @@ test('Telegram status cards have updateable state and no injected HTML', () => {
   assert.equal(JSON.parse(result.chat_data).location, suspicious);
   assert.equal(result.allow_queries, false);
   assert.equal(result.protect_content, true);
-  assert.equal(result.width, 0, 'automatic bubble width');
-  assert.equal(result.height, 0, 'automatic height for expandable details');
+  assert.equal(Object.hasOwn(result, 'width'), false, 'Telegram uses full bubble width when omitted');
+  assert.equal(Object.hasOwn(result, 'height'), false, 'Telegram auto-sizes expandable card when omitted');
   assert.ok(Buffer.byteLength(result.chat_data) <= 1024);
   assert.throws(() => buildTelegramNotice({ kind:'arbitrary' }), TypeError);
   assert.equal([...JSON.parse(buildTelegramNotice({ kind:'tv_offline', location:'Я'.repeat(2000) }).chat_data).location].length, 100, 'long location is bounded');
@@ -37,6 +37,8 @@ test('Telegram sends a widget to a private chat and plain fallback elsewhere', a
   };
   await sendTelegramNotice(api, opts);
   assert.equal(calls[0].method, 'sendWidget');
+  assert.equal(Object.hasOwn(calls[0].data, 'width'), false);
+  assert.equal(Object.hasOwn(calls[0].data, 'height'), false);
   assert.equal(calls[0].data.reply_markup.inline_keyboard[0][0].web_app.url, opts.miniAppUrl);
   await sendTelegramNotice(api, {...opts,chatId:'-100123', chatType:'supergroup'});
   assert.equal(calls[1].method, 'sendMessage');
