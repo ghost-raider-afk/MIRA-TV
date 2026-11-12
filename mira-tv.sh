@@ -107,7 +107,12 @@ write_env() {
     -e "s|^MIRA_TV_DOMAIN=.*|MIRA_TV_DOMAIN=${domain}|" \
     -e "s|^MIRA_TV_ACME_EMAIL=.*|MIRA_TV_ACME_EMAIL=${email}|" \
     "${INSTALL_DIR}/.env"
-  chmod 600 "${INSTALL_DIR}/.env"; persist_env
+  chmod 600 "${INSTALL_DIR}/.env"
+  # Reinstallation after 'remove' restores the separately backed-up bot credentials.
+  if [[ -f "${PERSIST_DIR}/bot.env" && ! -e "${INSTALL_DIR}/.env.bot" ]]; then
+    install -m 0600 "${PERSIST_DIR}/bot.env" "${INSTALL_DIR}/.env.bot"
+  fi
+  persist_env
 }
 
 compose() { [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'; (cd "$INSTALL_DIR" && docker compose "$@"); }

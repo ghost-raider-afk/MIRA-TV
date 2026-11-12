@@ -129,6 +129,7 @@ test('main installer preserves bot secrets through backup/rollback/removal',()=>
   assert.match(s,/! -name '\.env\.bot'/);
   assert.match(s,/"\$TEMP_BACKUP_DIR\/bot\.env"/);
   assert.match(s,/persist_env; compose down --remove-orphans/);
+  assert.match(s,/install -m 0600 "\$\{PERSIST_DIR\}\/bot\.env" "\$\{INSTALL_DIR\}\/\.env\.bot"/);
   assert.match(s,/10\) Настроить Telegram\/MAX-бот/);
 });
 
