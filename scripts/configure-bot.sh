@@ -129,6 +129,9 @@ main() {
     state="$(docker network inspect -f '{{.Internal}}' "$network")" ||
       fail 'Невозможно проверить Docker-сеть.'
     [[ "$state" == false ]] || fail 'Для бота нельзя использовать внутреннюю Docker-сеть.'
+    state="$(docker network inspect -f '{{.Driver}}' "$network")" ||
+      fail 'Не удалось проверить тип Docker-сети.'
+    [[ "$state" == bridge ]] || fail 'Для бота требуется bridge-сеть Docker.'
   else
     IFS= read -r -p "Создать внешнюю bridge-сеть $network? [Y/n]: " choice ||
       fail 'Ввод прерван.'

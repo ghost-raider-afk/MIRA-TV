@@ -140,6 +140,7 @@ test('bot network does not expose service ports or the database',()=>{
   assert.match(compose,/env_file: \[\.env\.bot\]/);
   assert.match(compose,/external: true/);
   assert.match(compose,/BOT_DOCKER_NETWORK/);
+  assert.match(readFileSync('scripts/configure-bot.sh','utf8'),/network inspect -f '\{\{\.Driver\}\}'/);
   assert.doesNotMatch(compose,/mira-tv-internal|5432:5432|8090:8090/);
   for(const name of ['BOT_DOMAIN','TELEGRAM_BOT_TOKEN','TELEGRAM_ADMIN_ID',
     'TELEGRAM_WEBHOOK_SECRET','MAX_BOT_TOKEN','MAX_ADMIN_ID','MAX_WEBHOOK_SECRET',
