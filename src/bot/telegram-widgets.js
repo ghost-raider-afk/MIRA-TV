@@ -1,4 +1,5 @@
 import { deflateSync } from 'node:zlib';
+import { noticeContent, secureMiniAppUrl } from './notice-content.js';
 
 // Fixed code; TV/CRM data goes only through Telegram's chat_data.
 // The Telegram sandbox disallows network access and form text input.
@@ -53,16 +54,6 @@ button{width:100%;min-height:34px;margin-top:6px}
 })();
 </script></body></html>`;
 
-const KINDS = Object.freeze({
-  tv_offline:{ title:'Нет связи с телевизором', tag:'🔴' },
-  tv_restored:{ title:'Связь с телевизором восстановлена', tag:'🟢' },
-  request_new:{ title:'Новая заявка', tag:'🔔' }
-});
-
-function text(value, limit = 100) {
-  return [...String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim()].slice(0, limit).join('');
-}
-
 function checkWidgetSize(html) {
   if (Buffer.byteLength(html, 'utf8') > 32768 ||
       deflateSync(html, { level:9 }).byteLength > 4096) {
@@ -72,18 +63,8 @@ function checkWidgetSize(html) {
 
 checkWidgetSize(STATUS_WIDGET_HTML);
 
-export function buildTelegramNotice({
-  kind, location = '', subject = '', time = '', detail = ''
-}) {
-  if (!Object.hasOwn(KINDS, kind)) throw new TypeError('Unknown MIRA-TV notice kind.');
-  const notice = KINDS[kind];
-  const payload = {
-    kind,
-    location:text(location),
-    subject:text(subject),
-    time:text(time, 64),
-    detail:text(detail, 180)
-  };
+export function buildTelegramNotice(input) {
+  const { payload, caption } = noticeContent(input);
   const chatData = JSON.stringify(payload);
   if (Buffer.byteLength(chatData, 'utf8') > 1024) {
     throw new RangeError('Telegram Widget chat state exceeds 1024 bytes.');
@@ -93,22 +74,18 @@ export function buildTelegramNotice({
     chat_data:chatData,
     allow_queries:false,
     protect_content:true,
-    caption:notice.tag + ' ' + notice.title + (payload.location ? '\n' + payload.location : '') +
-      (payload.subject ? ' · ' + payload.subject : '')
+    caption
   };
 }
 
 function miniAppKeyboard(url, privateChat) {
   if (!url) return undefined;
-  const parsed = new URL(url);
-  if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) {
-    throw new TypeError('Mini App URL must use public HTTPS.');
-  }
+  const address = secureMiniAppUrl(url);
   return {
     inline_keyboard:[[
       privateChat
-        ? { text:'Открыть MIRA-TV', web_app:{ url:parsed.href } }
-        : { text:'Открыть MIRA-TV', url:parsed.href }
+        ? { text:'Открыть MIRA-TV', web_app:{ url:address } }
+        : { text:'Открыть MIRA-TV', url:address }
     ]]
   };
 }
@@ -143,7 +120,7 @@ export async function sendTelegramNotice(apiCall, {
   }
   return apiCall('sendMessage', {
     chat_id:chatId,
-    text:content.caption + (notice.detail ? '\n' + text(notice.detail, 180) : ''),
+    text:content.caption + (JSON.parse(content.chat_data).detail ? '\n' + JSON.parse(content.chat_data).detail : ''),
     ...(replyMarkup ? { reply_markup:replyMarkup } : {})
   });
 }
