@@ -116,6 +116,7 @@ test('repeat wizard keeps enabled MAX by default; explicit n disables and clears
 test('wrong bot hostname or nonnumeric administrator ID never writes secrets',t=>{
   const f=fixture(t);
   assert.notEqual(f.run(['menu.example.com']).status,0);
+  assert.notEqual(f.run(['bot.example.com','bridge']).status,0);
   assert.throws(()=>readFileSync(join(f.app,'.env.bot')));
   assert.notEqual(f.run(['bot.example.com','',TELEGRAM_TOKEN,'@admin']).status,0);
   assert.throws(()=>readFileSync(join(f.app,'.env.bot')));

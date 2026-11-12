@@ -56,7 +56,9 @@ max_token_ok() {
 network_ok() {
   [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{1,62}$ ]] ||
     fail 'Недопустимое имя Docker-сети.'
-  [[ "$1" != mira-tv-internal && "$1" != mira-tv-proxy ]] ||
+  [[ "$1" != mira-tv-internal && "$1" != mira-tv-proxy &&
+     "$1" != bridge && "$1" != host && "$1" != none &&
+     "$1" != ingress && "$1" != docker_gwbridge ]] ||
     fail 'Выберите отдельную сеть для бота, не сеть БД и не существующую сеть прокси.'
 }
 put() {
