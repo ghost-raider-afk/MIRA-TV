@@ -175,7 +175,7 @@ create_temporary_backup() {
   [[ -f "${INSTALL_DIR}/.env" ]] || die 'Не найден /opt/MIRA-TV/.env.'
   if [[ -f "${INSTALL_DIR}/mira-tv.sh" ]]; then installer_source="${INSTALL_DIR}/mira-tv.sh"; elif [[ -f "$LAUNCHER_PATH" ]]; then installer_source="$LAUNCHER_PATH"; else die 'Не найден установленный скрипт MIRA-TV для резервной копии.'; fi
   TEMP_BACKUP_DIR="$(mktemp -d -t 'mira-tv.update.XXXXXX')"; chmod 700 "$TEMP_BACKUP_DIR"
-  tar --exclude='./.git' --exclude='./.env' --exclude='./.env.bot' --exclude='./node_modules' -C "$INSTALL_DIR" -czf "$TEMP_BACKUP_DIR/source.tar.gz" .
+  tar --exclude='./.git' --exclude='./.env' --exclude='./.env.bot' --exclude='./.env.bot.*' --exclude='./node_modules' -C "$INSTALL_DIR" -czf "$TEMP_BACKUP_DIR/source.tar.gz" .
   cp "$INSTALL_DIR/.env" "$TEMP_BACKUP_DIR/.env"; cp "$installer_source" "$TEMP_BACKUP_DIR/installer.sh"
   if [[ -f "$INSTALL_DIR/.env.bot" ]]; then cp "$INSTALL_DIR/.env.bot" "$TEMP_BACKUP_DIR/bot.env"; chmod 600 "$TEMP_BACKUP_DIR/bot.env"; fi
   chmod 600 "$TEMP_BACKUP_DIR/.env"; chmod 700 "$TEMP_BACKUP_DIR/installer.sh"; git -C "$INSTALL_DIR" rev-parse HEAD > "$TEMP_BACKUP_DIR/git-revision"

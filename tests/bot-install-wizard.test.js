@@ -125,6 +125,7 @@ test('main installer preserves bot secrets through backup/rollback/removal',()=>
   const s=readFileSync('mira-tv.sh','utf8');
   assert.match(s,/install -m 0600 "\$\{INSTALL_DIR\}\/\.env\.bot"/);
   assert.match(s,/--exclude='\.\/\.env\.bot'/);
+  assert.match(s,/--exclude='\.\/\.env\.bot\.\*'/);
   assert.match(s,/! -name '\.env\.bot'/);
   assert.match(s,/"\$TEMP_BACKUP_DIR\/bot\.env"/);
   assert.match(s,/persist_env; compose down --remove-orphans/);
@@ -145,4 +146,5 @@ test('bot network does not expose service ports or the database',()=>{
     assert.match(template,new RegExp('^'+name+'=','m'));
   }
   assert.match(readFileSync('.gitignore','utf8'),/^\.env\.bot$/m);
+  assert.match(readFileSync('.gitignore','utf8'),/^\.env\.bot\.\*$/m);
 });
