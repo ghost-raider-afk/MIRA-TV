@@ -19,7 +19,6 @@ import { createPlayerRealtime } from './realtime/player-realtime.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, MANAGER_PAGE, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
 import { createSessionRouter } from './api/session/routes.js';
-import { createMessengerLinksRouter } from './api/messenger/links-routes.js';
 import { createOverviewRouter } from './api/overview/routes.js';
 import { createSettingsRouter } from './api/settings/routes.js';
 import { createNotificationsRouter } from './api/notifications/routes.js';
@@ -171,7 +170,6 @@ function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole)
   app.use('/api', requireApiSession);
   app.use('/api', protectStateChangingRequest);
   app.use('/api', createSessionRouter(dependencies));
-  app.use('/api/messenger-links', createMessengerLinksRouter(dependencies));
   app.use('/api/request-notifications', createRequestNotificationsRouter(dependencies));
 
   app.use('/api/manager', requireApiRole('manager'), createManagerViewRouter(dependencies));

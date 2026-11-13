@@ -10,6 +10,59 @@ function validHash(value) {
 
 export function createMessengerLinksRepository(pool) {
   return Object.freeze({
+    // Only the web administrator can read or change these IDs. Messenger
+    // identities are strings to preserve 64-bit IDs without JS rounding.
+    async listMessengerUsers() {
+      const { rows } = await pool.query(`
+        SELECT u.username,u.role,u.active,
+          COALESCE(p.display_name,u.username) AS display_name,
+          MAX(a.provider_user_id) FILTER (WHERE a.provider='telegram') AS telegram_id,
+          MAX(a.provider_user_id) FILTER (WHERE a.provider='max') AS max_id
+        FROM web_users u
+        LEFT JOIN user_preferences p ON p.username=u.username
+        LEFT JOIN messenger_accounts a ON a.username=u.username
+        WHERE u.role IN ('administrator','manager')
+        GROUP BY u.username,u.role,u.active,p.display_name
+        ORDER BY (u.role='administrator') DESC,u.username
+      `);
+      return rows.map(row => ({
+        username:row.username, role:row.role, active:row.active,
+        display_name:row.display_name,
+        telegram_id:row.telegram_id || '', max_id:row.max_id || ''
+      }));
+    },
+
+    // Must run through store.transaction. One user-row lock serializes edits;
+    // uniqueness constraints stop two users from claiming the same provider ID.
+    async setMessengerUserIds(username, { telegram_id, max_id }) {
+      const found = await pool.query(
+        'SELECT username FROM web_users WHERE username=$1 FOR UPDATE',
+        [username]
+      );
+      if (!found.rows.length) return null;
+      for (const [provider, id] of [['telegram',telegram_id],['max',max_id]]) {
+        if (!id) {
+          await pool.query(
+            'DELETE FROM messenger_accounts WHERE username=$1 AND provider=$2',
+            [username,provider]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO messenger_accounts(username,provider,provider_user_id,linked_at)
+             VALUES($1,$2,$3,NOW())
+             ON CONFLICT(username,provider) DO UPDATE
+               SET provider_user_id=EXCLUDED.provider_user_id,
+                   linked_at=EXCLUDED.linked_at
+             WHERE messenger_accounts.provider_user_id IS DISTINCT FROM EXCLUDED.provider_user_id`,
+            [username,provider,id]
+          );
+        }
+      }
+      // Cancel pending self-service codes; an administrator now owns linking.
+      await pool.query('DELETE FROM messenger_link_codes WHERE username=$1',[username]);
+      return { username, telegram_id, max_id };
+    },
+
     async issueMessengerLinkCode(username, provider, codeHash, expiresAt) {
       const platform=messengerProvider(provider);
       const hash=validHash(codeHash);

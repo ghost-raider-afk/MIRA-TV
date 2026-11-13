@@ -1,6 +1,7 @@
 import express from 'express';
 import { optionalText, positiveId } from '../../contracts/input.js';
 import { managerDisplayNameInput, managerUsernameInput } from '../../contracts/users.js';
+import { messengerIdentityId } from '../../bot/account-linking.js';
 import { notifyCatalogEntityChanged } from '../../services/catalog-render-notifier.js';
 import { reviewCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { reviewWorkflowRequest, completeManualRequest, saveNewProductFromRequest, returnOrRejectWorkflowRequest } from '../../services/crm-request-service.js';
@@ -71,8 +72,44 @@ async function reviewProposal({ store, realtime, request, response, decision }) 
   return response.json(result);
 }
 
+function adminMessengerId(value, provider) {
+  if (typeof value !== 'string') {
+    throw Object.assign(new Error('ID ' + provider + ' должен быть строкой цифр или пустым.'), { status:400 });
+  }
+  const id = value.trim();
+  return id ? messengerIdentityId(id) : null;
+}
+
 export function createManagerAdminRouter({ store, config, realtime }) {
   const router = express.Router();
+
+  router.get('/messenger-users', async (_request, response) => {
+    response.setHeader('Cache-Control','private, no-store');
+    response.json({ users:await store.listMessengerUsers() });
+  });
+
+  router.put('/messenger-users/:username', async (request, response) => {
+    const username=managerUsernameInput(request.params.username);
+    const telegram_id=adminMessengerId(request.body?.telegram_id, 'Telegram');
+    const max_id=adminMessengerId(request.body?.max_id, 'MAX');
+    let updated;
+    try {
+      updated=await store.transaction(tx =>
+        tx.setMessengerUserIds(username,{ telegram_id,max_id }));
+    } catch (error) {
+      if (error?.code==='23505') {
+        throw conflict('Этот Telegram или MAX ID уже назначен другому пользователю.');
+      }
+      throw error;
+    }
+    if (!updated) throw notFound('Пользователь не найден.');
+    await activity(store,request,{
+      action:'user.messenger_ids.updated',entity_type:'user',entity_id:username,
+      message:`Администратор изменил доступ к Telegram/MAX для пользователя «${username}».`
+    });
+    response.setHeader('Cache-Control','private, no-store');
+    response.json(updated);
+  });
 
   router.get('/proposals', async (request, response) => {
     response.json(await store.listCatalogProposals({ status:proposalStatus(request.query?.status) }));
