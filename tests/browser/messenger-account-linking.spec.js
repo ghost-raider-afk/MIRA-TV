@@ -78,9 +78,11 @@ test('only administrators can assign Telegram/MAX IDs; duplicates are rejected a
       expect((await member.request.put(base+'/'+username,{
         data:{telegram_id:'456789',max_id:''}
       })).status()).toBe(403);
+      // Existing role middleware denies this request before 404 fallback.
+      // Access must be forbidden, regardless of whether a route is installed.
       expect((await member.request.post('/api/messenger-links/link-code',{
         data:{provider:'telegram'}
-      })).status()).toBe(404);
+      })).status()).toBe(403);
     } finally {
       await memberContext.close();
     }
