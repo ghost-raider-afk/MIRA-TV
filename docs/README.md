@@ -17,6 +17,7 @@
 - [ARCHITECTURE.md](ARCHITECTURE.md) — компоненты системы и гарантии совместимости.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — правила изменений, тестирования и релизов.
 - [BRANDING.md](BRANDING.md) — название и оформление проекта.
+- [MESSENGER-UI.md](MESSENGER-UI.md) — проектируемый интерфейс Telegram/MAX; не входит в опубликованный сервер.
 
 ## Развитие и история
 

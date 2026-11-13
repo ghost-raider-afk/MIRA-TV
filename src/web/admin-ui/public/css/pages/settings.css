@@ -38,3 +38,19 @@ body[data-page="settings"] .manager-user-identity strong{font-size:15px;overflow
 body[data-page="settings"] .manager-user-identity small{color:var(--ui-text-muted);font-size:12px}
 body[data-page="settings"] .manager-admin-actions input[aria-label^="Имя пользователя"]{min-width:140px;max-width:220px}
 @media(max-width:700px){body[data-page="settings"] .manager-admin-actions input[aria-label^="Имя пользователя"]{max-width:none}}
+
+/* Administrator-only messenger IDs, with compact responsive user rows. */
+body[data-page="settings"] .bot-user-help{font-size:var(--ui-font-sm);color:var(--ui-text-muted);margin:4px 0 8px}
+body[data-page="settings"] .bot-user-list{display:grid;gap:7px;max-height:40dvh;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+body[data-page="settings"] .bot-user-row{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr);align-items:center;gap:10px;padding:10px;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel-raised);min-width:0}
+body[data-page="settings"] .bot-user-heading{min-width:0;display:grid;gap:3px}
+body[data-page="settings"] .bot-user-heading strong,body[data-page="settings"] .bot-user-heading small{overflow-wrap:anywhere}
+body[data-page="settings"] .bot-user-heading small{color:var(--ui-text-muted)}
+body[data-page="settings"] .bot-user-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;align-items:end;gap:8px;min-width:0}
+body[data-page="settings"] .bot-user-fields .field{min-width:0}
+body[data-page="settings"] .bot-user-fields input{width:100%;min-width:0}
+@media(max-width:700px){
+  body[data-page="settings"] .bot-user-row{grid-template-columns:minmax(0,1fr)}
+  body[data-page="settings"] .bot-user-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body[data-page="settings"] .bot-user-fields button{grid-column:1/-1;justify-self:start}
+}

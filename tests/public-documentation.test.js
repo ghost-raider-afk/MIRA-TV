@@ -16,6 +16,7 @@ const PUBLIC_DOCS = [
   'TROUBLESHOOTING.md',
   'DEPLOYMENT-CHECKLIST.md',
   'BRANDING.md',
+  'MESSENGER-UI.md',
   'ROADMAP.md'
 ];
 
