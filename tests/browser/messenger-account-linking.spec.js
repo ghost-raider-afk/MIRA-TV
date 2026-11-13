@@ -20,6 +20,7 @@ test('only administrators can assign Telegram/MAX IDs; duplicates are rejected a
   const another='9'+Date.now().toString();
   const base='/api/admin/managers/messenger-users';
   let managerCreated=false;
+  let originalAdminIds={telegram_id:'',max_id:''};
   try {
     const before=await page.request.get(base);
     expect(before.status()).toBe(200);
@@ -28,6 +29,7 @@ test('only administrators can assign Telegram/MAX IDs; duplicates are rejected a
     const admin=initial.find(x=>x.username==='admin');
     expect(admin).toBeTruthy();
     expect(admin.role).toBe('administrator');
+    originalAdminIds={telegram_id:admin.telegram_id || '',max_id:admin.max_id || ''};
 
     const create=await page.request.post('/api/admin/managers',{
       data:{username,password,display_name:'Тест менеджер бота'}
@@ -97,7 +99,7 @@ test('only administrators can assign Telegram/MAX IDs; duplicates are rejected a
     const revoked=(await (await page.request.get(base)).json()).users;
     expect(revoked.find(x=>x.username===username).telegram_id).toBe('');
   } finally {
-    await page.request.put(base+'/admin',{data:{telegram_id:'',max_id:''}});
+    await page.request.put(base+'/admin',{data:originalAdminIds});
     if (managerCreated) await page.request.delete('/api/admin/managers/'+username);
   }
 });
