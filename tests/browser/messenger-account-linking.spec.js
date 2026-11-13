@@ -68,7 +68,7 @@ test('only administrators can assign Telegram/MAX IDs; duplicates are rejected a
       data:{telegram_id:another,max_id:''}
     })).status()).toBe(404);
 
-    const memberContext=await browser.newContext();
+    const memberContext=await browser.newContext({ baseURL:process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080' });
     try {
       const member=await memberContext.newPage();
       await login(member,username,password);
