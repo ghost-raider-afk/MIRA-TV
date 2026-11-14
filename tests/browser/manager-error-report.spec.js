@@ -38,6 +38,8 @@ test('manager reports CRM errors with one click; administrator receives an ordin
     })).ok()).toBeTruthy();
 
     await login(manager,username,password,'/manager');
+    await manager.locator('.app-header-nav-link[data-header-section="manager-requests"]').click();
+    await expect(manager.locator('#manager-create-request')).toBeVisible();
     await manager.locator('#manager-create-request').click();
     const form=manager.locator('#manager-crm-dialog');
     await expect(form).toBeVisible();
