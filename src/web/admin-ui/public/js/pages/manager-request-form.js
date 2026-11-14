@@ -50,7 +50,10 @@ function productChoice(id) {
   ],id ?? '');
 }
 function locationChoice(id) {
-  return select('location_id',managerLocations.map((p)=>[p.id,p.name]),id);
+  return select('location_id',[
+    ['', 'Выберите торговую точку'],
+    ...managerLocations.map((p)=>[p.id,p.name])
+  ],id ?? '');
 }
 function propertyChoice(value) {
   return select('property',Object.entries(FIELDS).map(([key,name])=>[key,name]),value);
@@ -83,18 +86,27 @@ function collectRows() {
       if (property === 'active' || property === 'alcoholic') value = value === 'true';
       return { product_id:Number(rowValue(item,'product_id')),property,value };
     }
-    if (requestType === 'menu_add') return {
-      product_id:Number(rowValue(item,'product_id')),location_id:Number(rowValue(item,'location_id'))
-    };
-    if (requestType === 'menu_remove') return {
-      screen_id:Number(rowValue(item,'screen_id')),row_id:rowValue(item,'row_id')
-    };
+    if (requestType === 'menu_add') {
+      const locationId = Number(rowValue(item,'location_id'));
+      if (!Number.isSafeInteger(locationId) || locationId <= 0) {
+        throw new Error('Выберите торговую точку в каждой позиции заявки.');
+      }
+      return { product_id:Number(rowValue(item,'product_id')),location_id:locationId };
+    }
+    if (requestType === 'menu_remove') {
+      const screenId = Number(rowValue(item,'screen_id'));
+      const rowId = rowValue(item,'row_id');
+      if (!Number.isSafeInteger(screenId) || screenId <= 0 || !rowId) {
+        throw new Error('Выберите телевизор и позицию для удаления.');
+      }
+      return { screen_id:screenId,row_id:rowId };
+    }
     return null;
   });
 }
 async function renderRemovalSelector(container,item) {
   const locations = managerLocations;
-  const location = locationChoice(item.location_id ?? locations[0]?.id);
+  const location = locationChoice(item.location_id);
   item.location_id = Number(location.value);
   container.append(field('Торговая точка',location));
   const tvField = field('Телевизор',select('screen_id',[],item.screen_id));
@@ -110,13 +122,15 @@ async function renderRemovalSelector(container,item) {
     try {
       const context = await api.get(API.managerBase + '/screens/' + requestedScreenId + '/context');
       if (screen.value !== requestedScreenId || String(item.screen_id) !== requestedScreenId) return;
-      target.replaceChildren();
+      target.replaceChildren(new Option('Выберите позицию из меню',''));
       for (const row of (context?.draft?.rows || [])) {
         if (row.kind !== 'item' || row.enabled === false) continue;
         target.add(new Option(row.name || 'Позиция ' + row.id,row.id));
       }
-      if (!target.options.length) target.add(new Option('На этом ТВ нет позиций',''));
-      if (item.row_id) target.value = item.row_id;
+      if (target.options.length === 1) target.add(new Option('На этом ТВ нет позиций',''));
+      if (item.row_id && [...target.options].some((v)=>v.value===String(item.row_id))) {
+        target.value = String(item.row_id);
+      }
       item.row_id = target.value;
     } catch {
       if (screen.value === requestedScreenId) {
@@ -128,7 +142,7 @@ async function renderRemovalSelector(container,item) {
     const screen = tvField.querySelector('select');
     const target = Number(location.value);
     const point = locations.find((p)=>Number(p.id) === target);
-    screen.replaceChildren();
+    screen.replaceChildren(new Option('Выберите телевизор',''));
     for (const v of point?.screens || []) {
       if (v.status === 'published') screen.add(new Option(v.name,v.id));
     }
@@ -150,7 +164,7 @@ function renderRow(item) {
     const product = productChoice(item.product_id);
     container.append(field('Товар',product));
     if (requestType === 'menu_add') {
-      container.append(field('Торговая точка',locationChoice(item.location_id || managerLocations[0]?.id)));
+      container.append(field('Торговая точка',locationChoice(item.location_id)));
     } else if (requestType === 'price_change') {
       const previous = node('small','crm-form-before');
       const refresh = () => { previous.textContent = 'Текущая цена: ' + (productById(product.value)?.price_primary || '—') + ' ₽'; };
