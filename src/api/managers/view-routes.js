@@ -3,6 +3,7 @@ import { optionalText, positiveId, requireText } from '../../contracts/input.js'
 import { buildPlayerState, fullPlayerContext } from '../../services/player-context-service.js';
 import { createCatalogChangeProposal } from '../../services/catalog-proposal-service.js';
 import { prepareWorkflowRequest, reviseWorkflowRequest } from '../../services/crm-request-service.js';
+import { createManagerErrorReport } from '../../services/manager-error-report-service.js';
 import { sceneWeatherSettings } from '../../contracts/scene.js';
 import { themeWeatherSettings } from '../../contracts/menu-theme.js';
 import { hasWeatherCoordinates } from '../../services/weather-service.js';
@@ -167,6 +168,15 @@ export function createManagerViewRouter({ store, config, weatherService }) {
     });
     if (!updated) throw notFound('Заявка недоступна для исправления.');
     response.json(updated);
+  });
+
+  router.post('/proposals/error-report', async (request, response) => {
+    const result = await createManagerErrorReport(store, {
+      managerUsername:request.session.sub,
+      raw:request.body,
+      userAgent:request.get('user-agent')
+    });
+    response.status(201).json(result);
   });
 
   router.post('/proposals/message', async (request, response) => {
