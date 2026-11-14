@@ -103,6 +103,23 @@ function syncReplyRequirement() {
     && !String(element('catalog-approval-comment')?.value || '').trim();
 }
 
+function appendManagerErrorDiagnostics(proposal,host) {
+  if (proposal.entity_type !== 'message' || proposal.title !== 'Сообщение об ошибке менеджера') return;
+  void api.get(API.adminManagerProposals+'/'+proposal.id+'/history').then((events) => {
+    if (!host.isConnected || host.dataset.requestId !== String(proposal.id)) return;
+    const report=Array.isArray(events) ? events.find((item)=>item.action==='error_report') : null;
+    if (!report?.details) return;
+    const details=document.createElement('details');
+    details.className='crm-workflow-history';
+    const summary=document.createElement('summary');
+    summary.textContent='Техническая информация';
+    const pre=document.createElement('pre');
+    pre.textContent=JSON.stringify(report.details,null,2);
+    details.append(summary,pre);
+    host.append(details);
+  }).catch(()=>{ /* The main report remains visible in the description. */ });
+}
+
 function openApproval(proposal) {
   approvalTarget = proposal;
   const dialog = catalogDialog('catalog-approval-dialog');
@@ -163,6 +180,7 @@ function openApproval(proposal) {
     message.textContent=proposal.description;
     diff.append(message);
   }
+  appendManagerErrorDiagnostics(proposal,diff);
   if (!changes.length && !proposal.description) {
     const empty = document.createElement('p');
     empty.className = 'catalog-approval-no-changes';
