@@ -43,16 +43,16 @@ function field(label, child) {
   wrapper.append(node('span','',label),child);
   return wrapper;
 }
-function productChoice(id) {
+function productChoice(id, catalog = managerCatalog) {
   return select('product_id',[
     ['', 'Выберите товар'],
-    ...managerCatalog.map((p)=>[p.id,catalogProductTitle(p)])
+    ...catalog.map((p)=>[p.id,catalogProductTitle(p)])
   ],id ?? '');
 }
-function locationChoice(id) {
+function locationChoice(id, locations = managerLocations) {
   return select('location_id',[
     ['', 'Выберите торговую точку'],
-    ...managerLocations.map((p)=>[p.id,p.name])
+    ...locations.map((p)=>[p.id,p.name])
   ],id ?? '');
 }
 function propertyChoice(value) {
@@ -104,8 +104,7 @@ function collectRows() {
     return null;
   });
 }
-async function renderRemovalSelector(container,item) {
-  const locations = managerLocations;
+async function renderRemovalSelector(container,item,locations = managerLocations) {
   const location = locationChoice(item.location_id);
   item.location_id = Number(location.value);
   container.append(field('Торговая точка',location));
@@ -332,8 +331,8 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
   const catalog=catalogResult.status==='fulfilled'?catalogResult.value:{};
   const locations=locationsResult.status==='fulfilled'?locationsResult.value:[];
   if (host.dataset.requestId !== String(proposal.id)) return;
-  managerCatalog=Array.isArray(catalog?.products)?catalog.products:[];
-  managerLocations=Array.isArray(locations)?locations:[];
+  const workflowCatalog=Array.isArray(catalog?.products)?catalog.products:[];
+  const workflowLocations=Array.isArray(locations)?locations:[];
   const edits=[];
   const type=proposal.request_type;
   for (const item of proposal.items||[]) {
@@ -371,13 +370,13 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
           key:item.key,value:['alcoholic','active'].includes(item.property) ? editor.value==='true' : editor.value
         }));
       } else if (type==='menu_add') {
-        const product=productChoice(item.product_id);
-        const location=locationChoice(item.location_id);
+        const product=productChoice(item.product_id,workflowCatalog);
+        const location=locationChoice(item.location_id,workflowLocations);
         wrapper.append(field('Товар',product),field('Точка',location));
         edits.push(()=>({key:item.key,product_id:Number(product.value),location_id:Number(location.value)}));
       } else if (type==='menu_remove') {
         const correction={...item};
-        await renderRemovalSelector(wrapper,correction);
+        await renderRemovalSelector(wrapper,correction,workflowLocations);
         edits.push(()=>({
           key:item.key,screen_id:Number(wrapper.querySelector('[name="screen_id"]').value),
           row_id:wrapper.querySelector('[name="row_id"]').value
@@ -390,7 +389,7 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
         }
         const points=node('div','crm-form-points');
         points.append(node('strong','','Торговые точки'));
-        for (const point of managerLocations) {
+        for (const point of workflowLocations) {
           const label=node('label');
           const check=input('location_ids',point.id,'checkbox');
           check.checked=item.location_ids?.includes(point.id);
