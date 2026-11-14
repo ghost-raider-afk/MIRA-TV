@@ -302,11 +302,10 @@ async function openFullscreen(screen, location, orderIndex) {
     await fullscreenRenderer.render(context);
   } catch (error) {
     if (requestToken !== fullscreenRequestToken) return;
-    stage.replaceChildren(Object.assign(document.createElement('p'), {
-      className:'manager-preview-empty is-fullscreen',
-      textContent:error.message
-    }));
-    showToast(error.message,{severity:'error',error,source:'manager-fullscreen'});
+    const note=document.createElement('p');
+    note.className='manager-preview-empty is-fullscreen';
+    stage.replaceChildren(note);
+    showManagerInlineError(note,error,'manager-fullscreen');
   }
 }
 
