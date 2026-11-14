@@ -31,11 +31,13 @@ export function managerErrorPayload(message, error = null, source = '') {
   const activeDetail = detail?.open ? detail.querySelector('#manager-request-body') : null;
   const request = error?.request || {};
   return {
-    message:short(message, 1000),
+    message:short(error?.message || message, 1000),
     stack:short(error?.stack || '', 6000),
     page:window.location.pathname,
     source:short(source, 160),
-    operation:short(document.getElementById('crm-preset')?.value || source || 'Рабочее место менеджера', 120),
+    operation:short(document.getElementById('manager-crm-dialog')?.open
+      ? document.getElementById('crm-preset')?.value || source || 'Заявка'
+      : source || 'Рабочее место менеджера', 120),
     request:{
       method:request.method || '',
       path:request.path || '',
