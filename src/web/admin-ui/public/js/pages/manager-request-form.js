@@ -44,7 +44,10 @@ function field(label, child) {
   return wrapper;
 }
 function productChoice(id) {
-  return select('product_id',managerCatalog.map((p)=>[p.id,catalogProductTitle(p)]),id);
+  return select('product_id',[
+    ['', 'Выберите товар'],
+    ...managerCatalog.map((p)=>[p.id,catalogProductTitle(p)])
+  ],id ?? '');
 }
 function locationChoice(id) {
   return select('location_id',managerLocations.map((p)=>[p.id,p.name]),id);
@@ -60,11 +63,17 @@ function valueInput(property,value = '') {
 }
 function productById(id) { return managerCatalog.find((p)=>Number(p.id) === Number(id)); }
 function rowValue(item, name) {
-  const root = document.querySelector('[data-crm-key="' + item.key + '"]');
+  const root = document.getElementById('crm-form-items')?.querySelector('[data-crm-key="' + item.key + '"]');
   return root?.querySelector('[name="' + name + '"]')?.value ?? '';
 }
 function collectRows() {
   return rows.map((item) => {
+    if (['price_change','property_change','menu_add'].includes(requestType)) {
+      const productId = Number(rowValue(item,'product_id'));
+      if (!Number.isSafeInteger(productId) || productId <= 0 || !productById(productId)) {
+        throw new Error('Выберите товар в каждой позиции заявки.');
+      }
+    }
     if (requestType === 'price_change') return {
       product_id:Number(rowValue(item,'product_id')),value:rowValue(item,'value')
     };
@@ -138,7 +147,7 @@ function renderRow(item) {
   if (requestType === 'menu_remove') {
     void renderRemovalSelector(container,item);
   } else {
-    const product = productChoice(item.product_id || managerCatalog[0]?.id);
+    const product = productChoice(item.product_id);
     container.append(field('Товар',product));
     if (requestType === 'menu_add') {
       container.append(field('Торговая точка',locationChoice(item.location_id || managerLocations[0]?.id)));
