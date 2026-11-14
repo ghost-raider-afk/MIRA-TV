@@ -150,6 +150,37 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await expect(managerDetail.locator('.request-detail-meta .crm-status')).toHaveText('На рассмотрении');
     await managerDetail.getByRole('button',{name:'Закрыть'}).click();
 
+    // Reload to reset local row keys, then leave a previously viewed request in the DOM.
+    // The new form's first row has the same key; submission must read only its own fields.
+    await managerPage.reload();
+    await openTab(managerPage,'manager-requests');
+    await priceRow.click();
+    await expect(managerDetail.locator('[data-crm-key="1"]')).toHaveCount(1);
+    await managerDetail.getByRole('button',{name:'Закрыть'}).click();
+    await managerPage.locator('#manager-create-request').click();
+    await expect(create).toBeVisible();
+    await expect(create.locator('.crm-form-row [name="product_id"]')).toHaveValue('');
+    await create.locator('.crm-form-row [name="value"]').fill('225');
+    await create.getByRole('button',{name:'Отправить заявку'}).click();
+    await expect(create.locator('#crm-create-error')).toContainText('Выберите товар');
+
+    await create.locator('.crm-form-row [name="product_id"]').selectOption(String(productId));
+    await create.locator('#crm-add-row').click();
+    await expect(create.locator('.crm-form-row [name="product_id"]').nth(1)).toHaveValue('');
+    await create.locator('.crm-form-row').last().getByRole('button',{name:'Убрать строку'}).click();
+    const repeatedPosted=managerPage.waitForResponse((response)=>
+      response.url().endsWith('/api/manager/proposals/request') && response.request().method()==='POST'
+    );
+    await create.getByRole('button',{name:'Отправить заявку'}).click();
+    const repeatedPrice=await repeatedPosted;
+    expect(repeatedPrice.status()).toBe(201);
+    expect(repeatedPrice.request().postDataJSON().items).toEqual([
+      {product_id:Number(productId),value:'225'}
+    ]);
+    await expect(create).not.toBeVisible();
+    const repeatedId=(await repeatedPrice.json()).id;
+    expect((await managerPage.request.delete('/api/manager/proposals/'+repeatedId)).status()).toBe(204);
+
     await adminPage.goto('/catalog');
     await openTab(adminPage,'approvals');
     await expect(adminPage).toHaveURL(/\/approvals$/);
