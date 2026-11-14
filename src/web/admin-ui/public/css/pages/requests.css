@@ -101,3 +101,6 @@ body[data-page="approvals"] .catalog-approval-head #catalog-approval-close{posit
 .manager-request-detail .request-detail-meta .crm-status,
 .catalog-approval-head #catalog-approval-meta .crm-status{vertical-align:middle}
 .crm-workflow-item>strong,.crm-product-title{overflow-wrap:anywhere}
+
+/* Diagnostic payloads must wrap inside the approval dialog on narrow screens. */
+#catalog-approval-diff .crm-workflow-history pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.45}

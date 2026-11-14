@@ -2,6 +2,8 @@ import { API } from '../core/config.js';
 import { api } from '../core/api.js';
 import { state } from '../core/state.js';
 import { setMessage } from '../core/dom.js';
+import { showManagerInlineError } from '../core/manager-error-report.js';
+import { showToast } from '../core/toasts.js';
 import { formatRussianCount } from '../core/ru-plural.js';
 import { requestStatus, requestTopic, requestDate, requestJournalHeader, requestJournalRow, requestStatusBadge } from '../core/requests.js';
 import { openManagerRequestForm, renderManagerWorkflow } from './manager-request-form.js';
@@ -113,6 +115,7 @@ async function hydratePreview(stage, screenId, loading) {
         className:'manager-preview-empty',
         textContent:error.message
       }));
+      showToast(error.message,{severity:'error',error,source:'manager-preview'});
     }
   } finally {
     loading?.classList.add('is-hidden');
@@ -299,10 +302,10 @@ async function openFullscreen(screen, location, orderIndex) {
     await fullscreenRenderer.render(context);
   } catch (error) {
     if (requestToken !== fullscreenRequestToken) return;
-    stage.replaceChildren(Object.assign(document.createElement('p'), {
-      className:'manager-preview-empty is-fullscreen',
-      textContent:error.message
-    }));
+    const note=document.createElement('p');
+    note.className='manager-preview-empty is-fullscreen';
+    stage.replaceChildren(note);
+    showManagerInlineError(note,error,'manager-fullscreen');
   }
 }
 
@@ -416,8 +419,8 @@ function openManagerRequest(proposal) {
       await loadProposals();
     }).catch((error)=>{
       const notice=document.createElement('p');
-      notice.textContent=error.message;
       body.replaceChildren(notice);
+      showManagerInlineError(notice,error,'manager-request-detail');
     });
     return;
   }
@@ -453,8 +456,8 @@ function openManagerRequest(proposal) {
         await loadProposals();
       } catch (error) {
         const notice = document.createElement('p');
-        notice.textContent = error.message;
         body.append(notice);
+        showManagerInlineError(notice,error,'manager-request-delete');
         remove.disabled = false;
       }
     });
@@ -502,8 +505,8 @@ function openManagerRequest(proposal) {
         await loadProposals();
       } catch(error) {
         const note=document.createElement('p');
-        note.textContent=error.message;
         body.append(note);
+        showManagerInlineError(note,error,'manager-message-rework');
       } finally {save.disabled=false;}
     });
     body.append(save);
@@ -652,7 +655,7 @@ async function submitProposal() {
     await loadProposals();
     setMessage('manager-message', 'Предложение отправлено администратору.', 'success');
   } catch (error) {
-    setMessage('manager-proposal-message', error.message);
+    setMessage('manager-proposal-message', error.message, 'error', error);
   } finally {
     if (button) button.disabled = false;
   }
@@ -680,7 +683,7 @@ async function submitMessageCard() {
     await loadProposals();
     setMessage('manager-message','Обращение отправлено администратору.','success');
   } catch (error) {
-    setMessage('manager-message-error',error.message);
+    setMessage('manager-message-error',error.message,'error',error);
   } finally {
     if (button) button.disabled=false;
   }
@@ -698,7 +701,7 @@ async function loadWorkspace() {
     syncManagerTabs();
     setMessage('manager-message', '');
   } catch (error) {
-    setMessage('manager-message', error.message);
+    setMessage('manager-message', error.message,'error',error);
   } finally {
     if (button) button.disabled = false;
   }
@@ -738,7 +741,7 @@ export function initialiseManagerView() {
   document.getElementById('manager-tab-products')?.addEventListener('click', () => setMode('products'));
   document.getElementById('manager-tab-packaging')?.addEventListener('click', () => setMode('packaging'));
   document.getElementById('manager-proposal-submit')?.addEventListener('click', () => void submitProposal());
-  document.getElementById('manager-create-request')?.addEventListener('click', () => void openManagerRequestForm({type:managerCatalogAvailable ? 'price_change' : 'message'}).catch((error)=>setMessage('manager-message',error.message)));
+  document.getElementById('manager-create-request')?.addEventListener('click', () => void openManagerRequestForm({type:managerCatalogAvailable ? 'price_change' : 'message'}).catch((error)=>setMessage('manager-message',error.message,'error',error)));
   document.addEventListener('crm-request-created', () => { void loadProposals(); });
   document.getElementById('manager-new-message')?.addEventListener('click', () => {
     document.getElementById('manager-message-form')?.reset();

@@ -1,5 +1,6 @@
 import { API } from '../core/config.js';
 import { api } from '../core/api.js';
+import { showManagerInlineError } from '../core/manager-error-report.js';
 import { REQUEST_TOPICS, requestHistoryEvent, requestStatusBadge, requestLocationLabel, requestLocationList } from '../core/requests.js';
 import { CATALOG_FIELD_LABELS, CATALOG_OPTIONS, catalogValueLabel, catalogProductTitle, catalogChangeParts } from '../core/catalog-presentation.js';
 
@@ -297,8 +298,7 @@ async function submit() {
     managerDialog.close();
     document.dispatchEvent(new CustomEvent('crm-request-created'));
   } catch (e) {
-    error.textContent=e.message;
-    error.classList.remove('is-hidden');
+    showManagerInlineError(error,e,'crm-request-submit');
   } finally { submitButton.disabled=false; }
 }
 export async function openManagerRequestForm({type='price_change',productId=null}={}) {
@@ -422,7 +422,9 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
         await api.put(API.managerProposals+'/'+proposal.id+'/rework',{edits:edits.map((read)=>read())});
         await onRefresh();
       } catch(error) {
-        host.append(node('p','form-message',error.message));
+        const note=node('p','form-message');
+        host.append(note);
+        showManagerInlineError(note,error,'crm-request-rework');
       } finally { save.disabled=false; }
     });
     host.append(save);
@@ -435,7 +437,11 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
       try {
         await api.delete(API.managerProposals+'/'+proposal.id);
         await onRefresh();
-      } catch(error) { host.append(node('p','form-message',error.message)); }
+      } catch(error) {
+        const note=node('p','form-message');
+        host.append(note);
+        showManagerInlineError(note,error,'crm-request-delete');
+      }
     });
     host.append(remove);
   }

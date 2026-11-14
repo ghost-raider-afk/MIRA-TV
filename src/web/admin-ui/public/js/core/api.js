@@ -1,11 +1,12 @@
 import { reportFrontendError } from './diagnostics.js';
 
 export class ApiError extends Error {
-  constructor(message, { status = 0, body = null } = {}) {
+  constructor(message, { status = 0, body = null, request = null } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.body = body;
+    this.request = request;
   }
 }
 
@@ -16,8 +17,14 @@ async function parseResponse(response) {
   return response.text().catch(() => '');
 }
 
+function requestContext(url, method, status = 0) {
+  const target = new URL(url, window.location.origin);
+  return { method, path:target.pathname, status };
+}
+
 export async function request(url, init = {}) {
   let response;
+  const context = requestContext(url, init.method || 'GET');
   try {
     response = await fetch(url, {
       credentials: 'same-origin',
@@ -32,7 +39,7 @@ export async function request(url, init = {}) {
         : init.body
     });
   } catch (cause) {
-    const error = new ApiError('Сервер недоступен. Проверьте подключение и повторите попытку.', { body: { cause } });
+    const error = new ApiError('Сервер недоступен. Проверьте подключение и повторите попытку.', { body: { cause }, request:context });
     reportFrontendError(cause || error, { type: 'api-network', source: String(url) });
     throw error;
   }
@@ -45,7 +52,7 @@ export async function request(url, init = {}) {
     const message = body && typeof body === 'object' && typeof body.error === 'string'
       ? body.error
       : 'Не удалось выполнить запрос.';
-    const error = new ApiError(message, { status: response.status, body });
+    const error = new ApiError(message, { status: response.status, body, request:{...context,status:response.status} });
     if (response.status >= 500) reportFrontendError(error, { type: 'api-response', source: String(url) });
     throw error;
   }
