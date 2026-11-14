@@ -84,20 +84,35 @@ export function attachManagerErrorAction(body, message, { error = null, source =
   body.append(button,status);
 }
 
+export function showManagerInlineError(target, error, source = '') {
+  if (!target) return;
+  const message = String(error?.message || error || 'Произошла ошибка.');
+  target.replaceChildren(document.createTextNode(message));
+  target.classList.remove('is-hidden');
+  target.classList.add('is-error');
+  attachManagerErrorAction(target, message, { error, source });
+}
+
 export function installManagerGlobalErrorReporting(showToast) {
   if (installed) return;
   installed = true;
+  const present = (message,error,source) => {
+    const dialogs = [...document.querySelectorAll('dialog[open]')];
+    const dialog = dialogs.at(-1);
+    if (dialog) {
+      const note = document.createElement('p');
+      note.className = 'form-message';
+      dialog.append(note);
+      showManagerInlineError(note, error, source);
+    } else showToast(message, { severity:'error',persist:false,error,source });
+  };
   window.addEventListener('error', (event) => {
-    showToast('Произошла ошибка интерфейса.', {
-      severity:'error', persist:false, error:event.error || new Error(event.message || 'Ошибка'),
-      source:short(event.filename || 'javascript',160)
-    });
+    present('Произошла ошибка интерфейса.',
+      event.error || new Error(event.message || 'Ошибка'),short(event.filename || 'javascript',160));
   });
   window.addEventListener('unhandledrejection', (event) => {
-    showToast('Не удалось выполнить действие.', {
-      severity:'error', persist:false,
-      error:event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
-      source:'unhandledrejection'
-    });
+    present('Не удалось выполнить действие.',
+      event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
+      'unhandledrejection');
   });
 }
