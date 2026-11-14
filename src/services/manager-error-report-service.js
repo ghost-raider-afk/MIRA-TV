@@ -31,7 +31,9 @@ function position(value) {
     product_name:redact(value.product_name, 140),
     location_id:id(value.location_id),
     screen_id:id(value.screen_id),
-    row_id:redact(value.row_id, 100)
+    row_id:redact(value.row_id, 100),
+    property:redact(value.property, 70),
+    new_value:redact(value.new_value, 90)
   };
 }
 
@@ -78,7 +80,9 @@ export async function createManagerErrorReport(store, { managerUsername, raw, us
         item.product_id ? 'товар ID '+item.product_id : '',
         item.location_id ? 'точка ID '+item.location_id : '',
         item.screen_id ? 'ТВ ID '+item.screen_id : '',
-        item.row_id ? 'строка '+item.row_id : ''
+        item.row_id ? 'строка '+item.row_id : '',
+        item.property ? 'поле '+item.property : '',
+        item.new_value ? 'значение '+item.new_value : ''
       ].filter(Boolean).join(' · '))
   ].filter(Boolean);
   const description = lines.join('\n').slice(0, 2000);
