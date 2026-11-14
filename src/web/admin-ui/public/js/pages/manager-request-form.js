@@ -105,7 +105,7 @@ function collectRows() {
   });
 }
 async function renderRemovalSelector(container,item,locations = managerLocations) {
-  const location = locationChoice(item.location_id);
+  const location = locationChoice(item.location_id,locations);
   item.location_id = Number(location.value);
   container.append(field('Торговая точка',location));
   const tvField = field('Телевизор',select('screen_id',[],item.screen_id));
