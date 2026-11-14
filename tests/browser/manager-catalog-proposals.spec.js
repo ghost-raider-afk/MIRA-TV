@@ -181,6 +181,17 @@ test('canonical TV preview, price request, administrator reply and permissions u
     const repeatedId=(await repeatedPrice.json()).id;
     expect((await managerPage.request.delete('/api/manager/proposals/'+repeatedId)).status()).toBe(204);
 
+    // New menu requests must never silently target the first point, TV or menu row.
+    await managerPage.locator('#manager-create-request').click();
+    await create.locator('#crm-preset').selectOption('menu_add');
+    await expect(create.locator('[name="product_id"]')).toHaveValue('');
+    await expect(create.locator('[name="location_id"]')).toHaveValue('');
+    await create.locator('#crm-preset').selectOption('menu_remove');
+    await expect(create.locator('[name="location_id"]')).toHaveValue('');
+    await expect(create.locator('[name="screen_id"]')).toHaveValue('');
+    await expect(create.locator('[name="row_id"]')).toHaveValue('');
+    await create.getByRole('button',{name:'Отмена'}).click();
+
     await adminPage.goto('/catalog');
     await openTab(adminPage,'approvals');
     await expect(adminPage).toHaveURL(/\/approvals$/);
