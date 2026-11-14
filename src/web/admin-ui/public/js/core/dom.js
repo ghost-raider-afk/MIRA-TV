@@ -1,4 +1,5 @@
 import { showToast } from './toasts.js';
+import { showManagerInlineError } from './manager-error-report.js';
 
 export function element(id) {
   return document.getElementById(id);
@@ -21,16 +22,22 @@ function messageSeverity(kind) {
   return 'error';
 }
 
-export function setMessage(id, message, kind = 'error') {
+export function setMessage(id, message, kind = 'error', error = null) {
   const target = element(id);
   if (target) {
     target.textContent = message;
     target.className = 'form-message is-hidden';
   }
+  if (message && kind === 'error' && document.body?.dataset?.page === 'manager'
+      && target?.closest('dialog')?.open) {
+    showManagerInlineError(target, error || new Error(message), id);
+    return;
+  }
   showToast(message, {
     severity: messageSeverity(kind),
     category: messageCategory(id),
-    persist: true
+    persist: true,
+    error, source:id
   });
 }
 
