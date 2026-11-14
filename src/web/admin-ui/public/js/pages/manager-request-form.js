@@ -43,11 +43,17 @@ function field(label, child) {
   wrapper.append(node('span','',label),child);
   return wrapper;
 }
-function productChoice(id) {
-  return select('product_id',managerCatalog.map((p)=>[p.id,catalogProductTitle(p)]),id);
+function productChoice(id, catalog = managerCatalog) {
+  return select('product_id',[
+    ['', 'Выберите товар'],
+    ...catalog.map((p)=>[p.id,catalogProductTitle(p)])
+  ],id ?? '');
 }
-function locationChoice(id) {
-  return select('location_id',managerLocations.map((p)=>[p.id,p.name]),id);
+function locationChoice(id, locations = managerLocations) {
+  return select('location_id',[
+    ['', 'Выберите торговую точку'],
+    ...locations.map((p)=>[p.id,p.name])
+  ],id ?? '');
 }
 function propertyChoice(value) {
   return select('property',Object.entries(FIELDS).map(([key,name])=>[key,name]),value);
@@ -60,11 +66,17 @@ function valueInput(property,value = '') {
 }
 function productById(id) { return managerCatalog.find((p)=>Number(p.id) === Number(id)); }
 function rowValue(item, name) {
-  const root = document.querySelector('[data-crm-key="' + item.key + '"]');
+  const root = document.getElementById('crm-form-items')?.querySelector('[data-crm-key="' + item.key + '"]');
   return root?.querySelector('[name="' + name + '"]')?.value ?? '';
 }
 function collectRows() {
   return rows.map((item) => {
+    if (['price_change','property_change','menu_add'].includes(requestType)) {
+      const productId = Number(rowValue(item,'product_id'));
+      if (!Number.isSafeInteger(productId) || productId <= 0 || !productById(productId)) {
+        throw new Error('Выберите товар в каждой позиции заявки.');
+      }
+    }
     if (requestType === 'price_change') return {
       product_id:Number(rowValue(item,'product_id')),value:rowValue(item,'value')
     };
@@ -74,18 +86,26 @@ function collectRows() {
       if (property === 'active' || property === 'alcoholic') value = value === 'true';
       return { product_id:Number(rowValue(item,'product_id')),property,value };
     }
-    if (requestType === 'menu_add') return {
-      product_id:Number(rowValue(item,'product_id')),location_id:Number(rowValue(item,'location_id'))
-    };
-    if (requestType === 'menu_remove') return {
-      screen_id:Number(rowValue(item,'screen_id')),row_id:rowValue(item,'row_id')
-    };
+    if (requestType === 'menu_add') {
+      const locationId = Number(rowValue(item,'location_id'));
+      if (!Number.isSafeInteger(locationId) || locationId <= 0) {
+        throw new Error('Выберите торговую точку в каждой позиции заявки.');
+      }
+      return { product_id:Number(rowValue(item,'product_id')),location_id:locationId };
+    }
+    if (requestType === 'menu_remove') {
+      const screenId = Number(rowValue(item,'screen_id'));
+      const rowId = rowValue(item,'row_id');
+      if (!Number.isSafeInteger(screenId) || screenId <= 0 || !rowId) {
+        throw new Error('Выберите телевизор и позицию для удаления.');
+      }
+      return { screen_id:screenId,row_id:rowId };
+    }
     return null;
   });
 }
-async function renderRemovalSelector(container,item) {
-  const locations = managerLocations;
-  const location = locationChoice(item.location_id ?? locations[0]?.id);
+async function renderRemovalSelector(container,item,locations = managerLocations) {
+  const location = locationChoice(item.location_id,locations);
   item.location_id = Number(location.value);
   container.append(field('Торговая точка',location));
   const tvField = field('Телевизор',select('screen_id',[],item.screen_id));
@@ -101,13 +121,15 @@ async function renderRemovalSelector(container,item) {
     try {
       const context = await api.get(API.managerBase + '/screens/' + requestedScreenId + '/context');
       if (screen.value !== requestedScreenId || String(item.screen_id) !== requestedScreenId) return;
-      target.replaceChildren();
+      target.replaceChildren(new Option('Выберите позицию из меню',''));
       for (const row of (context?.draft?.rows || [])) {
         if (row.kind !== 'item' || row.enabled === false) continue;
         target.add(new Option(row.name || 'Позиция ' + row.id,row.id));
       }
-      if (!target.options.length) target.add(new Option('На этом ТВ нет позиций',''));
-      if (item.row_id) target.value = item.row_id;
+      if (target.options.length === 1) target.add(new Option('На этом ТВ нет позиций',''));
+      if (item.row_id && [...target.options].some((v)=>v.value===String(item.row_id))) {
+        target.value = String(item.row_id);
+      }
       item.row_id = target.value;
     } catch {
       if (screen.value === requestedScreenId) {
@@ -119,7 +141,7 @@ async function renderRemovalSelector(container,item) {
     const screen = tvField.querySelector('select');
     const target = Number(location.value);
     const point = locations.find((p)=>Number(p.id) === target);
-    screen.replaceChildren();
+    screen.replaceChildren(new Option('Выберите телевизор',''));
     for (const v of point?.screens || []) {
       if (v.status === 'published') screen.add(new Option(v.name,v.id));
     }
@@ -138,10 +160,10 @@ function renderRow(item) {
   if (requestType === 'menu_remove') {
     void renderRemovalSelector(container,item);
   } else {
-    const product = productChoice(item.product_id || managerCatalog[0]?.id);
+    const product = productChoice(item.product_id);
     container.append(field('Товар',product));
     if (requestType === 'menu_add') {
-      container.append(field('Торговая точка',locationChoice(item.location_id || managerLocations[0]?.id)));
+      container.append(field('Торговая точка',locationChoice(item.location_id)));
     } else if (requestType === 'price_change') {
       const previous = node('small','crm-form-before');
       const refresh = () => { previous.textContent = 'Текущая цена: ' + (productById(product.value)?.price_primary || '—') + ' ₽'; };
@@ -309,8 +331,8 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
   const catalog=catalogResult.status==='fulfilled'?catalogResult.value:{};
   const locations=locationsResult.status==='fulfilled'?locationsResult.value:[];
   if (host.dataset.requestId !== String(proposal.id)) return;
-  managerCatalog=Array.isArray(catalog?.products)?catalog.products:[];
-  managerLocations=Array.isArray(locations)?locations:[];
+  const workflowCatalog=Array.isArray(catalog?.products)?catalog.products:[];
+  const workflowLocations=Array.isArray(locations)?locations:[];
   const edits=[];
   const type=proposal.request_type;
   for (const item of proposal.items||[]) {
@@ -348,13 +370,13 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
           key:item.key,value:['alcoholic','active'].includes(item.property) ? editor.value==='true' : editor.value
         }));
       } else if (type==='menu_add') {
-        const product=productChoice(item.product_id);
-        const location=locationChoice(item.location_id);
+        const product=productChoice(item.product_id,workflowCatalog);
+        const location=locationChoice(item.location_id,workflowLocations);
         wrapper.append(field('Товар',product),field('Точка',location));
         edits.push(()=>({key:item.key,product_id:Number(product.value),location_id:Number(location.value)}));
       } else if (type==='menu_remove') {
         const correction={...item};
-        await renderRemovalSelector(wrapper,correction);
+        await renderRemovalSelector(wrapper,correction,workflowLocations);
         edits.push(()=>({
           key:item.key,screen_id:Number(wrapper.querySelector('[name="screen_id"]').value),
           row_id:wrapper.querySelector('[name="row_id"]').value
@@ -367,7 +389,7 @@ export async function renderManagerWorkflow(proposal,host,onRefresh) {
         }
         const points=node('div','crm-form-points');
         points.append(node('strong','','Торговые точки'));
-        for (const point of managerLocations) {
+        for (const point of workflowLocations) {
           const label=node('label');
           const check=input('location_ids',point.id,'checkbox');
           check.checked=item.location_ids?.includes(point.id);

@@ -141,6 +141,25 @@ test('administrator rejection never changes production catalog', async () => {
   assert.equal(result.proposal.status, 'rejected');
 });
 
+test('workflow requests cannot be changed through legacy catalog approval actions', async () => {
+  for (const decision of ['approve','reject','rework']) {
+    const store = reviewStore({ currentProposal:proposal({
+      entity_type:'request', entity_id:null, request_type:'price_change',
+      items:[{key:1,product_id:1,property:'price_primary',before:'200',value:'220'}]
+    }) });
+    await assert.rejects(
+      reviewCatalogChangeProposal(store, {
+        proposalId:10,decision,reviewerUsername:'admin',reviewComment:'Некорректное действие'
+      }),
+      (error) => error.status === 400 && /пресета/.test(error.message)
+    );
+    assert.equal(store.calls.updates,0);
+    assert.deepEqual(store.calls.locks,[]);
+    assert.deepEqual(store.calls.resolves,[]);
+    assert.equal(store.currentProposal.status,'pending');
+  }
+});
+
 test('stale proposal becomes conflict and cannot overwrite a newer catalog value', async () => {
   const store = reviewStore({ current:product('2026-10-17T10:02:00.000Z') });
   const result = await reviewCatalogChangeProposal(store, {
