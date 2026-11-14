@@ -20,7 +20,9 @@ function reportPositions() {
       location_id:selected(row, 'location_id')?.value || '',
       screen_id:selected(row, 'screen_id')?.value || '',
       row_id:selected(row, 'row_id')?.value || '',
-      property:selected(row, 'property')?.value || '',
+      property:selected(row, 'property')?.value
+        || (document.getElementById('manager-crm-dialog')?.open
+          && document.getElementById('crm-preset')?.value === 'price_change' ? 'price_primary' : ''),
       new_value:selected(row, 'value')?.value || ''
     };
   });
