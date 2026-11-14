@@ -81,6 +81,9 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
   return store.transaction(async (tx) => {
     const proposal = await tx.getCatalogProposalForUpdate(proposalId);
     if (!proposal) return { kind:'missing', proposal:null, entity:null };
+    if (proposal.entity_type === 'request') {
+      throw Object.assign(new Error('Заявка обрабатывается через действия пресета.'), { status:400 });
+    }
     if (proposal.status !== 'pending') return { kind:'resolved', proposal, entity:null };
 
     if (status === 'rework') {

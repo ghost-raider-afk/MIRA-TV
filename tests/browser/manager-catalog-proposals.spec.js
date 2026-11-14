@@ -150,6 +150,81 @@ test('canonical TV preview, price request, administrator reply and permissions u
     await expect(managerDetail.locator('.request-detail-meta .crm-status')).toHaveText('На рассмотрении');
     await managerDetail.getByRole('button',{name:'Закрыть'}).click();
 
+    // Reload to reset local row keys, then leave a previously viewed request in the DOM.
+    // The new form's first row has the same key; submission must read only its own fields.
+    await managerPage.reload();
+    await openTab(managerPage,'manager-requests');
+    await priceRow.click();
+    await expect(managerDetail.locator('[data-crm-key="1"]')).toHaveCount(1);
+    await managerDetail.getByRole('button',{name:'Закрыть'}).click();
+    await managerPage.locator('#manager-create-request').click();
+    await expect(create).toBeVisible();
+    await expect(create.locator('.crm-form-row [name="product_id"]')).toHaveValue('');
+    await create.locator('.crm-form-row [name="value"]').fill('225');
+    await create.getByRole('button',{name:'Отправить заявку'}).click();
+    await expect(create.locator('#crm-create-error')).toContainText('Выберите товар');
+
+    await create.locator('.crm-form-row [name="product_id"]').selectOption(String(productId));
+    await create.locator('#crm-add-row').click();
+    await expect(create.locator('.crm-form-row [name="product_id"]').nth(1)).toHaveValue('');
+    await create.locator('.crm-form-row').last().getByRole('button',{name:'Убрать строку'}).click();
+    const repeatedPosted=managerPage.waitForResponse((response)=>
+      response.url().endsWith('/api/manager/proposals/request') && response.request().method()==='POST'
+    );
+    await create.getByRole('button',{name:'Отправить заявку'}).click();
+    const repeatedPrice=await repeatedPosted;
+    expect(repeatedPrice.status()).toBe(201);
+    expect(repeatedPrice.request().postDataJSON().items).toEqual([
+      {product_id:Number(productId),value:'225'}
+    ]);
+    await expect(create).not.toBeVisible();
+    const repeatedId=(await repeatedPrice.json()).id;
+    expect((await managerPage.request.delete('/api/manager/proposals/'+repeatedId)).status()).toBe(204);
+
+    // An old detail fetch may finish after its dialog closes and a new form opens.
+    // Its stale catalog response must never replace the active form's catalog state.
+    let releaseStaleCatalog;
+    let markDetailCatalogStarted;
+    const detailCatalogStarted=new Promise((resolve)=>{markDetailCatalogStarted=resolve;});
+    const staleCatalogGate=new Promise((resolve)=>{releaseStaleCatalog=resolve;});
+    let catalogReads=0;
+    await managerPage.route('**/api/manager/catalog',async(route)=>{
+      if (++catalogReads===1) {
+        markDetailCatalogStarted();
+        await staleCatalogGate;
+        await route.fulfill({status:200,contentType:'application/json',body:'{"products":[],"packaging":[]}'});
+      } else await route.continue();
+    });
+    await priceRow.click();
+    await detailCatalogStarted;
+    await managerDetail.getByRole('button',{name:'Закрыть'}).click();
+    await managerPage.locator('#manager-create-request').click();
+    await expect(create).toBeVisible();
+    await create.locator('.crm-form-row [name="product_id"]').selectOption(String(productId));
+    await create.locator('.crm-form-row [name="value"]').fill('226');
+    releaseStaleCatalog();
+    await expect(managerDetail.locator('[data-crm-key="1"]')).toHaveCount(1);
+    await managerPage.unroute('**/api/manager/catalog');
+    const racedPosted=managerPage.waitForResponse((response)=>
+      response.url().endsWith('/api/manager/proposals/request') && response.request().method()==='POST'
+    );
+    await create.getByRole('button',{name:'Отправить заявку'}).click();
+    const racedPrice=await racedPosted;
+    expect(racedPrice.status()).toBe(201);
+    expect(racedPrice.request().postDataJSON().items[0].product_id).toBe(Number(productId));
+    expect((await managerPage.request.delete('/api/manager/proposals/'+(await racedPrice.json()).id)).status()).toBe(204);
+
+    // New menu requests must never silently target the first point, TV or menu row.
+    await managerPage.locator('#manager-create-request').click();
+    await create.locator('#crm-preset').selectOption('menu_add');
+    await expect(create.locator('[name="product_id"]')).toHaveValue('');
+    await expect(create.locator('[name="location_id"]')).toHaveValue('');
+    await create.locator('#crm-preset').selectOption('menu_remove');
+    await expect(create.locator('[name="location_id"]')).toHaveValue('');
+    await expect(create.locator('[name="screen_id"]')).toHaveValue('');
+    await expect(create.locator('[name="row_id"]')).toHaveValue('');
+    await create.getByRole('button',{name:'Отмена'}).click();
+
     await adminPage.goto('/catalog');
     await openTab(adminPage,'approvals');
     await expect(adminPage).toHaveURL(/\/approvals$/);
