@@ -1,3 +1,5 @@
+import { attachManagerErrorAction } from './manager-error-report.js';
+
 const TOAST_LIFETIME_MS = 5000;
 const SEVERITIES = new Set(['success', 'warning', 'error', 'info']);
 let lastPersisted = { key: '', at: 0 };
@@ -66,13 +68,14 @@ function installLifetime(toast, remove) {
   toast.addEventListener('focusout', resume);
 }
 
-export function showToast(message, { severity = 'info', category = 'interface', details = '', persist = true } = {}) {
+export function showToast(message, { severity = 'info', category = 'interface', details = '', persist = true, error = null, source = '' } = {}) {
   const text = String(message || '').trim();
   if (!text) return null;
   const level = normalizedSeverity(severity);
   const container = ensureContainer();
   const toast = document.createElement('article');
   toast.className = `system-toast is-${level}`;
+  const managerError = level === 'error' && document.body?.dataset?.page === 'manager';
   toast.setAttribute('role', level === 'error' ? 'alert' : 'status');
 
   const body = document.createElement('div');
@@ -106,9 +109,15 @@ export function showToast(message, { severity = 'info', category = 'interface', 
     window.setTimeout(() => toast.remove(), 160);
   };
   close.addEventListener('click', remove);
+  if (managerError) attachManagerErrorAction(body, text, { error, source });
   toast.append(body, close);
+  if (managerError) {
+    // Keep the action available until the manager reports or dismisses the error.
+    const existing = container.querySelectorAll('.system-toast.is-error');
+    if (existing.length >= 4) existing[0].remove();
+  }
   container.append(toast);
-  installLifetime(toast, remove);
+  if (!managerError) installLifetime(toast, remove);
   if (persist) persistEvent({ message: text, severity: level, category, details });
   return toast;
 }

@@ -75,3 +75,9 @@
 .manager-access-locations>label input{flex:0 0 auto;accent-color:var(--ui-accent)}
 .manager-access-locations>label:focus-within{outline:2px solid var(--ui-accent);outline-offset:1px}
 @media(max-width:700px){.manager-access-locations{grid-template-columns:minmax(0,1fr)}}
+
+/* One-click diagnostics for manager errors, including errors inside modal dialogs. */
+.manager-error-report-button{display:inline-flex;align-items:center;justify-content:center;justify-self:start;min-height:34px;max-width:100%;margin-top:5px;padding:6px 12px;border:1px solid var(--ui-danger);border-radius:8px;background:var(--ui-panel-raised);color:var(--ui-text);font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.manager-error-report-button:hover:not(:disabled),.manager-error-report-button:focus-visible{background:var(--ui-panel-hover);outline:2px solid var(--ui-accent);outline-offset:1px}
+.manager-error-report-button:disabled{opacity:.8;cursor:default}
+.manager-error-report-status{display:block;margin-top:3px;max-width:100%;overflow-wrap:anywhere;color:var(--ui-text-muted);font-size:12px;line-height:1.35}

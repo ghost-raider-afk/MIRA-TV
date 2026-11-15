@@ -3,6 +3,8 @@ import { loadAuthenticatedContext } from './core/session.js';
 import { showLoginGreeting } from './core/greeting.js';
 import { initialiseNotifications } from './core/notifications.js';
 import { installFrontendDiagnostics, reportFrontendError } from './core/diagnostics.js';
+import { installManagerGlobalErrorReporting } from './core/manager-error-report.js';
+import { showToast } from './core/toasts.js';
 import { createAppRouter } from './core/router.js';
 import { state } from './core/state.js';
 import { initialiseShell, refreshShellRoute } from './components/shell.js';
@@ -86,6 +88,7 @@ async function initialiseApplication() {
     try {
       await loadAuthenticatedContext();
       if (state.session?.role !== 'manager') return window.location.replace('/');
+      installManagerGlobalErrorReporting(showToast);
       const { initialiseManagerView } = await import('./pages/manager.js');
       initialiseManagerView();
       initialiseNotifications();
