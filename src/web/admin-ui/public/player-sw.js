@@ -1,9 +1,9 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v86';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v87';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v87';
+const SHELL_CACHE = 'mira-tv-player-shell-v88';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
-// Deliver Chromium 80-safe Player CSS as a new atomic offline shell.
+// Install the versioned Player bootstrap atomically; retain the previous offline shell.
 const CORE_SHELL_ASSETS = [
   '/player.html',
   '/player.webmanifest',
