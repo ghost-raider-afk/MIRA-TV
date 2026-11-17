@@ -194,7 +194,7 @@ test('readable A→Я sorts each column inside its section without moving rows b
       { id:'other', kind:'item', product_id:5, column:'right', enabled:true }
     ]
   });
-  const names = new Map([[1,'Янтарное'],[2,'Ячменное'],[3,'Альфа'],[4,'Бавария'],[5,'Гранат']]);
+  const names = new Map([[1,'Ячменное'],[2,'Янтарное'],[3,'Альфа'],[4,'Бавария'],[5,'Гранат']]);
   const name = (id) => names.get(Number(id));
   assert.equal(sortSectionItems(state, 'section-full', name), true);
   assert.deepEqual(state.rows.map((r) => r.id), [
@@ -229,4 +229,35 @@ test('legacy A→Я keeps its historical single-column sort behaviour', () => {
   });
   assert.equal(sortSectionItems(state, 'section', (id) => Number(id) === 1 ? 'Янтарное' : 'Альфа'), true);
   assert.deepEqual(state.rows.map((r) => r.id), ['section','left-a','right-z']);
+});
+
+
+test('readable sorting ignores other-column headers and stops only at its own next header', () => {
+  const state = createEditorState({
+    settings:{ table_style:'readable' },
+    rows:[
+      { id:'s-left', kind:'section', name:'Светлое', column:'left', enabled:true },
+      { id:'l-z', kind:'item', product_id:1, column:'left', enabled:true },
+      { id:'s-right', kind:'section', name:'Тёмное', column:'right', enabled:true },
+      { id:'r-z', kind:'item', product_id:2, column:'right', enabled:true },
+      { id:'l-a', kind:'item', product_id:3, column:'left', enabled:true },
+      { id:'r-a', kind:'item', product_id:4, column:'right', enabled:true },
+      { id:'s-left-next', kind:'section', name:'Тара', column:'left', enabled:true },
+      { id:'l-other', kind:'item', product_id:5, column:'left', enabled:true },
+      { id:'r-b', kind:'item', product_id:6, column:'right', enabled:true }
+    ]
+  });
+  const names = new Map([[1,'Янтарное'],[2,'Ячменное'],[3,'Алтунин'],[4,'Арфа'],[5,'Бавария'],[6,'Барное']]);
+  const lookup = (id) => names.get(Number(id));
+  assert.equal(sortSectionItems(state, 's-left', lookup), true);
+  assert.deepEqual(state.rows.map((r) => r.id), [
+    's-left','l-a','s-right','r-z','l-z','r-a','s-left-next','l-other','r-b'
+  ], 'left sort crosses right header without reordering any right column item');
+  assert.equal(sortSectionItems(state, 's-right', lookup), true);
+  assert.deepEqual(state.rows.map((r) => r.id), [
+    's-left','l-a','s-right','r-b','l-z','r-a','s-left-next','l-other','r-z'
+  ], 'right sort crosses the following left header and does not touch left rows');
+  const revision = state.revision;
+  assert.equal(sortSectionItems(state, 's-left-next', lookup), true);
+  assert.equal(state.revision, revision, 'a one-item section does not write an unnecessary revision');
 });

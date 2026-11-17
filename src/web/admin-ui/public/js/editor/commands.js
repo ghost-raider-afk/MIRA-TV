@@ -47,18 +47,25 @@ export function sortSectionItems(state, sectionId, productNameById) {
   if (sectionIndex === -1 || state.rows[sectionIndex]?.kind !== 'section') return false;
   if (typeof productNameById !== 'function') throw new TypeError('Для сортировки раздела требуется функция получения названия продукции.');
 
-  let end = sectionIndex + 1;
-  while (end < state.rows.length && state.rows[end]?.kind !== 'section') end += 1;
-
-  // A readable section may contain both columns interleaved in the saved row array.
-  // Sort only the slots belonging to the same column; never move a row across columns.
+  // Readable columns own independent sections, even when their rows are interleaved.
+  // A full-width header owns both columns until each meets its next header.
   const perColumn = state.settings?.table_style === 'readable';
-  const groups = new Map();
-  for (let index = sectionIndex + 1; index < end; index += 1) {
+  const sectionColumn = state.rows[sectionIndex].column === 'full' ? 'full'
+    : state.rows[sectionIndex].column === 'right' ? 'right' : 'left';
+  const columns = perColumn && sectionColumn === 'full' ? ['left', 'right']
+    : [perColumn ? sectionColumn : 'left'];
+  const activeColumns = new Set(columns);
+  const groups = new Map(columns.map((column) => [column, []]));
+  for (let index = sectionIndex + 1; index < state.rows.length && activeColumns.size; index += 1) {
     const row = state.rows[index];
+    if (row?.kind === 'section') {
+      if (!perColumn || row.column === 'full') break;
+      activeColumns.delete(row.column === 'right' ? 'right' : 'left');
+      continue;
+    }
     if (row?.kind !== 'item') continue;
     const column = perColumn && row.column === 'right' ? 'right' : 'left';
-    if (!groups.has(column)) groups.set(column, []);
+    if (!activeColumns.has(column)) continue;
     const items = groups.get(column);
     items.push({ index, row, order:items.length, name:String(productNameById(row.product_id) || '') });
   }
