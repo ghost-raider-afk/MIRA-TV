@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEditorState, markEditorSaved } from '../../../src/web/admin-ui/public/js/editor/state.js';
-import { addRow, moveRow, removeRow, sortSectionItems, updateRow, updateSettings } from '../../../src/web/admin-ui/public/js/editor/commands.js';
+import { addRow, changeRowColumn, moveRow, removeRow, sortSectionItems, updateRow, updateSettings } from '../../../src/web/admin-ui/public/js/editor/commands.js';
 import { buildDisplayLines, buildRenderLayout, buildRenderModel, buildTableSvg, MENU_REFERENCE } from '../../../src/web/admin-ui/public/js/editor/renderer.js';
 import { normaliseEditorSettings } from '../../../src/web/admin-ui/public/js/editor/settings.js';
 
@@ -260,4 +260,53 @@ test('readable sorting ignores other-column headers and stops only at its own ne
   const revision = state.revision;
   assert.equal(sortSectionItems(state, 's-left-next', lookup), true);
   assert.equal(state.revision, revision, 'a one-item section does not write an unnecessary revision');
+});
+
+
+test('transferred readable product joins a later target-column header before A→Я and preserves both sections', () => {
+  const state = createEditorState({
+    settings:{ table_style:'readable' },
+    rows:[
+      { id:'left-header', kind:'section', name:'Светлое', column:'left', enabled:true },
+      { id:'left-a', kind:'item', product_id:1, column:'left', enabled:true },
+      { id:'moving', kind:'item', product_id:2, column:'left', enabled:true },
+      { id:'right-header', kind:'section', name:'Тёмное', column:'right', enabled:true },
+      { id:'right-z', kind:'item', product_id:3, column:'right', enabled:true },
+      { id:'right-a', kind:'item', product_id:4, column:'right', enabled:true }
+    ]
+  });
+  assert.equal(changeRowColumn(state, 'moving', 'right'), true);
+  assert.deepEqual(state.rows.map((row) => row.id),
+    ['left-header','left-a','right-header','moving','right-z','right-a']);
+  assert.equal(state.rows[3].column, 'right');
+  const names = new Map([[1,'Альфа'],[2,'Бавария'],[3,'Янтарное'],[4,'Арфа']]);
+  assert.equal(sortSectionItems(state, 'right-header', (id) => names.get(Number(id))), true);
+  assert.deepEqual(state.rows.map((row) => row.id),
+    ['left-header','left-a','right-header','right-a','moving','right-z']);
+  assert.deepEqual(state.rows.map((row) => row.column),
+    ['left','left','right','right','right','right']);
+  const model = buildRenderModel(state, { width:1920, height:1080 });
+  const lines = buildDisplayLines(model, {
+    products:[...[1,2,3,4].map((id) => ({ id, name:names.get(id), price_primary:'200' }))]
+  });
+  assert.deepEqual(lines.filter((line) => line.kind === 'item' && line.column === 'right').map((line) => line.tone),
+    ['light','accent','light']);
+  const beforeNoop = state.revision;
+  assert.equal(changeRowColumn(state, 'moving', 'right'), true);
+  assert.equal(state.revision, beforeNoop);
+});
+
+test('column change keeps rows inside their full-width section and leaves classic mode order unchanged', () => {
+  const rows = [
+    { id:'full', kind:'section', name:'Меню', column:'full', enabled:true },
+    { id:'item', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'other', kind:'section', name:'Следующий', column:'right', enabled:true }
+  ];
+  const state = createEditorState({ settings:{ table_style:'readable' }, rows });
+  assert.equal(changeRowColumn(state, 'item', 'right'), true);
+  assert.deepEqual(state.rows.map((row) => row.id), ['full','other','item'],
+    'a later right header is the target for an item moved out of the full-width header section');
+  const classic = createEditorState({ settings:{ table_style:'legacy' }, rows });
+  assert.equal(changeRowColumn(classic, 'item', 'right'), true);
+  assert.deepEqual(classic.rows.map((row) => row.id), ['full','item','other']);
 });

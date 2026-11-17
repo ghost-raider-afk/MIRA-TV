@@ -42,6 +42,34 @@ export function moveRow(state, rowId, toIndex) {
   return true;
 }
 
+export function changeRowColumn(state, rowId, column) {
+  const fromIndex = rowIndex(state, rowId);
+  if (fromIndex === -1 || !['left', 'right', 'full'].includes(column)) return false;
+  const row = state.rows[fromIndex];
+  if (row.kind === 'section') return updateRow(state, rowId, { column });
+  if (column === 'full') return false;
+  const current = row.column === 'right' ? 'right' : 'left';
+  if (current === column) return true;
+
+  if (state.settings?.table_style === 'readable') {
+    // A target-column header after the row would otherwise appear below the moved
+    // product, outside its visible section and outside that section's A→Я scope.
+    for (let index = fromIndex + 1; index < state.rows.length; index += 1) {
+      const next = state.rows[index];
+      if (next?.kind !== 'section') continue;
+      if (next.column === 'full') break;
+      if ((next.column === 'right' ? 'right' : 'left') !== column) continue;
+      const moved = { ...row, column };
+      state.rows.splice(fromIndex, 1);
+      state.rows.splice(index, 0, moved);
+      markEditorChanged(state);
+      return true;
+    }
+  }
+
+  return updateRow(state, rowId, { column });
+}
+
 export function sortSectionItems(state, sectionId, productNameById) {
   const sectionIndex = rowIndex(state, sectionId);
   if (sectionIndex === -1 || state.rows[sectionIndex]?.kind !== 'section') return false;
