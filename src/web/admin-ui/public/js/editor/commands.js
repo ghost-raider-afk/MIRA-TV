@@ -50,25 +50,31 @@ export function sortSectionItems(state, sectionId, productNameById) {
   let end = sectionIndex + 1;
   while (end < state.rows.length && state.rows[end]?.kind !== 'section') end += 1;
 
-  const itemIndexes = [];
-  const items = [];
+  // A readable section may contain both columns interleaved in the saved row array.
+  // Sort only the slots belonging to the same column; never move a row across columns.
+  const perColumn = state.settings?.table_style === 'readable';
+  const groups = new Map();
   for (let index = sectionIndex + 1; index < end; index += 1) {
     const row = state.rows[index];
     if (row?.kind !== 'item') continue;
-    itemIndexes.push(index);
-    items.push({ row, order: items.length, name: String(productNameById(row.product_id) || '') });
+    const column = perColumn && row.column === 'right' ? 'right' : 'left';
+    if (!groups.has(column)) groups.set(column, []);
+    const items = groups.get(column);
+    items.push({ index, row, order:items.length, name:String(productNameById(row.product_id) || '') });
   }
-  if (items.length < 2) return true;
 
-  const collator = new Intl.Collator('ru', { usage: 'sort', sensitivity: 'base' });
-  const sorted = [...items].sort((left, right) => collator.compare(left.name, right.name) || left.order - right.order);
-  const changed = sorted.some((entry, index) => entry.row !== items[index].row);
-  if (!changed) return true;
-
-  itemIndexes.forEach((rowIndexValue, index) => {
-    state.rows[rowIndexValue] = sorted[index].row;
-  });
-  markEditorChanged(state);
+  const collator = new Intl.Collator('ru', { usage:'sort', sensitivity:'base' });
+  let changed = false;
+  for (const items of groups.values()) {
+    if (items.length < 2) continue;
+    const sorted = [...items].sort((a, b) => collator.compare(a.name, b.name) || a.order - b.order);
+    if (sorted.every((item, index) => item.row === items[index].row)) continue;
+    items.forEach((item, index) => {
+      state.rows[item.index] = sorted[index].row;
+    });
+    changed = true;
+  }
+  if (changed) markEditorChanged(state);
   return true;
 }
 

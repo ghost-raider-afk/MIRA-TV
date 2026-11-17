@@ -178,3 +178,55 @@ test('automatic font fitting reduces scale and refuses silent clipping', () => {
   assert.equal(layout.vertical.autoReduced, true);
   assert.equal(layout.vertical.fits, false);
 });
+
+
+test('readable A→Я sorts each column inside its section without moving rows between columns', () => {
+  const state = createEditorState({
+    settings:{ table_style:'readable' },
+    rows:[
+      { id:'section-full', kind:'section', name:'Пиво', column:'full', enabled:true },
+      { id:'left-z', kind:'item', product_id:1, column:'left', enabled:true },
+      { id:'right-z', kind:'item', product_id:2, column:'right', enabled:true },
+      { id:'left-a', kind:'item', product_id:3, column:'left', enabled:true },
+      { id:'pack-left', kind:'packaging', packaging_id:90, column:'left', enabled:true },
+      { id:'right-a', kind:'item', product_id:4, column:'right', enabled:true },
+      { id:'section-right', kind:'section', name:'Другой раздел', column:'right', enabled:true },
+      { id:'other', kind:'item', product_id:5, column:'right', enabled:true }
+    ]
+  });
+  const names = new Map([[1,'Янтарное'],[2,'Ячменное'],[3,'Альфа'],[4,'Бавария'],[5,'Гранат']]);
+  const name = (id) => names.get(Number(id));
+  assert.equal(sortSectionItems(state, 'section-full', name), true);
+  assert.deepEqual(state.rows.map((r) => r.id), [
+    'section-full','left-a','right-a','left-z','pack-left','right-z','section-right','other'
+  ]);
+  assert.deepEqual(state.rows.map((r) => r.column), [
+    'full','left','right','left','left','right','right','right'
+  ]);
+  // Moving a product only changes its column; subsequent sorting cannot swap its neighbours' columns.
+  updateRow(state, 'left-z', { column:'right' });
+  assert.equal(sortSectionItems(state, 'section-full', name), true);
+  assert.deepEqual(state.rows.map((r) => r.id), [
+    'section-full','left-a','right-a','left-z','pack-left','right-z','section-right','other'
+  ]);
+  assert.deepEqual(state.rows.filter((r) => r.kind === 'item' && r.column === 'left').map((r) => r.id), ['left-a']);
+  assert.deepEqual(state.rows.filter((r) => r.kind === 'item' && r.column === 'right').map((r) => r.id), [
+    'right-a','left-z','right-z','other'
+  ]);
+  const stableRevision = state.revision;
+  assert.equal(sortSectionItems(state, 'section-full', name), true);
+  assert.equal(state.revision, stableRevision, 'sorting an already sorted section makes no new revision');
+});
+
+test('legacy A→Я keeps its historical single-column sort behaviour', () => {
+  const state = createEditorState({
+    settings:{ table_style:'legacy' },
+    rows:[
+      { id:'section', kind:'section', name:'P', column:'full', enabled:true },
+      { id:'right-z', kind:'item', product_id:1, column:'right', enabled:true },
+      { id:'left-a', kind:'item', product_id:2, column:'left', enabled:true }
+    ]
+  });
+  assert.equal(sortSectionItems(state, 'section', (id) => Number(id) === 1 ? 'Янтарное' : 'Альфа'), true);
+  assert.deepEqual(state.rows.map((r) => r.id), ['section','left-a','right-z']);
+});
