@@ -255,7 +255,7 @@ test('readable sorting ignores other-column headers and stops only at its own ne
   ], 'left sort crosses right header without reordering any right column item');
   assert.equal(sortSectionItems(state, 's-right', lookup), true);
   assert.deepEqual(state.rows.map((r) => r.id), [
-    's-left','l-a','s-right','r-b','l-z','r-a','s-left-next','l-other','r-z'
+    's-left','l-a','s-right','r-a','l-z','r-b','s-left-next','l-other','r-z'
   ], 'right sort crosses the following left header and does not touch left rows');
   const revision = state.revision;
   assert.equal(sortSectionItems(state, 's-left-next', lookup), true);
