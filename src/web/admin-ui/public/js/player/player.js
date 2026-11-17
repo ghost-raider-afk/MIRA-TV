@@ -582,6 +582,10 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
 
 function playerConnectivityChanged(state) {
   if (state === 'online') {
+    playerMessage.classList.remove('is-reauthorization-required');
+    playerMessage.setAttribute('role', 'status');
+    playerMessage.removeAttribute('tabindex');
+    playerMessage.removeAttribute('aria-label');
     void ensureBackgroundServices().then((services) => services?.online());
     showConnectionMessage('');
     return;
@@ -644,7 +648,23 @@ function newPlayerStateSync() {
   });
 }
 
-function playerUnauthorized() {
+function openPlayerReauthorization(event) {
+  if (!playerMessage.classList.contains('is-reauthorization-required')) return;
+  if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  showPairingIntro();
+}
+
+function playerUnauthorized({ preserveContext = false } = {}) {
+  if (preserveContext && playerStateSync?.hasContext) {
+    // Retain the live LKG image and binding. Only an administrator may initiate re-pairing.
+    playerMessage.classList.add('is-reauthorization-required');
+    playerMessage.setAttribute('role', 'button');
+    playerMessage.setAttribute('tabindex', '0');
+    playerMessage.setAttribute('aria-label', 'Требуется повторная привязка ТВ. Нажмите ОК, чтобы открыть подключение.');
+    showConnectionMessage('Требуется повторная привязка телевизора.');
+    return;
+  }
   backgroundServices?.stop();
   if (activationFromStorage()) {
     showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
@@ -860,6 +880,7 @@ async function bootstrapPlayer() {
       return;
     }
     if (playerStateSync.hasContext) {
+      playerUnauthorized({ preserveContext:true });
       playerStateSync.start();
       return;
     }
@@ -895,6 +916,8 @@ async function initialisePlayer() {
   playerStateSync = newPlayerStateSync();
 
   showActivationButton.addEventListener('click', () => void createActivation());
+  playerMessage.addEventListener('click', openPlayerReauthorization);
+  playerMessage.addEventListener('keydown', openPlayerReauthorization);
   installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
   if (!playerInstallSupportedPlatform() && installPlayerButton) setHidden(installPlayerButton, true);
   if (playerRunsStandalone() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';

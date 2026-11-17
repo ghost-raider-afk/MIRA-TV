@@ -162,7 +162,7 @@ function mountPublicRoutes(app, { store, config, realtime, weatherService }) {
     response.json({ app_name: site.app_name, logo_url: site.logo_url, favicon_url: site.favicon_url, accent_color: site.accent_color, signin_logo_size: site.signin_logo_size });
   });
   const rotateDeviceSession = createDeviceSessionRotationMiddleware({ store, config });
-  app.use(['/api/device/session', '/api/device/metrics'], rotateDeviceSession);
+  app.use(['/api/device/session', '/api/device/metrics', '/api/device/player-delta'], rotateDeviceSession);
   app.use('/api/device', createDevicePublicRouter({ store, config, realtime, weatherService }));
 }
 
