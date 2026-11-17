@@ -185,7 +185,7 @@ test('readable rows reuse classic alternating tones and keep address out of TV m
 });
 
 
-test('readable alternation is independent per column and resets only on that column section', () => {
+test('readable alternation is independent per visual column and every logical section resets both', () => {
   const rows = [
     { id:'s-left', kind:'section', name:'Светлое', column:'left', enabled:true },
     { id:'l1', kind:'item', product_id:1, column:'left', enabled:true },
@@ -235,4 +235,26 @@ test('moving a readable product between columns only recalculates tones in the a
   const after = tones(rows.map((row) => row.id === 'l2' ? { ...row, column:'right' } : row));
   assert.deepEqual(['l1','l3'].map((id) => after.get(id)), ['light','accent']);
   assert.deepEqual(['r1','l2','r2'].map((id) => after.get(id)), ['light','accent','light']);
+});
+
+
+test('a new section header resets tones in both columns regardless of its visual column', () => {
+  const rows = [
+    { id:'first', kind:'section', name:'Раздел 1', column:'left', enabled:true },
+    { id:'l1', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'r1', kind:'item', product_id:2, column:'right', enabled:true },
+    { id:'second', kind:'section', name:'Раздел 2', column:'right', enabled:true },
+    { id:'l2', kind:'item', product_id:3, column:'left', enabled:true },
+    { id:'r2', kind:'item', product_id:4, column:'right', enabled:true },
+    { id:'l3', kind:'item', product_id:5, column:'left', enabled:true },
+    { id:'r3', kind:'item', product_id:6, column:'right', enabled:true }
+  ];
+  const products = Array.from({ length:6 }, (_, i) => product(i+1, `Пиво ${i+1}`, '100', '150'));
+  const render = (sourceRows) => buildDisplayLines(buildRenderModel({ settings:{ table_style:'readable' }, rows:sourceRows }), { products })
+    .filter((line) => line.kind === 'item').map((line) => [line.sourceRowId, line.tone]);
+  assert.deepEqual(Object.fromEntries(render(rows)), {
+    l1:'light', r1:'light', l2:'light', r2:'light', l3:'accent', r3:'accent'
+  });
+  const movedTitle = rows.map((row) => row.id === 'second' ? { ...row, column:'left' } : row);
+  assert.deepEqual(render(movedTitle), render(rows), 'moving the header must not alter its logical tone boundaries');
 });

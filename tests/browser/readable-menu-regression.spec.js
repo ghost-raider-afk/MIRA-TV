@@ -145,7 +145,7 @@ test('readable table reuses classic row colors, protects price columns and hides
 });
 
 
-test('two-column A→Я sorts only within each column after transfer and preserves alternating TV tones', async ({ page }) => {
+test('A→Я sorts a logical section across both visual columns after transferring a product', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
   const suffix = `sort-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -195,8 +195,8 @@ test('two-column A→Я sorts only within each column after transfer and preserv
   await row(ids.section).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
   const order = async (column) => modal.locator(`.scene-table-editor-row[data-column="${column}"]`)
     .evaluateAll((nodes) => nodes.map((node) => node.dataset.sourceRowIds));
-  expect(await order('0')).toEqual([ids.lz]);
-  expect(await order('1')).toEqual([ids.la, ids.ra, ids.rb, ids.rz]);
+  expect(await order('0')).toEqual([ids.la]);
+  expect(await order('1')).toEqual([ids.ra, ids.rb, ids.lz, ids.rz]);
 
   const preview = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) => {
     const records = nodes.map((node) => {
@@ -213,16 +213,16 @@ test('two-column A→Я sorts only within each column after transfer and preserv
       right:records.filter((entry) => entry.x >= 600).sort((a,b) => a.y - b.y)
     };
   });
-  expect(preview.left.map((entry) => entry.text.split(' ')[0])).toEqual(['Янтарное']);
+  expect(preview.left.map((entry) => entry.text.split(' ')[0])).toEqual(['Альфа']);
   expect(preview.left.map((entry) => entry.tone)).toEqual(['light']);
   expect(preview.right.map((entry) => entry.text.split(' ')[0]))
-    .toEqual(['Альфа','Арфа','Бавария','Ячменное']);
+    .toEqual(['Арфа','Бавария','Янтарное','Ячменное']);
   expect(preview.right.map((entry) => entry.tone))
     .toEqual(['light','accent','light','accent']);
 });
 
 
-test('moving a product across separate column headers places it under the target header for A→Я', async ({ page }) => {
+test('moving a product across visual columns does not change its logical section', async ({ page }) => {
   await page.setViewportSize({ width:1600, height:900 });
   await login(page);
   const suffix = `transfer-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -267,17 +267,27 @@ test('moving a product across separate column headers places it under the target
   await expect(row(ids.moving)).toHaveAttribute('data-column', '1');
   const following = await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
     nodes.map((node) => node.dataset.sourceRowIds));
-  expect(following).toEqual([ids.left,ids.stable,ids.right,ids.moving,ids.destination]);
+  expect(following).toEqual([ids.left,ids.moving,ids.stable,ids.right,ids.destination]);
 
   await row(ids.right).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
   const rightOrder = await modal.locator('.scene-table-editor-row.is-item[data-column="1"]').evaluateAll((nodes) =>
     nodes.map((node) => node.dataset.sourceRowIds));
-  expect(rightOrder).toEqual([ids.destination,ids.moving]);
+  expect(rightOrder).toEqual([ids.moving,ids.destination],
+    'right section sort must not absorb a product from the preceding logical section');
+  await row(ids.left).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
+  expect(await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds)))
+    .toEqual([ids.left,ids.moving,ids.stable,ids.right,ids.destination]);
+  await row(ids.left).locator('.scene-table-editor-placement-button[data-column="right"]').click();
+  expect(await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds)))
+    .toEqual([ids.left,ids.moving,ids.stable,ids.right,ids.destination],
+      'moving a section title does not reparent its products');
   const rightTones = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) =>
     nodes.map((node) => ({
       x:Number(node.querySelector('.item-name')?.getAttribute('x') || 0),
       y:Number(node.querySelector('.item-name')?.getAttribute('y') || 0),
       tone:node.classList.contains('tone-accent') ? 'accent' : 'light'
     })).filter((entry) => entry.x > 600).sort((a,b) => a.y - b.y).map((entry) => entry.tone));
-  expect(rightTones).toEqual(['light','accent']);
+  expect(rightTones).toEqual(['light','light'], 'each logical section restarts the visual tone alternation');
 });

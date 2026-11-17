@@ -180,133 +180,139 @@ test('automatic font fitting reduces scale and refuses silent clipping', () => {
 });
 
 
-test('readable A→Я sorts each column inside its section without moving rows between columns', () => {
+test('readable A→Я sorts one logical section across both visual columns', () => {
   const state = createEditorState({
     settings:{ table_style:'readable' },
     rows:[
-      { id:'section-full', kind:'section', name:'Пиво', column:'full', enabled:true },
+      { id:'section', kind:'section', name:'Разливное', column:'left', enabled:true },
       { id:'left-z', kind:'item', product_id:1, column:'left', enabled:true },
-      { id:'right-z', kind:'item', product_id:2, column:'right', enabled:true },
+      { id:'right-b', kind:'item', product_id:2, column:'right', enabled:true },
       { id:'left-a', kind:'item', product_id:3, column:'left', enabled:true },
-      { id:'pack-left', kind:'packaging', packaging_id:90, column:'left', enabled:true },
-      { id:'right-a', kind:'item', product_id:4, column:'right', enabled:true },
-      { id:'section-right', kind:'section', name:'Другой раздел', column:'right', enabled:true },
-      { id:'other', kind:'item', product_id:5, column:'right', enabled:true }
+      { id:'pack', kind:'packaging', packaging_id:9, column:'left', enabled:true },
+      { id:'right-y', kind:'item', product_id:4, column:'right', enabled:true },
+      { id:'next', kind:'section', name:'Следующий', column:'right', enabled:true },
+      { id:'unrelated', kind:'item', product_id:5, column:'right', enabled:true }
     ]
   });
-  const names = new Map([[1,'Ячменное'],[2,'Янтарное'],[3,'Альфа'],[4,'Бавария'],[5,'Гранат']]);
-  const name = (id) => names.get(Number(id));
-  assert.equal(sortSectionItems(state, 'section-full', name), true);
+  const names = new Map([[1,'Ячменное'],[2,'Бавария'],[3,'Альфа'],[4,'Янтарное'],[5,'Тёмное']]);
+  const lookup = (id) => names.get(Number(id));
+  assert.equal(sortSectionItems(state, 'section', lookup), true);
   assert.deepEqual(state.rows.map((r) => r.id), [
-    'section-full','left-a','right-a','left-z','pack-left','right-z','section-right','other'
+    'section','left-a','right-y','right-b','pack','left-z','next','unrelated'
   ]);
   assert.deepEqual(state.rows.map((r) => r.column), [
-    'full','left','right','left','left','right','right','right'
+    'left','left','right','left','left','right','right','right'
   ]);
-  // Moving a product only changes its column; subsequent sorting cannot swap its neighbours' columns.
-  updateRow(state, 'left-z', { column:'right' });
-  assert.equal(sortSectionItems(state, 'section-full', name), true);
-  assert.deepEqual(state.rows.map((r) => r.id), [
-    'section-full','left-a','right-a','right-z','pack-left','left-z','section-right','other'
-  ]);
-  assert.deepEqual(state.rows.filter((r) => r.kind === 'item' && r.column === 'left').map((r) => r.id), ['left-a']);
-  assert.deepEqual(state.rows.filter((r) => r.kind === 'item' && r.column === 'right').map((r) => r.id), [
-    'right-a','right-z','left-z','other'
-  ]);
-  const stableRevision = state.revision;
-  assert.equal(sortSectionItems(state, 'section-full', name), true);
-  assert.equal(state.revision, stableRevision, 'sorting an already sorted section makes no new revision');
+  assert.deepEqual(state.rows.slice(1,6).filter((r) => r.kind === 'item' && r.column === 'left').map((r) => names.get(r.product_id)), ['Альфа','Бавария']);
+  assert.deepEqual(state.rows.slice(1,6).filter((r) => r.kind === 'item' && r.column === 'right').map((r) => names.get(r.product_id)), ['Янтарное','Ячменное']);
+  const revision = state.revision;
+  assert.equal(sortSectionItems(state, 'section', lookup), true);
+  assert.equal(state.revision, revision, 'already sorted visual columns must be idempotent');
+  assert.equal(state.rows[4].id, 'pack', 'packaging remains anchored');
+  assert.equal(state.rows[6].id, 'next', 'the next section remains anchored');
+
+  assert.equal(changeRowColumn(state, 'left-a', 'right'), true);
+  assert.equal(state.rows[1].id, 'left-a', 'column transfer never changes logical row order');
+  assert.equal(sortSectionItems(state, 'section', lookup), true);
+  const products = state.rows.slice(1,6).filter((r) => r.kind === 'item');
+  assert.deepEqual(products.filter((r) => r.column === 'left').map((r) => names.get(r.product_id)), ['Альфа']);
+  assert.deepEqual(products.filter((r) => r.column === 'right').map((r) => names.get(r.product_id)), ['Бавария','Янтарное','Ячменное']);
 });
 
-test('legacy A→Я keeps its historical single-column sort behaviour', () => {
+test('four readable sections, two on each side, sort only their own logical products', () => {
+  const specs = [
+    ['s1','left','Первый'], ['s2','left','Второй'], ['s3','right','Третий'], ['s4','right','Четвёртый']
+  ];
+  const rows = [];
+  const names = new Map();
+  for (let i = 0; i < specs.length; i += 1) {
+    const [id, column, name] = specs[i];
+    rows.push({ id, kind:'section', name, column, enabled:true });
+    const products = [
+      { id:`${id}-z`, name:'Янтарное', column:'left' },
+      { id:`${id}-a`, name:'Альфа', column:'right' },
+      { id:`${id}-b`, name:'Бавария', column:'left' },
+      { id:`${id}-c`, name:'Варяг', column:'right' }
+    ];
+    for (const [n, item] of products.entries()) {
+      const product_id = i * 10 + n + 1;
+      names.set(product_id, item.name);
+      rows.push({ id:item.id, kind:'item', product_id, column:item.column, enabled:true });
+    }
+  }
+  const state = createEditorState({ settings:{ table_style:'readable' }, rows });
+  const sectionProducts = (index) => state.rows.slice(index*5+1, index*5+5);
+  for (const [index, [sectionId]] of specs.entries()) {
+    const before = sectionProducts(index).map((row) => row.id).sort();
+    assert.equal(sortSectionItems(state, sectionId, (id) => names.get(id)), true);
+    const after = sectionProducts(index);
+    assert.deepEqual(after.map((row) => row.id).sort(), before);
+    const visualNames = [...after.filter((row) => row.column !== 'right'), ...after.filter((row) => row.column === 'right')]
+      .map((row) => names.get(row.product_id));
+    assert.deepEqual(visualNames, ['Альфа','Бавария','Варяг','Янтарное']);
+  }
+  assert.deepEqual(state.rows.filter((row) => row.kind === 'section').map((row) => row.column), ['left','left','right','right']);
+  assert.equal(changeRowColumn(state, 's2', 'right'), true);
+  assert.deepEqual(state.rows.map((row) => row.id).filter((id) => id.startsWith('s2-')), ['s2-a','s2-c','s2-b','s2-z'],
+    'moving a section header does not reparent its products');
+  const revision = state.revision;
+  assert.equal(sortSectionItems(state, 's2', (id) => names.get(id)), true);
+  assert.equal(state.revision, revision);
+});
+
+test('column transfer does not move a product under a different logical header', () => {
+  const state = createEditorState({
+    settings:{ table_style:'readable' },
+    rows:[
+      { id:'left-header', kind:'section', name:'Первый', column:'left', enabled:true },
+      { id:'moving', kind:'item', product_id:1, column:'left', enabled:true },
+      { id:'stable', kind:'item', product_id:2, column:'left', enabled:true },
+      { id:'right-header', kind:'section', name:'Второй', column:'right', enabled:true },
+      { id:'other', kind:'item', product_id:3, column:'right', enabled:true }
+    ]
+  });
+  const original = state.rows.map((row) => row.id);
+  assert.equal(changeRowColumn(state, 'moving', 'right'), true);
+  assert.deepEqual(state.rows.map((row) => row.id), original);
+  assert.equal(state.rows[1].column, 'right');
+  assert.equal(sortSectionItems(state, 'right-header', (id) => ({1:'Янтарное',2:'Алтунин',3:'Бавария'})[id]), true);
+  assert.deepEqual(state.rows.map((row) => row.id), original, 'sorting right section cannot absorb moved product from previous section');
+  assert.equal(sortSectionItems(state, 'left-header', (id) => ({1:'Янтарное',2:'Алтунин',3:'Бавария'})[id]), true);
+  assert.deepEqual(state.rows.map((row) => row.id), original, 'visual left Алтунин and right Янтарное are already sorted');
+  assert.equal(changeRowColumn(state, 'left-header', 'right'), true);
+  assert.deepEqual(state.rows.map((row) => row.id), original, 'moving section title is only a visual change');
+  assert.equal(changeRowColumn(state, 'moving', 'right'), true);
+});
+
+test('readable Russian collation stays stable for equal names across visual columns', () => {
+  const state = createEditorState({
+    settings:{ table_style:'readable' },
+    rows:[
+      { id:'header', kind:'section', name:'Пиво', column:'full', enabled:true },
+      { id:'z', kind:'item', product_id:1, column:'right', enabled:true },
+      { id:'a1', kind:'item', product_id:2, column:'left', enabled:true },
+      { id:'a2', kind:'item', product_id:3, column:'right', enabled:true },
+      { id:'b', kind:'item', product_id:4, column:'left', enabled:true }
+    ]
+  });
+  const names = new Map([[1,'Янтарное'],[2,'альфа'],[3,'Альфа'],[4,'Бавария']]);
+  assert.equal(sortSectionItems(state, 'header', (id) => names.get(id)), true);
+  assert.deepEqual(state.rows.filter((row) => row.column === 'left').map((row) => row.id), ['a1','a2']);
+  assert.deepEqual(state.rows.filter((row) => row.column === 'right').map((row) => row.id), ['b','z']);
+  const revision = state.revision;
+  assert.equal(sortSectionItems(state, 'header', (id) => names.get(id)), true);
+  assert.equal(state.revision, revision, 'stable equal names must never flip between columns on repeat');
+});
+
+test('legacy A→Я retains its existing single-column ordering', () => {
   const state = createEditorState({
     settings:{ table_style:'legacy' },
     rows:[
-      { id:'section', kind:'section', name:'P', column:'full', enabled:true },
-      { id:'right-z', kind:'item', product_id:1, column:'right', enabled:true },
-      { id:'left-a', kind:'item', product_id:2, column:'left', enabled:true }
+      { id:'header', kind:'section', name:'Раздел', column:'left', enabled:true },
+      { id:'last', kind:'item', product_id:1, column:'right', enabled:true },
+      { id:'first', kind:'item', product_id:2, column:'left', enabled:true }
     ]
   });
-  assert.equal(sortSectionItems(state, 'section', (id) => Number(id) === 1 ? 'Янтарное' : 'Альфа'), true);
-  assert.deepEqual(state.rows.map((r) => r.id), ['section','left-a','right-z']);
-});
-
-
-test('readable sorting ignores other-column headers and stops only at its own next header', () => {
-  const state = createEditorState({
-    settings:{ table_style:'readable' },
-    rows:[
-      { id:'s-left', kind:'section', name:'Светлое', column:'left', enabled:true },
-      { id:'l-z', kind:'item', product_id:1, column:'left', enabled:true },
-      { id:'s-right', kind:'section', name:'Тёмное', column:'right', enabled:true },
-      { id:'r-z', kind:'item', product_id:2, column:'right', enabled:true },
-      { id:'l-a', kind:'item', product_id:3, column:'left', enabled:true },
-      { id:'r-a', kind:'item', product_id:4, column:'right', enabled:true },
-      { id:'s-left-next', kind:'section', name:'Тара', column:'left', enabled:true },
-      { id:'l-other', kind:'item', product_id:5, column:'left', enabled:true },
-      { id:'r-b', kind:'item', product_id:6, column:'right', enabled:true }
-    ]
-  });
-  const names = new Map([[1,'Янтарное'],[2,'Ячменное'],[3,'Алтунин'],[4,'Арфа'],[5,'Бавария'],[6,'Барное']]);
-  const lookup = (id) => names.get(Number(id));
-  assert.equal(sortSectionItems(state, 's-left', lookup), true);
-  assert.deepEqual(state.rows.map((r) => r.id), [
-    's-left','l-a','s-right','r-z','l-z','r-a','s-left-next','l-other','r-b'
-  ], 'left sort crosses right header without reordering any right column item');
-  assert.equal(sortSectionItems(state, 's-right', lookup), true);
-  assert.deepEqual(state.rows.map((r) => r.id), [
-    's-left','l-a','s-right','r-a','l-z','r-b','s-left-next','l-other','r-z'
-  ], 'right sort crosses the following left header and does not touch left rows');
-  const revision = state.revision;
-  assert.equal(sortSectionItems(state, 's-left-next', lookup), true);
-  assert.equal(state.revision, revision, 'a one-item section does not write an unnecessary revision');
-});
-
-
-test('transferred readable product joins a later target-column header before A→Я and preserves both sections', () => {
-  const state = createEditorState({
-    settings:{ table_style:'readable' },
-    rows:[
-      { id:'left-header', kind:'section', name:'Светлое', column:'left', enabled:true },
-      { id:'left-a', kind:'item', product_id:1, column:'left', enabled:true },
-      { id:'moving', kind:'item', product_id:2, column:'left', enabled:true },
-      { id:'right-header', kind:'section', name:'Тёмное', column:'right', enabled:true },
-      { id:'right-z', kind:'item', product_id:3, column:'right', enabled:true },
-      { id:'right-a', kind:'item', product_id:4, column:'right', enabled:true }
-    ]
-  });
-  assert.equal(changeRowColumn(state, 'moving', 'right'), true);
-  assert.deepEqual(state.rows.map((row) => row.id),
-    ['left-header','left-a','right-header','moving','right-z','right-a']);
-  assert.equal(state.rows[3].column, 'right');
-  const names = new Map([[1,'Альфа'],[2,'Бавария'],[3,'Янтарное'],[4,'Арфа']]);
-  assert.equal(sortSectionItems(state, 'right-header', (id) => names.get(Number(id))), true);
-  assert.deepEqual(state.rows.map((row) => row.id),
-    ['left-header','left-a','right-header','right-a','moving','right-z']);
-  assert.deepEqual(state.rows.map((row) => row.column),
-    ['left','left','right','right','right','right']);
-  const model = buildRenderModel(state, { width:1920, height:1080 });
-  const lines = buildDisplayLines(model, {
-    products:[...[1,2,3,4].map((id) => ({ id, name:names.get(id), price_primary:'200' }))]
-  });
-  assert.deepEqual(lines.filter((line) => line.kind === 'item' && line.column === 'right').map((line) => line.tone),
-    ['light','accent','light']);
-  const beforeNoop = state.revision;
-  assert.equal(changeRowColumn(state, 'moving', 'right'), true);
-  assert.equal(state.revision, beforeNoop);
-});
-
-test('column change keeps rows under a full-width section and preserves classic order', () => {
-  const rows = [
-    { id:'full', kind:'section', name:'Меню', column:'full', enabled:true },
-    { id:'item', kind:'item', product_id:1, column:'left', enabled:true },
-    { id:'other', kind:'section', name:'Следующий', column:'right', enabled:true }
-  ];
-  const state = createEditorState({ settings:{ table_style:'readable' }, rows });
-  assert.equal(changeRowColumn(state, 'item', 'right'), true);
-  assert.deepEqual(state.rows.map((row) => row.id), ['full','item','other'],
-    'switching a full-width section item between columns must not reassign it to a later section');
-  const classic = createEditorState({ settings:{ table_style:'legacy' }, rows });
-  assert.equal(changeRowColumn(classic, 'item', 'right'), true);
-  assert.deepEqual(classic.rows.map((row) => row.id), ['full','item','other']);
+  assert.equal(sortSectionItems(state, 'header', (id) => ({1:'Янтарное',2:'Альфа'})[id]), true);
+  assert.deepEqual(state.rows.map((row) => row.id), ['header','first','last']);
 });

@@ -43,38 +43,14 @@ export function moveRow(state, rowId, toIndex) {
 }
 
 export function changeRowColumn(state, rowId, column) {
-  const fromIndex = rowIndex(state, rowId);
-  if (fromIndex === -1 || !['left', 'right', 'full'].includes(column)) return false;
-  const row = state.rows[fromIndex];
-  if (row.kind === 'section') return updateRow(state, rowId, { column });
-  if (column === 'full') return false;
-  const current = row.column === 'right' ? 'right' : 'left';
+  const index = rowIndex(state, rowId);
+  if (index === -1 || !['left', 'right', 'full'].includes(column)) return false;
+  const row = state.rows[index];
+  if (row.kind !== 'section' && column === 'full') return false;
+  const current = row.column === 'full' && row.kind === 'section' ? 'full'
+    : row.column === 'right' ? 'right' : 'left';
   if (current === column) return true;
-
-  if (state.settings?.table_style === 'readable') {
-    // Rows under a full-width heading already belong to both columns.
-    for (let index = fromIndex - 1; index >= 0; index -= 1) {
-      const section = state.rows[index];
-      if (section?.kind !== 'section') continue;
-      if (section.column === 'full') return updateRow(state, rowId, { column });
-      if ((section.column === 'right' ? 'right' : 'left') === current) break;
-    }
-
-    // A target-column header after the row would otherwise appear below the moved
-    // product, outside its visible section and outside that section's A→Я scope.
-    for (let index = fromIndex + 1; index < state.rows.length; index += 1) {
-      const next = state.rows[index];
-      if (next?.kind !== 'section') continue;
-      if (next.column === 'full') break;
-      if ((next.column === 'right' ? 'right' : 'left') !== column) continue;
-      const moved = { ...row, column };
-      state.rows.splice(fromIndex, 1);
-      state.rows.splice(index, 0, moved);
-      markEditorChanged(state);
-      return true;
-    }
-  }
-
+  // Column is a presentation property: changing it never reparents the row.
   return updateRow(state, rowId, { column });
 }
 
@@ -83,41 +59,37 @@ export function sortSectionItems(state, sectionId, productNameById) {
   if (sectionIndex === -1 || state.rows[sectionIndex]?.kind !== 'section') return false;
   if (typeof productNameById !== 'function') throw new TypeError('Для сортировки раздела требуется функция получения названия продукции.');
 
-  // Readable columns own independent sections, even when their rows are interleaved.
-  // A full-width header owns both columns until each meets its next header.
-  const perColumn = state.settings?.table_style === 'readable';
-  const sectionColumn = state.rows[sectionIndex].column === 'full' ? 'full'
-    : state.rows[sectionIndex].column === 'right' ? 'right' : 'left';
-  const columns = perColumn && sectionColumn === 'full' ? ['left', 'right']
-    : [perColumn ? sectionColumn : 'left'];
-  const activeColumns = new Set(columns);
-  const groups = new Map(columns.map((column) => [column, []]));
-  for (let index = sectionIndex + 1; index < state.rows.length && activeColumns.size; index += 1) {
-    const row = state.rows[index];
-    if (row?.kind === 'section') {
-      if (!perColumn || row.column === 'full') break;
-      activeColumns.delete(row.column === 'right' ? 'right' : 'left');
-      continue;
-    }
-    if (row?.kind !== 'item') continue;
-    const column = perColumn && row.column === 'right' ? 'right' : 'left';
-    if (!activeColumns.has(column)) continue;
-    const items = groups.get(column);
-    items.push({ index, row, order:items.length, name:String(productNameById(row.product_id) || '') });
-  }
+  // Logical sections are contiguous in the stored menu, regardless of visual column.
+  let end = sectionIndex + 1;
+  while (end < state.rows.length && state.rows[end]?.kind !== 'section') end += 1;
 
-  const collator = new Intl.Collator('ru', { usage:'sort', sensitivity:'base' });
-  let changed = false;
-  for (const items of groups.values()) {
-    if (items.length < 2) continue;
-    const sorted = [...items].sort((a, b) => collator.compare(a.name, b.name) || a.order - b.order);
-    if (sorted.every((item, index) => item.row === items[index].row)) continue;
-    items.forEach((item, index) => {
-      state.rows[item.index] = sorted[index].row;
-    });
-    changed = true;
+  const items = [];
+  for (let index = sectionIndex + 1; index < end; index += 1) {
+    const row = state.rows[index];
+    if (row?.kind !== 'item') continue;
+    items.push({ index, row, name:String(productNameById(row.product_id) || '') });
   }
-  if (changed) markEditorChanged(state);
+  if (items.length < 2) return true;
+
+  const readable = state.settings?.table_style === 'readable';
+  // In two-column display the reading order is left top-to-bottom, then right.
+  // Preserve the number and location of visual slots; products may change columns
+  // when necessary to alphabetize the *whole* logical section.
+  const slots = readable
+    ? [...items].sort((a, b) => Number(a.row.column === 'right') - Number(b.row.column === 'right') || a.index - b.index)
+    : items;
+  const collator = new Intl.Collator('ru', { usage:'sort', sensitivity:'base' });
+  const sorted = slots.map((entry, order) => ({ ...entry, order }))
+    .sort((a, b) => collator.compare(a.name, b.name) || a.order - b.order);
+  if (slots.every((slot, index) => slot.row === sorted[index].row)) return true;
+
+  for (let index = 0; index < slots.length; index += 1) {
+    const slot = slots[index];
+    state.rows[slot.index] = readable
+      ? { ...sorted[index].row, column:slot.row.column === 'right' ? 'right' : 'left' }
+      : sorted[index].row;
+  }
+  markEditorChanged(state);
   return true;
 }
 

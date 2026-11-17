@@ -283,13 +283,9 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         column:renderColumn(row, { allowFull:true })
       }));
       firstSectionSeen = true;
-      const column = renderColumn(row, { allowFull:true });
-      if (!readable || column === 'full') {
-        toneIndexes.left = 0;
-        toneIndexes.right = 0;
-      } else {
-        toneIndexes[column] = 0;
-      }
+      // Both columns belong to the same logical section; a new header resets both.
+      toneIndexes.left = 0;
+      toneIndexes.right = 0;
       continue;
     }
 
