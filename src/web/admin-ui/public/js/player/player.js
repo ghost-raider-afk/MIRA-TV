@@ -642,7 +642,7 @@ async function playerRevoked() {
 function newPlayerStateSync() {
   return createPlayerStateSync({
     applyContext: applySyncedContext,
-    onUnauthorized: playerUnauthorized,
+    onUnauthorized: ({ preserveContext } = {}) => preserveContext ? playerReauthorizationRequired() : playerUnauthorized(),
     onRevoked: playerRevoked,
     onConnectivity: playerConnectivityChanged
   });
@@ -655,16 +655,20 @@ function openPlayerReauthorization(event) {
   showPairingIntro();
 }
 
-function playerUnauthorized({ preserveContext = false } = {}) {
-  if (preserveContext && playerStateSync?.hasContext) {
-    // Retain the live LKG image and binding. Only an administrator may initiate re-pairing.
-    playerMessage.classList.add('is-reauthorization-required');
-    playerMessage.setAttribute('role', 'button');
-    playerMessage.setAttribute('tabindex', '0');
-    playerMessage.setAttribute('aria-label', 'Требуется повторная привязка ТВ. Нажмите ОК, чтобы открыть подключение.');
-    showConnectionMessage('Требуется повторная привязка телевизора.');
+function playerReauthorizationRequired() {
+  if (!playerStateSync?.hasContext) {
+    playerUnauthorized();
     return;
   }
+  // Retain the live LKG image and binding. Only an administrator may initiate re-pairing.
+  playerMessage.classList.add('is-reauthorization-required');
+  playerMessage.setAttribute('role', 'button');
+  playerMessage.setAttribute('tabindex', '0');
+  playerMessage.setAttribute('aria-label', 'Требуется повторная привязка ТВ. Нажмите ОК, чтобы открыть подключение.');
+  showConnectionMessage('Требуется повторная привязка телевизора.');
+}
+
+function playerUnauthorized() {
   backgroundServices?.stop();
   if (activationFromStorage()) {
     showBootstrapUnavailable('Авторизация получена. Подтверждаем сессию телевизора…');
@@ -880,7 +884,7 @@ async function bootstrapPlayer() {
       return;
     }
     if (playerStateSync.hasContext) {
-      playerUnauthorized({ preserveContext:true });
+      playerReauthorizationRequired();
       playerStateSync.start();
       return;
     }

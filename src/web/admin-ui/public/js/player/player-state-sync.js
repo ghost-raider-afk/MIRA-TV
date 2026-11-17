@@ -574,6 +574,9 @@ export function createPlayerStateSync({
       if (message?.revision && message.revision === active?.revision) return;
       void syncNow('websocket-change');
     },
+    onNetworkOnline() {
+      void syncNow('network-online');
+    },
     onConnected() {
       const wasConnected = websocketConnected;
       websocketConnected = true;

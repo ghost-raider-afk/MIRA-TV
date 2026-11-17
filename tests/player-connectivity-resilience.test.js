@@ -12,6 +12,7 @@ test('Player preserves rare REST liveness checks even if a Chromium WebSocket st
   assert.doesNotMatch(sync, /if \(!started \|\| websocketConnected \|\| fallbackTimer\) return;/);
   assert.match(sync, /onConnected\(\) \{[\s\S]*?scheduleFallbackPoll\(\);[\s\S]*?syncNow\('websocket-reconcile'\);/);
   assert.match(sync, /onDisconnected\(\) \{[\s\S]*?clearFallbackTimer\(\);\s*scheduleFallbackPoll\(\);/);
+  assert.match(sync, /onNetworkOnline\(\) \{\s*void syncNow\('network-online'\);/);
 });
 
 test('Player renews valid device sessions through regular delta traffic, without relying on metrics', async () => {
@@ -25,10 +26,11 @@ test('Expired authorization cannot silently delete LKG or require browser storag
     read('src/web/admin-ui/public/js/player/player.js')
   ]);
   assert.match(sync, /onUnauthorized\?\.\(\{ preserveContext:true \}\);/);
-  assert.match(player, /if \(preserveContext && playerStateSync\?\.hasContext\)/);
+  assert.match(player, /function playerReauthorizationRequired\(\) \{/);
+  assert.match(player, /onUnauthorized: \(\{ preserveContext \} = \{\}\) => preserveContext \? playerReauthorizationRequired\(\) : playerUnauthorized\(\)/);
   assert.match(player, /playerMessage\.classList\.add\('is-reauthorization-required'\)/);
   assert.match(player, /playerMessage\.addEventListener\('click', openPlayerReauthorization\)/);
-  assert.match(player, /playerUnauthorized\(\{ preserveContext:true \}\);\s*playerStateSync\.start\(\);/);
+  assert.match(player, /playerReauthorizationRequired\(\);\s*playerStateSync\.start\(\);/);
   assert.match(player, /function openPlayerReauthorization\(event\) \{[\s\S]*?showPairingIntro\(\);/);
   assert.match(player, /if \(state === 'online'\) \{[\s\S]*?classList\.remove\('is-reauthorization-required'\)/);
 });

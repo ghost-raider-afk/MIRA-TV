@@ -17,7 +17,7 @@ function recoveryUrl(commandId) {
   return url.href;
 }
 
-export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected, onRevoked } = {}) {
+export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected, onRevoked, onNetworkOnline } = {}) {
   let socket = null;
   let retryTimer = null;
   let attempt = 0;
@@ -103,7 +103,11 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     });
   }
 
-  function handleOnline() { connect(); }
+  function handleOnline() {
+    connect();
+    // A restored network must reconcile even if old Chromium left the socket OPEN.
+    onNetworkOnline?.();
+  }
 
   function handleOffline() {
     // navigator.onLine is only a hint on TV browsers. Keep a working socket alive
