@@ -220,3 +220,64 @@ test('two-column A→Я sorts only within each column after transfer and preserv
   expect(preview.right.map((entry) => entry.tone))
     .toEqual(['light','accent','light','accent']);
 });
+
+
+test('moving a product across separate column headers places it under the target header for A→Я', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const suffix = `transfer-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const locationResult = await page.request.post('/api/locations', {
+    data:{ name:`Transfer ${suffix}`, address:'Browser CI' }
+  });
+  expect(locationResult.status()).toBe(201);
+  const location = await locationResult.json();
+  const productIds = [];
+  for (const name of ['Янтарное','Алтунин','Бавария']) {
+    const result = await page.request.post('/api/catalog/products', {
+      data:{ name:`${name} ${suffix}`, producer:'Пивоварня', characteristics:'',
+        strength:'4,5%', price_primary:'200',
+        alcoholic:true, beverage_color:'light', filtration:'filtered', active:true }
+    });
+    expect(result.status()).toBe(201);
+    productIds.push((await result.json()).id);
+  }
+  const screenResult = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+  expect(screenResult.status()).toBe(201);
+  const screen = await screenResult.json();
+  const ids = {
+    left:`left-heading-${suffix}`,
+    right:`right-heading-${suffix}`,
+    moving:`transfer-moving-${suffix}`,
+    stable:`transfer-stable-${suffix}`,
+    destination:`transfer-destination-${suffix}`
+  };
+  await saveStyle(page, screen, [
+    { id:ids.left, kind:'section', name:'Левая', column:'left', enabled:true },
+    { id:ids.moving, kind:'item', product_id:productIds[0], column:'left', enabled:true },
+    { id:ids.stable, kind:'item', product_id:productIds[1], column:'left', enabled:true },
+    { id:ids.right, kind:'section', name:'Правая', column:'right', enabled:true },
+    { id:ids.destination, kind:'item', product_id:productIds[2], column:'right', enabled:true }
+  ], 'readable');
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-table-layer').click();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
+  const modal = page.locator('#scene-editor-table-edit-layer');
+  const row = (id) => modal.locator(`.scene-table-editor-row[data-source-row-ids="${id}"]`);
+  await row(ids.moving).locator('.scene-table-editor-placement-button[data-column="right"]').click();
+  await expect(row(ids.moving)).toHaveAttribute('data-column', '1');
+  const following = await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds));
+  expect(following).toEqual([ids.left,ids.stable,ids.right,ids.moving,ids.destination]);
+
+  await row(ids.right).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
+  const rightOrder = await modal.locator('.scene-table-editor-row[data-column="1"]').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds));
+  expect(rightOrder).toEqual([ids.destination,ids.moving]);
+  const rightTones = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      x:Number(node.querySelector('.item-name')?.getAttribute('x') || 0),
+      y:Number(node.querySelector('.item-name')?.getAttribute('y') || 0),
+      tone:node.classList.contains('tone-accent') ? 'accent' : 'light'
+    })).filter((entry) => entry.x > 600).sort((a,b) => a.y - b.y).map((entry) => entry.tone));
+  expect(rightTones).toEqual(['light','accent']);
+});

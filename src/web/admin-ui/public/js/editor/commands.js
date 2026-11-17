@@ -52,6 +52,14 @@ export function changeRowColumn(state, rowId, column) {
   if (current === column) return true;
 
   if (state.settings?.table_style === 'readable') {
+    // Rows under a full-width heading already belong to both columns.
+    for (let index = fromIndex - 1; index >= 0; index -= 1) {
+      const section = state.rows[index];
+      if (section?.kind !== 'section') continue;
+      if (section.column === 'full') return updateRow(state, rowId, { column });
+      if ((section.column === 'right' ? 'right' : 'left') === current) break;
+    }
+
     // A target-column header after the row would otherwise appear below the moved
     // product, outside its visible section and outside that section's A→Я scope.
     for (let index = fromIndex + 1; index < state.rows.length; index += 1) {

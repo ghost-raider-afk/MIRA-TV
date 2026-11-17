@@ -296,7 +296,7 @@ test('transferred readable product joins a later target-column header before A�
   assert.equal(state.revision, beforeNoop);
 });
 
-test('column change keeps rows inside their full-width section and leaves classic mode order unchanged', () => {
+test('column change keeps rows under a full-width section and preserves classic order', () => {
   const rows = [
     { id:'full', kind:'section', name:'Меню', column:'full', enabled:true },
     { id:'item', kind:'item', product_id:1, column:'left', enabled:true },
@@ -304,8 +304,8 @@ test('column change keeps rows inside their full-width section and leaves classi
   ];
   const state = createEditorState({ settings:{ table_style:'readable' }, rows });
   assert.equal(changeRowColumn(state, 'item', 'right'), true);
-  assert.deepEqual(state.rows.map((row) => row.id), ['full','other','item'],
-    'a later right header is the target for an item moved out of the full-width header section');
+  assert.deepEqual(state.rows.map((row) => row.id), ['full','item','other'],
+    'switching a full-width section item between columns must not reassign it to a later section');
   const classic = createEditorState({ settings:{ table_style:'legacy' }, rows });
   assert.equal(changeRowColumn(classic, 'item', 'right'), true);
   assert.deepEqual(classic.rows.map((row) => row.id), ['full','item','other']);
