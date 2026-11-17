@@ -1,5 +1,6 @@
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 15000, 30000];
 const REPROVISION_PARAM = 'reprovision';
+const CONNECT_TIMEOUT_MS = 15_000;
 
 function validCommandId(value) {
   const id = String(value || '').trim();
@@ -20,12 +21,18 @@ function recoveryUrl(commandId) {
 export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnected, onRevoked, onNetworkOnline } = {}) {
   let socket = null;
   let retryTimer = null;
+  let connectTimer = null;
   let attempt = 0;
   let stopped = true;
 
   function clearRetry() {
     if (retryTimer) clearTimeout(retryTimer);
     retryTimer = null;
+  }
+
+  function clearConnectTimer() {
+    if (connectTimer) clearTimeout(connectTimer);
+    connectTimer = null;
   }
 
   function retryDelay() {
@@ -61,8 +68,26 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     }
     socket = next;
 
+    function disconnect() {
+      // A late close from an obsolete socket must not mark a newer one offline.
+      if (socket !== next) return;
+      socket = null;
+      clearConnectTimer();
+      onDisconnected?.();
+      window.dispatchEvent(new CustomEvent('mira:player-realtime-disconnected'));
+      scheduleReconnect();
+    }
+
+    // Some old Chromium builds can remain CONNECTING forever without error/close.
+    connectTimer = setTimeout(() => {
+      if (socket !== next || next.readyState === WebSocket.OPEN) return;
+      disconnect();
+      try { next.close(); } catch {}
+    }, CONNECT_TIMEOUT_MS);
+
     next.addEventListener('open', () => {
       if (socket !== next) return;
+      clearConnectTimer();
       attempt = 0;
       onConnected?.();
       acknowledgeRecoveredPlayer(next);
@@ -92,12 +117,7 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
         }
       } catch {}
     });
-    next.addEventListener('close', () => {
-      if (socket === next) socket = null;
-      onDisconnected?.();
-      window.dispatchEvent(new CustomEvent('mira:player-realtime-disconnected'));
-      scheduleReconnect();
-    });
+    next.addEventListener('close', disconnect);
     next.addEventListener('error', () => {
       try { next.close(); } catch {}
     });
@@ -126,6 +146,7 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
   function stop() {
     stopped = true;
     clearRetry();
+    clearConnectTimer();
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
     const current = socket;

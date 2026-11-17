@@ -928,7 +928,11 @@ async function initialisePlayer() {
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {
     syncPlayerPageVisibility();
-    if (document.visibilityState === 'visible') void requestWakeLock();
+    if (document.visibilityState === 'visible') {
+      void requestWakeLock();
+      // A sleeping Android TV can resume with a stale yet OPEN WebSocket.
+      if (playerStateSync?.hasContext) void playerStateSync.syncNow('resume');
+    }
   });
   window.addEventListener('pagehide', () => {
     clearPlayerBuildRetry();

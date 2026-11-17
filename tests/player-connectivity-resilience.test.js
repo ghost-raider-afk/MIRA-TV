@@ -34,3 +34,15 @@ test('Expired authorization cannot silently delete LKG or require browser storag
   assert.match(player, /function openPlayerReauthorization\(event\) \{[\s\S]*?showPairingIntro\(\);/);
   assert.match(player, /if \(state === 'online'\) \{[\s\S]*?classList\.remove\('is-reauthorization-required'\)/);
 });
+
+test('old Chromium reconnects after a stalled handshake without requiring browser restart', async () => {
+  const [socket, player] = await Promise.all([
+    read('src/web/admin-ui/public/js/player/player-realtime-client.js'),
+    read('src/web/admin-ui/public/js/player/player.js')
+  ]);
+  assert.match(socket, /const CONNECT_TIMEOUT_MS = 15_000;/);
+  assert.match(socket, /connectTimer = setTimeout\(\(\) => \{[\s\S]*?disconnect\(\);[\s\S]*?next\.close\(\);/);
+  assert.match(socket, /if \(socket !== next\) return;\s*socket = null;\s*clearConnectTimer\(\);/);
+  assert.match(socket, /function stop\(\) \{\s*stopped = true;\s*clearRetry\(\);\s*clearConnectTimer\(\);/);
+  assert.match(player, /if \(playerStateSync\?\.hasContext\) void playerStateSync\.syncNow\('resume'\);/);
+});
