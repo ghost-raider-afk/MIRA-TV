@@ -270,7 +270,7 @@ test('moving a product across separate column headers places it under the target
   expect(following).toEqual([ids.left,ids.stable,ids.right,ids.moving,ids.destination]);
 
   await row(ids.right).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
-  const rightOrder = await modal.locator('.scene-table-editor-row[data-column="1"]').evaluateAll((nodes) =>
+  const rightOrder = await modal.locator('.scene-table-editor-row.is-item[data-column="1"]').evaluateAll((nodes) =>
     nodes.map((node) => node.dataset.sourceRowIds));
   expect(rightOrder).toEqual([ids.destination,ids.moving]);
   const rightTones = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) =>
