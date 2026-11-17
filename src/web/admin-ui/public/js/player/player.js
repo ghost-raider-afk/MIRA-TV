@@ -25,6 +25,7 @@ const installPlayerHint = document.querySelector('[data-install-player-hint]');
 const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
+const playerMessageLabel = document.querySelector('[data-player-message-label]');
 const playerSceneRenderer = new PlayerSceneRenderer(playerStage);
 
 let pollTimer = null;
@@ -529,13 +530,8 @@ window.addEventListener('mira:player-preview-request', () => {
 });
 
 function showConnectionMessage(message) {
-  if (!message) {
-    setHidden(playerMessage, true);
-    playerMessage.textContent = '';
-    return;
-  }
-  playerMessage.textContent = message;
-  setHidden(playerMessage, false);
+  playerMessageLabel.textContent = message || '';
+  setHidden(playerMessage, !message);
 }
 
 function afterFirstPlayerFrame(callback) {
