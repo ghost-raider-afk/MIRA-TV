@@ -207,11 +207,11 @@ test('readable A→Я sorts each column inside its section without moving rows b
   updateRow(state, 'left-z', { column:'right' });
   assert.equal(sortSectionItems(state, 'section-full', name), true);
   assert.deepEqual(state.rows.map((r) => r.id), [
-    'section-full','left-a','right-a','left-z','pack-left','right-z','section-right','other'
+    'section-full','left-a','right-a','right-z','pack-left','left-z','section-right','other'
   ]);
   assert.deepEqual(state.rows.filter((r) => r.kind === 'item' && r.column === 'left').map((r) => r.id), ['left-a']);
   assert.deepEqual(state.rows.filter((r) => r.kind === 'item' && r.column === 'right').map((r) => r.id), [
-    'right-a','left-z','right-z','other'
+    'right-a','right-z','left-z','other'
   ]);
   const stableRevision = state.revision;
   assert.equal(sortSectionItems(state, 'section-full', name), true);

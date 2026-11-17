@@ -204,8 +204,8 @@ test('readable alternation is independent per column and resets only on that col
   const products = Array.from({ length:9 }, (_, i) => product(i+1, `Продукт ${i+1}`, '100', '150'));
   const model = buildRenderModel({ settings:{ table_style:'readable' }, rows }, { width:1920, height:1080 });
   const lines = buildDisplayLines(model, { products, packaging:[{ id:10, name:'Тара', unit_price:'20' }] });
-  const tones = new Map(lines.filter((line) => line.sourceRowId).map((line) => [
-    line.sourceRowId, line.kind === 'packaging' ? line.items[0].tone : line.tone
+  const tones = new Map(lines.filter((line) => line.sourceRowId || line.sourceRowIds?.length).map((line) => [
+    line.sourceRowId || line.sourceRowIds[0], line.kind === 'packaging' ? line.items[0].tone : line.tone
   ]));
   assert.deepEqual(['l1','l2','l3','pack','l4','l5'].map((id) => tones.get(id)),
     ['light','accent','light','accent','light','light']);
@@ -213,7 +213,7 @@ test('readable alternation is independent per column and resets only on that col
     ['light','light','accent','light']);
   const layout = buildRenderLayout(model, lines);
   assert.equal(layout.columns.length, 2);
-  assert.equal(buildTableSvg(model, lines, layout).match(/class="table-item theme-legacy tone-/g)?.length, 10);
+  assert.equal(buildTableSvg(model, lines, layout).match(/class="table-item theme-legacy tone-/g)?.length, 9);
 });
 
 test('moving a readable product between columns only recalculates tones in the affected column', () => {
