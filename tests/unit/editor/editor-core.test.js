@@ -288,9 +288,12 @@ test('column transfer does not move a product under a different logical header',
   assert.equal(sortSectionItems(state, 'right-header', (id) => ({1:'Янтарное',2:'Алтунин',3:'Бавария'})[id]), true);
   assert.deepEqual(state.rows.map((row) => row.id), original, 'sorting right section cannot absorb moved product from previous section');
   assert.equal(sortSectionItems(state, 'left-header', (id) => ({1:'Янтарное',2:'Алтунин',3:'Бавария'})[id]), true);
-  assert.deepEqual(state.rows.map((row) => row.id), original, 'visual left Алтунин and right Янтарное are already sorted');
+  const sortedOrder = ['left-header','stable','moving','right-header','other'];
+  assert.deepEqual(state.rows.map((row) => row.id), sortedOrder,
+    'A→Я sorts the persisted logical list without moving items across section boundaries');
   assert.equal(changeRowColumn(state, 'left-header', 'right'), true);
-  assert.deepEqual(state.rows.map((row) => row.id), original, 'moving section title is only a visual change');
+  assert.deepEqual(state.rows.map((row) => row.id), sortedOrder,
+    'moving a section title changes its column but not the membership or order of products');
   assert.equal(changeRowColumn(state, 'moving', 'right'), true);
 });
 
