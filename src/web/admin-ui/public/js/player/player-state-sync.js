@@ -599,7 +599,8 @@ export function createPlayerStateSync({
       websocketConnected = false;
       if (wasConnected) log('websocket.disconnected', {}, 'warn');
       if (!navigator.onLine) onConnectivity?.('offline');
-      clearFallbackTimer();
+      // Repeated failed handshakes must not postpone an already-scheduled REST fallback.
+      if (wasConnected) clearFallbackTimer();
       scheduleFallbackPoll();
     }
   });
