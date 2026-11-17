@@ -277,11 +277,12 @@ test('moving a product across visual columns does not change its logical section
   await row(ids.left).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
   expect(await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
     nodes.map((node) => node.dataset.sourceRowIds)))
-    .toEqual([ids.left,ids.moving,ids.stable,ids.right,ids.destination]);
+    .toEqual([ids.left,ids.stable,ids.moving,ids.right,ids.destination],
+      'logical section becomes alphabetic in the persisted row sequence');
   await row(ids.left).locator('.scene-table-editor-placement-button[data-column="right"]').click();
   expect(await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
     nodes.map((node) => node.dataset.sourceRowIds)))
-    .toEqual([ids.left,ids.moving,ids.stable,ids.right,ids.destination],
+    .toEqual([ids.left,ids.stable,ids.moving,ids.right,ids.destination],
       'moving a section title does not reparent its products');
   const rightTones = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) =>
     nodes.map((node) => ({

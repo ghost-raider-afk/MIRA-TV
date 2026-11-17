@@ -73,22 +73,28 @@ export function sortSectionItems(state, sectionId, productNameById) {
 
   const readable = state.settings?.table_style === 'readable';
   // In two-column display the reading order is left top-to-bottom, then right.
-  // Preserve the number and location of visual slots; products may change columns
-  // when necessary to alphabetize the *whole* logical section.
+  // Keep the number of positions in each column while also sorting the linear
+  // stored list. Products may change columns within the same logical section.
   const slots = readable
     ? [...items].sort((a, b) => Number(a.row.column === 'right') - Number(b.row.column === 'right') || a.index - b.index)
     : items;
   const collator = new Intl.Collator('ru', { usage:'sort', sensitivity:'base' });
   const sorted = slots.map((entry, order) => ({ ...entry, order }))
     .sort((a, b) => collator.compare(a.name, b.name) || a.order - b.order);
-  if (slots.every((slot, index) => slot.row === sorted[index].row)) return true;
+  const leftCount = readable ? items.filter((entry) => entry.row.column !== 'right').length : items.length;
+  // The stored order must also be alphabetical: switching to the classic layout
+  // cannot reveal an unsorted logical list hidden by the two-column projection.
+  const nextItems = sorted.map(({ row }, index) => readable
+    ? { ...row, column:index < leftCount ? 'left' : 'right' }
+    : row);
+  const changed = items.some(({ row }, index) =>
+    row.id !== nextItems[index].id ||
+    (readable && (row.column === 'right' ? 'right' : 'left') !== nextItems[index].column));
+  if (!changed) return true;
 
-  for (let index = 0; index < slots.length; index += 1) {
-    const slot = slots[index];
-    state.rows[slot.index] = readable
-      ? { ...sorted[index].row, column:slot.row.column === 'right' ? 'right' : 'left' }
-      : sorted[index].row;
-  }
+  items.forEach(({ index }, position) => {
+    state.rows[index] = nextItems[position];
+  });
   markEditorChanged(state);
   return true;
 }

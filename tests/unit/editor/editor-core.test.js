@@ -198,13 +198,23 @@ test('readable A→Я sorts one logical section across both visual columns', () 
   const lookup = (id) => names.get(Number(id));
   assert.equal(sortSectionItems(state, 'section', lookup), true);
   assert.deepEqual(state.rows.map((r) => r.id), [
-    'section','left-a','right-y','right-b','pack','left-z','next','unrelated'
+    'section','left-a','right-b','right-y','pack','left-z','next','unrelated'
   ]);
   assert.deepEqual(state.rows.map((r) => r.column), [
-    'left','left','right','left','left','right','right','right'
+    'left','left','left','right','left','right','right','right'
   ]);
   assert.deepEqual(state.rows.slice(1,6).filter((r) => r.kind === 'item' && r.column === 'left').map((r) => names.get(r.product_id)), ['Альфа','Бавария']);
   assert.deepEqual(state.rows.slice(1,6).filter((r) => r.kind === 'item' && r.column === 'right').map((r) => names.get(r.product_id)), ['Янтарное','Ячменное']);
+  assert.deepEqual(state.rows.slice(1,6).filter((r) => r.kind === 'item').map((r) => names.get(r.product_id)),
+    ['Альфа','Бавария','Янтарное','Ячменное'],
+    'persisted linear section order must be sorted, not merely its visual columns');
+  const classicModel = buildRenderModel({
+    ...state, settings:{ ...state.settings, table_style:'legacy' }
+  });
+  const classicLines = buildDisplayLines(classicModel, { products:[...names].map(([id, name]) => ({ id, name })) });
+  assert.deepEqual(classicLines.filter((line) => line.kind === 'item').slice(0,4).map((line) => line.name),
+    ['Альфа','Бавария','Янтарное','Ячменное'],
+    'switching to the classic renderer preserves the same logical A→Я order');
   const revision = state.revision;
   assert.equal(sortSectionItems(state, 'section', lookup), true);
   assert.equal(state.revision, revision, 'already sorted visual columns must be idempotent');
@@ -253,7 +263,7 @@ test('four readable sections, two on each side, sort only their own logical prod
   }
   assert.deepEqual(state.rows.filter((row) => row.kind === 'section').map((row) => row.column), ['left','left','right','right']);
   assert.equal(changeRowColumn(state, 's2', 'right'), true);
-  assert.deepEqual(state.rows.map((row) => row.id).filter((id) => id.startsWith('s2-')), ['s2-a','s2-c','s2-b','s2-z'],
+  assert.deepEqual(state.rows.map((row) => row.id).filter((id) => id.startsWith('s2-')), ['s2-a','s2-b','s2-c','s2-z'],
     'moving a section header does not reparent its products');
   const revision = state.revision;
   assert.equal(sortSectionItems(state, 's2', (id) => names.get(id)), true);
