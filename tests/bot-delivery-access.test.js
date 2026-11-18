@@ -37,7 +37,7 @@ test('CRM notifications enter the durable outbox in their own transaction withou
   assert.match(ddl,/CREATE OR REPLACE FUNCTION mira_bot_request_outbox_trigger/);
   assert.match(ddl,/AFTER INSERT ON request_notifications/);
   assert.match(ddl,/ON CONFLICT\(event_key,username,provider\) DO NOTHING/);
-  assert.match(ddl,/JOIN messenger_accounts a/);
+  assert.match(ddl,/FROM messenger_accounts a/);
   assert.match(ddl,/NEW.kind IN \('created','resubmitted'\)/);
   assert.doesNotMatch(ddl,/bot_notification_cursor/);
 });
