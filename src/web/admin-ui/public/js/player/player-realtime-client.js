@@ -68,12 +68,16 @@ export function createPlayerRealtimeClient({ onChanged, onConnected, onDisconnec
     }
     socket = next;
 
-    function disconnect() {
+    function disconnect(event) {
       // A late close from an obsolete socket must not mark a newer one offline.
       if (socket !== next) return;
       socket = null;
       clearConnectTimer();
-      onDisconnected?.();
+      onDisconnected?.({
+        code:Number(event?.code) || 0,
+        reason:String(event?.reason || '').slice(0, 80),
+        was_clean:event?.wasClean === true
+      });
       window.dispatchEvent(new CustomEvent('mira:player-realtime-disconnected'));
       scheduleReconnect();
     }
