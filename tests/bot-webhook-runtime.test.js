@@ -87,4 +87,6 @@ test('MAX int64 sender identifiers are preserved losslessly before JSON decoding
   assert.equal(extractBotCommand('max',parsed).provider_user_id,'9223372036854775807');
   const surrounded='{"body":{"text":"user_id: 123 text"},"user":{"user_id":9223372036854775807}}';
   assert.equal(JSON.parse(preserveMaxUserIds(surrounded)).body.text,'user_id: 123 text');
+  const formatted='{"user": { "user_id" : 9223372036854775807 }}';
+  assert.equal(JSON.parse(preserveMaxUserIds(formatted)).user.user_id,'9223372036854775807');
 });

@@ -34,13 +34,13 @@ export function preserveMaxUserIds(source) {
     result+=token;
     if (token!=='"user_id"') continue;
     let colon=index;
-    while (/\\s/.test(source[colon]||'')) colon++;
+    while (/\s/.test(source[colon]||'')) colon++;
     if (source[colon]!==':') continue;
     result+=source.slice(index,colon+1);
     index=colon+1;
     let value=index;
-    while (/\\s/.test(source[value]||'')) value++;
-    const digits=/^([1-9][0-9]{0,18})(?=[,}\\]\\s]|$)/.exec(source.slice(value))?.[1];
+    while (/\s/.test(source[value]||'')) value++;
+    const digits=/^([1-9][0-9]{0,18})(?=[,}\]\s]|$)/.exec(source.slice(value))?.[1];
     if (!digits) continue;
     result+=source.slice(index,value)+'"'+digits+'"';
     index=value+digits.length;

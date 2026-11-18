@@ -4,10 +4,14 @@ services:
   app:
     env_file: [.env, .env.bot]
     networks:
+      mira-tv-internal:
+      mira-tv-proxy:
+        gw_priority: 1
       mira-tv-bot:
 
   proxy:
     networks:
+      mira-tv-proxy:
       mira-tv-bot:
     depends_on:
       bot-proxy-config-init:
