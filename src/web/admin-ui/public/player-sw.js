@@ -1,6 +1,6 @@
-const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v87';
+const RETIRED_SHELL_CACHE = 'mira-tv-player-shell-v88';
 const LEGACY_SHELL_CACHE = 'mira-tv-player-shell-v42';
-const SHELL_CACHE = 'mira-tv-player-shell-v88';
+const SHELL_CACHE = 'mira-tv-player-shell-v89';
 const DATA_CACHE = 'mira-tv-player-data-v18';
 const SHELL_UPDATE_CHECK_MIN_MS = 60 * 60 * 1000;
 // Install the versioned Player bootstrap atomically; retain the previous offline shell.

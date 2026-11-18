@@ -138,6 +138,40 @@ export function createDeviceAdminRouter({ store, realtime }) {
     }));
   });
 
+  router.get('/bindings/:screenId/diagnostics', async (request, response) => {
+    const screenId = positiveId(request.params.screenId, 'screen_id');
+    const hours = Number(request.query.hours ?? 24);
+    if (![24, 168, 720].includes(hours)) {
+      return response.status(400).json({ error:'Допустимый период журнала: 24 часа, 7 или 30 дней.' });
+    }
+    const cursor = request.query.cursor ?? '';
+    if (typeof cursor !== 'string' || cursor.length > 512) {
+      return response.status(400).json({ error:'Некорректный указатель журнала связи.' });
+    }
+    const binding = await store.getActiveDeviceBindingByScreen(screenId);
+    if (!binding) throw notFound('Телевизор не подключён к этому монитору.');
+    const since = new Date(Date.now() - hours * 3_600_000).toISOString();
+    const history = await store.getDeviceConnectionHistory(binding.device_id, { since, cursor });
+    const presence = realtime?.presenceForScreen(screenId)
+      || { online:false, connections:0, connected_at:null, realtime_last_seen_at:null };
+    const measurePing = request.query.measure_ping === '1' && presence.online === true;
+    const ping = measurePing ? await realtime?.pingScreen(screenId) : null;
+    response.setHeader('Cache-Control', 'private, no-store');
+    return response.json({
+      screen_id:screenId,
+      device_id:binding.device_id,
+      online:presence.online === true,
+      connections:presence.connections || 0,
+      connected_at:presence.connected_at || null,
+      last_seen_at:presence.realtime_last_seen_at || binding.session_last_seen_at || null,
+      ping_ms:measurePing && Number.isFinite(ping) ? ping : null,
+      ping_measured:measurePing,
+      since,
+      hours,
+      ...history
+    });
+  });
+
   router.post('/bindings/:screenId/apply', async (request, response) => {
     const screenId = positiveId(request.params.screenId, 'screen_id');
     const screen = await store.getScreen(screenId);

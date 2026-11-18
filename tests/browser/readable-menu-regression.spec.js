@@ -143,3 +143,152 @@ test('readable table reuses classic row colors, protects price columns and hides
   expect(readable.map(({ tone, nameFill, metaFill, priceFills }) => ({ tone, nameFill, metaFill, priceFill:priceFills[0] })))
     .toEqual(classic.map(({ tone, nameFill, metaFill, priceFills }) => ({ tone, nameFill, metaFill, priceFill:priceFills[0] })));
 });
+
+
+test('A→Я sorts a logical section across both visual columns after transferring a product', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const suffix = `sort-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const locationResult = await page.request.post('/api/locations', {
+    data:{ name:`Sort ${suffix}`, address:'Browser CI' }
+  });
+  expect(locationResult.status()).toBe(201);
+  const location = await locationResult.json();
+  const productIds = [];
+  for (const name of ['Янтарное','Ячменное','Альфа','Бавария','Арфа']) {
+    const result = await page.request.post('/api/catalog/products', {
+      data:{ name:`${name} ${suffix}`, producer:'Пивоварня', strength:'4,5%', price_primary:'200',
+        alcoholic:true, beverage_color:'light', filtration:'filtered', active:true }
+    });
+    expect(result.status()).toBe(201);
+    productIds.push((await result.json()).id);
+  }
+  const screenResult = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+  expect(screenResult.status()).toBe(201);
+  const screen = await screenResult.json();
+  const ids = {
+    section:`sort-section-${suffix}`,
+    lz:`sort-left-z-${suffix}`,
+    rz:`sort-right-z-${suffix}`,
+    la:`sort-left-a-${suffix}`,
+    rb:`sort-right-b-${suffix}`,
+    ra:`sort-right-a-${suffix}`
+  };
+  await saveStyle(page, screen, [
+    { id:ids.section, kind:'section', name:'Пиво', column:'full', enabled:true },
+    { id:ids.lz, kind:'item', product_id:productIds[0], column:'left', enabled:true },
+    { id:ids.rz, kind:'item', product_id:productIds[1], column:'right', enabled:true },
+    { id:ids.la, kind:'item', product_id:productIds[2], column:'left', enabled:true },
+    { id:ids.rb, kind:'item', product_id:productIds[3], column:'right', enabled:true },
+    { id:ids.ra, kind:'item', product_id:productIds[4], column:'right', enabled:true }
+  ], 'readable');
+
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-table-layer').click();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
+  const modal = page.locator('#scene-editor-table-edit-layer');
+  const row = (id) => modal.locator(`.scene-table-editor-row[data-source-row-ids="${id}"]`);
+  await expect(row(ids.la)).toHaveAttribute('data-column', '0');
+  await row(ids.la).locator('.scene-table-editor-placement-button[data-column="right"]').click();
+  await expect(row(ids.la)).toHaveAttribute('data-column', '1');
+
+  await row(ids.section).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
+  const order = async (column) => modal.locator(`.scene-table-editor-row[data-column="${column}"]`)
+    .evaluateAll((nodes) => nodes.map((node) => node.dataset.sourceRowIds));
+  expect(await order('0')).toEqual([ids.la]);
+  expect(await order('1')).toEqual([ids.ra, ids.rb, ids.lz, ids.rz]);
+
+  const preview = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) => {
+    const records = nodes.map((node) => {
+      const name = node.querySelector('.item-name');
+      return {
+        text:name?.textContent || '',
+        x:Number(name?.getAttribute('x') || 0),
+        y:Number(name?.getAttribute('y') || 0),
+        tone:node.classList.contains('tone-accent') ? 'accent' : 'light'
+      };
+    });
+    return {
+      left:records.filter((entry) => entry.x < 600).sort((a,b) => a.y - b.y),
+      right:records.filter((entry) => entry.x >= 600).sort((a,b) => a.y - b.y)
+    };
+  });
+  expect(preview.left.map((entry) => entry.text.split(' ')[0])).toEqual(['Альфа']);
+  expect(preview.left.map((entry) => entry.tone)).toEqual(['light']);
+  expect(preview.right.map((entry) => entry.text.split(' ')[0]))
+    .toEqual(['Арфа','Бавария','Янтарное','Ячменное']);
+  expect(preview.right.map((entry) => entry.tone))
+    .toEqual(['light','accent','light','accent']);
+});
+
+
+test('moving a product across visual columns does not change its logical section', async ({ page }) => {
+  await page.setViewportSize({ width:1600, height:900 });
+  await login(page);
+  const suffix = `transfer-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const locationResult = await page.request.post('/api/locations', {
+    data:{ name:`Transfer ${suffix}`, address:'Browser CI' }
+  });
+  expect(locationResult.status()).toBe(201);
+  const location = await locationResult.json();
+  const productIds = [];
+  for (const name of ['Янтарное','Алтунин','Бавария']) {
+    const result = await page.request.post('/api/catalog/products', {
+      data:{ name:`${name} ${suffix}`, producer:'Пивоварня', characteristics:'',
+        strength:'4,5%', price_primary:'200',
+        alcoholic:true, beverage_color:'light', filtration:'filtered', active:true }
+    });
+    expect(result.status()).toBe(201);
+    productIds.push((await result.json()).id);
+  }
+  const screenResult = await page.request.post(`/api/locations/${location.id}/screens`, { data:{} });
+  expect(screenResult.status()).toBe(201);
+  const screen = await screenResult.json();
+  const ids = {
+    left:`left-heading-${suffix}`,
+    right:`right-heading-${suffix}`,
+    moving:`transfer-moving-${suffix}`,
+    stable:`transfer-stable-${suffix}`,
+    destination:`transfer-destination-${suffix}`
+  };
+  await saveStyle(page, screen, [
+    { id:ids.left, kind:'section', name:'Левая', column:'left', enabled:true },
+    { id:ids.moving, kind:'item', product_id:productIds[0], column:'left', enabled:true },
+    { id:ids.stable, kind:'item', product_id:productIds[1], column:'left', enabled:true },
+    { id:ids.right, kind:'section', name:'Правая', column:'right', enabled:true },
+    { id:ids.destination, kind:'item', product_id:productIds[2], column:'right', enabled:true }
+  ], 'readable');
+  await page.goto(`/scene?screen=${screen.id}`);
+  await page.locator('#scene-editor-table-layer').click();
+  await page.getByRole('button', { name:'Редактировать содержимое', exact:true }).click();
+  const modal = page.locator('#scene-editor-table-edit-layer');
+  const row = (id) => modal.locator(`.scene-table-editor-row[data-source-row-ids="${id}"]`);
+  await row(ids.moving).locator('.scene-table-editor-placement-button[data-column="right"]').click();
+  await expect(row(ids.moving)).toHaveAttribute('data-column', '1');
+  const following = await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds));
+  expect(following).toEqual([ids.left,ids.moving,ids.stable,ids.right,ids.destination]);
+
+  await row(ids.right).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
+  const rightOrder = await modal.locator('.scene-table-editor-row.is-item[data-column="1"]').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds));
+  expect(rightOrder).toEqual([ids.moving,ids.destination],
+    'right section sort must not absorb a product from the preceding logical section');
+  await row(ids.left).getByRole('button', { name:'Сортировать раздел по алфавиту' }).click();
+  expect(await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds)))
+    .toEqual([ids.left,ids.stable,ids.moving,ids.right,ids.destination],
+      'logical section becomes alphabetic in the persisted row sequence');
+  await row(ids.left).locator('.scene-table-editor-placement-button[data-column="right"]').click();
+  expect(await modal.locator('.scene-table-editor-row').evaluateAll((nodes) =>
+    nodes.map((node) => node.dataset.sourceRowIds)))
+    .toEqual([ids.left,ids.stable,ids.moving,ids.right,ids.destination],
+      'moving a section title does not reparent its products');
+  const rightTones = await page.locator('#scene-editor-stage svg.menu-table-svg .table-item').evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      x:Number(node.querySelector('.item-name')?.getAttribute('x') || 0),
+      y:Number(node.querySelector('.item-name')?.getAttribute('y') || 0),
+      tone:node.classList.contains('tone-accent') ? 'accent' : 'light'
+    })).filter((entry) => entry.x > 600).sort((a,b) => a.y - b.y).map((entry) => entry.tone));
+  expect(rightTones).toEqual(['light','light'], 'each logical section restarts the visual tone alternation');
+});

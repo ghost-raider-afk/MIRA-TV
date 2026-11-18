@@ -349,3 +349,88 @@ test('runtime app_version mismatch updates Service Worker and reloads only once 
   await page.waitForTimeout(250);
   expect(await page.evaluate(() => Number(sessionStorage.getItem('__miraTestSwUpdates') || 0))).toBe(1);
 });
+
+test('silently stale OPEN WebSocket cannot block automatic HTTP recovery of the displayed scene', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay = 0, ...args) =>
+      nativeSetTimeout(callback, Number(delay) >= 600_000 ? 250 : delay, ...args);
+    class SilentWebSocket extends EventTarget {
+      static OPEN = 1;
+      constructor() {
+        super();
+        this.readyState = 0;
+        nativeSetTimeout(() => {
+          this.readyState = SilentWebSocket.OPEN;
+          this.dispatchEvent(new Event('open'));
+        }, 10);
+      }
+      close() {
+        this.readyState = 3;
+        this.dispatchEvent(new Event('close'));
+      }
+      send() {}
+    }
+    Object.defineProperty(window, 'WebSocket', { configurable:true, value:SilentWebSocket });
+  });
+  await mockAuthorizedSession(page);
+  const oldScene = { ...playerContext(), app_version:'1.18.27' };
+  const newScene = { ...playerContext({ revision:'revision-recovered', hashSuffix:'recovered' }), app_version:'1.18.27' };
+  let state = 'initial';
+  let requestCount = 0;
+  await page.route('**/api/device/player-delta', (route) => {
+    requestCount += 1;
+    if (state === 'lost') return route.fulfill({ status:503, body:'server unavailable' });
+    if (state === 'restored') return route.fulfill({
+      status:200, contentType:'application/json',
+      body:JSON.stringify({ full_snapshot_required:true, context:newScene })
+    });
+    return route.fulfill({
+      status:200, contentType:'application/json',
+      body:JSON.stringify(requestCount === 1
+        ? { full_snapshot_required:true, context:oldScene }
+        : { schema_version:7, revision:oldScene.revision, hashes:oldScene.hashes, changed:{}, unchanged:true })
+    });
+  });
+  await page.goto('/player');
+  await expect(menuVector(page)).toHaveCount(1, { timeout:5000 });
+  state = 'lost';
+  await expect(page.locator('[data-player-message]')).not.toHaveClass(/is-hidden/, { timeout:5000 });
+  await expect(menuVector(page)).toHaveCount(1);
+  state = 'restored';
+  await expect.poll(() => page.evaluate(async () =>
+    (await (await import('/js/player/player-store.js')).loadLastKnownGood())?.revision
+  ), { timeout:7000 }).toBe('revision-recovered');
+  await expect(page.locator('[data-player-message]')).toHaveClass(/is-hidden/, { timeout:5000 });
+  await expect(menuVector(page)).toHaveCount(1);
+});
+
+test('expired TV session offers re-pairing without clearing browser data or hiding the LKG scene', async ({ page }) => {
+  const cached = playerContext({ revision:'revision-retained' });
+  await seedLastKnownGood(page, cached);
+  await page.evaluate(() => localStorage.setItem('mira-tv.device-key.v1', 'mira-device-key-1234567890'));
+  await installFailingWebSocket(page);
+  await page.route('**/api/device/session', (route) => route.fulfill({
+    status:401, contentType:'application/json', body:'{"authorized":false}'
+  }));
+  await page.route('**/api/device/player-delta', (route) => route.fulfill({
+    status:401, contentType:'application/json', body:'{"authorized":false}'
+  }));
+  await page.goto('/player');
+  const indicator = page.locator('[data-player-message]');
+  await expect(menuVector(page)).toHaveCount(1);
+  await expect(indicator).toHaveClass(/is-reauthorization-required/, { timeout:4000 });
+  await expect(page.locator('[data-tv-player]')).not.toHaveClass(/is-hidden/);
+  const initial = await page.evaluate(async () =>
+    (await (await import('/js/player/player-store.js')).loadLastKnownGood())?.revision
+  );
+  expect(initial).toBe('revision-retained');
+  await indicator.click();
+  await expect(page.locator('[data-activation-view]')).not.toHaveClass(/is-hidden/);
+  await expect(page.getByRole('button', { name:'Показать QR-код' })).toBeVisible();
+  const stored = await page.evaluate(async () => ({
+    revision:(await (await import('/js/player/player-store.js')).loadLastKnownGood())?.revision,
+    deviceKey:localStorage.getItem('mira-tv.device-key.v1')
+  }));
+  expect(stored).toEqual({ revision:'revision-retained', deviceKey:'mira-device-key-1234567890' });
+});

@@ -183,3 +183,78 @@ test('readable rows reuse classic alternating tones and keep address out of TV m
   assert.ok(layout.columns[0].priceZoneLeft < layout.columns[0].primaryPriceX);
   assert.equal(layout.columns[0].secondaryPriceX, layout.columns[0].primaryPriceX);
 });
+
+
+test('readable alternation is independent per visual column and every logical section resets both', () => {
+  const rows = [
+    { id:'s-left', kind:'section', name:'Светлое', column:'left', enabled:true },
+    { id:'l1', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'r1', kind:'item', product_id:2, column:'right', enabled:true },
+    { id:'l2', kind:'item', product_id:3, column:'left', enabled:true },
+    { id:'s-right', kind:'section', name:'Тёмное', column:'right', enabled:true },
+    { id:'r2', kind:'item', product_id:4, column:'right', enabled:true },
+    { id:'l3', kind:'item', product_id:5, column:'left', enabled:true },
+    { id:'r3', kind:'item', product_id:6, column:'right', enabled:true },
+    { id:'pack', kind:'packaging', packaging_id:10, column:'left', enabled:true },
+    { id:'l4', kind:'item', product_id:7, column:'left', enabled:true },
+    { id:'s-full', kind:'section', name:'Новый раздел', column:'full', enabled:true },
+    { id:'r4', kind:'item', product_id:8, column:'right', enabled:true },
+    { id:'l5', kind:'item', product_id:9, column:'left', enabled:true }
+  ];
+  const products = Array.from({ length:9 }, (_, i) => product(i+1, `Продукт ${i+1}`, '100', '150'));
+  const model = buildRenderModel({ settings:{ table_style:'readable' }, rows }, { width:1920, height:1080 });
+  const lines = buildDisplayLines(model, { products, packaging:[{ id:10, name:'Тара', unit_price:'20' }] });
+  const tones = new Map(lines.filter((line) => line.sourceRowId || line.sourceRowIds?.length).map((line) => [
+    line.sourceRowId || line.sourceRowIds[0], line.kind === 'packaging' ? line.items[0].tone : line.tone
+  ]));
+  assert.deepEqual(['l1','l2','l3','pack','l4','l5'].map((id) => tones.get(id)),
+    ['light','accent','light','accent','light','light']);
+  assert.deepEqual(['r1','r2','r3','r4'].map((id) => tones.get(id)),
+    ['light','light','accent','light']);
+  const layout = buildRenderLayout(model, lines);
+  assert.equal(layout.columns.length, 2);
+  assert.equal(buildTableSvg(model, lines, layout).match(/class="table-item theme-legacy tone-/g)?.length, 9);
+});
+
+test('moving a readable product between columns only recalculates tones in the affected column', () => {
+  const rows = [
+    { id:'s', kind:'section', name:'Меню', column:'full', enabled:true },
+    { id:'l1', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'r1', kind:'item', product_id:2, column:'right', enabled:true },
+    { id:'l2', kind:'item', product_id:3, column:'left', enabled:true },
+    { id:'r2', kind:'item', product_id:4, column:'right', enabled:true },
+    { id:'l3', kind:'item', product_id:5, column:'left', enabled:true }
+  ];
+  const products = Array.from({ length:5 }, (_, i) => product(i+1, `Товар ${i+1}`, '100', '150'));
+  const tones = (source) => new Map(buildDisplayLines(buildRenderModel({
+    settings:{ table_style:'readable' }, rows:source
+  }), { products }).filter((line) => line.kind === 'item').map((line) => [line.sourceRowId, line.tone]));
+  const before = tones(rows);
+  assert.deepEqual(['l1','l2','l3'].map((id) => before.get(id)), ['light','accent','light']);
+  assert.deepEqual(['r1','r2'].map((id) => before.get(id)), ['light','accent']);
+  const after = tones(rows.map((row) => row.id === 'l2' ? { ...row, column:'right' } : row));
+  assert.deepEqual(['l1','l3'].map((id) => after.get(id)), ['light','accent']);
+  assert.deepEqual(['r1','l2','r2'].map((id) => after.get(id)), ['light','accent','light']);
+});
+
+
+test('a new section header resets tones in both columns regardless of its visual column', () => {
+  const rows = [
+    { id:'first', kind:'section', name:'Раздел 1', column:'left', enabled:true },
+    { id:'l1', kind:'item', product_id:1, column:'left', enabled:true },
+    { id:'r1', kind:'item', product_id:2, column:'right', enabled:true },
+    { id:'second', kind:'section', name:'Раздел 2', column:'right', enabled:true },
+    { id:'l2', kind:'item', product_id:3, column:'left', enabled:true },
+    { id:'r2', kind:'item', product_id:4, column:'right', enabled:true },
+    { id:'l3', kind:'item', product_id:5, column:'left', enabled:true },
+    { id:'r3', kind:'item', product_id:6, column:'right', enabled:true }
+  ];
+  const products = Array.from({ length:6 }, (_, i) => product(i+1, `Пиво ${i+1}`, '100', '150'));
+  const render = (sourceRows) => buildDisplayLines(buildRenderModel({ settings:{ table_style:'readable' }, rows:sourceRows }), { products })
+    .filter((line) => line.kind === 'item').map((line) => [line.sourceRowId, line.tone]);
+  assert.deepEqual(Object.fromEntries(render(rows)), {
+    l1:'light', r1:'light', l2:'light', r2:'light', l3:'accent', r3:'accent'
+  });
+  const movedTitle = rows.map((row) => row.id === 'second' ? { ...row, column:'left' } : row);
+  assert.deepEqual(render(movedTitle), render(rows), 'moving the header must not alter its logical tone boundaries');
+});

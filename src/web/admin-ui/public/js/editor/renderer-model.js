@@ -259,7 +259,7 @@ function renderColumn(row, { allowFull = false } = {}) {
 
 export function buildDisplayLines(model, { products = [], packaging = [], fallbackTitle = 'Меню' } = {}) {
   const lines = [];
-  let toneIndex = 0;
+  const toneIndexes = { left:0, right:0 };
   let itemSequence = 0;
   let firstSectionSeen = false;
   const readable = String(model?.settings?.table_style || 'legacy') === 'readable';
@@ -283,14 +283,16 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         column:renderColumn(row, { allowFull:true })
       }));
       firstSectionSeen = true;
-      toneIndex = 0;
+      // Both columns belong to the same logical section; a new header resets both.
+      toneIndexes.left = 0;
+      toneIndexes.right = 0;
       continue;
     }
 
     if (row.kind === 'item') {
       const product = recordById(products, row.product_id ?? row.productId);
-      const tone = toneIndex % 2 === 0 ? 'light' : 'accent';
-      toneIndex += 1;
+      const column = readable ? renderColumn(row) : 'left';
+      const tone = toneIndexes[column]++ % 2 === 0 ? 'light' : 'accent';
       itemSequence += 1;
       lines.push(Object.freeze({
         kind: 'item',
@@ -316,9 +318,8 @@ export function buildDisplayLines(model, { products = [], packaging = [], fallba
         sourceRowId: row.id || null,
         name: item?.name || row.name || 'Тара не выбрана',
         unitPrice: item?.unit_price || row.unit_price || row.unitPrice || '',
-        tone: toneIndex % 2 === 0 ? 'light' : 'accent'
+        tone: toneIndexes[readable ? renderColumn(row) : 'left']++ % 2 === 0 ? 'light' : 'accent'
       });
-      toneIndex += 1;
       const previous = lines.length ? lines[lines.length - 1] : undefined;
       if (!readable && previous?.kind === 'packaging' && previous.items.length < 2) {
         lines[lines.length - 1] = Object.freeze({

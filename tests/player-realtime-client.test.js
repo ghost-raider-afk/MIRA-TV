@@ -46,9 +46,11 @@ test('Player realtime treats browser online state as advisory and keeps transpor
 
   let connected = 0;
   let disconnected = 0;
+  let networkRestored = 0;
   const client = createPlayerRealtimeClient({
     onConnected:() => { connected += 1; },
-    onDisconnected:() => { disconnected += 1; }
+    onDisconnected:() => { disconnected += 1; },
+    onNetworkOnline:() => { networkRestored += 1; }
   });
 
   try {
@@ -65,6 +67,10 @@ test('Player realtime treats browser online state as advisory and keeps transpor
     assert.equal(sockets[0].closeCalls.length, 0, 'an advisory offline event must not tear down a working socket');
     assert.equal(client.connected, true);
     assert.equal(disconnected, 0);
+
+    fakeWindow.dispatchEvent(new Event('online'));
+    assert.equal(networkRestored, 1, 'network recovery must recheck the server even with a stale OPEN WebSocket');
+    assert.equal(sockets.length, 1, 'a network hint must not duplicate a connected socket');
 
     client.stop();
     assert.deepEqual(sockets[0].closeCalls, [{ code:1000, reason:'player stopped' }]);

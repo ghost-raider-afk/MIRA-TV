@@ -16,6 +16,7 @@ import { migrateScreenAnimationSettings } from './migrations/screen-animation-se
 import { migrateEnvironmentLayer } from './migrations/environment-layer.js';
 import { migrateScenePlaylist } from './migrations/scene-playlist.js';
 import { migratePlayerTelemetry } from './migrations/player-telemetry.js';
+import { migratePlayerConnectionHistory } from './migrations/player-connection-history.js';
 import { migratePlayerMetrics } from './migrations/player-metrics.js';
 import { migrateDeviceIdentification } from './migrations/device-identification.js';
 import { migrateWeatherSnapshots } from './migrations/weather-snapshots.js';
@@ -100,7 +101,8 @@ const MIGRATIONS = Object.freeze([
   { name: '037-manager-access', run: migrateManagerAccess },
   { name: '038-manager-crm-cards', run: migrateManagerCrmCards },
   { name: '039-crm-request-workflow', run: migrateCrmRequestWorkflow },
-  { name: '040-request-notifications', run: migrateRequestNotifications }
+  { name: '040-request-notifications', run: migrateRequestNotifications },
+  { name: '041-player-connection-history', run: migratePlayerConnectionHistory }
 ]);
 
 function createRepositories(queryable) {
