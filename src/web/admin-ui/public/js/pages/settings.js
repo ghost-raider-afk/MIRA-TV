@@ -101,6 +101,7 @@ function managerRow(manager, locations) {
       password.value = '';
       setMessage('manager-settings-message', `Пароль менеджера «${manager.username}» изменён. Активные сессии завершены.`, 'success');
       await loadManagers();
+      await loadMessengerUsers();
     } catch (error) {
       setMessage('manager-settings-message', error.message);
     }
@@ -115,6 +116,7 @@ function managerRow(manager, locations) {
       await api.put(managerEndpoint(manager.username, 'active'), { active: !manager.active });
       setMessage('manager-settings-message', `Менеджер «${manager.username}» ${manager.active ? 'отключён' : 'включён'}.`, 'success');
       await loadManagers();
+      await loadMessengerUsers();
     } catch (error) {
       setMessage('manager-settings-message', error.message);
     }
@@ -130,6 +132,7 @@ function managerRow(manager, locations) {
       await api.delete(managerEndpoint(manager.username));
       setMessage('manager-settings-message', `Менеджер «${manager.username}» удалён.`, 'success');
       await loadManagers();
+      await loadMessengerUsers();
     } catch (error) {
       setMessage('manager-settings-message', error.message);
     }
@@ -194,6 +197,7 @@ function managerRow(manager, locations) {
       });
       setMessage('manager-settings-message',`Доступ менеджера «${manager.username}» сохранён.`,'success');
       await loadManagers();
+      await loadMessengerUsers();
     } catch (error) {
       setMessage('manager-settings-message',error.message);
     } finally { save.disabled=false; }
@@ -201,6 +205,69 @@ function managerRow(manager, locations) {
   access.append(heading,catalogLabel,locationsTitle,allLabel,locationSummary,locationList,save);
   row.append(actions,access);
   return row;
+}
+
+function messengerUserRow(user) {
+  const row=document.createElement('div');
+  row.className='bot-user-row';
+  row.dataset.username=user.username;
+  const head=document.createElement('div');
+  head.className='bot-user-heading';
+  const name=document.createElement('strong');
+  name.textContent=user.display_name || user.username;
+  const identity=document.createElement('small');
+  identity.textContent=(user.role==='administrator' ? 'Администратор' : 'Менеджер') +
+    ' · ' + user.username + (user.active ? '' : ' · отключён');
+  head.append(name,identity);
+  const controls=document.createElement('div');
+  controls.className='bot-user-fields';
+  const inputs={};
+  for (const [provider,title] of [['telegram','Telegram ID'],['max','MAX ID']]) {
+    const label=document.createElement('label');
+    label.className='field';
+    const caption=document.createElement('span');
+    caption.textContent=title;
+    const input=document.createElement('input');
+    input.type='text';
+    input.inputMode='numeric';
+    input.autocomplete='off';
+    input.maxLength=19;
+    input.placeholder='Не указан';
+    input.value=user[provider+'_id'] || '';
+    input.setAttribute('aria-label',title+' пользователя '+user.username);
+    label.append(caption,input);
+    controls.append(label);
+    inputs[provider]=input;
+  }
+  const save=document.createElement('button');
+  save.type='button';
+  save.className='button button-secondary';
+  save.textContent='Сохранить ID';
+  save.addEventListener('click',async()=>{
+    save.disabled=true;
+    try {
+      const updated=await api.put(API.managers+'/messenger-users/'+encodeURIComponent(user.username),{
+        telegram_id:inputs.telegram.value.trim(), max_id:inputs.max.value.trim()
+      });
+      inputs.telegram.value=updated.telegram_id || '';
+      inputs.max.value=updated.max_id || '';
+      setMessage('bot-user-message','ID пользователя «'+user.username+'» сохранены.','success');
+    } catch(error) {
+      setMessage('bot-user-message',error.message);
+    } finally {
+      save.disabled=false;
+    }
+  });
+  controls.append(save);
+  row.append(head,controls);
+  return row;
+}
+
+async function loadMessengerUsers() {
+  const host=element('bot-user-list');
+  if (!host) return;
+  const { users }=await api.get(API.managers+'/messenger-users');
+  host.replaceChildren(...users.map(messengerUserRow));
 }
 
 async function loadManagers() {
@@ -229,6 +296,7 @@ function initialiseManagers() {
       form.reset();
       setMessage('manager-settings-message', `Менеджер «${username}» создан.`, 'success');
       await loadManagers();
+      await loadMessengerUsers();
     } catch (error) {
       setMessage('manager-settings-message', error.message);
     } finally {
@@ -240,6 +308,7 @@ function initialiseManagers() {
   form.querySelectorAll('input, button').forEach((control) => { control.disabled = false; });
   form.dataset.hydrated = 'true';
   void loadManagers().catch((error) => setMessage('manager-settings-message', error.message));
+  void loadMessengerUsers().catch((error) => setMessage('bot-user-message', error.message));
 }
 
 export function initialiseSettings() {

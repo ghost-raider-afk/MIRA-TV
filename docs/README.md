@@ -1,6 +1,6 @@
 # Документация MIRA-TV
 
-Рабочие инструкции описывают опубликованное состояние проекта в `main`. **Актуальная стабильная версия — [v1.18.26](https://github.com/ghost-raider-afk/MIRA-TV/releases/tag/v1.18.26)**; перед установкой проверяйте [последний релиз](https://github.com/ghost-raider-afk/MIRA-TV/releases).
+Рабочие инструкции описывают опубликованное состояние проекта в `main`. **Актуальная стабильная версия — [v1.18.28](https://github.com/ghost-raider-afk/MIRA-TV/releases/tag/v1.18.28)**; перед установкой проверяйте [последний релиз](https://github.com/ghost-raider-afk/MIRA-TV/releases).
 
 ## Установка и эксплуатация
 
@@ -17,6 +17,8 @@
 - [ARCHITECTURE.md](ARCHITECTURE.md) — компоненты системы и гарантии совместимости.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — правила изменений, тестирования и релизов.
 - [BRANDING.md](BRANDING.md) — название и оформление проекта.
+- [MESSENGER-UI.md](MESSENGER-UI.md) — проектируемый интерфейс Telegram/MAX; не входит в опубликованный сервер.
+- [BOT.md](BOT.md) — настройка Telegram/MAX, отдельный контейнер, права и webhook после выпуска этой функции.
 
 ## Развитие и история
 

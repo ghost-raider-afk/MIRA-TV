@@ -1,0 +1,8 @@
+FROM node:24-bookworm-slim
+WORKDIR /srv/mira-tv
+COPY package.json ./package.json
+COPY src/bot/ ./src/bot/
+USER node
+EXPOSE 8090
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD node -e "fetch('http://127.0.0.1:8090/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["node","src/bot/runtime.js"]

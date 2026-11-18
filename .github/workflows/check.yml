@@ -208,9 +208,20 @@ jobs:
           set -euo pipefail
           docker compose run --rm --no-deps -T app node -e "import('./src/config/index.js').then(({ loadConfig }) => { loadConfig(); })"
 
+      - name: Validate optional Telegram/MAX Compose and image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.bot.example .env.bot
+          sed -i             -e 's|^BOT_DOMAIN=.*|BOT_DOMAIN=bot.example.test|'             -e 's|^BOT_INTERNAL_API_TOKEN=.*|BOT_INTERNAL_API_TOKEN=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|'             -e 's|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=123456:abcdefghijklmnopqrstuvwxy0123456789|'             -e 's|^TELEGRAM_WEBHOOK_SECRET=.*|TELEGRAM_WEBHOOK_SECRET=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb|'             .env.bot
+          docker compose -f compose.yaml -f compose.bot.yaml config --quiet
+          docker compose -f compose.yaml -f compose.bot.yaml run --rm --no-deps -T bot-proxy-config-init
+          docker compose -f compose.yaml -f compose.bot.yaml run --rm --no-deps -T --entrypoint cat bot-proxy-config-init /dynamic/bot.yml             | grep -F 'Host(`bot.example.test`)'
+          docker compose -f compose.yaml -f compose.bot.yaml build bot
+
       - name: Cleanup compose env
         if: always()
-        run: rm -f .env
+        run: rm -f .env .env.bot
 
   browser-visual:
     runs-on: ubuntu-latest

@@ -16,6 +16,7 @@ import { migrateLegacyBackgroundAssets } from './services/legacy-background-migr
 import { cleanupUnreferencedSceneAssets } from './services/scene-assets-service.js';
 import { createWeatherService } from './services/weather-service.js';
 import { createPlayerRealtime } from './realtime/player-realtime.js';
+import { createBotInternalRouter } from './bot/internal-api.js';
 import { AUTHENTICATED_PAGES, LEGACY_PAGE_REDIRECTS, MANAGER_PAGE, canonicalRedirectTarget } from './web/admin-ui/routes.js';
 import { createAuthRouter } from './api/auth/routes.js';
 import { createSessionRouter } from './api/session/routes.js';
@@ -236,6 +237,13 @@ export async function createApp(config = loadConfig(), { store: suppliedStore } 
   const resolveSession = createSessionResolver(store, config);
   const { requireApiSession, requirePageSession, requireApiRole, requirePageRole } = createSessionMiddleware(resolveSession);
   const dependencies = { store, config, realtime, weatherService, requestNotifications };
+  // Absent from normal MIRA-TV installations. With the bot overlay enabled,
+  // access requires the separate high-entropy internal token on every request.
+  if (process.env.BOT_INTERNAL_API_TOKEN) {
+    app.use('/internal/bot', createBotInternalRouter({
+      store, realtime, token:process.env.BOT_INTERNAL_API_TOKEN
+    }));
+  }
   mountProtectedApi(app, dependencies, requireApiSession, requireApiRole);
   mountFrontend(app, requirePageSession, requirePageRole);
   app.use(errorHandler);

@@ -107,7 +107,14 @@ write_env() {
   chmod 600 "${INSTALL_DIR}/.env"; persist_env
 }
 
-compose() { [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'; (cd "$INSTALL_DIR" && docker compose "$@"); }
+compose() {
+  [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
+  if [[ -f "$INSTALL_DIR/.env.bot" && -f "$INSTALL_DIR/compose.bot.yaml" ]]; then
+    (cd "$INSTALL_DIR" && docker compose -f compose.yaml -f compose.bot.yaml "$@")
+  else
+    (cd "$INSTALL_DIR" && docker compose "$@")
+  fi
+}
 validate_compose() { compose config --quiet; }
 
 wait_ready() {
@@ -243,12 +250,30 @@ update_app() {
   merge_env_defaults || recover_failed_update 'merge env defaults'
   sed -i "s|^MIRA_TV_VERSION=.*|MIRA_TV_VERSION=${version}|" .env || recover_failed_update 'update MIRA_TV_VERSION'
   chmod 600 .env || recover_failed_update 'chmod .env'; persist_env || recover_failed_update 'persist merged .env'
-  docker compose config --quiet || recover_failed_update 'docker compose config'
-  docker compose up -d --build --wait || recover_failed_update 'docker compose up --build --wait'
+  compose config --quiet || recover_failed_update 'docker compose config'
+  compose up -d --build --wait || recover_failed_update 'docker compose up --build --wait'
   wait_ready || recover_failed_update 'wait /readyz'
   install -m 0755 mira-tv.sh "$LAUNCHER_PATH" || recover_failed_update 'install launcher'
   persist_env || recover_failed_update 'persist final .env'
   rm -rf -- "$TEMP_BACKUP_DIR"; TEMP_BACKUP_DIR=""; info "MIRA-TV обновлён до версии ${version}."
+}
+
+configure_bot() {
+  require_root bot
+  [[ -f "$INSTALL_DIR/.env" ]] || die 'Сначала установите MIRA-TV.'
+  [[ -f "$INSTALL_DIR/scripts/configure-bot.sh" ]] || die 'Установленная версия не содержит мастер бота.'
+  bash "$INSTALL_DIR/scripts/configure-bot.sh" "$INSTALL_DIR" "$PERSIST_DIR"
+  compose config --quiet || die 'Некорректная конфигурация Docker Compose для бота.'
+  compose up -d --build --wait || die 'Контейнер бота не запустился. Настройки сохранены.'
+  wait_ready || die 'MIRA-TV не подтвердил /readyz после подключения бота.'
+  info 'Контейнер Telegram/MAX-бота запущен. Зарегистрируйте HTTPS webhooks по docs/BOT.md.'
+}
+
+register_bot_webhooks() {
+  require_root bot-register
+  [[ -f "$INSTALL_DIR/.env.bot" ]] || die 'Сначала настройте бота: mira-tv bot.'
+  compose exec -T bot node src/bot/register-webhooks.js ||
+    die 'Не удалось зарегистрировать webhook. Проверьте домен, HTTPS и логи бота.'
 }
 
 status_app() { require_root status; compose ps; }
@@ -278,13 +303,13 @@ purge_app() {
 
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Настроить Telegram/MAX-бота\n10) Зарегистрировать HTTPS webhooks\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
-  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
+  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 9) configure_bot ;; 10) register_bot_webhooks ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
 }
 
 case "${1:-menu}" in
   install) install_app ;; update) update_app ;; status) status_app ;; restart) restart_app ;; logs) logs_app ;;
-  reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
-  *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
+  reset-admin-password) reset_admin_password ;; bot) configure_bot ;; bot-register) register_bot_webhooks ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
+  *) die 'Команды: install | update | status | restart | logs | bot | bot-register | reset-admin-password | remove | purge | menu' ;;
 esac
