@@ -12,14 +12,23 @@ GITHUB_API_URL="https://api.github.com/repos/${GITHUB_REPO}"
 LAUNCHER_PATH="/usr/local/bin/mira-tv"
 TEMP_BACKUP_DIR=""
 KEEP_TEMP_BACKUP=false
+MIGRATION_HELPER_TEMP=""
 
 log() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
 warn() { printf 'ПРЕДУПРЕЖДЕНИЕ: %s\n' "$*" >&2; }
 die() { printf 'ОШИБКА: %s\n' "$*" >&2; exit 1; }
 
+
+migration_guard_source_writable() {
+  [[ ! -f "/var/lib/mira-tv/migration/source-frozen" &&
+     ! -f "/var/lib/mira-tv/migration/source-handoff" ]] ||
+    die 'Перенос сервера: запись на исходном узле заблокирована. Используйте меню миграции для восстановления.'
+}
+
 cleanup_temporary_backup() {
   if [[ -n "$TEMP_BACKUP_DIR" && -d "$TEMP_BACKUP_DIR" && "$KEEP_TEMP_BACKUP" != true ]]; then rm -rf -- "$TEMP_BACKUP_DIR"; fi
+  if [[ -n "$MIGRATION_HELPER_TEMP" && -d "$MIGRATION_HELPER_TEMP" ]]; then rm -rf -- "$MIGRATION_HELPER_TEMP"; fi
 }
 trap cleanup_temporary_backup EXIT
 
@@ -228,7 +237,7 @@ install_app() {
 }
 
 update_app() {
-  require_root update; [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
+  require_root update; migration_guard_source_writable; [[ -d "${INSTALL_DIR}/.git" ]] || die 'MIRA-TV не установлен.'
   local installed tag version answer
   installed="$(installed_version)" || die 'Не удалось определить установленную версию MIRA-TV.'; tag="$(latest_tag)"; [[ -n "$tag" ]] || die 'Стабильный релиз MIRA-TV не найден.'; version="${tag#v}"
   printf 'Установлена: %s\nПоследний релиз: %s\n' "$installed" "$version"
@@ -252,17 +261,17 @@ update_app() {
 }
 
 status_app() { require_root status; compose ps; }
-restart_app() { require_root restart; compose restart; }
+restart_app() { require_root restart; migration_guard_source_writable; compose restart; }
 logs_app() { require_root logs; compose logs -f --tail=200; }
 
 reset_admin_password() {
-  require_root reset-admin-password; [[ -d "$INSTALL_DIR/.git" ]] || die 'MIRA-TV не установлен.'
+  require_root reset-admin-password; migration_guard_source_writable; [[ -d "$INSTALL_DIR/.git" ]] || die 'MIRA-TV не установлен.'
   local username; read -r -p 'Логин администратора (Enter, если администратор один): ' username
   if [[ -n "$username" ]]; then compose exec -T app node src/cli/reset-admin-password.js "$username"; else compose exec -T app node src/cli/reset-admin-password.js; fi
 }
 
 remove_app() {
-  require_root remove; [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
+  require_root remove; migration_guard_source_writable; [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
   printf '\nБудет удалено приложение MIRA-TV и его рабочий каталог.\nДанные Docker и секреты доступа к сохранённой базе будут сохранены.\n'
   if ! confirm_action 'Удалить приложение?'; then info 'Удаление отменено.'; return 0; fi
   persist_env; compose down --remove-orphans; rm -rf "$INSTALL_DIR"; rm -f "$LAUNCHER_PATH"
@@ -270,21 +279,75 @@ remove_app() {
 }
 
 purge_app() {
-  require_root purge; [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
+  require_root purge; migration_guard_source_writable; [[ -d "$INSTALL_DIR" ]] || die 'MIRA-TV не установлен.'
   printf '\nВНИМАНИЕ: будут безвозвратно удалены приложение MIRA-TV, база данных, загруженные файлы, сохранённые секреты и HTTPS-сертификаты.\n'
   if ! confirm_action 'Удалить приложение и ВСЕ данные?'; then info 'Удаление отменено.'; return 0; fi
   compose down -v --remove-orphans; rm -rf "$INSTALL_DIR" "$PERSIST_DIR"; rm -f "$LAUNCHER_PATH"; info 'MIRA-TV и все его данные Docker удалены.'
 }
 
+# Keep the update/installation path independent from the SSH migration workflow.
+migration_load() {
+  local helper="$INSTALL_DIR/scripts/server-migration.sh"
+  if [[ ! -f "$helper" ]]; then
+    local local_helper
+    local_helper="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/scripts/server-migration.sh"
+    if [[ -f "$local_helper" ]]; then
+      helper="$local_helper"
+    else
+      require_root migrate-target
+      require_ubuntu
+      install_prerequisites
+      MIGRATION_HELPER_TEMP="$(mktemp -d -t mira-tv-source.XXXXXX)"
+      git clone --quiet --depth 1 --branch "v$SCRIPT_VERSION" "$REPO_URL" "$MIGRATION_HELPER_TEMP/repo" ||
+        die 'Не удалось получить модуль миграции той же версии, что и установщик.'
+      helper="$MIGRATION_HELPER_TEMP/repo/scripts/server-migration.sh"
+    fi
+  fi
+  [[ -f "$helper" ]] || die 'Модуль миграции отсутствует.'
+  # shellcheck source=scripts/server-migration.sh
+  source "$helper"
+}
+
+migration_menu() {
+  printf '\nМиграция MIRA-TV (подготовительный этап)\n'
+  printf '1) Этот сервер — исходный (выдать временный SSH-ключ)\n'
+  printf '2) Этот сервер — новый (проверить SSH-подключение)\n'
+  printf '3) Отозвать временный SSH-доступ на исходном сервере\n4) Удалить предварительную копию на новом сервере\n5) Повторить подготовку нового сервера из проверенной копии\n6) Отменить подготовку нового сервера (тестовые данные)\n7) Восстановить запись на исходном сервере до переключения\n8) Завершить перенос: финальная синхронизация и переключение\n0) Назад\n'
+  local choice
+  read -r -p 'Выберите действие: ' choice
+  case "$choice" in
+    1) migration_load; migration_source_setup ;;
+    2) migration_load; migration_target_probe ;;
+    3) migration_load; migration_source_cancel ;;
+    4) migration_load; migration_target_discard ;;
+    5) migration_load; migration_target_prepare ;;
+    6) migration_load; migration_target_reset ;;
+    7) migration_load; require_root migrate-resume; migration_source_resume ;;
+    8) migration_load; migration_target_finalize ;;
+    0) return 0 ;;
+    *) die 'Неизвестный пункт меню миграции.' ;;
+  esac
+}
+
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Миграция на другой сервер (SSH)\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
-  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
+  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 9) migration_menu ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
 }
 
 case "${1:-menu}" in
   install) install_app ;; update) update_app ;; status) status_app ;; restart) restart_app ;; logs) logs_app ;;
   reset-admin-password) reset_admin_password ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
+  migrate-source) migration_load; migration_source_setup ;;
+  migrate-target) migration_load; migration_target_probe ;;
+  migrate-cancel) migration_load; migration_source_cancel ;;
+  migrate-discard) migration_load; migration_target_discard ;;
+  migrate-prepare) migration_load; migration_target_prepare ;;
+  migrate-reset) migration_load; migration_target_reset ;;
+  migrate-remote) migration_load; migration_source_remote ;;
+  migrate-proxy-check) migration_load; migration_source_proxy_check ;;
+  migrate-resume) migration_load; require_root migrate-resume; migration_source_resume ;;
+  migrate-finalize) migration_load; migration_target_finalize ;;
   *) die 'Команды: install | update | status | restart | logs | reset-admin-password | remove | purge | menu' ;;
 esac

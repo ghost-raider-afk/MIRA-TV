@@ -5,6 +5,7 @@
 ## Установка и эксплуатация
 
 - [INSTALLATION.md](INSTALLATION.md) — установка на Ubuntu, обновление, откат и сохранность данных.
+- [SERVER-MIGRATION.md](SERVER-MIGRATION.md) — перенос MIRA-TV между серверами; механизм пока в разработке.
 - [CONFIGURATION.md](CONFIGURATION.md) — параметры `.env`, секреты и безопасные настройки.
 - [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md) — готовность, HTTPS, база, Player и сохранение LKG.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — диагностика сайта, соединений и старых Android TV.
