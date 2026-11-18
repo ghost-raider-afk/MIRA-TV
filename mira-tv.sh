@@ -269,6 +269,13 @@ configure_bot() {
   info 'Контейнер Telegram/MAX-бота запущен. Зарегистрируйте HTTPS webhooks по docs/BOT.md.'
 }
 
+register_bot_webhooks() {
+  require_root bot-register
+  [[ -f "$INSTALL_DIR/.env.bot" ]] || die 'Сначала настройте бота: mira-tv bot.'
+  compose exec -T bot node src/bot/register-webhooks.js ||
+    die 'Не удалось зарегистрировать webhook. Проверьте домен, HTTPS и логи бота.'
+}
+
 status_app() { require_root status; compose ps; }
 restart_app() { require_root restart; compose restart; }
 logs_app() { require_root logs; compose logs -f --tail=200; }
@@ -296,13 +303,13 @@ purge_app() {
 
 show_menu() {
   printf '\nУстановщик MIRA-TV %s\n' "$SCRIPT_VERSION"
-  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Настроить Telegram/MAX-бота\n0) Выход\n'
+  printf '1) Установить\n2) Проверить обновление\n3) Статус\n4) Перезапустить\n5) Логи\n6) Сбросить пароль администратора\n7) Удалить приложение\n8) Удалить приложение и данные\n9) Настроить Telegram/MAX-бота\n10) Зарегистрировать HTTPS webhooks\n0) Выход\n'
   read -r -p 'Выберите действие: ' choice
-  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 9) configure_bot ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
+  case "$choice" in 1) install_app ;; 2) update_app ;; 3) status_app ;; 4) restart_app ;; 5) logs_app ;; 6) reset_admin_password ;; 7) remove_app ;; 8) purge_app ;; 9) configure_bot ;; 10) register_bot_webhooks ;; 0) exit 0 ;; *) die 'Неизвестный пункт меню.' ;; esac
 }
 
 case "${1:-menu}" in
   install) install_app ;; update) update_app ;; status) status_app ;; restart) restart_app ;; logs) logs_app ;;
-  reset-admin-password) reset_admin_password ;; bot) configure_bot ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
-  *) die 'Команды: install | update | status | restart | logs | bot | reset-admin-password | remove | purge | menu' ;;
+  reset-admin-password) reset_admin_password ;; bot) configure_bot ;; bot-register) register_bot_webhooks ;; remove) remove_app ;; purge) purge_app ;; menu) show_menu ;;
+  *) die 'Команды: install | update | status | restart | logs | bot | bot-register | reset-admin-password | remove | purge | menu' ;;
 esac
