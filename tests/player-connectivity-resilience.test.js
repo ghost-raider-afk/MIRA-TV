@@ -11,7 +11,7 @@ test('Player preserves rare REST liveness checks even if a Chromium WebSocket st
   assert.match(sync, /websocketConnected\s*\? Math\.max\(CONNECTED_HEALTH_POLL_MS, runtime\.fallbackPollMs\)\s*:\s*runtime\.fallbackPollMs/s);
   assert.doesNotMatch(sync, /if \(!started \|\| websocketConnected \|\| fallbackTimer\) return;/);
   assert.match(sync, /onConnected\(\) \{[\s\S]*?scheduleFallbackPoll\(\);[\s\S]*?syncNow\('websocket-reconcile'\);/);
-  assert.match(sync, /onDisconnected\(\) \{[\s\S]*?if \(wasConnected\) clearFallbackTimer\(\);\s*scheduleFallbackPoll\(\);/);
+  assert.match(sync, /onDisconnected\(details = \{\}\) \{[\s\S]*?log\('websocket.disconnected', details, 'warn'\);[\s\S]*?if \(wasConnected\) clearFallbackTimer\(\);\s*scheduleFallbackPoll\(\);/);
   assert.match(sync, /onNetworkOnline\(\) \{\s*void syncNow\('network-online'\);/);
 });
 
