@@ -21,8 +21,13 @@ test('installer is syntactically valid and delegates MIRA-TV runtime operations 
   assert.match(source, new RegExp(`^SCRIPT_VERSION="${escapedVersion}"$`, 'm'));
   assert.match(source, /^INSTALL_DIR="\/opt\/MIRA-TV"$/m);
   assert.match(source, /^LAUNCHER_PATH="\/usr\/local\/bin\/mira-tv"$/m);
-  assert.match(source, /docker compose up -d --build --wait/);
-  assert.match(source, /docker compose config --quiet/);
+  assert.match(source, /compose up -d --build --wait/);
+  assert.match(source, /compose config --quiet/);
+  const composeWrapper = source.match(/compose\(\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+  assert.match(composeWrapper, /docker compose -f compose\.yaml -f compose\.bot\.yaml "\$@"/,
+    'bot configuration must use a separate overlay');
+  assert.match(composeWrapper, /docker compose "\$@"/,
+    'existing installations without bot must keep their original compose stack');
   assert.doesNotMatch(source, /\bdocker\s+(?:run|network|create|rm|stop|start)\b/);
   assert.doesNotMatch(source, /COMPOSE_PROJECT=/);
   assert.doesNotMatch(source, /:2022|file-transfer/i);
@@ -108,6 +113,6 @@ test('failed update diagnostics are captured before rollback removes the unhealt
     recovery.indexOf('capture_update_failure_diagnostics') < recovery.indexOf('restore_temporary_backup'),
     'diagnostics must be captured before rollback removes the failed container'
   );
-  assert.match(source, /docker compose up -d --build --wait \|\| recover_failed_update 'docker compose up --build --wait'/);
+  assert.match(source, /compose up -d --build --wait \|\| recover_failed_update 'docker compose up --build --wait'/);
   assert.match(source, /wait_ready \|\| recover_failed_update 'wait \/readyz'/);
 });
