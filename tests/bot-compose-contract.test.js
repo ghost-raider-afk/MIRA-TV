@@ -24,7 +24,10 @@ test('bot installer syntax, secrets and independent Docker topology',async()=>{
   assert.match(overlay,/BOT_DOMAIN/);
   assert.match(overlay,/bot-proxy-config-init:/);
   assert.doesNotMatch(overlay,/\bports:/);
-  assert.doesNotMatch(overlay,/mira-tv-internal/);
+  const botService = overlay.match(/\n  bot:\n([\s\S]*?)(?=\nnetworks:)/)?.[1] ?? '';
+  assert.match(botService,/networks: \[mira-tv-bot\]/);
+  assert.doesNotMatch(botService,/mira-tv-internal/,
+    'only app retains the internal DB network; the bot must not join it');
   assert.match(dockerfile,/USER node/);
   assert.match(dockerfile,/HEALTHCHECK/);
   assert.match(proxy,/9\) Настроить Telegram\/MAX-бота/);
