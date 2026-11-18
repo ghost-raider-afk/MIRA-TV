@@ -4,6 +4,7 @@ import { state } from '../core/state.js';
 import { element, makeButton, setMessage, setPending } from '../core/dom.js';
 import { formatDate } from '../core/presentation.js';
 import { sortLocationsByOperationalPriority } from './tv-network-priority.js';
+import { openTvConnectionDiagnostics, disposeTvConnectionDiagnostics } from './tv-connection-diagnostics.js';
 
 const STATUS_REFRESH_MS = 5000;
 const PREVIEW_REFRESH_DELAY_MS = 2200;
@@ -293,6 +294,8 @@ function updateManagementRuntime(screen = managementScreen()) {
     diagnostic.classList.toggle('is-warning', Boolean(text));
   }
   const connect = managementDialog.querySelector('[data-tv-management-connect]');
+  const history = managementDialog.querySelector('[data-tv-management-connection-history]');
+  if (history instanceof HTMLButtonElement) history.hidden = !binding;
   const unbind = managementDialog.querySelector('[data-tv-management-unbind]');
   if (connect instanceof HTMLAnchorElement) {
     connect.href = `/connect-tv?screen=${encodeURIComponent(screen.id)}`;
@@ -349,6 +352,7 @@ function ensureManagementDialog() {
           <p class="screen-tv-management-diagnostic" data-tv-management-diagnostic></p>
           <div class="screen-tv-management-device-actions">
             <a class="button button-secondary" data-tv-management-connect href="/connect-tv">Подключить ТВ</a>
+            <button class="button button-secondary" data-tv-management-connection-history type="button">Диагностика связи</button>
             <button class="button button-secondary screen-tv-unbind" data-tv-management-unbind type="button">Отвязать ТВ</button>
           </div>
         </section>
@@ -392,6 +396,11 @@ function ensureManagementDialog() {
     } finally {
       setPending(save, false, 'Сохраняем…');
     }
+  });
+
+  dialog.querySelector('[data-tv-management-connection-history]')?.addEventListener('click', () => {
+    const screen = managementScreen();
+    if (screen && bindingForScreen(screen.id)) openTvConnectionDiagnostics(screen);
   });
 
   dialog.querySelector('[data-tv-management-unbind]')?.addEventListener('click', async () => {
@@ -730,6 +739,7 @@ export function initialiseScreens() {
       managementDialog = null;
       managementDialogScreenId = null;
       requestedManagementHandled = false;
+      disposeTvConnectionDiagnostics();
     }
   };
 }

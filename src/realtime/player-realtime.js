@@ -1,4 +1,6 @@
+import crypto from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
+import { logger } from '../logger/index.js';
 import { deviceSessionTokenFromRequest, tokenHash } from '../services/device-session-service.js';
 
 const HEARTBEAT_MS = 60_000;
@@ -42,16 +44,39 @@ export function createPlayerRealtime({ store }) {
   const reprovisionByScreen = new Map();
   let heartbeatTimer = null;
   let attachedServer = null;
+  const connectionBootId = 'server-' + crypto.randomUUID();
+  let connectionSequence = 0;
+
+  function recordConnection(session, type, data = {}, level = 'info') {
+    if (typeof store?.insertPlayerLogBatch !== 'function') return;
+    const event = {
+      seq: ++connectionSequence,
+      device_timestamp: new Date().toISOString(),
+      level, type, data
+    };
+    void store.insertPlayerLogBatch(session.device_id, connectionBootId, [event]).catch((error) => {
+      logger.warn('TV connection diagnostic could not be persisted', { device_id:session.device_id, error });
+    });
+  }
 
   function add(session, socket) {
     const screen = addToIndex(byScreen, session.screen_id, socket);
     const device = addToIndex(byDevice, session.device_id, socket);
     socket.miraConnectedAt = new Date().toISOString();
     socket.miraLastSeenAt = socket.miraConnectedAt;
-    socket.once('close', () => {
+    if (screen.sockets.size === 1) recordConnection(session, 'connection.online');
+    socket.once('close', (code, reason) => {
       screen.sockets.delete(socket);
-      if (screen.sockets.size === 0) byScreen.delete(screen.id);
       device.sockets.delete(socket);
+      if (screen.sockets.size === 0) {
+        byScreen.delete(screen.id);
+        recordConnection(session, 'connection.offline', {
+          close_code:Number(code) || 1006,
+          cause:socket.miraTerminationReason || (code === 1000 ? 'normal_close' : 'transport_closed'),
+          reason:String(reason || '').slice(0, 120),
+          uptime_ms:Math.max(0, Date.now() - Date.parse(socket.miraConnectedAt))
+        }, 'warn');
+      }
       if (device.sockets.size === 0) byDevice.delete(device.id);
     });
   }
@@ -289,11 +314,15 @@ export function createPlayerRealtime({ store }) {
       pruneReprovision();
       for (const socket of wss.clients) {
         if (socket.isAlive === false) {
+          socket.miraTerminationReason = 'heartbeat_timeout';
           socket.terminate();
           continue;
         }
         socket.isAlive = false;
-        try { socket.ping(); } catch { socket.terminate(); }
+        try { socket.ping(); } catch {
+          socket.miraTerminationReason = 'heartbeat_send_failed';
+          socket.terminate();
+        }
       }
     }, HEARTBEAT_MS);
     heartbeatTimer.unref?.();
@@ -362,7 +391,10 @@ export function createPlayerRealtime({ store }) {
   function close() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = null;
-    for (const socket of wss.clients) safeClose(socket, 1001, 'server stopping');
+    for (const socket of wss.clients) {
+      socket.miraTerminationReason = 'server_shutdown';
+      safeClose(socket, 1001, 'server stopping');
+    }
     byScreen.clear();
     byDevice.clear();
     screenPreviews.clear();

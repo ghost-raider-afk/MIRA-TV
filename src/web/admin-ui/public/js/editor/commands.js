@@ -42,31 +42,58 @@ export function moveRow(state, rowId, toIndex) {
   return true;
 }
 
+export function changeRowColumn(state, rowId, column) {
+  const index = rowIndex(state, rowId);
+  if (index === -1 || !['left', 'right', 'full'].includes(column)) return false;
+  const row = state.rows[index];
+  if (row.kind !== 'section' && column === 'full') return false;
+  const current = row.column === 'full' && row.kind === 'section' ? 'full'
+    : row.column === 'right' ? 'right' : 'left';
+  if (current === column) return true;
+  // Column is a presentation property: changing it never reparents the row.
+  return updateRow(state, rowId, { column });
+}
+
 export function sortSectionItems(state, sectionId, productNameById) {
   const sectionIndex = rowIndex(state, sectionId);
   if (sectionIndex === -1 || state.rows[sectionIndex]?.kind !== 'section') return false;
   if (typeof productNameById !== 'function') throw new TypeError('Для сортировки раздела требуется функция получения названия продукции.');
 
+  // Logical sections are contiguous in the stored menu, regardless of visual column.
   let end = sectionIndex + 1;
   while (end < state.rows.length && state.rows[end]?.kind !== 'section') end += 1;
 
-  const itemIndexes = [];
   const items = [];
   for (let index = sectionIndex + 1; index < end; index += 1) {
     const row = state.rows[index];
     if (row?.kind !== 'item') continue;
-    itemIndexes.push(index);
-    items.push({ row, order: items.length, name: String(productNameById(row.product_id) || '') });
+    items.push({ index, row, name:String(productNameById(row.product_id) || '') });
   }
   if (items.length < 2) return true;
 
-  const collator = new Intl.Collator('ru', { usage: 'sort', sensitivity: 'base' });
-  const sorted = [...items].sort((left, right) => collator.compare(left.name, right.name) || left.order - right.order);
-  const changed = sorted.some((entry, index) => entry.row !== items[index].row);
+  const readable = state.settings?.table_style === 'readable';
+  // In two-column display the reading order is left top-to-bottom, then right.
+  // Keep the number of positions in each column while also sorting the linear
+  // stored list. Products may change columns within the same logical section.
+  const slots = readable
+    ? [...items].sort((a, b) => Number(a.row.column === 'right') - Number(b.row.column === 'right') || a.index - b.index)
+    : items;
+  const collator = new Intl.Collator('ru', { usage:'sort', sensitivity:'base' });
+  const sorted = slots.map((entry, order) => ({ ...entry, order }))
+    .sort((a, b) => collator.compare(a.name, b.name) || a.order - b.order);
+  const leftCount = readable ? items.filter((entry) => entry.row.column !== 'right').length : items.length;
+  // The stored order must also be alphabetical: switching to the classic layout
+  // cannot reveal an unsorted logical list hidden by the two-column projection.
+  const nextItems = sorted.map(({ row }, index) => readable
+    ? { ...row, column:index < leftCount ? 'left' : 'right' }
+    : row);
+  const changed = items.some(({ row }, index) =>
+    row.id !== nextItems[index].id ||
+    (readable && (row.column === 'right' ? 'right' : 'left') !== nextItems[index].column));
   if (!changed) return true;
 
-  itemIndexes.forEach((rowIndexValue, index) => {
-    state.rows[rowIndexValue] = sorted[index].row;
+  items.forEach(({ index }, position) => {
+    state.rows[index] = nextItems[position];
   });
   markEditorChanged(state);
   return true;

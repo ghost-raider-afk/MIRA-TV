@@ -1,4 +1,4 @@
-import { addRow, moveRow, removeRow, selectRow, sortSectionItems, updateRow } from './commands.js';
+import { addRow, changeRowColumn, moveRow, removeRow, selectRow, sortSectionItems, updateRow } from './commands.js';
 import { MENU_REFERENCE } from './renderer-model.js';
 
 let openChoice = null;
@@ -260,7 +260,7 @@ function rowColumnControl(editorState, row, options) {
     control.addEventListener('click', () => {
       if (current === value) return;
       activateRow(editorState, row.id, options);
-      structuralChange(options, () => updateRow(editorState, row.id, { column:value }));
+      structuralChange(options, () => changeRowColumn(editorState, row.id, value));
     });
     shell.append(control);
   }

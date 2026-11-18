@@ -19,6 +19,7 @@ const ALL_COMPONENTS = Object.freeze([
   'screen', 'menu', 'scene', 'content_manifest', 'runtime'
 ]);
 const DEFAULT_FALLBACK_POLL_MS = 60_000;
+const CONNECTED_HEALTH_POLL_MS = 10 * 60_000;
 const DEFAULT_LOG_BATCH_SIZE = 100;
 const DEFAULT_LOG_MAX_ENTRIES = 5000;
 const DEFAULT_LOG_MAX_BYTES = 10 * 1024 * 1024;
@@ -245,6 +246,7 @@ export function createPlayerStateSync({
   let sequence = 0;
   let diagnosticSequence = 0;
   let websocketConnected = false;
+  let httpFallbackReported = false;
   let syncRetryTimer = null;
   let syncRetryDelayMs = 5000;
   let syncFailed = false;
@@ -266,7 +268,7 @@ export function createPlayerStateSync({
       logMaxEntries: positiveInteger(context?.log_local_max_entries, DEFAULT_LOG_MAX_ENTRIES),
       logMaxBytes: positiveInteger(context?.log_local_max_bytes, DEFAULT_LOG_MAX_BYTES)
     };
-    if (started && !websocketConnected && previousFallbackPollMs !== runtime.fallbackPollMs) {
+    if (started && previousFallbackPollMs !== runtime.fallbackPollMs) {
       clearFallbackTimer();
       scheduleFallbackPoll();
     }
@@ -300,6 +302,12 @@ export function createPlayerStateSync({
     }).catch(() => undefined);
   }
 
+  function noteHttpFallbackSuccess(reason) {
+    if (reason !== 'fallback' || websocketConnected || httpFallbackReported) return;
+    httpFallbackReported = true;
+    log('connection.http_fallback_ok', { websocket:'unavailable', http:'ok' });
+  }
+
   function log(type, data = {}, level = 'info') {
     sequence += 1;
     logFlushNeeded = true;
@@ -328,13 +336,18 @@ export function createPlayerStateSync({
   }
 
   function scheduleFallbackPoll() {
-    if (!started || websocketConnected || fallbackTimer) return;
+    if (!started || fallbackTimer) return;
+    // Chromium on old Android TV can leave WebSocket OPEN after a network outage.
+    // Keep a rare HTTP safety check even when realtime looks connected.
+    const delay = websocketConnected
+      ? Math.max(CONNECTED_HEALTH_POLL_MS, runtime.fallbackPollMs)
+      : runtime.fallbackPollMs;
     fallbackTimer = setTimeout(async () => {
       fallbackTimer = null;
-      if (!started || websocketConnected) return;
+      if (!started) return;
       await syncNow('fallback').catch(() => undefined);
       scheduleFallbackPoll();
-    }, runtime.fallbackPollMs);
+    }, delay);
   }
 
   function clearSyncRetry() {
@@ -492,7 +505,10 @@ export function createPlayerStateSync({
         }
         // Expired sessions and transient authorization failures never erase the LKG.
         if (!active?.context) onUnauthorized?.();
-        else onConnectivity?.('degraded');
+        else {
+          onUnauthorized?.({ preserveContext:true });
+          onConnectivity?.('degraded');
+        }
         return { ok:false, unauthorized:true, revoked:false, hasContext:Boolean(active?.context) };
       }
 
@@ -506,6 +522,7 @@ export function createPlayerStateSync({
         };
         await applyCandidate(context, metadata, [...ALL_COMPONENTS], reason === 'boot' ? 'snapshot' : reason);
         onConnectivity?.('online');
+        noteHttpFallbackSuccess(reason);
         void flushLogs();
         return { ok: true, changed: true, hasContext: true };
       }
@@ -519,6 +536,7 @@ export function createPlayerStateSync({
       if (body.unchanged || changedNames.length === 0) {
         if (active) active = { ...active, ...metadata };
         onConnectivity?.('online');
+        noteHttpFallbackSuccess(reason);
         void flushLogs();
         return { ok: true, changed: false, hasContext: Boolean(active?.context) };
       }
@@ -526,6 +544,7 @@ export function createPlayerStateSync({
       const context = mergeDelta(active?.context, body.changed, metadata);
       await applyCandidate(context, metadata, changedNames, reason);
       onConnectivity?.('online');
+      noteHttpFallbackSuccess(reason);
       void flushLogs();
       return { ok: true, changed: true, hasContext: true };
     } catch (error) {
@@ -565,12 +584,17 @@ export function createPlayerStateSync({
       if (message?.revision && message.revision === active?.revision) return;
       void syncNow('websocket-change');
     },
+    onNetworkOnline() {
+      void syncNow('network-online');
+    },
     onConnected() {
       const wasConnected = websocketConnected;
       websocketConnected = true;
       clearFallbackTimer();
+      scheduleFallbackPoll();
       if (!wasConnected) log('websocket.connected');
-      onConnectivity?.('online');
+      httpFallbackReported = false;
+      // WebSocket OPEN alone does not prove that the current menu revision is synchronized.
       void syncNow('websocket-reconcile');
       void flushLogs();
     },
@@ -581,11 +605,13 @@ export function createPlayerStateSync({
       active = null;
       void onRevoked?.();
     },
-    onDisconnected() {
+    onDisconnected(details = {}) {
       const wasConnected = websocketConnected;
       websocketConnected = false;
-      if (wasConnected) log('websocket.disconnected', {}, 'warn');
+      if (wasConnected) log('websocket.disconnected', details, 'warn');
       if (!navigator.onLine) onConnectivity?.('offline');
+      // Repeated failed handshakes must not postpone an already-scheduled REST fallback.
+      if (wasConnected) clearFallbackTimer();
       scheduleFallbackPoll();
     }
   });

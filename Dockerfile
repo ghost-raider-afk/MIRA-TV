@@ -25,8 +25,21 @@ RUN set -eux; \
 
 FROM base AS runtime
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates fonts-dejavu-core fonts-dejavu-extra \
   && rm -rf /var/lib/apt/lists/* \
+  && for font in \
+    DejaVuSans.ttf \
+    DejaVuSans-Bold.ttf \
+    DejaVuSansCondensed.ttf \
+    DejaVuSansCondensed-Bold.ttf \
+    DejaVuSerif.ttf \
+    DejaVuSerif-Bold.ttf \
+    DejaVuSansMono.ttf \
+    DejaVuSansMono-Bold.ttf \
+    DejaVuSerifCondensed.ttf \
+    DejaVuSerifCondensed-Bold.ttf ; do \
+    test -s "/usr/share/fonts/truetype/dejavu/$font" || { echo "Required font missing: $font" >&2; exit 1; }; \
+  done \
   && groupadd --gid 11000 mira-tv-assets \
   && useradd --uid 10001 --gid mira-tv-assets --create-home --shell /usr/sbin/nologin mira-tv
 COPY --from=dependencies /app/node_modules ./node_modules

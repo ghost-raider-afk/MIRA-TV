@@ -8,7 +8,7 @@ window.__miraPlayerModuleStarted = true;
 const ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation.v2';
 const LEGACY_ACTIVATION_STORAGE_KEY = 'mira-tv.device-activation';
 const DEVICE_KEY_STORAGE_KEY = 'mira-tv.device-key.v1';
-const PLAYER_BUILD_VERSION = '1.18.27';
+const PLAYER_BUILD_VERSION = '1.18.28';
 const PLAYER_RELOAD_VERSION_KEY = 'mira-tv.player-reload-version.v1';
 const PLAYER_BUILD_RETRY_MIN_MS = 15_000;
 const PLAYER_BUILD_RETRY_MAX_MS = 300_000;
@@ -25,6 +25,7 @@ const installPlayerHint = document.querySelector('[data-install-player-hint]');
 const player = document.querySelector('[data-tv-player]');
 const playerStage = document.querySelector('[data-player-stage]');
 const playerMessage = document.querySelector('[data-player-message]');
+const playerMessageLabel = document.querySelector('[data-player-message-label]');
 const playerSceneRenderer = new PlayerSceneRenderer(playerStage);
 
 let pollTimer = null;
@@ -529,13 +530,8 @@ window.addEventListener('mira:player-preview-request', () => {
 });
 
 function showConnectionMessage(message) {
-  if (!message) {
-    setHidden(playerMessage, true);
-    playerMessage.textContent = '';
-    return;
-  }
-  playerMessage.textContent = message;
-  setHidden(playerMessage, false);
+  playerMessageLabel.textContent = message || '';
+  setHidden(playerMessage, !message);
 }
 
 function afterFirstPlayerFrame(callback) {
@@ -586,6 +582,10 @@ async function applySyncedContext(context, changedNames, { source } = {}) {
 
 function playerConnectivityChanged(state) {
   if (state === 'online') {
+    playerMessage.classList.remove('is-reauthorization-required');
+    playerMessage.setAttribute('role', 'status');
+    playerMessage.removeAttribute('tabindex');
+    playerMessage.removeAttribute('aria-label');
     void ensureBackgroundServices().then((services) => services?.online());
     showConnectionMessage('');
     return;
@@ -642,10 +642,30 @@ async function playerRevoked() {
 function newPlayerStateSync() {
   return createPlayerStateSync({
     applyContext: applySyncedContext,
-    onUnauthorized: playerUnauthorized,
+    onUnauthorized: ({ preserveContext } = {}) => preserveContext ? playerReauthorizationRequired() : playerUnauthorized(),
     onRevoked: playerRevoked,
     onConnectivity: playerConnectivityChanged
   });
+}
+
+function openPlayerReauthorization(event) {
+  if (!playerMessage.classList.contains('is-reauthorization-required')) return;
+  if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  showPairingIntro();
+}
+
+function playerReauthorizationRequired() {
+  if (!playerStateSync?.hasContext) {
+    playerUnauthorized();
+    return;
+  }
+  // Retain the live LKG image and binding. Only an administrator may initiate re-pairing.
+  playerMessage.classList.add('is-reauthorization-required');
+  playerMessage.setAttribute('role', 'button');
+  playerMessage.setAttribute('tabindex', '0');
+  playerMessage.setAttribute('aria-label', 'Требуется повторная привязка ТВ. Нажмите ОК, чтобы открыть подключение.');
+  showConnectionMessage('Требуется повторная привязка телевизора.');
 }
 
 function playerUnauthorized() {
@@ -864,6 +884,7 @@ async function bootstrapPlayer() {
       return;
     }
     if (playerStateSync.hasContext) {
+      playerReauthorizationRequired();
       playerStateSync.start();
       return;
     }
@@ -899,13 +920,19 @@ async function initialisePlayer() {
   playerStateSync = newPlayerStateSync();
 
   showActivationButton.addEventListener('click', () => void createActivation());
+  playerMessage.addEventListener('click', openPlayerReauthorization);
+  playerMessage.addEventListener('keydown', openPlayerReauthorization);
   installPlayerButton?.addEventListener('click', () => void installPlayerShortcut());
   if (!playerInstallSupportedPlatform() && installPlayerButton) setHidden(installPlayerButton, true);
   if (playerRunsStandalone() && installPlayerButton) installPlayerButton.textContent = 'MIRA-TV Player установлен';
   syncPlayerPageVisibility();
   document.addEventListener('visibilitychange', () => {
     syncPlayerPageVisibility();
-    if (document.visibilityState === 'visible') void requestWakeLock();
+    if (document.visibilityState === 'visible') {
+      void requestWakeLock();
+      // A sleeping Android TV can resume with a stale yet OPEN WebSocket.
+      if (playerStateSync?.hasContext) void playerStateSync.syncNow('resume');
+    }
   });
   window.addEventListener('pagehide', () => {
     clearPlayerBuildRetry();

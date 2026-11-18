@@ -200,8 +200,12 @@ async function resolveDeviceSession(store, config, request, response) {
   if (!session) {
     if (await store.isRevokedDeviceSessionByHash(tokenHash(rawToken))) {
       response.setHeader('X-MIRA-Device-Revoked', '1');
+      response.setHeader('Set-Cookie', deviceSessionCookie('', config, 0));
     }
-    response.setHeader('Set-Cookie', deviceSessionCookie('', config, 0));
+    // A late request carrying the rotated predecessor token can arrive after
+    // the browser has accepted the successor. Clearing cookies on that 401
+    // would delete the *new* valid HttpOnly session and strand the TV offline.
+    // Only an explicit device revocation may clear the device cookie.
     return null;
   }
   const now = Date.now();
