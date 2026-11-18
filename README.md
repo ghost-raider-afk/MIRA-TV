@@ -2,7 +2,7 @@
 
 **MIRA-TV** — система централизованного управления цифровыми меню для телевизоров торговых точек. Меню, цены, оформление и доступ к экранам настраиваются в веб-панели; на телевизорах работает локально устойчивый браузерный Player.
 
-**Текущая стабильная версия: [v1.18.26](https://github.com/ghost-raider-afk/MIRA-TV/releases/tag/v1.18.26).** Список новых версий — [GitHub Releases](https://github.com/ghost-raider-afk/MIRA-TV/releases). Канонический номер версии хранится в `package.json`.
+**Текущая стабильная версия: [v1.18.28](https://github.com/ghost-raider-afk/MIRA-TV/releases/tag/v1.18.28).** Список новых версий — [GitHub Releases](https://github.com/ghost-raider-afk/MIRA-TV/releases). Канонический номер версии хранится в `package.json`.
 
 ## Возможности
 

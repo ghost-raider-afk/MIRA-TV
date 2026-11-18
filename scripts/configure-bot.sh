@@ -10,6 +10,11 @@ trap cleanup EXIT
 fail() { printf 'Ошибка бота: %s\n' "$*" >&2; exit 1; }
 [[ -f "${INSTALL_DIR}/.env" ]] || fail 'Сначала установите MIRA-TV.'
 command -v openssl >/dev/null || fail 'Требуется openssl.'
+# Reinstalling the application never silently enables the bot. Reuse the
+# protected credentials only when the operator explicitly starts this wizard.
+if [[ ! -f "$BOT_ENV" && -f "$PERSIST_DIR/bot.env" ]]; then
+  install -m 600 "$PERSIST_DIR/bot.env" "$BOT_ENV"
+fi
 
 setting() {
   local file="$1" key="$2" fallback="${3:-}"
