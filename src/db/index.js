@@ -46,6 +46,8 @@ import { createUsersRepository } from './users.js';
 import { createSettingsRepository } from './settings.js';
 import { createNotificationsRepository } from './notifications.js';
 import { migrateRequestNotifications } from './migrations/request-notifications.js';
+import { migrateMessengerLinks } from './migrations/messenger-links.js';
+import { createMessengerLinksRepository } from './messenger-links.js';
 import { createRequestNotificationsRepository } from './request-notifications.js';
 import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
@@ -102,7 +104,8 @@ const MIGRATIONS = Object.freeze([
   { name: '038-manager-crm-cards', run: migrateManagerCrmCards },
   { name: '039-crm-request-workflow', run: migrateCrmRequestWorkflow },
   { name: '040-request-notifications', run: migrateRequestNotifications },
-  { name: '041-player-connection-history', run: migratePlayerConnectionHistory }
+  { name: '041-player-connection-history', run: migratePlayerConnectionHistory },
+  { name: '042-messenger-links', run: migrateMessengerLinks }
 ]);
 
 function createRepositories(queryable) {
@@ -114,6 +117,7 @@ function createRepositories(queryable) {
     createSettingsRepository(queryable),
     createNotificationsRepository(queryable),
     createRequestNotificationsRepository(queryable),
+    createMessengerLinksRepository(queryable),
     locations,
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
