@@ -2,7 +2,8 @@
 const TYPES = Object.freeze({
   tv_offline:Object.freeze({ title:'Нет связи с телевизором', tag:'🔴' }),
   tv_restored:Object.freeze({ title:'Связь с телевизором восстановлена', tag:'🟢' }),
-  request_new:Object.freeze({ title:'Новая заявка', tag:'🔔' })
+  request_new:Object.freeze({ title:'Новая заявка', tag:'🔔' }),
+  request_updated:Object.freeze({ title:'Заявка обновлена', tag:'🔔' })
 });
 
 function text(value, limit = 100) {

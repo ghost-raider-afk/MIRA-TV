@@ -29,7 +29,7 @@ button{width:100%;min-height:34px;margin-top:6px}
 <script>
 (function(){
   var W=window.TelegramWidget;
-  var labels={tv_offline:['Нет связи с телевизором','offline'],tv_restored:['Связь восстановлена','online'],request_new:['Новая заявка','online']};
+  var labels={tv_offline:['Нет связи с телевизором','offline'],tv_restored:['Связь восстановлена','online'],request_new:['Новая заявка','online'],request_updated:['Заявка обновлена','online']};
   function show(){
     var s={};
     try{s=JSON.parse(W.chatData||'{}')}catch(e){}
