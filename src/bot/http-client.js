@@ -1,3 +1,6 @@
+import { sendTelegramNotice } from './telegram-widgets.js';
+import { sendMaxNotice } from './max-notices.js';
+
 const DEFAULT_TIMEOUT_MS = 8000;
 
 export async function jsonRequest(url, { headers = {}, body, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch } = {}) {
@@ -44,5 +47,26 @@ export function createBotTransport(config, { fetchImpl = fetch } = {}) {
       fetchImpl
     });
   }
-  return { internalCommand, telegramSend, maxSend };
+  const botHeaders={ authorization:'Bearer ' + config.internalToken };
+  const claimJobs = () => jsonRequest(base + '/internal/bot/jobs/claim', {
+    headers:botHeaders,body:{},fetchImpl
+  });
+  const completeJob = (id,leaseToken,success) => jsonRequest(
+    base + '/internal/bot/jobs/' + encodeURIComponent(id) + '/complete', {
+      headers:botHeaders,body:{ lease_token:leaseToken, success },fetchImpl
+    });
+  const telegramNotice = (chatId, notice) => sendTelegramNotice(
+    (method, body) => jsonRequest('https://api.telegram.org/bot' + config.telegramToken + '/' + method, { body, fetchImpl }),
+    { chatId, notice, useWidgets:true }
+  );
+  const maxNotice = (recipient, notice) => sendMaxNotice(
+    ({ method, path, query, body }) => {
+      if (method !== 'POST' || path !== '/messages') throw new Error('Invalid MAX bot operation.');
+      return jsonRequest('https://platform-api2.max.ru' + path + '?' + new URLSearchParams(query), {
+        headers:{ Authorization:config.maxToken },body,fetchImpl
+      });
+    },
+    { recipient, notice }
+  );
+  return { internalCommand, telegramSend, maxSend, claimJobs, completeJob, telegramNotice, maxNotice };
 }

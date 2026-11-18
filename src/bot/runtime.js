@@ -78,13 +78,56 @@ export function createBotServer(config, transport) {
   return createServer(createBotHttpHandler(config, transport));
 }
 
+// Worker pulls server-issued jobs; DB/outbox leases stay in MIRA-TV app.
+// Only one bounded timer; no direct PostgreSQL connectivity from the bot.
+export function startBotDeliveryWorker(transport, { intervalMs=10000, onError=()=>{} } = {}) {
+  let stopped=false;
+  let timer=null;
+  let pending=null;
+  async function tick() {
+    if (stopped) return;
+    try {
+      const { lease_token:lease, jobs=[] } = await transport.claimJobs();
+      for (const job of jobs.slice(0,20)) {
+        let success=false;
+        try {
+          const notice = {
+            kind:job.kind,location:job.location,subject:job.subject,
+            time:new Date().toISOString(),detail:job.detail
+          };
+          if (job.provider==='telegram') await transport.telegramNotice(job.recipient,notice);
+          else if (job.provider==='max') await transport.maxNotice(job.recipient,notice);
+          else throw new Error('Unsupported bot delivery provider.');
+          success=true;
+        } catch (error) { onError(error); }
+        try { await transport.completeJob(job.id,lease,success); }
+        catch (error) { onError(error); }
+        if (stopped) break;
+      }
+    } catch (error) { onError(error); }
+    if (!stopped) timer=setTimeout(() => { pending=tick(); },Math.max(1000,intervalMs));
+  }
+  pending=tick();
+  return async () => {
+    stopped=true;
+    if (timer) clearTimeout(timer);
+    await pending?.catch(() => undefined);
+  };
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = botRuntimeConfig();
-  const server = createBotServer(config);
+  const transport=createBotTransport(config);
+  const server = createBotServer(config,transport);
+  const stopWorker=startBotDeliveryWorker(transport, {
+    onError:(error)=>process.stderr.write('MIRA-TV bot operation failed: ' +
+      String(error?.message || 'request error').replaceAll(config.telegramToken,'[token]')
+        .replaceAll(config.maxToken || '\0','[token]') + '\n')
+  });
   server.listen(config.port, '0.0.0.0', () => {
     process.stdout.write('MIRA-TV bot listening on port ' + config.port + '\n');
   });
   for (const signal of ['SIGINT','SIGTERM']) {
-    process.once(signal, () => server.close());
+    process.once(signal, async () => { await stopWorker();server.close(); });
   }
 }

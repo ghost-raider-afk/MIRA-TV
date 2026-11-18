@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, randomUUID } from 'node:crypto';
 import express from 'express';
 import { messengerIdentityId, messengerProvider } from './account-linking.js';
 
@@ -65,6 +65,28 @@ export function createBotInternalRouter({ store, realtime, token }) {
         (details.length ? '\nНет связи:\n' + details.join('\n') : '') +
         (offline.length > details.length ? '\n… и ещё ' + (offline.length-details.length) : '')
     });
+  });
+  router.post('/jobs/claim', async (_request, response) => {
+    const result = await store.transaction(async (tx) => {
+      await tx.stageRequestNotifications();
+      for (const binding of await tx.listDeviceBindings()) {
+        await tx.stageTvIncident(binding, realtime?.presenceForScreen(binding.screen_id)?.online === true);
+      }
+      const leaseToken = randomUUID();
+      const jobs = await tx.claimBotJobs(leaseToken);
+      return { lease_token:leaseToken, jobs };
+    });
+    response.json(result);
+  });
+
+  router.post('/jobs/:id/complete', async (request, response) => {
+    if (typeof request.body?.success !== 'boolean') return response.status(400).json({ error:'Invalid delivery result.' });
+    const id=Number(request.params.id);
+    if (!Number.isSafeInteger(id) || id<1 || typeof request.body?.lease_token!=='string') {
+      return response.status(400).json({ error:'Invalid delivery receipt.' });
+    }
+    const ok=await store.completeBotJob(id,request.body.lease_token,request.body.success);
+    response.status(ok ? 200 : 409).json({ accepted:ok });
   });
   return router;
 }
