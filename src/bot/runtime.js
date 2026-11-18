@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createBotTransport } from './http-client.js';
-import { extractBotCommand, webhookAllowed } from './webhook.js';
+import { extractBotCommand, webhookAllowed, preserveMaxUserIds } from './webhook.js';
 
 export function botRuntimeConfig(env = process.env) {
   const config = {
@@ -27,7 +27,7 @@ export function botRuntimeConfig(env = process.env) {
   return Object.freeze(config);
 }
 
-async function readJson(request, limit = 65536) {
+async function readJson(request, provider, limit = 65536) {
   const length = Number(request.headers['content-length']);
   if (length > limit) throw Object.assign(new Error('Payload too large'), { status:413 });
   const chunks = []; let bytes = 0;
@@ -36,7 +36,10 @@ async function readJson(request, limit = 65536) {
     if (bytes > limit) throw Object.assign(new Error('Payload too large'), { status:413 });
     chunks.push(chunk);
   }
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  try {
+    const raw=Buffer.concat(chunks).toString('utf8');
+    return JSON.parse(provider==='max' ? preserveMaxUserIds(raw) : raw);
+  }
   catch { throw Object.assign(new Error('Invalid JSON'), { status:400 }); }
 }
 
@@ -56,7 +59,7 @@ export function createBotHttpHandler(config, transport = createBotTransport(conf
       response.writeHead(403); return response.end();
     }
     try {
-      const update = await readJson(request);
+      const update = await readJson(request, provider);
       const command = extractBotCommand(provider, update);
       if (!command) { response.writeHead(200); return response.end(); }
       const answer = await transport.internalCommand(command);

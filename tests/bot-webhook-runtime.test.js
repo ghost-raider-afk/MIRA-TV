@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { once } from 'node:events';
 import { createBotServer, botRuntimeConfig } from '../src/bot/runtime.js';
-import { extractBotCommand, webhookAllowed } from '../src/bot/webhook.js';
+import { extractBotCommand, webhookAllowed, preserveMaxUserIds } from '../src/bot/webhook.js';
 import { createBotInternalRouter } from '../src/bot/internal-api.js';
 import { createServer } from 'node:http';
 import express from 'express';
@@ -79,4 +79,12 @@ test('internal bot command authorizes against live CRM roles and manager locatio
     assert.match(requests.text,/№55/);
     assert.equal(requests.text.includes('Секретная'),false);
   });
+});
+
+test('MAX int64 sender identifiers are preserved losslessly before JSON decoding',()=>{
+  const raw='{"update_type":"bot_started","user":{"user_id":9223372036854775807}}';
+  const parsed=JSON.parse(preserveMaxUserIds(raw));
+  assert.equal(extractBotCommand('max',parsed).provider_user_id,'9223372036854775807');
+  const surrounded='{"body":{"text":"user_id: 123 text"},"user":{"user_id":9223372036854775807}}';
+  assert.equal(JSON.parse(preserveMaxUserIds(surrounded)).body.text,'user_id: 123 text');
 });

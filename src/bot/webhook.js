@@ -14,6 +14,40 @@ function numericId(value) {
   catch { return ''; }
 }
 
+// MAX IDs use int64. JSON.parse would round numeric user_id values above
+// Number.MAX_SAFE_INTEGER, potentially mapping a message to the wrong account.
+// Quote numeric user_id tokens *outside* JSON strings before decoding; keep
+// the full payload format unchanged for the platform's remaining fields.
+export function preserveMaxUserIds(source) {
+  let result='', index=0;
+  while (index<source.length) {
+    if (source[index]!=='"') { result+=source[index++]; continue; }
+    const begin=index++;
+    let escaped=false;
+    while (index<source.length) {
+      const ch=source[index++];
+      if (escaped) { escaped=false;continue; }
+      if (ch==='\\') { escaped=true;continue; }
+      if (ch==='"') break;
+    }
+    const token=source.slice(begin,index);
+    result+=token;
+    if (token!=='"user_id"') continue;
+    let colon=index;
+    while (/\\s/.test(source[colon]||'')) colon++;
+    if (source[colon]!==':') continue;
+    result+=source.slice(index,colon+1);
+    index=colon+1;
+    let value=index;
+    while (/\\s/.test(source[value]||'')) value++;
+    const digits=/^([1-9][0-9]{0,18})(?=[,}\\]\\s]|$)/.exec(source.slice(value))?.[1];
+    if (!digits) continue;
+    result+=source.slice(index,value)+'"'+digits+'"';
+    index=value+digits.length;
+  }
+  return result;
+}
+
 export function commandFromText(value) {
   const text = String(value || '').trim();
   if (/^\/start(?:\s|$)/i.test(text)) return 'start';
