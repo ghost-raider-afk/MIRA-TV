@@ -21,6 +21,10 @@ test('bot installer syntax, secrets and independent Docker topology',async()=>{
   assert.match(main,/--providers.file.directory=\/dynamic/);
   assert.match(overlay,/mira-tv-bot:/);
   assert.match(overlay,/env_file: \[\.env, \.env\.bot\]/);
+  assert.match(overlay,/TELEGRAM_BOT_TOKEN: ""/);
+  assert.match(overlay,/MAX_BOT_TOKEN: ""/);
+  assert.match(overlay,/TELEGRAM_WEBHOOK_SECRET: ""/);
+  assert.match(overlay,/MAX_WEBHOOK_SECRET: ""/);
   assert.match(overlay,/BOT_DOMAIN/);
   assert.match(overlay,/bot-proxy-config-init:/);
   assert.doesNotMatch(overlay,/\bports:/);

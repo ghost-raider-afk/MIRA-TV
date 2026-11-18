@@ -3,6 +3,13 @@
 services:
   app:
     env_file: [.env, .env.bot]
+    # Only the internal bridge token belongs in the MIRA-TV process. The
+    # actual Telegram/MAX provider credentials stay inside the bot container.
+    environment:
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_WEBHOOK_SECRET: ""
+      MAX_BOT_TOKEN: ""
+      MAX_WEBHOOK_SECRET: ""
     networks:
       mira-tv-internal:
       mira-tv-proxy:
