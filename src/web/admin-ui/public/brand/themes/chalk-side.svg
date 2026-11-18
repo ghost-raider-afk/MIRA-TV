@@ -1,32 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 398 444" preserveAspectRatio="xMidYMid meet">
-<defs>
-  <pattern id="dust" width="46" height="46" patternUnits="userSpaceOnUse">
-    <path d="M7 9l13-3M29 24l10-2M8 39l8-2" stroke="#f3efe4" stroke-opacity=".055" stroke-linecap="round"/>
-    <circle cx="37" cy="8" r="1" fill="#f3efe4" fill-opacity=".05"/>
-  </pattern>
-</defs>
-<rect width="398" height="444" fill="#0e100d"/>
-<rect width="398" height="444" fill="url(#dust)"/>
-<g fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <g stroke="#f3efe4">
-    <path d="M95 78h176l-11 271c-2 31-18 47-48 47h-63c-30 0-47-16-49-47L95 78Z" stroke-width="5" opacity=".92"/>
-    <path d="M269 128h31c43 0 59 30 58 69v71c0 49-22 75-65 75h-28" stroke-width="8" opacity=".78"/>
-    <path d="M99 82c7-35 28-48 52-37 17-24 48-25 67-5 22-14 51 0 53 29 20-2 38 13 34 34" stroke-width="5"/>
-    <path d="M113 123c44 9 94 9 139 0M113 347c42 11 87 11 132 0" stroke-width="2.5" opacity=".28"/>
-    <path d="M119 149c-5 53-6 125-2 177M243 145c5 58 5 129 1 185" stroke-width="2" opacity=".12"/>
-    <path d="M32 79c29-25 60-35 92-31M303 388c31-9 56-25 75-49" stroke-width="3" opacity=".32"/>
+  <rect width="398" height="444" fill="none"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- loose sketch frame -->
+    <g stroke="#f3efe4" stroke-width="2" opacity=".38">
+      <path d="M22 101c22-17 42-24 61-22M314 83c26 3 47 13 62 29M29 355c25 17 50 25 76 24M306 369c26-5 47-17 63-36"/>
+      <path d="M36 87l-17-18M46 80l-5-24M350 102l23-14M343 92l8-22M47 374l-18 21M63 378l-3 25M341 353l18 20M352 342l22 8"/>
+    </g>
+
+    <!-- energetic hand-drawn mug; doubled lines intentionally imitate chalk wobble -->
+    <g stroke="#f4f1e9">
+      <path d="M102 111c55-7 116-8 174-2l-10 222c-2 42-25 62-67 62h-33c-41 0-64-20-66-62l2-220Z" stroke-width="5.4"/>
+      <path d="M107 117c50-5 107-6 163-1l-9 211c-2 37-21 55-59 56" stroke-width="1.8" opacity=".48"/>
+      <path d="M272 151c57-10 87 18 87 70v54c0 54-28 82-84 77" stroke-width="7.2"/>
+      <path d="M286 173c33-6 49 11 49 49v53c0 37-16 54-48 52" stroke-width="2.8" opacity=".72"/>
+    </g>
+
+    <!-- exuberant foam -->
+    <g stroke="#f4f1e9" fill="#f4f1e9" fill-opacity=".025">
+      <path d="M102 117c-9-25 5-44 30-44 8-25 34-33 54-16 18-24 51-24 68-1 22-8 45 8 44 32 20 6 27 28 16 45-11 16-33 19-48 12-46 10-111 7-146 1-10-5-16-14-18-29Z" stroke-width="5.5"/>
+      <path d="M118 111c12 8 25 8 38 1M160 98c11 10 26 12 40 3M208 102c14 9 29 9 42 0M255 110c12 6 24 5 34-2" stroke-width="2.3" opacity=".7"/>
+    </g>
+
+    <!-- rough amber chalk strokes -->
+    <g stroke="#e5b62e">
+      <path d="M125 157l-4 164M144 151l-1 179M162 156l1 168M214 153l4 176M236 157l2 161M251 164l-3 145" stroke-width="3.2" opacity=".78"/>
+      <path d="M121 188c43 7 84 6 126-1M120 236c44 5 84 4 128-2M121 286c42 4 82 3 123-3" stroke-width="1.7" opacity=".42"/>
+      <circle cx="150" cy="187" r="3.6"/><circle cx="224" cy="216" r="2.8"/><circle cx="176" cy="262" r="3"/><circle cx="229" cy="301" r="4"/>
+    </g>
+
+    <!-- lively hop doodles -->
+    <g stroke="#e5b62e" stroke-width="2.5" opacity=".9">
+      <path d="M54 300c26-12 47-27 62-47M61 291c2-13 10-22 23-26-1 13-9 22-23 26ZM78 276c2-12 10-20 22-24-2 12-9 20-22 24Z"/>
+      <path d="M326 299c-20-16-36-34-47-54M318 289c-1-13-8-23-20-29 0 13 6 23 20 29ZM304 271c0-12-6-21-17-27-1 12 5 21 17 27Z"/>
+    </g>
+
+    <!-- expressive rays and chalk sparks -->
+    <g stroke="#f3efe4" stroke-width="2.2" opacity=".62">
+      <path d="M77 144L46 128M77 183l-35-2M83 222l-29 13M317 125l28-24M328 166l34-8M328 208l32 9M319 248l26 21"/>
+      <path d="M72 112l-5-17M328 95l7-18M85 336l-13 14M311 340l16 17"/>
+    </g>
   </g>
-  <g stroke="#e4b52d">
-    <path d="M127 220c28-24 61-25 88-2-27 26-60 27-88 2Z" stroke-width="4"/>
-    <path d="M215 218l30-20-2 41Z" stroke-width="4"/>
-    <circle cx="148" cy="215" r="3" fill="#e4b52d" stroke="none"/>
-    <path d="M164 199v39M181 197v42M198 201v34" stroke-width="3"/>
-  </g>
-  <g stroke="#e4b52d" stroke-width="3" opacity=".82">
-    <path d="M286 84l7-19M300 91l15-12M278 90l-11-14"/>
-  </g>
-  <g stroke="#f3efe4" stroke-width="2" opacity=".22">
-    <path d="M42 122l16-6M333 105l19-5M55 365l18-4M323 308l16 10M61 245l10 8M343 237l12-10"/>
-  </g>
-</g>
 </svg>
