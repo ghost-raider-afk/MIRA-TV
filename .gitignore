@@ -3,4 +3,5 @@ node_modules/
 data/
 coverage/
 ci-node-diagnostic.txt
-
+.env.bot
+.env.bot.*

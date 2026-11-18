@@ -1,0 +1,60 @@
+# Optional overlay. Run: docker compose -f compose.yaml -f compose.bot.yaml up -d --build
+# MIRA-TV app and bot share only the dedicated bot bridge; PostgreSQL stays isolated.
+services:
+  app:
+    env_file: [.env, .env.bot]
+    networks:
+      mira-tv-bot:
+
+  proxy:
+    networks:
+      mira-tv-bot:
+    depends_on:
+      bot-proxy-config-init:
+        condition: service_completed_successfully
+
+  bot-proxy-config-init:
+    image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+    container_name: mira-tv-bot-proxy-config-init
+    env_file: [.env.bot]
+    command:
+      - sh
+      - -ec
+      - |
+        test -n "$$BOT_DOMAIN"
+        case "$$BOT_DOMAIN" in *[!a-zA-Z0-9.-]*|.*|*..*|*.) exit 1 ;; esac
+        printf 'http:\n  routers:\n    mira-tv-bot:\n      rule: "Host(`%s`)"\n      entryPoints: [websecure]\n      service: mira-tv-bot\n      tls:\n        certResolver: letsencrypt\n  services:\n    mira-tv-bot:\n      loadBalancer:\n        servers:\n          - url: "http://bot:8090"\n' "$$BOT_DOMAIN" > /dynamic/bot.yml.tmp
+        mv /dynamic/bot.yml.tmp /dynamic/bot.yml
+    volumes:
+      - mira-tv-proxy-config:/dynamic
+    network_mode: none
+    restart: "no"
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    image: mira-tv-bot:local
+    container_name: mira-tv-bot
+    env_file: [.env.bot]
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 256m
+    pids_limit: 64
+    depends_on:
+      app:
+        condition: service_healthy
+      bot-proxy-config-init:
+        condition: service_completed_successfully
+    expose:
+      - "8090"
+    networks: [mira-tv-bot]
+
+networks:
+  mira-tv-bot:
+    name: mira-tv-bot
+    driver: bridge
