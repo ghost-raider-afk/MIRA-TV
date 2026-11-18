@@ -29,24 +29,17 @@ test('pending TV deliveries recheck the manager location grant and active messen
   assert.match(sql,/lease_expires_at/);
 });
 
-test('CRM cursor never rounds PostgreSQL bigint notification IDs or changes existing inbox delivery state',async()=>{
-  const farId='9223372036854775807';
-  const queries=[];
-  const repository=createBotDeliveryRepository({
-    async query(sql,args) {
-      queries.push({sql,args});
-      if (sql.includes('SELECT last_notification_id')) return {rows:[{last_notification_id:'9223372036854775700'}]};
-      if (sql.includes('SELECT id FROM request_notifications')) return {rows:[{id:farId}]};
-      return {rows:[],rowCount:1};
-    }
-  });
-  assert.equal(await repository.stageRequestNotifications(),1);
-  assert.deepEqual(queries[1].args,['9223372036854775700',200]);
-  assert.deepEqual(queries[2].args,['9223372036854775700',farId]);
-  assert.deepEqual(queries[3].args,[farId]);
-  assert.match(queries[2].sql,/JOIN messenger_accounts/);
-  assert.match(queries[2].sql,/CASE WHEN n.kind IN \('created','resubmitted'\)/);
-  assert.doesNotMatch(queries.map(x=>x.sql).join('\n'),/UPDATE request_notifications/);
+test('CRM notifications enter the durable outbox in their own transaction without polling a cursor',async()=>{
+  const statements=[];
+  const { migrateBotDelivery } = await import('../src/db/migrations/bot-delivery.js');
+  await migrateBotDelivery({ async query(sql) { statements.push(sql); return {rows:[]}; } });
+  const ddl=statements.join('\n');
+  assert.match(ddl,/CREATE OR REPLACE FUNCTION mira_bot_request_outbox_trigger/);
+  assert.match(ddl,/AFTER INSERT ON request_notifications/);
+  assert.match(ddl,/ON CONFLICT\(event_key,username,provider\) DO NOTHING/);
+  assert.match(ddl,/JOIN messenger_accounts a/);
+  assert.match(ddl,/NEW.kind IN \('created','resubmitted'\)/);
+  assert.doesNotMatch(ddl,/bot_notification_cursor/);
 });
 
 test('TV outage generates outbox row only after grace with SQL scoped to location ACL',async()=>{

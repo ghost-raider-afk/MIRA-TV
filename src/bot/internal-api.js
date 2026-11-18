@@ -68,7 +68,6 @@ export function createBotInternalRouter({ store, realtime, token }) {
   });
   router.post('/jobs/claim', async (_request, response) => {
     const result = await store.transaction(async (tx) => {
-      await tx.stageRequestNotifications();
       for (const binding of await tx.listDeviceBindings()) {
         await tx.stageTvIncident(binding, realtime?.presenceForScreen(binding.screen_id)?.online === true);
       }

@@ -6,40 +6,6 @@ function short(value, max) {
 
 export function createBotDeliveryRepository(pool) {
   return Object.freeze({
-    // Call inside store.transaction: cursor movement and event creation are atomic.
-    async stageRequestNotifications(limit = 200) {
-      const { rows:cursorRows } = await pool.query(
-        'SELECT last_notification_id FROM bot_notification_cursor WHERE id=1 FOR UPDATE');
-      const lastId = String(cursorRows[0]?.last_notification_id || '0');
-      const { rows } = await pool.query(
-        'SELECT id FROM request_notifications WHERE id>$1 ORDER BY id LIMIT $2',
-        [lastId, Math.max(1,Math.min(Number(limit)||200,200))]
-      );
-      if (!rows.length) return 0;
-      const last = String(rows.at(-1).id);
-      await pool.query(`
-        INSERT INTO bot_outbox(event_key,username,provider,kind,location_name,subject,detail)
-        SELECT 'crm:' || n.id::text,n.username,a.provider,
-          CASE WHEN n.kind IN ('created','resubmitted') THEN 'request_new' ELSE 'request_updated' END,
-          LEFT(n.location_name,100),'Заявка №' || n.proposal_id::text,
-          LEFT((CASE n.kind
-            WHEN 'created' THEN 'Создана'
-            WHEN 'resubmitted' THEN 'Отправлена повторно'
-            WHEN 'approved' THEN 'Завершена'
-            WHEN 'rework' THEN 'На доработке'
-            WHEN 'rejected' THEN 'Отклонена'
-            WHEN 'conflict' THEN 'Ошибка'
-            ELSE 'Обновлена' END) || ': ' || n.title,180)
-          FROM request_notifications n
-          JOIN messenger_accounts a ON a.username=n.username
-          JOIN web_users u ON u.username=n.username AND u.active=TRUE
-         WHERE n.id>$1 AND n.id<=$2 AND n.archived_at IS NULL
-        ON CONFLICT(event_key,username,provider) DO NOTHING
-      `,[lastId,last]);
-      await pool.query('UPDATE bot_notification_cursor SET last_notification_id=$1 WHERE id=1',[last]);
-      return rows.length;
-    },
-
     async stageTvIncident(binding, online, nowMs = Date.now(), graceMs = TV_OFFLINE_GRACE_MS) {
       const screenId=Number(binding.screen_id),locationId=Number(binding.location_id);
       if (!Number.isSafeInteger(screenId) || screenId < 1 ||
