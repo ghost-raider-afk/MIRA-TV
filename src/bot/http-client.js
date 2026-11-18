@@ -11,7 +11,7 @@ export async function jsonRequest(url, { headers = {}, body, timeoutMs = DEFAULT
     signal:AbortSignal.timeout(timeoutMs)
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok || result?.ok === false) {
+  if (!response.ok || result?.ok === false || result?.success === false) {
     const error = new Error('Remote request rejected: HTTP ' + response.status);
     error.status = response.status;
     error.retryAfter = Number(response.headers?.get?.('retry-after')) || 0;
