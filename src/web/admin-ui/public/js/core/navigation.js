@@ -8,6 +8,7 @@ export const ROUTE_DEFINITIONS = Object.freeze([
   Object.freeze({ path: '/screen-editor', page: 'screen-editor', section: 'monitors', title: 'Настройки монитора', prefetch: true }),
   Object.freeze({ path: '/scene', page: 'scene', section: 'scene', title: 'Редактор сцены', prefetch: true }),
   Object.freeze({ path: '/catalog', page: 'catalog', section: 'catalog', title: 'Каталог', prefetch: true }),
+  Object.freeze({ path: '/trash', page: 'trash', section: 'settings', title: 'Корзина', prefetch: true }),
   Object.freeze({ path: '/approvals', page: 'approvals', section: 'approvals', title: 'Заявки', prefetch: true }),
   Object.freeze({ path: '/settings', page: 'settings', section: 'settings', title: 'Настройки сайта', prefetch: true }),
   Object.freeze({ path: '/events', page: 'events', section: 'settings', title: 'Журнал событий', prefetch: true }),
@@ -42,7 +43,7 @@ const CONTEXT_LINKS = Object.freeze({
   scene: Object.freeze([]),
   catalog: Object.freeze([]),
   approvals: Object.freeze([]),
-  settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Профиль', '/profile']])
+  settings: Object.freeze([['Настройки сайта', '/settings'], ['Журнал событий', '/events'], ['Корзина', '/trash'], ['Профиль', '/profile']])
 });
 
 export function contextLinksForSection(section) {
