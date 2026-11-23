@@ -139,6 +139,9 @@ export async function reviewCatalogChangeProposal(store, { proposalId, decision,
     }
 
     const payload = normaliseProposalPayload(proposal.entity_type, proposal.proposed_payload);
+    if (proposal.entity_type === 'product' && typeof tx.setProductHistoryActor === 'function') {
+      await tx.setProductHistoryActor(reviewerUsername);
+    }
     const updated = await updateEntity(tx, proposal.entity_type, proposal.entity_id, payload);
     if (!updated) {
       const conflict = await tx.resolveCatalogProposal(proposalId, {
