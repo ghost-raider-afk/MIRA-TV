@@ -4,6 +4,9 @@ import { state } from '../core/state.js';
 import { element, setMessage, clearMessage, setPending, makeButton, recordRow, refreshList, price } from '../core/dom.js';
 import { loadNotifications } from '../core/notifications.js';
 import { initialiseProductImport } from '../catalog/import-preview.js';
+import { initialiseProductDetails } from './catalog-product-details.js';
+
+let openProductDetails = () => {};
 
 function normalizedQuery(id) {
   return String(element(id)?.value || '').trim().toLocaleLowerCase('ru-RU');
@@ -44,11 +47,23 @@ function renderCatalogProducts() {
   const products = state.products.filter((product) => matchesQuery([
     product.name, product.producer, product.address, product.characteristics, product.strength
   ], query));
-  const rows = products.map((product) => recordRow(
-    product.name,
-    [product.producer || 'Производитель не указан', product.address || 'Адрес не указан', product.characteristics || product.strength || 'Без характеристик', `1 л: ${price(product.price_primary)} · 1,5 л (расчётная): ${price(product.price_secondary)}`, product.active ? 'активна' : 'скрыта'].join(' · '),
-    [makeButton('Изменить', '', () => editProduct(product)), makeButton('Удалить', 'danger', () => void deleteProduct(product))]
-  ));
+  const rows = products.map((product) => {
+    const row = recordRow(
+      product.name,
+      [product.producer || 'Производитель не указан', product.address || 'Адрес не указан', product.characteristics || product.strength || 'Без характеристик', `1 л: ${price(product.price_primary)} · 1,5 л (расчётная): ${price(product.price_secondary)}`, product.archived_at ? 'в архиве' : product.active ? 'активна' : 'скрыта'].join(' · ')
+    );
+    row.classList.add('catalog-product-row');
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-label', `Открыть карточку: ${product.name}`);
+    row.addEventListener('click', () => openProductDetails(product));
+    row.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      openProductDetails(product);
+    });
+    return row;
+  });
   empty.textContent = query && state.products.length ? 'По запросу ничего не найдено.' : 'Продукции пока нет.';
   refreshList(list, empty, rows);
 }
@@ -96,9 +111,9 @@ function editProduct(product) {
 }
 
 async function deleteProduct(product) {
-  if (!window.confirm(`Удалить продукцию «${product.name}»?`)) return;
-  try { await api.delete(`${API.products}/${product.id}`); await loadCatalog(); }
-  catch (error) { setMessage('product-message', error.message); }
+  if (!window.confirm(`Переместить продукцию «${product.name}» в корзину?`)) return false;
+  try { await api.delete(`${API.products}/${product.id}`); await loadCatalog(); return true; }
+  catch (error) { setMessage('product-message', error.message); return false; }
 }
 
 function downloadCsv(csv) {
@@ -161,6 +176,7 @@ export function initialiseCatalog() {
   const packagingForm = element('packaging-form');
   if (!(productForm instanceof HTMLFormElement) || !(packagingForm instanceof HTMLFormElement)) return;
 
+  openProductDetails = initialiseProductDetails({ onEdit: editProduct, onDelete: deleteProduct, onChange: loadCatalog });
   void loadCatalog().catch((error) => setMessage('product-message', error.message));
   initialiseProductImport({
     onApplied: async () => {

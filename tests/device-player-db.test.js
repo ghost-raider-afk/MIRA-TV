@@ -30,6 +30,9 @@ async function seedScreen() {
 
 test.before(async () => {
   await initialiseSchema(pool);
+  // These isolated pg-mem fixtures apply the lifecycle columns needed by current device queries.
+  await pool.query('ALTER TABLE screens ADD COLUMN deleted_at TIMESTAMPTZ');
+  await pool.query('ALTER TABLE locations ADD COLUMN deleted_at TIMESTAMPTZ');
   await migrateDevicePlayer(pool);
   await migrateDeviceBindings(pool);
   await migrateDeviceIdentification(pool);

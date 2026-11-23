@@ -50,6 +50,8 @@ import { createRequestNotificationsRepository } from './request-notifications.js
 import { createLocationsRepository } from './locations.js';
 import { createScreensRepository } from './screens.js';
 import { createCatalogRepository } from './catalog.js';
+import { createLifecycleRepository } from './lifecycle.js';
+import { migrateEntityLifecycle } from './migrations/entity-lifecycle.js';
 import { createCatalogUsageRepository } from './catalog-usage.js';
 import { createCatalogProposalsRepository } from './catalog-proposals.js';
 import { createDevicesRepository } from './devices.js';
@@ -102,7 +104,9 @@ const MIGRATIONS = Object.freeze([
   { name: '038-manager-crm-cards', run: migrateManagerCrmCards },
   { name: '039-crm-request-workflow', run: migrateCrmRequestWorkflow },
   { name: '040-request-notifications', run: migrateRequestNotifications },
-  { name: '041-player-connection-history', run: migratePlayerConnectionHistory }
+  { name: '041-player-connection-history', run: migratePlayerConnectionHistory },
+  // 042/043 are reserved for the separate Telegram/MAX integration branch.
+  { name: '044-entity-lifecycle', run: migrateEntityLifecycle }
 ]);
 
 function createRepositories(queryable) {
@@ -117,6 +121,7 @@ function createRepositories(queryable) {
     locations,
     createScreensRepository(queryable),
     createCatalogRepository(queryable),
+    createLifecycleRepository(queryable),
     createCatalogUsageRepository(queryable),
     createCatalogProposalsRepository(queryable),
     createDevicesRepository(queryable),

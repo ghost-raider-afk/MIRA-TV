@@ -68,6 +68,10 @@ async function initialisePage(name) {
       const { initialiseCatalog } = await import('./pages/catalog.js');
       return initialiseCatalog();
     }
+    case 'trash': {
+      const { initialiseTrash } = await import('./pages/trash.js');
+      return initialiseTrash();
+    }
     case 'approvals': {
       const { initialiseApprovals } = await import('./pages/approvals.js');
       return initialiseApprovals();

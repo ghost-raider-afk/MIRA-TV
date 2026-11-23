@@ -26,6 +26,7 @@ import { createRequestNotificationsRouter } from './api/notifications/request-ro
 import { createRequestNotificationHub } from './realtime/request-notifications.js';
 import { createDiagnosticsRouter } from './api/diagnostics/routes.js';
 import { createCatalogRouter } from './api/catalog/routes.js';
+import { createTrashRouter } from './api/trash/routes.js';
 import { createLocationsRouter } from './api/locations/routes.js';
 import { createScreensRouter } from './api/screens/routes.js';
 import { createDevicePublicRouter } from './api/device/public-routes.js';
@@ -182,6 +183,7 @@ function mountProtectedApi(app, dependencies, requireApiSession, requireApiRole)
   app.use('/api/notifications', createNotificationsRouter(dependencies));
   app.use('/api/diagnostics', createDiagnosticsRouter(dependencies));
   app.use('/api/catalog', createCatalogRouter(dependencies));
+  app.use('/api/trash', createTrashRouter(dependencies));
   app.use('/api/locations', createLocationsRouter(dependencies));
   app.use('/api/device-admin', createDeviceAdminRouter(dependencies));
   app.use('/api/weather', createWeatherRouter(dependencies));

@@ -12,10 +12,17 @@ async function catalogWrite(operation, entity, name) {
   }
 }
 
-function trackedProductImportStore(store, updatedIds) {
+async function withProductActor(store, username, operation) {
+  return store.transaction(async (tx) => {
+    await tx.setProductHistoryActor(username);
+    return operation(tx);
+  });
+}
+
+function trackedProductImportStore(store, updatedIds, actor) {
   return {
     transaction(run) {
-      return store.transaction((tx) => run(new Proxy(tx, {
+      return withProductActor(store, actor, (tx) => run(new Proxy(tx, {
         get(target, property, receiver) {
           const value = Reflect.get(target, property, receiver);
           if (property === 'updateProduct') {
@@ -42,6 +49,17 @@ export function createCatalogRouter({ store, realtime }) {
   const router = express.Router();
 
   router.get('/products', async (_request, response) => response.json(await store.listProducts()));
+  router.get('/products/:id/history', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    if (!await store.getProduct(id)) throw notFound();
+    const cursor = request.query.before ? positiveId(request.query.before, 'before') : null;
+    response.json(await store.listProductHistory(id, cursor));
+  });
+  router.get('/products/:id/usage', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    if (!await store.getProduct(id)) throw notFound();
+    response.json(await store.screensUsingCatalog('product', id));
+  });
   router.get('/products/export.csv', async (_request, response) => {
     const csv = productsToCsv(await store.listProducts());
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -54,7 +72,7 @@ export function createCatalogRouter({ store, realtime }) {
   });
   router.post('/products/import', async (request, response) => {
     const updatedIds = new Set();
-    const trackedStore = trackedProductImportStore(store, updatedIds);
+    const trackedStore = trackedProductImportStore(store, updatedIds, request.session.sub);
     const result = Array.isArray(request.body?.rows)
       ? await applyProductsImport(trackedStore, request.body.rows)
       : await importProductsCsv(trackedStore, request.body?.csv);
@@ -67,18 +85,38 @@ export function createCatalogRouter({ store, realtime }) {
   });
   router.post('/products', async (request, response) => {
     const input = productInput(request.body);
-    const product = await catalogWrite(() => store.createProduct(input), 'Продукция', input.name);
+    const product = await catalogWrite(() => withProductActor(store, request.session.sub, (tx) => tx.createProduct(input)), 'Продукция', input.name);
     await activity(store, request, { action: 'catalog.product.created', entity_type: 'catalog_product', entity_id: product.id, message: `Добавлена продукция «${product.name}».` });
     response.status(201).json(product);
   });
   router.put('/products/:id', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
     const input = productInput(request.body);
-    const product = await catalogWrite(() => store.updateProduct(id, input), 'Продукция', input.name);
+    const product = await catalogWrite(() => withProductActor(store, request.session.sub, (tx) => tx.updateProduct(id, input)), 'Продукция', input.name);
     if (!product) throw notFound();
     await activity(store, request, { action: 'catalog.product.updated', entity_type: 'catalog_product', entity_id: product.id, message: `Обновлена продукция «${product.name}».` });
     await notifyCatalogEntityChanged(store, realtime, 'product', id, 'catalog.product.updated', request.session.sub);
     response.json(product);
+  });
+  router.post('/products/:id/archive', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const product = await store.getProduct(id);
+    if (!product) throw notFound();
+    if (product.archived_at) throw conflict('Продукция уже архивирована.');
+    const updated = await withProductActor(store, request.session.sub, (tx) => tx.archiveProduct(id, request.session.sub));
+    if (!updated) throw conflict('Продукция изменена другим пользователем.');
+    await activity(store, request, { action: 'catalog.product.archived', entity_type: 'catalog_product', entity_id: id, message: `Архивирована продукция «${product.name}».` });
+    response.json(await store.getProduct(id));
+  });
+  router.post('/products/:id/unarchive', async (request, response) => {
+    const id = positiveId(request.params.id, 'id');
+    const product = await store.getProduct(id);
+    if (!product) throw notFound();
+    if (!product.archived_at) throw conflict('Продукция не архивирована.');
+    const updated = await withProductActor(store, request.session.sub, (tx) => tx.unarchiveProduct(id));
+    if (!updated) throw conflict('Продукция изменена другим пользователем.');
+    await activity(store, request, { action: 'catalog.product.unarchived', entity_type: 'catalog_product', entity_id: id, message: `Возвращена из архива продукция «${product.name}».` });
+    response.json(await store.getProduct(id));
   });
   router.delete('/products/:id', async (request, response) => {
     const id = positiveId(request.params.id, 'id');
@@ -86,8 +124,8 @@ export function createCatalogRouter({ store, realtime }) {
     if (!product) throw notFound();
     const affected = await store.screensUsingCatalog('product', id);
     if (affected.length) throw conflict('Продукция используется в меню мониторов и не может быть удалена.', affected);
-    await store.deleteProduct(id);
-    await activity(store, request, { action: 'catalog.product.deleted', entity_type: 'catalog_product', entity_id: id, message: `Удалена продукция «${product.name}».` });
+    if (!await withProductActor(store, request.session.sub, (tx) => tx.deleteProduct(id, request.session.sub))) throw notFound();
+    await activity(store, request, { action: 'catalog.product.deleted', entity_type: 'catalog_product', entity_id: id, message: `Продукция «${product.name}» перемещена в корзину.` });
     response.status(204).end();
   });
 

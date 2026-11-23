@@ -32,19 +32,19 @@ function contentAssetUrls(...values) {
 export function createScreensRepository(pool) {
   async function getScreen(id) {
     const { rows } = await pool.query(
-      'SELECT s.*, l.name AS location_name, (SELECT COUNT(*)::int FROM screens sx WHERE sx.location_id = s.location_id) AS location_screen_count FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.id = $1', [id]
+      'SELECT s.*, l.name AS location_name, (SELECT COUNT(*)::int FROM screens sx WHERE sx.location_id = s.location_id) AS location_screen_count FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.id = $1 AND s.deleted_at IS NULL AND l.deleted_at IS NULL', [id]
     );
     return normaliseRow(rows[0]);
   }
   async function listScreensByLocation(locationId) {
     const { rows } = await pool.query(
-      'SELECT s.*, l.name AS location_name FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.location_id = $1 ORDER BY s.location_number, s.id', [locationId]
+      'SELECT s.*, l.name AS location_name FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.location_id = $1 AND s.deleted_at IS NULL AND l.deleted_at IS NULL ORDER BY s.location_number, s.id', [locationId]
     );
     return rows.map(normaliseRow);
   }
   async function nextLocationNumber(locationId, { lockLocation = false } = {}) {
     if (lockLocation) {
-      const locked = await pool.query('SELECT id FROM locations WHERE id = $1 FOR UPDATE', [locationId]);
+      const locked = await pool.query('SELECT id FROM locations WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [locationId]);
       if (!locked.rowCount) return null;
     }
     const { rows } = await pool.query('SELECT COALESCE(MAX(location_number), 0)::int AS current_number FROM screens WHERE location_id = $1', [locationId]);
@@ -52,7 +52,7 @@ export function createScreensRepository(pool) {
   }
   return Object.freeze({
     async listScreens() {
-      const { rows } = await pool.query('SELECT s.*, l.name AS location_name FROM screens s JOIN locations l ON l.id = s.location_id ORDER BY l.name, s.location_number, s.id');
+      const { rows } = await pool.query('SELECT s.*, l.name AS location_name FROM screens s JOIN locations l ON l.id = s.location_id WHERE s.deleted_at IS NULL AND l.deleted_at IS NULL ORDER BY l.name, s.location_number, s.id');
       return rows.map(normaliseRow);
     },
     listScreensByLocation, getScreen,
@@ -75,7 +75,7 @@ export function createScreensRepository(pool) {
       return getScreen(id);
     },
     async updateScreen(id, { location_id, name, resolution = '1920×1080', status = 'draft', active = true }) {
-      const currentResult = await pool.query('SELECT location_id, location_number FROM screens WHERE id = $1', [id]);
+      const currentResult = await pool.query('SELECT location_id, location_number FROM screens WHERE id = $1 AND deleted_at IS NULL', [id]);
       if (!currentResult.rowCount) return null;
       const current = currentResult.rows[0];
       let locationNumber = Number(current.location_number);
@@ -84,13 +84,13 @@ export function createScreensRepository(pool) {
         if (!locationNumber) return null;
       }
       const { rowCount } = await pool.query(
-        'UPDATE screens SET location_id=$1, location_number=$2, name=$3, resolution=$4, status=$5, active=$6, updated_at=$7 WHERE id=$8',
+        'UPDATE screens SET location_id=$1, location_number=$2, name=$3, resolution=$4, status=$5, active=$6, updated_at=$7 WHERE id=$8 AND deleted_at IS NULL',
         [location_id, locationNumber, name, resolution, status, active, isoNow(), id]
       );
       return rowCount ? getScreen(id) : null;
     },
-    async deleteScreen(id) {
-      const { rowCount } = await pool.query('DELETE FROM screens WHERE id = $1', [id]);
+    async deleteScreen(id, actor = 'система') {
+      const { rowCount } = await pool.query('UPDATE screens SET deleted_at=NOW(), deleted_by=$2, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL', [id, actor]);
       return rowCount > 0;
     },
     async nextScreenName(locationId) { return `ТВ ${await nextLocationNumber(locationId)}`; },

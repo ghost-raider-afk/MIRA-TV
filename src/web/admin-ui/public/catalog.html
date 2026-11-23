@@ -15,6 +15,29 @@
           <div class="page-heading"><p class="eyebrow">КАТАЛОГ</p><h1>Продукция и тара</h1><p>Позиции каталога используются редакторами всех мониторов.</p></div>
 
           <div class="workspace-grid catalog-grid">
+            <dialog class="catalog-editor-dialog catalog-detail-dialog" id="product-detail-dialog" aria-labelledby="product-detail-title">
+              <section class="catalog-detail-card">
+                <div class="card-heading"><div><p class="eyebrow">КАРТОЧКА ПРОДУКЦИИ</p><h2 id="product-detail-title"></h2><p class="card-description" id="product-detail-subtitle"></p></div><button class="text-button" id="product-detail-close" type="button">Закрыть</button></div>
+                <div class="catalog-detail-actions">
+                  <button class="button button-primary" id="product-detail-edit" type="button">Изменить</button>
+                  <button class="button button-secondary" id="product-detail-archive" type="button">Архивировать</button>
+                  <button class="button button-secondary" id="product-detail-delete" type="button">Удалить</button>
+                </div>
+                <div class="catalog-detail-tabs" role="tablist" aria-label="Раздел карточки">
+                  <button type="button" class="is-active" role="tab" data-product-detail-tab="info" aria-selected="true">Данные</button>
+                  <button type="button" role="tab" data-product-detail-tab="history" aria-selected="false">История</button>
+                  <button type="button" role="tab" data-product-detail-tab="usage" aria-selected="false">Где используется</button>
+                </div>
+                <dl class="catalog-detail-fields" data-product-detail-panel="info" id="product-detail-info"></dl>
+                <section class="catalog-detail-panel" data-product-detail-panel="history" hidden>
+                  <div id="product-detail-history" class="catalog-history-list"></div>
+                  <button class="button button-secondary" id="product-history-more" type="button" hidden>Показать ещё</button>
+                </section>
+                <section class="catalog-detail-panel" data-product-detail-panel="usage" hidden>
+                  <div id="product-detail-usage" class="catalog-usage-list"></div>
+                </section>
+              </section>
+            </dialog>
             <dialog class="catalog-editor-dialog" id="product-dialog" aria-labelledby="product-form-title">
             <section class="settings-card catalog-editor-card" id="products">
               <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2 id="product-form-title">Новая продукция</h2></div><button class="text-button" id="cancel-product-edit" type="button">Закрыть</button></div>
@@ -36,7 +59,7 @@
             </section>
             </dialog>
             <section class="settings-card catalog-list-card catalog-products-card">
-              <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2>База продукции</h2></div><div class="list-tools"><input class="list-filter" id="product-filter" type="search" placeholder="Поиск продукции" aria-label="Поиск продукции" /><input class="is-hidden" id="product-import-file" type="file" accept=".csv,text/csv" /><button class="button button-secondary" id="product-import" type="button">Загрузить в базу</button><button class="button button-secondary" id="product-export" type="button">Выгрузить из базы</button><button class="button button-secondary" id="refresh-catalog" type="button">Обновить</button><button class="button button-primary" id="new-product" type="button">+ Продукция</button></div></div>
+              <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2>База продукции</h2></div><div class="list-tools"><input class="list-filter" id="product-filter" type="search" placeholder="Поиск продукции" aria-label="Поиск продукции" /><input class="is-hidden" id="product-import-file" type="file" accept=".csv,text/csv" /><button class="button button-secondary" id="product-import" type="button">Загрузить в базу</button><button class="button button-secondary" id="product-export" type="button">Выгрузить из базы</button><a class="button button-secondary" href="/trash">Корзина</a><button class="button button-secondary" id="refresh-catalog" type="button">Обновить</button><button class="button button-primary" id="new-product" type="button">+ Продукция</button></div></div>
               <div class="record-list" data-products-list></div><p class="empty-state is-hidden" data-products-empty>Продукции пока нет.</p>
             </section>
             <section class="settings-card catalog-import-card is-hidden" id="product-import-preview" aria-live="polite">

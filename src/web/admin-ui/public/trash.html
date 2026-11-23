@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIRA-TV — Корзина</title>
+    <script src="/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="trash">
+    <div class="app-shell"><div class="app-content">
+      <main class="main-content workspace-content">
+        <div class="page-heading"><p class="eyebrow">АДМИНИСТРИРОВАНИЕ</p><h1>Корзина</h1><p>Удалённые записи можно восстановить без потери их идентификаторов, настроек и истории.</p></div>
+        <section class="settings-card">
+          <div class="card-heading"><div><p class="eyebrow">ПРОДУКЦИЯ</p><h2>Удалённые товары</h2></div></div>
+          <div class="record-list" data-trash-products></div>
+          <p class="empty-state is-hidden" data-trash-products-empty>Удалённых товаров нет.</p>
+        </section>
+        <section class="settings-card">
+          <div class="card-heading"><div><p class="eyebrow">ТЕЛЕВИЗОРЫ</p><h2>Удалённые карточки ТВ</h2></div></div>
+          <div class="record-list" data-trash-screens></div>
+          <p class="empty-state is-hidden" data-trash-screens-empty>Удалённых мониторов нет.</p>
+        </section>
+        <section class="settings-card">
+          <div class="card-heading"><div><p class="eyebrow">ТОРГОВЫЕ ТОЧКИ</p><h2>Удалённые точки</h2></div></div>
+          <div class="record-list" data-trash-locations></div>
+          <p class="empty-state is-hidden" data-trash-locations-empty>Удалённых точек нет.</p>
+        </section>
+        <p class="form-message is-hidden" id="trash-message" role="status" aria-live="polite"></p>
+      </main>
+    </div></div>
+  </body>
+</html>

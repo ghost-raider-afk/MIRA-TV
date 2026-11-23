@@ -996,6 +996,9 @@ test('Scene editor stays readable at desktop and small phone widths without chan
 
   for (const width of [320, 360, 390, 430, 768]) {
     await page.setViewportSize({ width, height:800 });
+    const commandbar = await page.locator('.scene-editor-commandbar').boundingBox();
+    expect(commandbar.x).toBeGreaterThanOrEqual(0);
+    expect(commandbar.x + commandbar.width).toBeLessThanOrEqual(width + 1);
     await page.getByRole('button', { name:/Свойства/ }).click();
     const panel = page.locator('.scene-editor-properties-panel');
     await expect(panel).toBeVisible();
@@ -1015,6 +1018,7 @@ test('Scene editor stays readable at desktop and small phone widths without chan
     expect(stageGeometry).toEqual({ width:'1920', height:'1080' });
     await page.getByRole('button', { name:'Закрыть свойства' }).click();
     await expect(panel).toBeHidden();
+    expect(await page.evaluate(() => window.scrollX)).toBe(0);
   }
 });
 

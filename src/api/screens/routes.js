@@ -538,14 +538,10 @@ export function createScreensRouter({ store, config, realtime }) {
     const id = positiveId(request.params.id, 'id');
     const current = await store.getScreen(id);
     if (!current) throw notFound();
-    const draft = await store.getScreenDraft(id);
-    const backgroundUrl = draft?.settings?.background_image_url || '';
-    const sceneAssets = sceneAssetUrls(draft?.scene);
-    if (!await store.deleteScreen(id)) throw notFound();
+    if (!await store.deleteScreen(id, request.session.sub)) throw notFound();
     realtime?.disconnectScreen(id);
-    if (backgroundUrl) await deleteScreenBackground(backgroundUrl, { store, config });
-    await Promise.all(sceneAssets.map((url) => deleteSceneAsset(url, { store, config })));
-    await activity(store, request, { action: 'screen.deleted', entity_type: 'screen', entity_id: id, message: `Удалён монитор «${current.name}».` });
+    // Draft, assets and device binding remain available for a lossless restore.
+    await activity(store, request, { action: 'screen.deleted', entity_type: 'screen', entity_id: id, message: `Монитор «${current.name}» перемещён в корзину.` });
     response.status(204).end();
   });
 
