@@ -31,7 +31,7 @@ export function createTrashRouter({ store }) {
       action: `trash.${type}.restored`,
       entity_type: type === 'product' ? 'catalog_product' : type,
       entity_id: id,
-      message: `${TYPE_NAMES[type]} «${restored.name}» восстановлена из корзины.`
+      message: `Из корзины восстановлено: ${TYPE_NAMES[type]} «${restored.name}».`
     });
     response.json({ type, ...restored });
   });
