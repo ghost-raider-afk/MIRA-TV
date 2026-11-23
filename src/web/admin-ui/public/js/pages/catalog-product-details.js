@@ -58,6 +58,7 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
   let historyLoaded = false;
   let usageLoaded = false;
   let historyLoading = false;
+  let detailVersion = 0;
 
   function current() {
     return state.products.find((product) => Number(product.id) === Number(selectedId));
@@ -111,12 +112,13 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
   async function loadHistory() {
     if (historyLoading || (historyLoaded && cursor === null)) return;
     const requestedId = selectedId;
+    const requestedVersion = detailVersion;
     historyLoading = true;
     loadMore.disabled = true;
     try {
       const url = `${API.products}/${selectedId}/history${cursor ? `?before=${cursor}` : ''}`;
       const result = await api.get(url);
-      if (requestedId !== selectedId) return;
+      if (requestedId !== selectedId || requestedVersion !== detailVersion) return;
       history.append(...(result.items || []).map(historyEvent));
       cursor = result.next_cursor;
       historyLoaded = true;
@@ -125,7 +127,7 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
     } catch (error) {
       setMessage('product-message', error.message);
     } finally {
-      if (requestedId === selectedId) {
+      if (requestedId === selectedId && requestedVersion === detailVersion) {
         historyLoading = false;
         loadMore.disabled = false;
       }
@@ -135,9 +137,10 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
   async function loadUsage() {
     if (usageLoaded) return;
     const requestedId = selectedId;
+    const requestedVersion = detailVersion;
     try {
       const screens = await api.get(`${API.products}/${selectedId}/usage`);
-      if (requestedId !== selectedId) return;
+      if (requestedId !== selectedId || requestedVersion !== detailVersion) return;
       const groups = new Map();
       for (const screen of screens) {
         const location = screen.location_name || 'Неизвестная точка';
@@ -178,6 +181,7 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
   }
 
   function resetDetails(id) {
+    detailVersion += 1;
     selectedId = Number(id);
     cursor = null;
     historyLoaded = false;
