@@ -25,7 +25,7 @@ export async function migrateEntityLifecycle(queryable) {
     -- A legacy creation date is known; the earlier field changes and actor are not.
     INSERT INTO catalog_product_history (product_id, action, actor_username, changes, occurred_at)
     SELECT id, 'legacy', 'неизвестен',
-           jsonb_build_object('name', jsonb_build_object('before', NULL, 'after', name)),
+           '{}'::jsonb,
            created_at
       FROM catalog_products p
      WHERE NOT EXISTS (SELECT 1 FROM catalog_product_history h WHERE h.product_id = p.id);
