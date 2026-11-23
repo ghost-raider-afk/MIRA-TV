@@ -4,18 +4,18 @@ export function createLocationsRepository(pool) {
   async function withScreenCount(row) {
     const location = normaliseRow(row);
     if (!location) return null;
-    const { rows } = await pool.query('SELECT COUNT(*)::int AS screen_count FROM screens WHERE location_id = $1', [location.id]);
+    const { rows } = await pool.query('SELECT COUNT(*)::int AS screen_count FROM screens WHERE location_id = $1 AND deleted_at IS NULL', [location.id]);
     return { ...location, screen_count: Number(rows[0].screen_count) };
   }
 
   async function getLocation(id) {
-    const { rows } = await pool.query('SELECT * FROM locations WHERE id = $1', [id]);
+    const { rows } = await pool.query('SELECT * FROM locations WHERE id = $1 AND deleted_at IS NULL', [id]);
     return withScreenCount(rows[0]);
   }
 
   return Object.freeze({
     async listLocations() {
-      const { rows } = await pool.query('SELECT * FROM locations ORDER BY name');
+      const { rows } = await pool.query('SELECT * FROM locations WHERE deleted_at IS NULL ORDER BY name');
       return Promise.all(rows.map(withScreenCount));
     },
     getLocation,
@@ -29,13 +29,13 @@ export function createLocationsRepository(pool) {
     },
     async updateLocation(id, { name, address = '', active = true }) {
       const { rowCount } = await pool.query(
-        'UPDATE locations SET name = $1, address = $2, active = $3, updated_at = $4 WHERE id = $5',
+        'UPDATE locations SET name = $1, address = $2, active = $3, updated_at = $4 WHERE id = $5 AND deleted_at IS NULL',
         [name, address, active, isoNow(), id]
       );
       return rowCount ? getLocation(id) : null;
     },
-    async deleteLocation(id) {
-      const { rowCount } = await pool.query('DELETE FROM locations WHERE id = $1', [id]);
+    async deleteLocation(id, actor = 'система') {
+      const { rowCount } = await pool.query('UPDATE locations SET deleted_at=NOW(), deleted_by=$2, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL', [id, actor]);
       return rowCount > 0;
     }
   });
