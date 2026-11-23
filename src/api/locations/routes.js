@@ -1,7 +1,6 @@
 import express from 'express';
 import { locationInput, positiveId } from '../../contracts/input.js';
 import { menuSettingsInput } from '../../contracts/menu-settings.js';
-import { deleteScreenBackground } from '../../services/screen-background-service.js';
 import { activity, conflict, notFound } from '../helpers.js';
 
 function screenIds(rows) {
@@ -82,15 +81,10 @@ export function createLocationsRouter({ store, config, realtime }) {
     if (!location) throw notFound();
     const screens = await store.listScreensByLocation(location.id);
     const affectedScreenIds = screenIds(screens);
-    const backgrounds = [];
-    for (const screen of screens) {
-      const draft = await store.getScreenDraft(screen.id);
-      if (draft?.settings?.background_image_url) backgrounds.push(draft.settings.background_image_url);
-    }
-    if (!await store.deleteLocation(location.id)) throw notFound();
+    if (!await store.deleteLocation(location.id, request.session.sub)) throw notFound();
     affectedScreenIds.forEach((screenId) => realtime?.disconnectScreen(screenId));
-    for (const url of [...new Set(backgrounds)]) await deleteScreenBackground(url, { store, config });
-    await activity(store, request, { action: 'location.deleted', entity_type: 'location', entity_id: location.id, message: `Удалена торговая точка «${location.name}».` });
+    // Retain nested TVs, drafts, assets and device bindings for restoration.
+    await activity(store, request, { action: 'location.deleted', entity_type: 'location', entity_id: location.id, message: `Торговая точка «${location.name}» перемещена в корзину.` });
     response.status(204).end();
   });
   return router;
