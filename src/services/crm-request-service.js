@@ -191,6 +191,7 @@ async function applyMenuRemovals(tx, items) {
 
 export async function reviewWorkflowRequest(store,{ proposalId,reviewerUsername,decisions }) {
   return store.transaction(async (tx) => {
+    if (typeof tx.setProductHistoryActor === 'function') await tx.setProductHistoryActor(reviewerUsername);
     const proposal = await tx.getCatalogProposalForUpdate(proposalId);
     if (!proposal || proposal.entity_type !== 'request') throw invalid('Заявка не найдена.',404);
     if (proposal.status !== 'pending') throw invalid('Заявка уже рассмотрена или находится на доработке.',409);
@@ -262,6 +263,7 @@ export async function completeManualRequest(store,{ proposalId,reviewerUsername 
 
 export async function saveNewProductFromRequest(store,{proposalId,reviewerUsername,correctedPayload}) {
   return store.transaction(async (tx) => {
+    if (typeof tx.setProductHistoryActor === 'function') await tx.setProductHistoryActor(reviewerUsername);
     const proposal = await tx.getCatalogProposalForUpdate(proposalId);
     if (!proposal || proposal.entity_type !== 'request' || proposal.request_type !== 'product_create') {
       throw invalid('Заявка на создание товара не найдена.',404);
