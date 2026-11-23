@@ -26,7 +26,7 @@ function valueText(value) {
   if (value === null || value === undefined || value === '') return '—';
   if (value === true) return 'Да';
   if (value === false) return 'Нет';
-  if (typeof value === 'string' && /^\\d{4}-\\d\\d-\\d\\dT/.test(value)) return dateTime(value);
+  if (typeof value === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(value)) return dateTime(value);
   return String(value);
 }
 
@@ -110,11 +110,13 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
 
   async function loadHistory() {
     if (historyLoading || (historyLoaded && cursor === null)) return;
+    const requestedId = selectedId;
     historyLoading = true;
     loadMore.disabled = true;
     try {
       const url = `${API.products}/${selectedId}/history${cursor ? `?before=${cursor}` : ''}`;
       const result = await api.get(url);
+      if (requestedId !== selectedId) return;
       history.append(...(result.items || []).map(historyEvent));
       cursor = result.next_cursor;
       historyLoaded = true;
@@ -123,15 +125,19 @@ export function initialiseProductDetails({ onEdit, onDelete, onChange }) {
     } catch (error) {
       setMessage('product-message', error.message);
     } finally {
-      historyLoading = false;
-      loadMore.disabled = false;
+      if (requestedId === selectedId) {
+        historyLoading = false;
+        loadMore.disabled = false;
+      }
     }
   }
 
   async function loadUsage() {
     if (usageLoaded) return;
+    const requestedId = selectedId;
     try {
       const screens = await api.get(`${API.products}/${selectedId}/usage`);
+      if (requestedId !== selectedId) return;
       const groups = new Map();
       for (const screen of screens) {
         const location = screen.location_name || 'Неизвестная точка';
