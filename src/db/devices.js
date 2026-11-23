@@ -308,6 +308,8 @@ export function createDevicesRepository(pool) {
             AND ds.expires_at > NOW()
             AND d.active = TRUE
             AND s.active = TRUE
+            AND s.deleted_at IS NULL
+            AND l.deleted_at IS NULL
           LIMIT 1`,
         [hash]
       );
@@ -359,7 +361,7 @@ export function createDevicesRepository(pool) {
               WHERE revoked_at IS NULL
               GROUP BY device_id
            ) sessions ON sessions.device_id = b.device_id
-          WHERE b.active = TRUE
+          WHERE b.active = TRUE AND s.deleted_at IS NULL AND l.deleted_at IS NULL
           ORDER BY l.name, s.location_number, b.id`
       );
       return rows.map(bindingRecord);
