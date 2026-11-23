@@ -47,6 +47,12 @@ test('product detail exposes persisted field history, usage, archive and recover
   const dialog = page.locator('#product-detail-dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('#product-detail-title')).toHaveText(name);
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 850 });
+    const bounds = await dialog.boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(-1);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width + 1);
+  }
   await dialog.getByRole('tab', { name: 'История' }).click();
   await expect(dialog.locator('.catalog-history-event')).toHaveCount(2);
   await expect(dialog).toContainText('210 → 240');
