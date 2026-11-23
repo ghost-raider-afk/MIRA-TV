@@ -169,9 +169,22 @@ body[data-page="scene"] .scene-editor-properties .scene-editor-multi-apply-targe
 }
 
 @media(max-width:600px){
-  body[data-page="scene"] .scene-editor-commandbar-main{gap:4px}
+  /* Keep the TV selector and actions inside the 320px viewport. */
+  body[data-page="scene"] .scene-editor-commandbar{
+    display:grid;grid-template-columns:minmax(0,1fr);gap:4px;
+  }
+  body[data-page="scene"] .scene-editor-commandbar-main{
+    display:grid;grid-template-columns:32px auto minmax(0,1fr);
+    gap:5px;width:100%;min-width:0;
+  }
   body[data-page="scene"] .scene-editor-back{width:32px;height:32px;flex-basis:32px}
-  body[data-page="scene"] .scene-editor-screen-picker{max-width:145px}
+  body[data-page="scene"] .scene-editor-screen-picker{min-width:0;max-width:none;width:100%}
+  body[data-page="scene"] .scene-editor-screen-picker select{
+    display:block;width:100%;min-width:0;max-width:100%;text-overflow:ellipsis;
+  }
+  body[data-page="scene"] .scene-editor-command-actions{
+    justify-content:flex-end;gap:4px;min-width:0;
+  }
   body[data-page="scene"] .scene-editor-command-actions .button{min-height:34px;padding:4px 8px}
   body[data-page="scene"] .scene-editor-layers-panel,
   body[data-page="scene"] .scene-editor-properties-panel{width:min(90vw,310px)}
