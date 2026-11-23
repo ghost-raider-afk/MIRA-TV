@@ -20,7 +20,7 @@ export async function migrateEntityLifecycle(queryable) {
       occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS catalog_product_history_product_idx
-      ON catalog_product_history (product_id, occurred_at DESC, id DESC);
+      ON catalog_product_history (product_id, id DESC);
 
     -- A legacy creation date is known; the earlier field changes and actor are not.
     INSERT INTO catalog_product_history (product_id, action, actor_username, changes, occurred_at)
@@ -41,9 +41,18 @@ export async function migrateEntityLifecycle(queryable) {
       actor TEXT := COALESCE(NULLIF(current_setting('mira.actor_username', TRUE), ''), 'система');
     BEGIN
       IF TG_OP = 'INSERT' THEN
+        -- A new product gets its full initial snapshot, not only its name.
+        SELECT COALESCE(jsonb_object_agg(attrs.key,
+          jsonb_build_object('before', NULL, 'after', attrs.value)), '{}'::jsonb)
+          INTO diff
+          FROM jsonb_each(to_jsonb(NEW)) AS attrs(key, value)
+         WHERE attrs.key = ANY (ARRAY[
+           'name', 'producer', 'address', 'characteristics', 'strength',
+           'price_primary', 'price_secondary', 'alcoholic',
+           'beverage_color', 'filtration', 'active'
+         ]);
         INSERT INTO catalog_product_history (product_id, action, actor_username, changes, occurred_at)
-        VALUES (NEW.id, 'created', actor,
-                jsonb_build_object('name', jsonb_build_object('before', NULL, 'after', NEW.name)), NEW.created_at);
+        VALUES (NEW.id, 'created', actor, diff, NEW.created_at);
         RETURN NEW;
       END IF;
 
